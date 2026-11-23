@@ -9,6 +9,7 @@ package server
 import (
 	"context"
 	"errors"
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -37,8 +38,14 @@ var (
 // Config configures a Server.
 type Config struct {
 	Seed           uint64
-	Width, Height  int // in tiles; 0 means DefaultWorldSize
-	InterestRadius int // clients receive what is within this many tiles; 0 means default
+	Width, Height  int            // in tiles; 0 means DefaultWorldSize
+	Style          sim.WorldStyle // which generator a new world uses
+	InterestRadius int            // clients receive what is within this many tiles; 0 means default
+
+	// SavePath, if set, is where the world is saved: on request, every
+	// AutosaveEvery, and when Run returns.
+	SavePath      string
+	AutosaveEvery time.Duration // 0 means no autosave
 }
 
 // Server owns the world and the connected clients. All game state is touched
@@ -52,7 +59,10 @@ type Server struct {
 	closed  bool
 
 	running atomic.Bool
+	paused  atomic.Bool
 	peers   []*peer // owned by the Run goroutine
+
+	nextAutosave uint64 // tick of the next autosave; 0 means never
 }
 
 // peer is the server's end of one client connection.
@@ -67,6 +77,55 @@ type peer struct {
 
 // New generates the world and returns a server ready to Run.
 func New(cfg Config) (*Server, error) {
+	cfg = withDefaults(cfg)
+	w, err := sim.Generate(sim.GenConfig{Seed: cfg.Seed, Width: cfg.Width, Height: cfg.Height, Style: cfg.Style})
+	if err != nil {
+		return nil, err
+	}
+	return newServer(cfg, w), nil
+}
+
+// NewFromSave rebuilds the world from a save; cfg's seed and size are
+// replaced by the saved ones.
+func NewFromSave(cfg Config, d sim.SaveData) (*Server, error) {
+	w, err := sim.Load(d)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Seed, cfg.Style = d.Seed, d.Style
+	cfg.Width, cfg.Height = w.Size()
+	return newServer(withDefaults(cfg), w), nil
+}
+
+func newServer(cfg Config, w *sim.World) *Server {
+	s := &Server{cfg: cfg, world: w}
+	s.scheduleAutosave()
+	return s
+}
+
+func (s *Server) scheduleAutosave() {
+	if s.cfg.SavePath == "" || s.cfg.AutosaveEvery <= 0 {
+		return
+	}
+	s.nextAutosave = s.world.Tick() + uint64(max(1, s.cfg.AutosaveEvery/sim.TickDuration))
+}
+
+// Save writes the world to cfg.SavePath now. It must only be called from the
+// Run goroutine or before Run starts.
+func (s *Server) save() error {
+	err := writeSave(s.cfg.SavePath, SaveFile{SavedAt: time.Now(), World: s.world.Save()})
+	if err != nil {
+		log.Printf("save failed: %v", err)
+	}
+	s.scheduleAutosave()
+	return err
+}
+
+// SetPaused freezes or resumes the world clock. Clients stay connected and
+// keep receiving snapshots. Safe to call from any goroutine.
+func (s *Server) SetPaused(p bool) { s.paused.Store(p) }
+
+func withDefaults(cfg Config) Config {
 	if cfg.Width == 0 {
 		cfg.Width = DefaultWorldSize
 	}
@@ -76,11 +135,7 @@ func New(cfg Config) (*Server, error) {
 	if cfg.InterestRadius <= 0 {
 		cfg.InterestRadius = DefaultInterestRadius
 	}
-	w, err := sim.Generate(sim.GenConfig{Seed: cfg.Seed, Width: cfg.Width, Height: cfg.Height})
-	if err != nil {
-		return nil, err
-	}
-	return &Server{cfg: cfg, world: w}, nil
+	return cfg
 }
 
 // Run steps the simulation at sim.TicksPerSecond until ctx is cancelled, then
@@ -108,8 +163,36 @@ func (s *Server) Run(ctx context.Context) error {
 func (s *Server) tick() {
 	s.acceptPending()
 	s.readClients()
-	s.world.Step()
+	if s.paused.Load() {
+		s.broadcast()
+		return
+	}
+	// While everyone sleeps, the night goes by faster.
+	steps := 1
+	if s.world.AllAsleep() {
+		steps = sim.SleepSpeedup
+	}
+	for range steps {
+		s.world.Step()
+	}
 	s.broadcast()
+	if s.nextAutosave != 0 && s.world.Tick() >= s.nextAutosave {
+		s.notifySaved(s.save(), true, nil)
+	}
+}
+
+// notifySaved tells clients the outcome of a save: everyone for an
+// autosave, only the asker otherwise.
+func (s *Server) notifySaved(err error, auto bool, to *peer) {
+	res := protocol.SaveResult{OK: err == nil, Auto: auto}
+	if err != nil {
+		res.Error = err.Error()
+	}
+	for _, p := range s.peers {
+		if p.joined && (to == nil || p == to) {
+			s.send(p, protocol.ServerMsg{Kind: protocol.ServerSaved, Saved: res})
+		}
+	}
 }
 
 func (s *Server) acceptPending() {
@@ -165,13 +248,13 @@ func (s *Server) handle(p *peer, m protocol.ClientMsg) bool {
 		if m.Hello.Version != protocol.Version {
 			return false
 		}
-		p.player = s.world.AddPlayer(m.Hello.Name)
+		p.player = s.world.AddPlayerWithLook(m.Hello.Name, m.Hello.Look)
 		p.joined = true
 		w, h := s.world.Size()
 		// Nothing was sent to p before, so the buffered channel has room.
 		return s.send(p, protocol.ServerMsg{
 			Kind:    protocol.ServerWelcome,
-			Welcome: protocol.Welcome{PlayerID: p.player, Width: w, Height: h, Tiles: s.world.Tiles()},
+			Welcome: protocol.Welcome{PlayerID: p.player, Width: w, Height: h, Tiles: s.world.Tiles(), Explored: s.world.Explored(p.player)},
 		})
 	case protocol.ClientInput:
 		if !p.joined {
@@ -183,6 +266,13 @@ func (s *Server) handle(p *peer, m protocol.ClientMsg) bool {
 			return false
 		}
 		s.world.Apply(p.player, m.Command)
+	case protocol.ClientSave:
+		if !p.joined {
+			return false
+		}
+		if s.cfg.SavePath != "" {
+			s.notifySaved(s.save(), false, p)
+		}
 	default:
 		return false
 	}
@@ -223,6 +313,9 @@ func (s *Server) drop(p *peer) {
 }
 
 func (s *Server) shutdown() {
+	if s.cfg.SavePath != "" {
+		s.save() // players still connected are saved where they stand
+	}
 	s.mu.Lock()
 	s.closed = true
 	pending := s.pending

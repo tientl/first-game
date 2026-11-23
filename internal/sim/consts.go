@@ -16,8 +16,9 @@ const (
 	TickDuration   = time.Second / TicksPerSecond
 )
 
-// DayTicks is the length of one full day/night cycle (4 minutes).
-const DayTicks = 240 * TicksPerSecond
+// DayTicks is the length of one full day/night cycle (8 minutes): about 4½
+// minutes of day, a little over 1 of dusk and nearly 2½ of night.
+const DayTicks = 480 * TicksPerSecond
 
 // Player tuning.
 const (
@@ -28,7 +29,7 @@ const (
 	MaxHunger   = 100.0
 	SpawnHunger = 75.0
 
-	HungerPerTick       = MaxHunger / (2.5 * DayTicks) // full to empty in 2.5 days
+	HungerPerTick       = MaxHunger / (600 * TicksPerSecond) // full to empty in 10 minutes, a day and a quarter
 	StarveDamagePerTick = 1.0 / TicksPerSecond
 	ColdDamagePerTick   = 2.0 / TicksPerSecond
 	RegenPerTick        = 0.25 / TicksPerSecond
@@ -39,22 +40,38 @@ const (
 	ActionCooldownTicks = TicksPerSecond / 2
 	ActingTicks         = 6 // how long a player shows the "working" pose
 
-	MaxStack = 40 // per item kind
+	MaxStack = 40 // per inventory slot
 )
 
-// Resource and structure tuning.
+// Resource and structure tuning. Trees and boulders come small or big: a big
+// one takes more hits and gives more, a little more per hit.
 const (
-	TreeHits    = 3
-	BoulderHits = 4
+	TreeHits       = 2
+	BigTreeHits    = 5
+	BoulderHits    = 3
+	BigBoulderHits = 6
 
-	TreeYield    = 2
-	BoulderYield = 3
-	BushYield    = 2
-	TuftYield    = 1
+	TreeYield       = 2
+	BigTreeYield    = 6
+	BoulderYield    = 2
+	BigBoulderYield = 6
+	BushYield       = 2
+	TuftYield       = 1
+	TwigYield       = 1
+	PebbleYield     = 1
+	CropYield       = 3 // sweet potatoes dug from a ripe crop; one was planted
 
-	TreeRegrowTicks = 2 * DayTicks
-	BushRegrowTicks = 3 * DayTicks / 2
-	TuftRegrowTicks = DayTicks
+	TreeRegrowTicks   = 2 * DayTicks
+	BushRegrowTicks   = 3 * DayTicks / 2
+	TuftRegrowTicks   = DayTicks
+	TwigRegrowTicks   = DayTicks
+	PebbleRegrowTicks = 2 * DayTicks
+
+	// Farming.
+	CropGrowTicks      = DayTicks     // planted to ripe
+	FarmlandDecayTicks = 3 * DayTicks // tilled soil left empty turns back to grass
+	DigWormChance      = 0.25         // tilling turns up a worm...
+	DigPotatoChance    = 0.1          // ...or else, sometimes, a sweet potato
 
 	FireStartFuel   = 90 * TicksPerSecond
 	FireMaxFuel     = 180 * TicksPerSecond

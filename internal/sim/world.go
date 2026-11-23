@@ -14,6 +14,8 @@ type World struct {
 
 	tick     uint64
 	entities map[EntityID]*Entity
+	active   map[EntityID]*Entity    // the entities stepEntities looks at; see active.go
+	chests   map[EntityID]*Inventory // what each chest holds; see chest.go
 	nextEnt  EntityID
 
 	players     map[PlayerID]*Player
@@ -21,6 +23,12 @@ type World struct {
 	nextPlayer  PlayerID
 
 	spawnX, spawnY float64
+
+	seed    uint64                // the GenConfig seed, kept for saving
+	style   WorldStyle            // the GenConfig style, kept for saving
+	offline map[string]PlayerSave // players who left, by name, restored on rejoin
+
+	fauna fauna // animals; see creature.go
 }
 
 func newWorld(width, height int) *World {
@@ -31,7 +39,10 @@ func newWorld(width, height int) *World {
 		occ:      make([]EntityID, width*height),
 		tick:     StartTick,
 		entities: make(map[EntityID]*Entity),
+		active:   make(map[EntityID]*Entity),
+		chests:   make(map[EntityID]*Inventory),
 		players:  make(map[PlayerID]*Player),
+		offline:  make(map[string]PlayerSave),
 	}
 }
 
@@ -106,17 +117,23 @@ func (w *World) canPlace(tx, ty int) bool {
 // canPlace first.
 func (w *World) addEntity(kind EntityKind, tx, ty int) *Entity {
 	w.nextEnt++
-	e := &Entity{ID: w.nextEnt, Kind: kind, TX: tx, TY: ty, HP: maxHP(kind), Ready: true}
-	if kind == EntityCampfire {
+	e := &Entity{ID: w.nextEnt, Kind: kind, TX: tx, TY: ty, HP: maxHP(kind, false), Ready: true}
+	switch kind {
+	case EntityCampfire:
 		e.Fuel = FireStartFuel
+	case EntityChest:
+		w.chests[e.ID] = &Inventory{}
 	}
 	w.entities[e.ID] = e
 	w.occ[ty*w.width+tx] = e.ID
+	w.watch(e)
 	return e
 }
 
 func (w *World) removeEntity(e *Entity) {
 	delete(w.entities, e.ID)
+	delete(w.active, e.ID)
+	delete(w.chests, e.ID)
 	w.occ[e.TY*w.width+e.TX] = 0
 }
 
@@ -129,7 +146,8 @@ func (w *World) standable(x, y float64) bool {
 }
 
 func (w *World) walkableAt(x, y float64) bool {
-	return w.TileAt(int(math.Floor(x)), int(math.Floor(y))).Walkable()
+	tx, ty := int(math.Floor(x)), int(math.Floor(y))
+	return w.TileAt(tx, ty).Walkable() && !w.blocked(tx, ty)
 }
 
 // Step advances the world by one tick.
@@ -139,37 +157,59 @@ func (w *World) Step() {
 		w.stepPlayer(w.players[id])
 	}
 	w.stepEntities()
+	w.stepCreatures()
 }
 
 func (w *World) stepEntities() {
-	for _, e := range w.entities {
+	if w.tick%activeSweepTicks == 0 {
+		w.watchAll() // the safety net; see active.go
+	}
+	for _, e := range w.active {
+		if !needsTick(e) {
+			delete(w.active, e.ID) // settled: nothing more to do over time
+			continue
+		}
 		switch e.Kind {
-		case EntityTree, EntityBerryBush, EntityGrassTuft:
+		case EntityTree, EntityBerryBush, EntityGrassTuft, EntityTwig, EntityPebble, EntityCrop,
+			EntityCactus, EntityReed, EntityMushroom, EntityClam:
 			if !e.Ready && w.tick >= e.RegrowAt {
-				e.Ready = true
-				e.HP = maxHP(e.Kind)
+				e.Ready = true // for a crop: ripe
+				e.HP = maxHP(e.Kind, e.Big)
+			}
+		case EntityFarmland:
+			if w.tick >= e.RegrowAt {
+				w.removeEntity(e) // left empty: grass again
 			}
 		case EntityCampfire:
 			e.Fuel--
 			if e.Fuel <= 0 {
 				w.removeEntity(e) // deleting during range is safe in Go
 			}
+		case EntityFurnace:
+			if e.Fuel > 0 {
+				e.Fuel-- // a cold furnace stays, waiting for fuel
+			}
 		}
 	}
 }
 
-// nearFire reports whether (x, y) is inside the light of any burning campfire.
+// nearFire reports whether (x, y) is inside the light of any burning campfire,
+// or beside a lit furnace: both warm and cook.
 func (w *World) nearFire(x, y float64) bool {
 	reach := int(math.Ceil(MaxFireRadius))
 	cx, cy := int(math.Floor(x)), int(math.Floor(y))
 	for ty := cy - reach; ty <= cy+reach; ty++ {
 		for tx := cx - reach; tx <= cx+reach; tx++ {
 			e := w.entityAt(tx, ty)
-			if e == nil || e.Kind != EntityCampfire {
+			if e == nil {
+				continue
+			}
+			r, ok := FireReach(e.Kind, e.Fuel)
+			if !ok {
 				continue
 			}
 			dx, dy := float64(tx)+0.5-x, float64(ty)+0.5-y
-			if r := FireRadius(e.Fuel); dx*dx+dy*dy <= r*r {
+			if dx*dx+dy*dy <= r*r {
 				return true
 			}
 		}

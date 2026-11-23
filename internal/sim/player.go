@@ -19,13 +19,17 @@ const MaxNameRunes = 16
 type Player struct {
 	ID     PlayerID
 	Name   string
+	Look   Look    // body and hair, chosen when the character was made
 	X, Y   float64 // centre, in tiles
 	Dir    Dir
 	Health float64
 	Hunger float64
 	Inv    Inventory
-	Dead   bool
-	Cold   bool // freezing this tick
+	// Selected is the hotbar slot the player holds, 0 to HotbarSlots-1.
+	Selected int
+	Dead     bool
+	Cold     bool // freezing this tick
+	Asleep   bool // in bed; see stepAsleep
 
 	// The latest notice for this player. NoticeSeq increases on every new
 	// notice so the client can tell a repeat of the same message apart.
@@ -33,15 +37,30 @@ type Player struct {
 	NoticeArg uint8
 	NoticeSeq uint32
 
-	input    Input
-	actionCD int    // ticks until the next action is allowed
-	actedAt  uint64 // tick of the last action; 0 = never
+	explored *Explored // the tiles this player has seen, for the map
+
+	input     Input
+	actionCD  int      // ticks until the next action is allowed
+	actedAt   uint64   // tick of the last action; 0 = never
+	torchFuel int      // ticks left on the torch being burnt; 0 = none lit
+	bed       EntityID // the bed slept in
+	line      line     // the fishing line, while it is out; see fishing.go
+	pressed   bool     // Action went down since the last tick, even if already released
+	chest     EntityID // the chest open, 0 when none; see chest.go
 }
 
 // Acting reports whether the player did an action recently enough to show
 // the working pose at tick.
 func (p *Player) Acting(tick uint64) bool {
 	return p.actedAt != 0 && tick-p.actedAt < ActingTicks
+}
+
+// Held returns the kind of item in the selected hotbar slot, or ItemNone.
+func (p *Player) Held() ItemKind {
+	if s := p.Inv[p.Selected]; !s.Empty() {
+		return s.Item
+	}
+	return ItemNone
 }
 
 func (p *Player) notify(kind NoticeKind, arg uint8) {
@@ -57,10 +76,13 @@ func (p *Player) reset(x, y float64) {
 	p.Inv = Inventory{}
 	p.Dead = false
 	p.Cold = false
+	p.wake()
+	p.torchFuel = 0
 	p.actionCD = 0
 	p.actedAt = 0
-	// input is kept: it mirrors what the client is holding right now, and the
-	// client only resends it when it changes.
+	p.line = line{}
+	// input and Selected are kept: they mirror what the client is holding
+	// right now, and the client only resends them when they change.
 }
 
 // cleanName trims a client-supplied name, drops invalid UTF-8 and control
@@ -82,15 +104,25 @@ func cleanName(name string) string {
 
 // AddPlayer creates a player at the spawn point and returns its id. An empty
 // name is replaced by a generated one.
-func (w *World) AddPlayer(name string) PlayerID {
+func (w *World) AddPlayer(name string) PlayerID { return w.AddPlayerWithLook(name, Look{}) }
+
+// AddPlayerWithLook is AddPlayer for a player who made a character that
+// looks like l. A player coming back to a saved world keeps the saved look.
+func (w *World) AddPlayerWithLook(name string, l Look) PlayerID {
 	w.nextPlayer++
 	id := w.nextPlayer
 	name = cleanName(name)
 	if name == "" {
 		name = "Người chơi " + strconv.Itoa(int(id))
 	}
-	p := &Player{ID: id, Name: name}
+	p := &Player{ID: id, Name: name, Look: l.Sanitized()}
 	p.reset(w.spawnX, w.spawnY)
+	p.explored = NewExplored(w.width, w.height)
+	if ps, ok := w.offline[name]; ok {
+		w.restorePlayer(p, ps)
+		delete(w.offline, name)
+	}
+	p.explored.Reveal(p.X, p.Y)
 	w.players[id] = p
 	w.playerOrder = append(w.playerOrder, id) // ids only grow, so this stays sorted
 	return id
@@ -98,9 +130,11 @@ func (w *World) AddPlayer(name string) PlayerID {
 
 // RemovePlayer deletes a player. Unknown ids are ignored.
 func (w *World) RemovePlayer(id PlayerID) {
-	if _, ok := w.players[id]; !ok {
+	p, ok := w.players[id]
+	if !ok {
 		return
 	}
+	w.offline[p.Name] = savePlayer(p) // kept so the player resumes on rejoin
 	delete(w.players, id)
 	if i, found := slices.BinarySearch(w.playerOrder, id); found {
 		w.playerOrder = slices.Delete(w.playerOrder, i, i+1)
@@ -130,7 +164,11 @@ func (w *World) Players() []Player {
 // is dead, so a key held through a respawn keeps working.
 func (w *World) SetInput(id PlayerID, in Input) {
 	if p, ok := w.players[id]; ok {
-		p.input = in.sanitized()
+		in = in.sanitized()
+		if in.Action && !p.input.Action {
+			p.pressed = true // kept for the next step, so a quick tap is not lost
+		}
+		p.input = in
 	}
 }
 
@@ -143,11 +181,27 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 	switch cmd.Kind {
 	case CmdEat:
 		if !p.Dead {
-			w.eat(p, cmd.Item)
+			w.eat(p, int(cmd.Slot))
+		}
+	case CmdSelect:
+		if IsHotbar(int(cmd.Slot)) {
+			p.Selected = int(cmd.Slot) // allowed while dead: it is only which slot is picked
+		}
+	case CmdMoveSlot:
+		if !p.Dead {
+			p.Inv.Move(int(cmd.Slot), int(cmd.To))
+		}
+	case CmdQuickMove:
+		if !p.Dead {
+			p.Inv.QuickMove(int(cmd.Slot))
 		}
 	case CmdCraft:
 		if !p.Dead {
 			w.craft(p, cmd.Recipe)
+		}
+	case CmdChestPut, CmdChestTake, CmdChestClose, CmdChestTakeDown:
+		if !p.Dead {
+			w.chestCommand(p, cmd)
 		}
 	case CmdRespawn:
 		if p.Dead {
@@ -157,13 +211,22 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 }
 
 func (w *World) stepPlayer(p *Player) {
+	pressed := p.pressed
+	p.pressed = false
+	w.keepChest(p)
 	if p.Dead {
 		return
 	}
+	if p.Asleep {
+		w.stepAsleep(p)
+		return
+	}
 
-	if mx, my := float64(p.input.MoveX), float64(p.input.MoveY); mx != 0 || my != 0 {
+	moving := p.input.MoveX != 0 || p.input.MoveY != 0
+	if mx, my := float64(p.input.MoveX), float64(p.input.MoveY); moving {
 		l := math.Hypot(mx, my)
-		dx, dy := mx/l*PlayerSpeed, my/l*PlayerSpeed
+		sp := PlayerSpeed * w.speedAt(p.X, p.Y)
+		dx, dy := mx/l*sp, my/l*sp
 		// Resolve each axis on its own so the player slides along coasts.
 		if w.standable(p.X+dx, p.Y) {
 			p.X += dx
@@ -173,21 +236,38 @@ func (w *World) stepPlayer(p *Player) {
 		}
 		p.Dir = dirToward(mx, my)
 	}
+	p.explored.Reveal(p.X, p.Y)
 
 	if p.actionCD > 0 {
 		p.actionCD--
 	}
-	if p.input.Action && p.actionCD == 0 {
-		if e := w.findTarget(p); e != nil {
+	if p.line.state != CastNone {
+		w.stepLine(p, pressed, moving) // fishing: Action strikes instead
+	} else if (p.input.Action || pressed) && p.actionCD == 0 {
+		acted, found := false, true
+		switch e, c := w.findTarget(p); {
+		case w.dig(p): // a held hoe tills the free soil in front before anything else
+			acted = true
+		case c != nil:
+			p.Dir = dirToward(c.X-p.X, c.Y-p.Y)
+			acted = w.catch(p, c)
+		case e != nil:
 			p.Dir = dirToward(float64(e.TX)+0.5-p.X, float64(e.TY)+0.5-p.Y)
-			w.interact(p, e)
+			acted = w.interact(p, e)
+		default:
+			found = false
+		}
+		if found {
+			if acted {
+				p.actedAt = w.tick // a refused action (no axe, full bag) is no swing
+			}
 			p.actionCD = ActionCooldownTicks
-			p.actedAt = w.tick
 		}
 	}
 
+	w.burnTorch(p)
 	p.Hunger = max(0, p.Hunger-HungerPerTick)
-	p.Cold = Ambient(w.tick) < ColdAmbient && !w.nearFire(p.X, p.Y)
+	p.Cold = Ambient(w.tick) < ColdAmbient && !w.warm(p.X, p.Y)
 	damage := 0.0
 	if p.Hunger == 0 {
 		damage += StarveDamagePerTick
@@ -208,18 +288,22 @@ func (w *World) stepPlayer(p *Player) {
 }
 
 // findTarget returns the entity the player's Action would hit, or nil.
-func (w *World) findTarget(p *Player) *Entity {
-	id, ok := NearestTarget(p.X, p.Y, p.Inv[ItemWood] > 0, func(tx, ty int) (TargetCandidate, bool) {
+func (w *World) findTarget(p *Player) (*Entity, *Creature) {
+	t, ok := PickTarget(p.X, p.Y, p.Inv.HasFuel(), func(tx, ty int) (TargetCandidate, bool) {
 		e := w.entityAt(tx, ty)
 		if e == nil {
 			return TargetCandidate{}, false
 		}
 		return TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready}, true
-	})
-	if !ok {
-		return nil
+	}, w.creatureCandidates(p.X, p.Y), p.reachBonus())
+	switch {
+	case !ok:
+		return nil, nil
+	case t.Creature != 0:
+		return nil, w.creatureByID(t.Creature)
+	default:
+		return w.entities[t.Entity], nil
 	}
-	return w.entities[id]
 }
 
 // TargetCandidate is what targeting needs to know about the entity on a tile.
@@ -234,6 +318,12 @@ type TargetCandidate struct {
 // The server uses it to resolve Action and the client to highlight the same
 // entity; at returns the entity on a tile, ok=false when the tile is empty.
 func NearestTarget(x, y float64, hasWood bool, at func(tx, ty int) (TargetCandidate, bool)) (EntityID, bool) {
+	id, _, ok := nearestEntity(x, y, hasWood, at)
+	return id, ok
+}
+
+// nearestEntity is NearestTarget that also returns the squared distance.
+func nearestEntity(x, y float64, hasWood bool, at func(tx, ty int) (TargetCandidate, bool)) (EntityID, float64, bool) {
 	reach := int(math.Ceil(InteractReach))
 	cx, cy := int(math.Floor(x)), int(math.Floor(y))
 	var (
@@ -257,66 +347,136 @@ func NearestTarget(x, y float64, hasWood bool, at func(tx, ty int) (TargetCandid
 			}
 		}
 	}
-	return bestID, found
+	return bestID, bestDist, found
 }
 
-// interact performs one hit of work by p on e.
-func (w *World) interact(p *Player, e *Entity) {
+// interact performs one hit of work by p on e and reports whether any work
+// was done (false: refused, the player does not swing).
+func (w *World) interact(p *Player, e *Entity) bool {
+	if o, ok := oreOf(e.Kind); ok {
+		return w.mine(p, e, o)
+	}
+	// withTool is the damage of p's best tool of class c, or 0 (refused,
+	// with a notice) when p has none.
+	withTool := func(c ToolClass) int {
+		t, ok := p.Inv.BestTool(c)
+		if !ok {
+			p.notify(NoticeNeedTool, uint8(ToolItem(c, TierStone)))
+			return 0
+		}
+		return ToolPower(t)
+	}
 	switch e.Kind {
 	case EntityTree:
-		w.harvest(p, e, ItemWood, TreeYield, func() {
-			e.Ready = false // stump until it regrows
+		dmg := withTool(ToolAxe)
+		return dmg > 0 && w.harvest(p, e, ItemWood, bySize(e.Big, TreeYield, BigTreeYield), dmg, func() {
+			e.Ready = false // stump until it regrows, at the same size
 			e.RegrowAt = w.tick + TreeRegrowTicks
 		})
 	case EntityBoulder:
-		w.harvest(p, e, ItemStone, BoulderYield, func() { w.removeEntity(e) })
+		dmg := withTool(ToolPickaxe)
+		return dmg > 0 && w.harvest(p, e, ItemStone, bySize(e.Big, BoulderYield, BigBoulderYield), dmg, func() { w.removeEntity(e) })
+	case EntityWall:
+		dmg := withTool(ToolAxe)
+		return dmg > 0 && w.harvest(p, e, ItemWood, WallRefund, dmg, func() { w.removeEntity(e) })
+	case EntityStoneWall:
+		dmg := withTool(ToolPickaxe)
+		return dmg > 0 && w.harvest(p, e, ItemStone, StoneWallRefund, dmg, func() { w.removeEntity(e) })
+	case EntityBed:
+		return w.sleep(p, e)
+	case EntityChest:
+		return w.openChest(p, e)
 	case EntityBerryBush:
-		w.harvest(p, e, ItemBerry, BushYield, func() {
+		return w.harvest(p, e, ItemBerry, BushYield, HitPower, func() {
 			e.Ready = false
 			e.RegrowAt = w.tick + BushRegrowTicks
 		})
 	case EntityGrassTuft:
-		w.harvest(p, e, ItemGrass, TuftYield, func() {
+		return w.harvest(p, e, ItemGrass, TuftYield, HitPower, func() {
 			e.Ready = false
 			e.RegrowAt = w.tick + TuftRegrowTicks
 		})
+	case EntityClam:
+		return w.harvest(p, e, ItemClam, ClamYield, HitPower, func() {
+			e.Ready = false // the tide brings more
+			e.RegrowAt = w.tick + ClamRegrowTicks
+		})
+	case EntityTwig:
+		return w.harvest(p, e, ItemStick, TwigYield, HitPower, func() {
+			e.Ready = false // gone until another branch falls here
+			e.RegrowAt = w.tick + TwigRegrowTicks
+		})
+	case EntityPebble:
+		return w.harvest(p, e, ItemPebble, PebbleYield, HitPower, func() {
+			e.Ready = false // gone until the ground turns up another
+			e.RegrowAt = w.tick + PebbleRegrowTicks
+		})
+	case EntityFarmland:
+		return w.plant(p, e)
+	case EntityCrop:
+		return w.harvest(p, e, ItemPotato, CropYield, HitPower, func() {
+			e.Kind, e.Ready = EntityFarmland, true // dug up: the bed is free again
+			e.RegrowAt = w.tick + FarmlandDecayTicks
+		})
 	case EntityCampfire:
-		if p.Inv[ItemWood] == 0 {
-			p.notify(NoticeNoneLeft, uint8(ItemWood))
-			return
-		}
-		p.Inv[ItemWood]--
-		e.Fuel = min(FireMaxFuel, e.Fuel+FireFuelPerWood)
+		return w.stoke(p, e, FireMaxFuel) // coal first: it burns longest
+	case EntityFurnace:
+		return w.stoke(p, e, FurnaceMaxFuel)
+	case EntityCactus:
+		dmg := withTool(ToolAxe)
+		return dmg > 0 && w.harvest(p, e, ItemCactus, CactusYield, dmg, func() {
+			e.Ready = false
+			e.RegrowAt = w.tick + CactusRegrowTicks
+		})
+	case EntityReed:
+		return w.harvest(p, e, ItemGrass, ReedYield, HitPower, func() {
+			e.Ready = false
+			e.RegrowAt = w.tick + ReedRegrowTicks
+		})
+	case EntityMushroom:
+		return w.harvest(p, e, ItemMushroom, MushroomYield, HitPower, func() {
+			e.Ready = false
+			e.RegrowAt = w.tick + MushroomRegrowTick
+		})
+	case EntityCoal:
+		dmg := withTool(ToolPickaxe)
+		return dmg > 0 && w.harvest(p, e, ItemCoal, CoalYield, dmg, func() { w.removeEntity(e) })
 	}
+	return false
 }
 
 // harvest lands one hit on e. When the last hit lands, the yield goes to the
 // player and done updates the entity. A hit is refused while the yield cannot
 // fit, so a full bag never destroys resources.
-func (w *World) harvest(p *Player, e *Entity, item ItemKind, yield int, done func()) {
+func (w *World) harvest(p *Player, e *Entity, item ItemKind, yield, dmg int, done func()) bool {
 	if p.Inv.Room(item) < yield {
 		p.notify(NoticeBagFull, uint8(item))
-		return
+		return false
 	}
-	e.HP--
+	e.HP -= dmg
 	if e.HP > 0 {
-		return
+		return true
 	}
 	p.Inv.Add(item, yield)
 	done()
+	w.watch(e) // it may now be regrowing, or turned into something that ticks
+	return true
 }
 
-func (w *World) eat(p *Player, item ItemKind) {
-	switch {
-	case !item.Valid() || !item.Edible():
-		p.notify(NoticeNotEdible, uint8(item))
-	case p.Inv[item] == 0:
-		p.notify(NoticeNoneLeft, uint8(item))
+// eat eats one of what is in slot i.
+func (w *World) eat(p *Player, i int) {
+	if !ValidSlot(i) {
+		return // garbage from the network
+	}
+	switch s := p.Inv[i]; {
+	case s.Empty() || !s.Item.Edible():
+		p.notify(NoticeNotEdible, uint8(s.Item))
 	default:
-		def := item.Def()
-		p.Inv[item]--
+		def := s.Item.Def()
+		p.Inv.TakeSlot(i, 1)
 		p.Hunger = min(MaxHunger, p.Hunger+def.Hunger)
-		p.Health = min(MaxHealth, p.Health+def.Health)
+		// Raw food hurts a little, but a meal never kills.
+		p.Health = min(MaxHealth, max(p.Health+def.Health, min(p.Health, 1)))
 	}
 }
 
@@ -325,8 +485,32 @@ func (w *World) craft(p *Player, id RecipeID) {
 	if !ok {
 		return
 	}
+	if r.Gives.Valid() && r.Gives.Def().Tool && p.Inv.Count(r.Gives) > 0 {
+		p.notify(NoticeHaveOne, uint8(r.Gives))
+		return
+	}
 	if !p.Inv.HasAll(r.Inputs) {
 		p.notify(NoticeNotEnough, uint8(id))
+		return
+	}
+	if r.NearFire && !w.nearFire(p.X, p.Y) {
+		p.notify(NoticeNeedFire, uint8(id))
+		return
+	}
+	if r.NearFurnace && !w.nearFurnace(p.X, p.Y) {
+		p.notify(NoticeNeedFurnace, uint8(id))
+		return
+	}
+	if r.Gives.Valid() {
+		// The ingredients go first, so the slot they free can take the result.
+		after := p.Inv
+		after.TakeAll(r.Inputs)
+		if after.Add(r.Gives, 1) == 0 {
+			p.notify(NoticeBagFull, uint8(r.Gives))
+			return
+		}
+		p.Inv = after
+		p.notify(NoticeCrafted, uint8(id))
 		return
 	}
 	tx, ty, ok := w.placeSpot(p)

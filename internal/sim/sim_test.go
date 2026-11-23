@@ -84,13 +84,14 @@ func TestChoppingATree(t *testing.T) {
 	w := flatWorld()
 	tree := w.addEntity(EntityTree, 17, 16) // right next to spawn
 	id := w.AddPlayer("a")
+	w.players[id].Inv.Add(ItemAxe, 1)
 	w.SetInput(id, Input{Action: true})
 
 	// Hits land on the first tick and then every ActionCooldownTicks.
 	stepN(w, 1+(TreeHits-1)*ActionCooldownTicks)
 	p := mustPlayer(t, w, id)
-	if p.Inv[ItemWood] != TreeYield {
-		t.Fatalf("wood = %d, want %d", p.Inv[ItemWood], TreeYield)
+	if p.Inv.Count(ItemWood) != TreeYield {
+		t.Fatalf("wood = %d, want %d", p.Inv.Count(ItemWood), TreeYield)
 	}
 	if tree.Ready {
 		t.Fatal("tree should be a stump after the last hit")
@@ -101,14 +102,14 @@ func TestChoppingATree(t *testing.T) {
 
 	// A stump is not a target: holding Action does nothing more.
 	stepN(w, 5*ActionCooldownTicks)
-	if p := mustPlayer(t, w, id); p.Inv[ItemWood] != TreeYield {
-		t.Fatalf("wood = %d after chopping a stump, want %d", p.Inv[ItemWood], TreeYield)
+	if p := mustPlayer(t, w, id); p.Inv.Count(ItemWood) != TreeYield {
+		t.Fatalf("wood = %d after chopping a stump, want %d", p.Inv.Count(ItemWood), TreeYield)
 	}
 
 	w.RemovePlayer(id) // keep the regrow wait free of night-time deaths
 	stepN(w, TreeRegrowTicks)
-	if !tree.Ready || tree.HP != TreeHits {
-		t.Fatalf("tree after regrow: ready=%v hp=%d, want ready with %d hp", tree.Ready, tree.HP, TreeHits)
+	if !tree.Ready || tree.HP != maxHP(EntityTree, false) {
+		t.Fatalf("tree after regrow: ready=%v hp=%d, want ready with %d hp", tree.Ready, tree.HP, maxHP(EntityTree, false))
 	}
 }
 
@@ -116,11 +117,12 @@ func TestBoulderIsRemovedWhenMined(t *testing.T) {
 	w := flatWorld()
 	w.addEntity(EntityBoulder, 16, 17)
 	id := w.AddPlayer("a")
+	w.players[id].Inv.Add(ItemPickaxe, 1)
 	w.SetInput(id, Input{Action: true})
 	stepN(w, 1+(BoulderHits-1)*ActionCooldownTicks)
 
-	if p := mustPlayer(t, w, id); p.Inv[ItemStone] != BoulderYield {
-		t.Fatalf("stone = %d, want %d", p.Inv[ItemStone], BoulderYield)
+	if p := mustPlayer(t, w, id); p.Inv.Count(ItemStone) != BoulderYield {
+		t.Fatalf("stone = %d, want %d", p.Inv.Count(ItemStone), BoulderYield)
 	}
 	if _, ok := w.EntityAt(16, 17); ok {
 		t.Fatal("boulder still on its tile")
@@ -131,13 +133,17 @@ func TestFullBagRefusesTheHarvest(t *testing.T) {
 	w := flatWorld()
 	bush := w.addEntity(EntityBerryBush, 17, 16)
 	id := w.AddPlayer("a")
-	w.players[id].Inv[ItemBerry] = MaxStack - 1 // room for 1, the bush yields 2
+	// Every slot is taken and the berry stack has room for 1; the bush yields 2.
+	for i := range w.players[id].Inv {
+		w.players[id].Inv[i] = Slot{ItemStone, MaxStack}
+	}
+	w.players[id].Inv[3] = Slot{ItemBerry, MaxStack - 1}
 	w.SetInput(id, Input{Action: true})
 	w.Step()
 
 	p := mustPlayer(t, w, id)
-	if p.Inv[ItemBerry] != MaxStack-1 || !bush.Ready {
-		t.Fatalf("berries=%d ready=%v, want the harvest refused", p.Inv[ItemBerry], bush.Ready)
+	if p.Inv.Count(ItemBerry) != MaxStack-1 || !bush.Ready {
+		t.Fatalf("berries=%d ready=%v, want the harvest refused", p.Inv.Count(ItemBerry), bush.Ready)
 	}
 	if p.Notice != NoticeBagFull || ItemKind(p.NoticeArg) != ItemBerry || p.NoticeSeq == 0 {
 		t.Fatalf("notice = %v/%d seq %d, want bag full for berries", p.Notice, p.NoticeArg, p.NoticeSeq)
@@ -189,7 +195,7 @@ func TestCraftingACampfire(t *testing.T) {
 		t.Fatalf("notice = %v, want not enough", p.Notice)
 	}
 
-	w.players[id].Inv = Inventory{ItemWood: 5, ItemGrass: 2, ItemStone: 3}
+	w.players[id].Inv = InventoryWith(Ingredient{ItemWood, 5}, Ingredient{ItemGrass, 2}, Ingredient{ItemStone, 3})
 	w.players[id].Dir = DirUp
 	w.Apply(id, Command{Kind: CmdCraft, Recipe: RecipeCampfire})
 
@@ -197,7 +203,7 @@ func TestCraftingACampfire(t *testing.T) {
 	if p.Notice != NoticeCrafted {
 		t.Fatalf("notice = %v, want crafted", p.Notice)
 	}
-	if want := (Inventory{ItemWood: 3}); p.Inv != want {
+	if want := InventoryWith(Ingredient{ItemWood, 3}); p.Inv != want {
 		t.Fatalf("inventory = %v, want %v", p.Inv, want)
 	}
 	fire, ok := w.EntityAt(16, 15) // the tile the player faces
@@ -209,8 +215,8 @@ func TestCraftingACampfire(t *testing.T) {
 	w.SetInput(id, Input{Action: true})
 	w.Step()
 	fire, _ = w.EntityAt(16, 15)
-	if p := mustPlayer(t, w, id); p.Inv[ItemWood] != 2 {
-		t.Fatalf("wood = %d after refuelling, want 2", p.Inv[ItemWood])
+	if p := mustPlayer(t, w, id); p.Inv.Count(ItemWood) != 2 {
+		t.Fatalf("wood = %d after refuelling, want 2", p.Inv.Count(ItemWood))
 	}
 	if want := FireStartFuel + FireFuelPerWood - 1; fire.Fuel != want {
 		t.Fatalf("fuel = %d, want %d", fire.Fuel, want)
@@ -224,7 +230,7 @@ func TestCraftingWithNoSpaceKeepsTheIngredients(t *testing.T) {
 		w.tiles[(16+dy)*w.width+16+dx] = TileWater
 	}
 	id := w.AddPlayer("a")
-	inv := Inventory{ItemWood: 2, ItemGrass: 2, ItemStone: 3}
+	inv := InventoryWith(Ingredient{ItemWood, 2}, Ingredient{ItemGrass, 2}, Ingredient{ItemStone, 3})
 	w.players[id].Inv = inv
 	w.Apply(id, Command{Kind: CmdCraft, Recipe: RecipeCampfire})
 
@@ -275,26 +281,31 @@ func TestNightColdKillsWithoutFire(t *testing.T) {
 func TestEating(t *testing.T) {
 	w := flatWorld()
 	id := w.AddPlayer("a")
-	w.players[id].Inv[ItemBerry] = 1
+	w.players[id].Inv[2] = Slot{ItemStone, 1}
+	w.players[id].Inv[HotbarSlots+1] = Slot{ItemBerry, 2}
 	w.players[id].Hunger = 50
 
-	w.Apply(id, Command{Kind: CmdEat, Item: ItemBerry})
+	w.Apply(id, Command{Kind: CmdEat, Slot: HotbarSlots + 1})
 	p := mustPlayer(t, w, id)
-	if p.Inv[ItemBerry] != 0 || p.Hunger != 50+ItemBerry.Def().Hunger {
-		t.Fatalf("berries=%d hunger=%.1f after eating", p.Inv[ItemBerry], p.Hunger)
+	if p.Inv.Count(ItemBerry) != 1 || p.Hunger != 50+ItemBerry.Def().Hunger {
+		t.Fatalf("berries=%d hunger=%.1f after eating", p.Inv.Count(ItemBerry), p.Hunger)
+	}
+	w.Apply(id, Command{Kind: CmdEat, Slot: HotbarSlots + 1})
+	if p := mustPlayer(t, w, id); !p.Inv[HotbarSlots+1].Empty() {
+		t.Fatalf("slot after eating the last berry = %v, want empty", p.Inv[HotbarSlots+1])
 	}
 
-	w.Apply(id, Command{Kind: CmdEat, Item: ItemBerry})
-	if p := mustPlayer(t, w, id); p.Notice != NoticeNoneLeft {
-		t.Fatalf("notice = %v, want none left", p.Notice)
+	seq := mustPlayer(t, w, id).NoticeSeq
+	for _, slot := range []uint8{HotbarSlots + 1, 2} { // now empty; a stone
+		w.Apply(id, Command{Kind: CmdEat, Slot: slot})
+		if p := mustPlayer(t, w, id); p.Notice != NoticeNotEdible || p.NoticeSeq != seq+1 {
+			t.Fatalf("eating slot %d: notice = %v, want not edible", slot, p.Notice)
+		}
+		seq++
 	}
-	w.Apply(id, Command{Kind: CmdEat, Item: ItemStone})
-	if p := mustPlayer(t, w, id); p.Notice != NoticeNotEdible {
-		t.Fatalf("notice = %v, want not edible", p.Notice)
-	}
-	w.Apply(id, Command{Kind: CmdEat, Item: 200}) // garbage from the network
-	if p := mustPlayer(t, w, id); p.Notice != NoticeNotEdible {
-		t.Fatalf("notice = %v, want not edible for an invalid item", p.Notice)
+	w.Apply(id, Command{Kind: CmdEat, Slot: 200}) // garbage from the network
+	if p := mustPlayer(t, w, id); p.NoticeSeq != seq || p.Inv.Count(ItemStone) != 1 || p.Hunger != 50+2*ItemBerry.Def().Hunger {
+		t.Fatalf("an out-of-range slot changed the player: %+v", p)
 	}
 }
 
@@ -313,7 +324,7 @@ func TestRespawnKeepsHeldInput(t *testing.T) {
 	id := w.AddPlayer("a")
 	w.players[id].Health = StarveDamagePerTick / 2
 	w.players[id].Hunger = 0
-	w.players[id].Inv[ItemWood] = 7
+	w.players[id].Inv.Add(ItemWood, 7)
 	w.Step()
 	if p := mustPlayer(t, w, id); !p.Dead {
 		t.Fatal("player should have died")

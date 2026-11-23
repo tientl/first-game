@@ -10,6 +10,7 @@ import (
 type GenConfig struct {
 	Seed          uint64
 	Width, Height int
+	Style         WorldStyle // StyleIsland (the zero value) or one of the open-world styles
 }
 
 // World size limits. The upper bound keeps tile coordinates inside int16 for
@@ -29,6 +30,12 @@ const (
 	rockLine   = 0.66 // rock noise above this is rocky ground
 
 	clearSpawnRadius = 2 // tiles kept free of entities around the spawn
+
+	// Share of trees and boulders that are big. Old forest grows the big trees;
+	// out in the open most trees are young.
+	bigForestTree = 0.35
+	bigGrassTree  = 0.15
+	bigBoulder    = 0.3
 )
 
 // Generate builds a new island world from cfg. The same config always yields
@@ -40,14 +47,33 @@ func Generate(cfg GenConfig) (*World, error) {
 			cfg.Width, cfg.Height, MinWorldSize, MaxWorldSize)
 	}
 	w := newWorld(cfg.Width, cfg.Height)
+	w.seed = cfg.Seed
+	w.style = cfg.Style
 	seed := uint32(cfg.Seed) ^ uint32(cfg.Seed>>32)
 	rng := rand.New(rand.NewPCG(cfg.Seed, 0x5eed5eed))
 
+	if cfg.Style != StyleIsland {
+		sx, sy := w.openTerrain(seed)
+		w.scatterOpen(rng, rand.New(rand.NewPCG(cfg.Seed, 0xb16b16)))
+		w.scatterPebbles(rand.New(rand.NewPCG(cfg.Seed, 0x9ebb1e)))
+		w.scatterOres(rand.New(rand.NewPCG(cfg.Seed, 0x0de5)))
+		w.spawnX, w.spawnY = float64(sx)+0.5, float64(sy)+0.5
+		w.clearAround(sx, sy, clearSpawnRadius)
+		w.starterKit(rng)
+		w.spawnCreatures()
+		return w, nil
+	}
+
 	w.generateTerrain(seed)
-	w.scatterEntities(rng)
+	// Sizes come from their own stream so they do not shift what rng places.
+	w.scatterEntities(rng, rand.New(rand.NewPCG(cfg.Seed, 0xb16b16)))
+	w.scatterPebbles(rand.New(rand.NewPCG(cfg.Seed, 0x9ebb1e)))
+	w.scatterOres(rand.New(rand.NewPCG(cfg.Seed, 0x0de5)))
 	if err := w.pickSpawn(); err != nil {
 		return nil, err
 	}
+	w.starterKit(rng)
+	w.spawnCreatures()
 	return w, nil
 }
 
@@ -80,25 +106,59 @@ func (w *World) generateTerrain(seed uint32) {
 	}
 }
 
-func (w *World) scatterEntities(rng *rand.Rand) {
+func (w *World) scatterEntities(rng, sizeRng *rand.Rand) {
 	for ty := 0; ty < w.height; ty++ {
 		for tx := 0; tx < w.width; tx++ {
 			r := rng.Float64()
 			var kind EntityKind
-			switch w.tiles[ty*w.width+tx] {
+			tile := w.tiles[ty*w.width+tx]
+			switch tile {
 			case TileForest:
-				kind = pick(r, chance{EntityTree, 0.38}, chance{EntityBerryBush, 0.03}, chance{EntityGrassTuft, 0.03})
+				kind = pick(r, chance{EntityTree, 0.38}, chance{EntityBerryBush, 0.03}, chance{EntityGrassTuft, 0.03}, chance{EntityTwig, 0.035})
 			case TileGrass:
-				kind = pick(r, chance{EntityTree, 0.04}, chance{EntityGrassTuft, 0.08}, chance{EntityBerryBush, 0.03})
+				kind = pick(r, chance{EntityTree, 0.04}, chance{EntityGrassTuft, 0.08}, chance{EntityBerryBush, 0.03}, chance{EntityTwig, 0.015})
 			case TileRocky:
 				kind = pick(r, chance{EntityBoulder, 0.12}, chance{EntityGrassTuft, 0.02})
 			case TileSand:
 				kind = pick(r, chance{EntityGrassTuft, 0.02})
 			}
-			if kind != EntityNone {
-				w.addEntity(kind, tx, ty)
+			if kind == EntityNone {
+				continue
+			}
+			e := w.addEntity(kind, tx, ty)
+			if kind.Sized() && sizeRng.Float64() < bigShare(kind, tile) {
+				e.Big = true
+				e.HP = maxHP(kind, true)
 			}
 		}
+	}
+}
+
+// scatterPebbles drops small stones on free tiles: many on rocky ground and
+// beaches, a few in the grass and the woods. It has its own rng so the rest
+// of the world does not shift.
+func (w *World) scatterPebbles(rng *rand.Rand) {
+	share := [NumTiles]float64{
+		TileRocky: 0.07, TileSand: 0.035, TileGrass: 0.012, TileForest: 0.008,
+		TileDesert: 0.03, TileAsh: 0.04, TileCave: 0.05, TileMarsh: 0.005,
+	}
+	for ty := 0; ty < w.height; ty++ {
+		for tx := 0; tx < w.width; tx++ {
+			if rng.Float64() < share[w.tiles[ty*w.width+tx]] && w.canPlace(tx, ty) {
+				w.addEntity(EntityPebble, tx, ty)
+			}
+		}
+	}
+}
+
+func bigShare(kind EntityKind, tile Tile) float64 {
+	switch {
+	case kind == EntityBoulder:
+		return bigBoulder
+	case tile == TileForest:
+		return bigForestTree
+	default:
+		return bigGrassTree
 	}
 }
 
@@ -148,6 +208,52 @@ func (w *World) pickSpawn() error {
 		}
 	}
 	return fmt.Errorf("sim: no grass or forest tile to spawn on")
+}
+
+// Starter materials near the spawn: a new player starts with empty hands and
+// must find enough here for the first tools (twigs and pebbles), the stone
+// for a campfire (boulders) and its tinder (grass tufts).
+const (
+	starterTwigs    = 5
+	starterTufts    = 3
+	starterBoulders = 2 // rocky ground can be far away; two small boulders are 4 stone
+	starterPebbles  = 4 // an axe, a pickaxe and a hoe
+	starterMinR     = clearSpawnRadius + 1
+	starterMaxR     = 6
+)
+
+// starterKit tops up the twigs, grass tufts, boulders and pebbles within
+// starterMaxR of the spawn, so the first tools never depend on luck.
+func (w *World) starterKit(rng *rand.Rand) {
+	cx, cy := int(math.Floor(w.spawnX)), int(math.Floor(w.spawnY))
+	for _, want := range []struct {
+		kind EntityKind
+		n    int
+	}{{EntityTwig, starterTwigs}, {EntityGrassTuft, starterTufts}, {EntityBoulder, starterBoulders}, {EntityPebble, starterPebbles}} {
+		have := 0
+		var free [][2]int
+		for ty := cy - starterMaxR; ty <= cy+starterMaxR; ty++ {
+			for tx := cx - starterMaxR; tx <= cx+starterMaxR; tx++ {
+				if max(abs(tx-cx), abs(ty-cy)) < starterMinR {
+					continue
+				}
+				if e := w.entityAt(tx, ty); e != nil {
+					if e.Kind == want.kind {
+						have++
+					}
+					continue
+				}
+				if w.canPlace(tx, ty) {
+					free = append(free, [2]int{tx, ty})
+				}
+			}
+		}
+		rng.Shuffle(len(free), func(i, j int) { free[i], free[j] = free[j], free[i] })
+		for i := 0; have < want.n && i < len(free); i++ {
+			w.addEntity(want.kind, free[i][0], free[i][1])
+			have++
+		}
+	}
 }
 
 func (w *World) clearAround(cx, cy, r int) {

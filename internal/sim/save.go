@@ -1,0 +1,269 @@
+package sim
+
+import (
+	"errors"
+	"fmt"
+	"math"
+	"slices"
+)
+
+// SaveVersion is bumped on every change to what a save means. Load still
+// reads older versions and upgrades them.
+//
+//   - 1: first version.
+//   - 2: trees need an axe; fallen branches (twigs) exist.
+//   - 3: trees and boulders are small or big.
+//   - 4: the inventory is slots (hotbar and bag); the held slot is kept.
+//   - 5: pebbles lie on the ground; boulders need a pickaxe; tilled soil and crops.
+//   - 6: entity HP counts in HitPower units (tools of each tier hit harder);
+//     ores and furnaces exist.
+//   - 7: a day lasts twice as long (8 minutes); older ticks are doubled.
+const SaveVersion = 7
+
+// v6DayTicks is how long a day was in saves before version 7.
+const v6DayTicks = 240 * TicksPerSecond
+
+// SaveData is everything needed to rebuild a world later. The terrain is not
+// stored: it is regenerated from the seed, which always yields the same map.
+type SaveData struct {
+	Version       int
+	Seed          uint64
+	Width, Height int
+	Tick          uint64
+	NextEntity    EntityID
+	Entities      []Entity
+	Players       []PlayerSave // online and offline, matched to joiners by name
+	Style         WorldStyle   `json:",omitempty"` // which generator made the terrain
+	Chests        []ChestSave  `json:",omitempty"` // what each chest holds
+}
+
+// PlayerSave is the persistent part of a player.
+type PlayerSave struct {
+	Name           string
+	Look           Look `json:",omitzero"` // zero before looks existed: the original survivor
+	X, Y           float64
+	Dir            Dir
+	Health, Hunger float64
+	Slots          Inventory
+	Selected       int    // held hotbar slot
+	Explored       []byte `json:",omitempty"` // tiles seen, as Explored.Bytes
+	Dead           bool
+	TorchFuel      int `json:",omitempty"` // ticks left on the torch being burnt
+
+	// Inv is how saves before version 4 kept the inventory: a count per item
+	// kind, indexed by ItemKind. Load turns it into Slots.
+	Inv []int `json:",omitempty"`
+}
+
+func savePlayer(p *Player) PlayerSave {
+	return PlayerSave{
+		Name: p.Name, Look: p.Look, X: p.X, Y: p.Y, Dir: p.Dir,
+		Health: p.Health, Hunger: p.Hunger, Slots: p.Inv, Selected: p.Selected, Explored: p.explored.Bytes(), Dead: p.Dead,
+		TorchFuel: p.torchFuel,
+	}
+}
+
+// legacyInventory lays out a count-per-kind inventory from an old save in
+// slots, each kind capped at what one slot holds as the old game capped it.
+func legacyInventory(counts []int) Inventory {
+	var inv Inventory
+	for k := ItemKind(1); k < NumItems && int(k) < len(counts); k++ {
+		inv.Add(k, min(k.MaxCount(), max(0, counts[k])))
+	}
+	return inv
+}
+
+// restorePlayer applies a saved state to p, keeping p at the spawn if the
+// saved position is not somewhere a player can stand.
+func (w *World) restorePlayer(p *Player, ps PlayerSave) {
+	p.Look = ps.Look.Sanitized()
+	if finite(ps.X, ps.Y) && w.standable(ps.X, ps.Y) {
+		p.X, p.Y = ps.X, ps.Y
+	}
+	if ps.Dir <= DirRight {
+		p.Dir = ps.Dir
+	}
+	if finite(ps.Health, ps.Hunger) {
+		p.Health = min(MaxHealth, max(0, ps.Health))
+		p.Hunger = min(MaxHunger, max(0, ps.Hunger))
+	}
+	p.Inv = ps.Slots
+	p.Inv.sanitize()
+	p.explored = ExploredFrom(w.width, w.height, ps.Explored)
+	p.torchFuel = min(TorchBurnTicks, max(0, ps.TorchFuel))
+	if IsHotbar(ps.Selected) {
+		p.Selected = ps.Selected
+	}
+	p.Dead = ps.Dead || p.Health <= 0
+}
+
+func finite(vs ...float64) bool {
+	for _, v := range vs {
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return false
+		}
+	}
+	return true
+}
+
+// Save captures the world's state. Players currently connected are saved as
+// they are now; players who left earlier keep the state they left with.
+func (w *World) Save() SaveData {
+	d := SaveData{
+		Version: SaveVersion,
+		Seed:    w.seed,
+		Width:   w.width,
+		Height:  w.height,
+		Tick:    w.tick,
+		Style:   w.style,
+	}
+	d.NextEntity = w.nextEnt
+	d.Chests = w.saveChests()
+	for _, e := range w.entities {
+		d.Entities = append(d.Entities, *e)
+	}
+	slices.SortFunc(d.Entities, func(a, b Entity) int { return int(a.ID) - int(b.ID) })
+
+	online := make(map[string]bool)
+	for _, id := range w.playerOrder {
+		p := w.players[id]
+		online[p.Name] = true
+		d.Players = append(d.Players, savePlayer(p))
+	}
+	for name, ps := range w.offline {
+		if !online[name] {
+			d.Players = append(d.Players, ps)
+		}
+	}
+	slices.SortFunc(d.Players, func(a, b PlayerSave) int {
+		switch {
+		case a.Name < b.Name:
+			return -1
+		case a.Name > b.Name:
+			return 1
+		}
+		return 0
+	})
+	return d
+}
+
+// ErrBadSave is wrapped by every error Load returns for unusable data.
+var ErrBadSave = errors.New("sim: bad save data")
+
+// Load rebuilds a world from saved data. The terrain is regenerated from the
+// seed; entities that do not fit it (off the map, on water, on top of another
+// entity) are dropped rather than failing the whole load.
+func Load(d SaveData) (*World, error) {
+	if d.Version < 1 || d.Version > SaveVersion {
+		return nil, fmt.Errorf("%w: version %d, this game reads 1 to %d", ErrBadSave, d.Version, SaveVersion)
+	}
+	w, err := Generate(GenConfig{Seed: d.Seed, Width: d.Width, Height: d.Height, Style: d.Style})
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrBadSave, err)
+	}
+	// Before version 7 a day was shorter. Every tick in the save is scaled up,
+	// so the world keeps its day number and time of day, and each regrowth
+	// keeps its share of the time it had left.
+	ticks := uint64(1)
+	if d.Version < 7 {
+		ticks = DayTicks / v6DayTicks
+	}
+	w.tick = max(d.Tick*ticks, StartTick)
+
+	// Worlds saved before a kind of ground litter existed keep the freshly
+	// generated ones: version 1 had no twigs, versions before 5 no pebbles.
+	var fresh []Entity
+	for _, e := range w.entities {
+		if e.Kind == EntityTwig && d.Version < 2 || e.Kind == EntityPebble && d.Version < 5 {
+			fresh = append(fresh, *e)
+		}
+	}
+	// Before version 3 trees and boulders had one size. Each takes the size
+	// the regenerated world gives the same kind on its tile, and keeps the
+	// share of its hits it had left.
+	var bigAt map[int]EntityKind
+	if d.Version < 3 {
+		bigAt = make(map[int]EntityKind)
+		for _, e := range w.entities {
+			if e.Big {
+				bigAt[e.TY*w.width+e.TX] = e.Kind
+			}
+		}
+	}
+	clear(w.entities)
+	clear(w.active)
+	clear(w.occ)
+	w.nextEnt = d.NextEntity
+	for _, e := range d.Entities {
+		if e.ID == 0 || e.Kind == EntityNone || e.Kind >= NumEntityKinds ||
+			!w.canPlace(e.TX, e.TY) || w.entities[e.ID] != nil {
+			continue
+		}
+		if d.Version < 3 {
+			e.Big = bigAt[e.TY*w.width+e.TX] == e.Kind
+		}
+		e.Big = e.Big && e.Kind.Sized()
+		e.RegrowAt *= ticks
+		switch old := v2MaxHP(e.Kind); {
+		case d.Version < 3 && old > 0:
+			e.HP = (e.HP*maxHP(e.Kind, e.Big) + old - 1) / old // keep the share of hits left
+		case d.Version < 6:
+			e.HP *= HitPower // HP counted whole hits before version 6
+		}
+		e.HP = min(max(e.HP, 1), maxHP(e.Kind, e.Big))
+		switch e.Kind {
+		case EntityCampfire:
+			if e.Fuel <= 0 {
+				continue
+			}
+			e.Fuel = min(e.Fuel, FireMaxFuel)
+		case EntityFurnace:
+			e.Fuel = min(max(e.Fuel, 0), FurnaceMaxFuel)
+		}
+		ent := e
+		w.entities[e.ID] = &ent
+		w.occ[e.TY*w.width+e.TX] = e.ID
+		w.nextEnt = max(w.nextEnt, e.ID)
+	}
+	w.loadChests(d.Chests)
+	for _, e := range fresh {
+		if w.canPlace(e.TX, e.TY) {
+			w.nextEnt++
+			e.ID = w.nextEnt
+			ent := e
+			w.entities[e.ID] = &ent
+			w.occ[e.TY*w.width+e.TX] = e.ID
+		}
+	}
+	for _, ps := range d.Players {
+		if d.Version < 4 {
+			ps.Slots, ps.Selected = legacyInventory(ps.Inv), 0
+		}
+		ps.Inv = nil
+		if d.Version < 2 && ps.Slots.Count(ItemAxe) == 0 {
+			ps.Slots.Add(ItemAxe, 1) // they could already chop: keep that
+		}
+		if d.Version < 5 && ps.Slots.Count(ItemPickaxe) == 0 {
+			ps.Slots.Add(ItemPickaxe, 1) // they could already mine: keep that
+		}
+		if name := cleanName(ps.Name); name != "" {
+			ps.Name = name
+			w.offline[name] = ps
+		}
+	}
+	w.watchAll() // regrowing plants, fires and soil from the save keep going
+	return w, nil
+}
+
+// v2MaxHP is the hits a fresh tree or boulder had in saves before version 3,
+// zero for kinds whose hits did not change.
+func v2MaxHP(kind EntityKind) int {
+	switch kind {
+	case EntityTree:
+		return 3
+	case EntityBoulder:
+		return 4
+	default:
+		return 0
+	}
+}

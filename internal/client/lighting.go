@@ -9,15 +9,22 @@ import (
 	"survivalgame/internal/sim"
 )
 
-const maxDarkness = 0.9 // deep night still shows faint outlines
+const maxDarkness = 0.88 // deep night still shows faint outlines
+
+var colCaveDark = color.RGBA{4, 6, 12, 255} // the dark underground
 
 // drawLighting darkens the scene by time of day and lets campfires cut holes
 // in the darkness. The light radius is sim.FireRadius, the same radius the
 // server uses for warmth, so "inside the light" means "safe from the cold".
 func (g *Game) drawLighting(screen *ebiten.Image, cam camera) {
 	amb := sim.Ambient(g.curr.Tick)
-	dark := (1 - amb) * maxDarkness
+	night := (1 - amb) * maxDarkness
+	cave := g.caveDarkness() // inside a cave it is dark at any hour
+	dark := math.Max(night, cave)
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
+
+	// Lava lights up its surroundings.
+	lx0, ly0, lava := g.tileMask(&g.lavaMask, cam, sw, sh, isLava)
 
 	if dark > 0.01 {
 		if g.darkness == nil || g.darkness.Bounds().Dx() != sw || g.darkness.Bounds().Dy() != sh {
@@ -26,31 +33,89 @@ func (g *Game) drawLighting(screen *ebiten.Image, cam camera) {
 			}
 			g.darkness = ebiten.NewImage(sw, sh)
 		}
-		g.darkness.Fill(nightColor(amb))
+		g.darkness.Clear()
+		nc := nightColor(amb)
+		if cave > night { // underground the dark is blue-black, whatever the hour
+			nc = mix(nc, colCaveDark, cave/caveInsideDark)
+		}
+		f := dark
+		g.darkness.Fill(color.RGBA{uint8(float64(nc.R) * f), uint8(float64(nc.G) * f), uint8(float64(nc.B) * f), uint8(255 * f)})
+		g.crystalLights(g.darkness, cam, true)
+		if lava {
+			g.lavaLight(g.darkness, cam, lx0, ly0, true, 0)
+		}
 		for _, e := range g.curr.Entities {
-			if e.Kind != sim.EntityCampfire {
+			r, ok := sim.FireReach(e.Kind, int(e.Fuel)) // campfires and lit furnaces
+			if !ok {
 				continue
 			}
-			op := g.lightOp(cam, e.TX, e.TY, sim.FireRadius(int(e.Fuel))*g.flicker(uint32(e.ID)))
+			op := g.lightOp(cam, e.TX, e.TY, r*g.flicker(uint32(e.ID)))
 			op.Blend = ebiten.BlendDestinationOut
 			g.darkness.DrawImage(g.art.light, op)
 		}
-		op := &ebiten.DrawImageOptions{}
-		op.ColorScale.ScaleAlpha(float32(dark))
-		screen.DrawImage(g.darkness, op)
+		for _, t := range g.torches(cam) {
+			op := g.lightOpAt(t.sx, t.sy, sim.TorchRadius*g.flicker(t.id))
+			op.Blend = ebiten.BlendDestinationOut
+			g.darkness.DrawImage(g.art.light, op)
+		}
+		screen.DrawImage(g.darkness, nil)
 	}
+	if lava {
+		g.lavaLight(screen, cam, lx0, ly0, false, float32(0.12+0.3*dark))
+	}
+	g.crystalLights(screen, cam, false)
 
 	// Warm additive glow, stronger at night.
 	for _, e := range g.curr.Entities {
-		if e.Kind != sim.EntityCampfire {
+		r, ok := sim.FireReach(e.Kind, int(e.Fuel))
+		if !ok {
 			continue
 		}
-		k := float32(0.28 * (0.3 + dark) * g.flicker(uint32(e.ID)))
-		op := g.lightOp(cam, e.TX, e.TY, sim.FireRadius(int(e.Fuel))*0.7)
-		op.ColorScale.Scale(k, k*0.55, k*0.2, k)
+		k := float32(0.34 * (0.25 + dark) * g.flicker(uint32(e.ID)))
+		op := g.lightOp(cam, e.TX, e.TY, r*0.75)
+		op.ColorScale.Scale(k, k*0.36, k*0.06, k)
 		op.Blend = ebiten.BlendLighter
 		screen.DrawImage(g.art.light, op)
 	}
+	for _, t := range g.torches(cam) {
+		k := float32(0.28 * (0.2 + dark) * g.flicker(t.id))
+		op := g.lightOpAt(t.sx, t.sy, sim.TorchRadius*0.7)
+		op.ColorScale.Scale(k, k*0.4, k*0.08, k)
+		op.Blend = ebiten.BlendLighter
+		screen.DrawImage(g.art.light, op)
+	}
+}
+
+type torchLight struct {
+	sx, sy float64 // where the flame is, in art pixels on screen
+	id     uint32
+}
+
+// torches lists the lit torches in view: every player holding one, awake.
+// The server warms everyone within sim.TorchRadius of a lit torch, the same
+// radius as its light.
+func (g *Game) torches(cam camera) []torchLight {
+	var out []torchLight
+	alpha := g.alpha()
+	for _, p := range g.curr.Players {
+		if p.Held != sim.ItemTorch || p.Dead || p.Asleep {
+			continue
+		}
+		x, y, _ := g.lerpPlayer(p, alpha)
+		sx, sy := cam.toScreen(x, y)
+		out = append(out, torchLight{sx, sy - 12, uint32(p.ID) * 7919})
+	}
+	return out
+}
+
+// lightOpAt is lightOp for a point in screen art pixels.
+func (g *Game) lightOpAt(sx, sy, radius float64) *ebiten.DrawImageOptions {
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(-lightSize/2, -lightSize/2)
+	op.GeoM.Scale(radius*TileW/(lightSize/2), radius*TileH/(lightSize/2))
+	op.GeoM.Translate(sx, sy)
+	op.Filter = ebiten.FilterLinear
+	return op
 }
 
 func (g *Game) flicker(id uint32) float64 {
@@ -73,5 +138,5 @@ func (g *Game) lightOp(cam camera, tx, ty int16, radius float64) *ebiten.DrawIma
 func nightColor(amb float64) color.RGBA {
 	t := max(0, min(1, amb/0.6))
 	mix := func(night, dusk float64) uint8 { return uint8(night + (dusk-night)*t) }
-	return color.RGBA{mix(8, 70), mix(10, 36), mix(28, 30), 255}
+	return color.RGBA{mix(6, 84), mix(10, 40), mix(34, 44), 255}
 }

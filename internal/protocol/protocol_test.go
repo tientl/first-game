@@ -28,11 +28,19 @@ func TestMessagesRoundTripThroughGob(t *testing.T) {
 			Tick: 12345,
 			Self: SelfState{
 				Health: 87.5, Hunger: 40,
-				Inv:  sim.Inventory{sim.ItemWood: 3, sim.ItemBerry: 1},
-				Cold: true, Notice: sim.NoticeBagFull, NoticeArg: uint8(sim.ItemBerry), NoticeSeq: 9,
+				Inv:      sim.InventoryWith(sim.Ingredient{Item: sim.ItemWood, Count: 3}, sim.Ingredient{Item: sim.ItemBerry, Count: 1}),
+				Selected: 7,
+				Cold:     true, Notice: sim.NoticeBagFull, NoticeArg: uint8(sim.ItemBerry), NoticeSeq: 9,
 			},
-			Players:  []PlayerView{{ID: 3, Name: "Tiến", X: 10.25, Y: -4, Dir: sim.DirLeft, Acting: true}},
+			Players: []PlayerView{
+				{ID: 3, Name: "Tiến", X: 10.25, Y: -4, Dir: sim.DirLeft, Acting: true, Held: sim.ItemAxe},
+				{ID: 4, Name: "B", Held: sim.ItemRod, Cast: sim.CastBite, BobX: 12.5, BobY: 3.75},
+			},
 			Entities: []EntityView{{ID: 77, Kind: sim.EntityCampfire, TX: 5, TY: 6, Ready: true, Fuel: 1200}},
+			Creatures: []CreatureView{
+				{ID: 4, Kind: sim.CreatureSnake, X: 7.5, Y: 8.25, State: sim.CreatureChase, FaceLeft: true},
+				{ID: 5, Kind: sim.CreatureFish, X: 1, Y: 2}, // all zero but the position
+			},
 		}},
 	}
 

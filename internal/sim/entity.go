@@ -9,11 +9,23 @@ const (
 	TileGrass
 	TileForest
 	TileRocky
+	TileDesert   // open world: hot sand dunes
+	TileMarsh    // open world: swamp mud, slow going
+	TileMountain // open world: rock face, impassable
+	TileCave     // open world: a tunnel floor inside a mountain, always dark
+	TileAsh      // open world: volcanic ash around the volcano
+	TileLava     // open world: impassable, glows, warms whoever stands near
 	NumTiles
 )
 
 // Walkable reports whether players can stand on t.
-func (t Tile) Walkable() bool { return t != TileWater && t < NumTiles }
+func (t Tile) Walkable() bool {
+	switch t {
+	case TileWater, TileMountain, TileLava:
+		return false
+	}
+	return t < NumTiles
+}
 
 // EntityID identifies a static world entity (resource node or structure).
 type EntityID uint32
@@ -28,6 +40,28 @@ const (
 	EntityBerryBush
 	EntityGrassTuft
 	EntityCampfire
+	EntityTwig     // a fallen branch, picked up by hand
+	EntityWall     // built: blocks the way; an axe takes it down
+	EntityBed      // built: sleep the night through
+	EntityPebble   // a small stone on the ground, picked up by hand
+	EntityFarmland // soil tilled with a hoe, ready for planting
+	EntityCrop     // a sweet potato growing in tilled soil; Ready when ripe
+	EntityBurrow   // a rabbit burrow; see homes.go
+	EntityDen      // a snake den
+	EntityCactus   // desert: needs an axe, gives cactus flesh
+	EntityReed     // marsh: picked by hand, gives dry grass
+	EntityMushroom // marsh and caves: picked by hand, eaten
+	EntityCoal     // caves and ash: a coal seam, needs a pickaxe
+
+	// Ores, each in its own region, and the furnace that smelts them: see ores.go.
+	EntityCopperOre
+	EntityIronOre
+	EntityPlatinumOre
+	EntityDiamondOre
+	EntityFurnace   // built: smelts ore while it burns
+	EntityClam      // open world: clams on the sand by the sea, picked by hand
+	EntityStoneWall // built: blocks the way; a pickaxe takes it down
+	EntityChest     // built: stores things; see chest.go
 	NumEntityKinds
 )
 
@@ -38,6 +72,27 @@ var entityNames = [NumEntityKinds]string{
 	EntityBerryBush: "Bụi quả mọng",
 	EntityGrassTuft: "Bụi cỏ",
 	EntityCampfire:  "Lửa trại",
+	EntityTwig:      "Cành cây",
+	EntityWall:      "Tường gỗ",
+	EntityBed:       "Giường cỏ",
+	EntityPebble:    "Đá cuội",
+	EntityFarmland:  "Luống đất",
+	EntityCrop:      "Khoai lang",
+	EntityBurrow:    "Hang thỏ",
+	EntityDen:       "Hang rắn",
+	EntityCactus:    "Xương rồng",
+	EntityReed:      "Lau sậy",
+	EntityMushroom:  "Nấm",
+	EntityCoal:      "Mỏ than",
+
+	EntityCopperOre:   "Mỏ đồng",
+	EntityIronOre:     "Mỏ sắt",
+	EntityPlatinumOre: "Mỏ bạch kim",
+	EntityDiamondOre:  "Mỏ kim cương",
+	EntityFurnace:     "Lò nung",
+	EntityClam:        "Bãi sò",
+	EntityStoneWall:   "Tường đá",
+	EntityChest:       "Rương",
 }
 
 // Name is the display name of k.
@@ -55,10 +110,11 @@ type Entity struct {
 	Kind   EntityKind
 	TX, TY int
 
-	HP       int    // hits left before it is harvested (trees, boulders)
-	Ready    bool   // can be harvested now; false while a tree is a stump or a bush regrows
-	RegrowAt uint64 // tick at which a harvested node becomes Ready again
-	Fuel     int    // ticks of burning left (campfires)
+	Big      bool   // the big size of a tree or boulder: more hits, more yield
+	HP       int    // damage left before it is harvested, in HitPower units per hit
+	Ready    bool   // can be harvested now; false while a tree is a stump or a crop grows
+	RegrowAt uint64 // tick at which a harvested node becomes Ready again; for tilled soil, when it turns back to grass
+	Fuel     int    // ticks of burning left (campfires, furnaces)
 }
 
 // Interactable reports whether a player can act on an entity of this kind and
@@ -66,11 +122,15 @@ type Entity struct {
 // shared by the server (to pick the target) and the client (to highlight it).
 func Interactable(kind EntityKind, ready, hasWood bool) bool {
 	switch kind {
-	case EntityTree, EntityBerryBush, EntityGrassTuft:
+	case EntityCactus, EntityReed, EntityMushroom, EntityClam:
 		return ready
-	case EntityBoulder:
+	case EntityCoal, EntityCopperOre, EntityIronOre, EntityPlatinumOre, EntityDiamondOre:
 		return true
-	case EntityCampfire:
+	case EntityTree, EntityBerryBush, EntityGrassTuft, EntityTwig, EntityPebble, EntityCrop:
+		return ready
+	case EntityBoulder, EntityWall, EntityStoneWall, EntityBed, EntityFarmland, EntityChest:
+		return true
+	case EntityCampfire, EntityFurnace:
 		return hasWood
 	default:
 		return false
@@ -87,15 +147,41 @@ func FireRadius(fuel int) float64 {
 // MaxFireRadius is FireRadius at full fuel.
 const MaxFireRadius = 5.0
 
-func maxHP(kind EntityKind) int {
+// Sized reports whether entities of kind come in a small and a big size.
+func (k EntityKind) Sized() bool { return k == EntityTree || k == EntityBoulder }
+
+// maxHP is the HP of a fresh entity: its hits with a stone tool (or by hand)
+// times HitPower.
+func maxHP(kind EntityKind, big bool) int { return hits(kind, big) * HitPower }
+
+// hits is how many hits by hand or with a stone tool harvest an entity.
+func hits(kind EntityKind, big bool) int {
+	if o, ok := oreOf(kind); ok {
+		return o.hits
+	}
 	switch kind {
 	case EntityTree:
-		return TreeHits
+		return bySize(big, TreeHits, BigTreeHits)
 	case EntityBoulder:
-		return BoulderHits
+		return bySize(big, BoulderHits, BigBoulderHits)
+	case EntityWall:
+		return WallHits
+	case EntityStoneWall:
+		return StoneWallHits
+	case EntityCactus:
+		return CactusHits
+	case EntityCoal:
+		return CoalHits
 	default:
 		return 1
 	}
+}
+
+func bySize(big bool, small, large int) int {
+	if big {
+		return large
+	}
+	return small
 }
 
 // Dir is the direction a player faces.
