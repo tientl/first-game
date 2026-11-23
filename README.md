@@ -177,6 +177,25 @@ Cầm thức ăn nó thích trên tay rồi nhấn Space vào con thú (mỗi gi
 
 Thú cưng đi theo bạn (bỏ xa quá 24 ô thì nó tự tìm tới), tự hồi máu dần, và lao vào bất kỳ thú dữ nào đang đuổi hay cắn bạn trong vòng 6 ô; con nó hạ được thì bạn nhận chiến lợi phẩm. Nhấn Space vào thú của mình để bảo nó đứng chờ hoặc gọi đi theo; cầm thức ăn của nó thì Space là cho ăn hồi máu. Khi cưỡi, bạn với xa hơn nửa ô; chết, ngủ hoặc thoát game thì tự xuống thú. **Yên da**: 4 Da thú, 2 Cỏ khô, 1 Xương. **Áo lông**: 4 Lông thú, 2 Da thú, giữ ấm trên tuyết. **Giáo ngà**: 2 Cành cây, 1 Ngà voi, 1 Cỏ khô; đánh mạnh gấp bốn tay không, với xa nhất.
 
+## Quần đảo và biển khơi (thế giới tạo mới)
+
+Từ bản này, trò chơi mới tạo một **quần đảo**: đảo nhà ở giữa là đồng cỏ hiền lành, xung quanh là biển rộng. Mỗi đảo là một vùng đất, đảo càng xa càng khắc nghiệt: rừng sâu và đồi núi, rồi đầm lầy, rồi núi tuyết và hoang mạc, ngoài rìa là đảo núi lửa. Muốn đi đâu cũng phải đóng thuyền.
+
+| Món | Công thức | Tác dụng |
+| --- | --- | --- |
+| Bè gỗ | 8 Gỗ, 4 Cỏ khô | Chèo đi mọi hướng như nhau, chậm (3 ô/giây), chịu 60 sát thương |
+| Thuyền buồm | 20 Gỗ, 4 Da thú, 8 Cỏ khô | Xuôi gió rất nhanh (tới 7 ô/giây), ngược gió thì bò; chịu 140 sát thương |
+
+- Cầm thuyền trên tay, đứng sát mép nước quay mặt ra biển, nhấn **V** để thả. **R** để lên thuyền, chèo vào sát bờ rồi nhấn **R** để lên bờ. WASD để lái. Khi ở trên thuyền, góc trái có thanh độ bền thuyền và mũi tên chỉ hướng gió; gió đổi theo thời tiết.
+- **Bơi**: ở thế giới quần đảo ai cũng bơi được, nhưng chậm và chỉ được khoảng 8 giây, sau đó kiệt sức và chết đuối dần. Khi bơi không làm gì được bằng tay.
+- **Quái vật biển** sống ở biển sâu, cách bờ xa (gần bờ thì an toàn, chỉ có thằn lằn cổ dài):
+  - **Thương long** (Mosasaurus) bơi ngầm, chỉ thấy bóng đen và sống lưng, nhanh hơn bè nhưng chậm hơn thuyền buồm xuôi gió. Tới gần thì ngoi lên đớp: thuyền mất 30 độ bền, người trên thuyền mất 8 máu, người đang bơi mất 34 máu. Sau cú đớp nó ở trên mặt nước vài giây: lúc đó mới đánh được, rồi lặn xuống.
+  - **Mực khổng lồ** nằm sâu hơn nữa. Thuyền đi ngang qua là bị xúc tu giữ chặt 7 giây, mỗi giây thuyền mất 8 độ bền. Đánh nó mất 12 máu thì nó buông ra.
+  - Hạ quái vật biển ngoài khơi thì đồ nổi trên mặt nước, chèo lại nhặt.
+- Thuyền đậu lại được lưu cùng bản lưu; lưu game khi đang ở trên thuyền thì lúc vào lại vẫn ở trên thuyền.
+
+Xem nhanh: `go run ./cmd/shot -open -sea`; bản đồ toàn thế giới: `OPEN_DUMP=<thư mục> go test ./internal/sim -run DumpOpen`.
+
 ## Thời bộ lạc (thế giới tạo mới)
 
 Thế giới mới (kiểu `StyleTribal`) có thêm những thứ dưới đây; bản lưu cũ giữ nguyên địa hình cũ nhưng vẫn có mùa, thời tiết, đồ rơi, xác thú, đồ xây mới.

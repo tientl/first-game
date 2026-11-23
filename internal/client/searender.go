@@ -232,7 +232,13 @@ func (g *Game) drawSeaHUD(screen *ebiten.Image) {
 		}
 		return
 	}
-	if self.Breath < 0.999 && !self.Dead {
+	swimming := false
+	for _, p := range g.curr.Players {
+		if p.ID == g.myID {
+			swimming = p.Swimming
+		}
+	}
+	if (swimming || self.Breath > 0 && self.Breath < 0.999) && !self.Dead {
 		panel(screen, 12, y, 230, 34)
 		g.text(screen, "Sức bơi", 24, float64(y)+8, colWhite, text.AlignStart, 1)
 		fillRoundRect(screen, 90, y+12, 140, 10, 4, color.RGBA{0, 0, 0, 150})
