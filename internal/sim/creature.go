@@ -55,6 +55,11 @@ const (
 	CreatureQuetzal // Quetzalcoatlus: a giant flying reptile that stalks the ground
 	CreatureBrachy  // Brachychampsa: a blunt-snouted crocodile of the ponds
 	CreatureChampso // Champsosaurus: a long-snouted crocodile of the ponds
+
+	// Cave life and the tribes: see cavelife.go and tribe.go.
+	CreatureSpider    // a venomous cave spider that spits webs
+	CreatureBear      // a cave bear that claws and bites
+	CreatureTribesman // a warrior of the woodland tribes, spear in hand
 	NumCreatureKinds
 )
 
@@ -78,6 +83,9 @@ const (
 	CreatureCower                // a hunter beaten down: it lies low, and can be tamed; see tame.go
 	CreatureEat                  // grazing, or eating a kill: head down, chewing; see needs.go
 	CreatureDrink                // drinking at the water's edge
+	CreatureClaw                 // a bear's swipe (its bite is CreatureStrike)
+	CreatureTrapped              // caught in a snare: it struggles, going nowhere
+	CreatureSpit                 // a spider spitting web
 )
 
 // OutOfReach reports whether a creature in state s cannot be targeted: on
@@ -285,6 +293,8 @@ type Creature struct {
 	fedCD     int      // ticks before it takes another meal
 	healT     int      // ticks to its next point of mending, as a pet
 
+	village      int // the village a warrior belongs to, 1-based; 0 for everyone else
+
 	homeX, homeY float64
 	hx, hy       float64 // heading while walking or fleeing, a unit vector
 	timer        int     // ticks left in State
@@ -374,7 +384,7 @@ func (w *World) creatureFits(k CreatureKind, x, y float64) bool {
 			}
 			tx := int(math.Floor(x - r + 2*r*float64(i)/float64(n)))
 			ty := int(math.Floor(y - r + 2*r*float64(j)/float64(n)))
-			land := w.TileAt(tx, ty).Walkable() && !w.blocked(tx, ty)
+			land := w.landAt(tx, ty) && !w.beastBlocked(tx, ty)
 			switch {
 			case d.deep && w.TileAt(tx, ty) != TileWater:
 				return false
@@ -592,6 +602,16 @@ func (w *World) stepCreature(c *Creature) {
 		w.stepHidden(c)
 		return
 	}
+	if c.State == CreatureTrapped {
+		w.stepTrapped(c)
+		return
+	}
+	if !c.Tamed() {
+		w.stepTrapsAndSpikes(c) // see build.go
+		if c.gone || c.State == CreatureTrapped {
+			return
+		}
+	}
 	if c.State == CreatureHurt {
 		if c.timer--; c.timer <= 0 {
 			c.State, c.timer = CreatureIdle, 0
@@ -638,6 +658,12 @@ func (w *World) stepCreature(c *Creature) {
 		w.stepCrab(c)
 	case CreatureCroc, CreatureBrachy, CreatureChampso:
 		w.stepCroc(c)
+	case CreatureSpider:
+		w.stepSpider(c) // see cavelife.go
+	case CreatureBear:
+		w.stepBear(c)
+	case CreatureTribesman:
+		w.stepTribesman(c) // see tribe.go
 	default:
 		w.wander(c)
 	}
@@ -841,12 +867,11 @@ func (w *World) catch(p *Player, c *Creature) bool {
 		p.notify(NoticeNeedBait, uint8(d.bait))
 		return false
 	}
-	// A full bag refuses the blow that would kill, so nothing is wasted; but
-	// an animal that fights back can always be hit, and what does not fit of
-	// its kill is lost.
+	// What a kill gives falls on the ground (see drops.go), so a full bag
+	// never stops a blow; only a fish comes straight off the line into it.
 	dmg := damageWith(p)
 	fits := p.Inv
-	if missing := addAll(&fits, c.Kind.loot()); missing.Valid() && (d.onLine || (!d.fights && c.HP <= dmg)) {
+	if missing := addAll(&fits, c.Kind.loot()); missing.Valid() && d.onLine {
 		p.notify(NoticeBagFull, uint8(missing))
 		return false
 	}
@@ -854,14 +879,8 @@ func (w *World) catch(p *Player, c *Creature) bool {
 		w.cast(p, c) // see fishing.go
 		return true
 	}
-	if !w.wound(c, dmg, p) {
-		return true
-	}
-	if d.bait.Valid() {
+	if w.wound(c, dmg, p) && d.bait.Valid() {
 		p.Inv.Take(d.bait, 1)
-	}
-	if missing := addAll(&p.Inv, c.Kind.loot()); missing.Valid() {
-		p.notify(NoticeBagFull, uint8(missing))
 	}
 	return true
 }
@@ -921,7 +940,7 @@ func (w *World) creatureCandidates(x, y float64) []CreatureCandidate {
 	const far = CandidateRange
 	var out []CreatureCandidate
 	w.EachCreatureIn(x-far, y-far, x+far, y+far, func(c Creature) {
-		if !c.gone && !c.State.OutOfReach() && c.rider == 0 { // someone else's fish; down a hole; under water; up in the air; ridden
+		if !c.gone && !c.State.OutOfReach() && c.rider == 0 && !w.underIce(&c) { // someone else's fish; down a hole; under water; up in the air; ridden; under the ice
 			out = append(out, CreatureCandidate{ID: c.ID, Kind: c.Kind, X: c.X, Y: c.Y})
 		}
 	})

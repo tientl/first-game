@@ -81,8 +81,36 @@ const (
 	ItemGinkgoNut
 	ItemRoastGinkgo
 	ItemCoconut
-	NumItems
+
+	// The tribal age: see drops.go, build.go, plants.go, cavelife.go.
+	ItemDinoHide  // a dinosaur's scaly hide
+	ItemDinoArmor // carried: armour of dinosaur hide
+	ItemPotion    // a healing draught
+	ItemBigPotion // a stronger one that also draws out poison
+	ItemBandage   // spider silk and grass: some health, and poison out
+	ItemSilk      // from cave spiders
+	ItemGlowSpore // from the plants that glow at night
+	ItemFlowerRed // flowers, one kind each: see FlowerKind
+	ItemFlowerYellow
+	ItemFlowerBlue
+	ItemFlowerPurple
+	ItemFlowerWhite
+	ItemFlowerPink
+	ItemFlowerSeed // seeds, planted with V: see SeedKind
+	ItemBerrySeed
+	ItemTreeSeed
+	ItemGlowSeed
+	ItemManEaterSeed
+	itemsEnd // new items go above this line
+
+	// The head of each kind of beast, a trophy: HeadItem(k). They sit at a
+	// fixed place so new items above never move them.
+	ItemHeadBase ItemKind = 192
+	NumItems     ItemKind = ItemHeadBase + ItemKind(maxHeads)
 )
+
+// maxHeads is room for the heads of this many creature kinds.
+const maxHeads = 56
 
 // ItemDef is the static description of an item kind.
 type ItemDef struct {
@@ -169,10 +197,29 @@ var itemDefs = [NumItems]ItemDef{
 	ItemGinkgoNut:   {Name: "Hạt bạch quả", Hunger: 6, Health: -2},
 	ItemRoastGinkgo: {Name: "Hạt bạch quả rang", Hunger: 18, Health: 4},
 	ItemCoconut:     {Name: "Dừa", Hunger: 12, Health: 8},
+
+	ItemDinoHide:     {Name: "Da khủng long"},
+	ItemDinoArmor:    {Name: "Giáp da khủng long", Stack: 1, Tool: true},
+	ItemPotion:       {Name: "Bình máu", Health: PotionHealth, Stack: 10},
+	ItemBigPotion:    {Name: "Bình máu lớn", Health: BigPotionHealth, Stack: 10},
+	ItemBandage:      {Name: "Băng tơ nhện", Health: BandageHealth, Stack: 10},
+	ItemSilk:         {Name: "Tơ nhện"},
+	ItemGlowSpore:    {Name: "Bào tử phát sáng"},
+	ItemFlowerRed:    {Name: "Hoa anh túc đỏ"},
+	ItemFlowerYellow: {Name: "Hoa cúc vàng"},
+	ItemFlowerBlue:   {Name: "Hoa lam"},
+	ItemFlowerPurple: {Name: "Hoa oải hương"},
+	ItemFlowerWhite:  {Name: "Hoa cúc trắng"},
+	ItemFlowerPink:   {Name: "Hoa hồng dại"},
+	ItemFlowerSeed:   {Name: "Hạt hoa"},
+	ItemBerrySeed:    {Name: "Hạt quả mọng"},
+	ItemTreeSeed:     {Name: "Hạt cây"},
+	ItemGlowSeed:     {Name: "Hạt phát sáng"},
+	ItemManEaterSeed: {Name: "Hạt cây ăn thịt"},
 }
 
 // Valid reports whether k is a real item kind (not ItemNone, in range).
-func (k ItemKind) Valid() bool { return k > ItemNone && k < NumItems }
+func (k ItemKind) Valid() bool { return k > ItemNone && k < NumItems && itemDefs[k].Name != "" }
 
 // Def returns the static description of k. Invalid kinds get the ItemNone def.
 func (k ItemKind) Def() ItemDef {
@@ -191,7 +238,11 @@ func (k ItemKind) MaxCount() int {
 }
 
 // Edible reports whether eating k does anything.
-func (k ItemKind) Edible() bool { return k.Def().Hunger > 0 }
+func (k ItemKind) Edible() bool { d := k.Def(); return d.Hunger > 0 || d.Health > 0 }
+
+// Healing reports whether k is a medicine rather than a food: drunk or put
+// on for health, it does not fill the belly.
+func (k ItemKind) Healing() bool { d := k.Def(); return d.Hunger == 0 && d.Health > 0 }
 
 // Ingredient is an item kind and a count, used by recipes.
 type Ingredient struct {

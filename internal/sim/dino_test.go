@@ -122,6 +122,7 @@ func TestKillingABigBeastGivesHidesAndBones(t *testing.T) {
 	if !c.gone {
 		t.Fatalf("hp %d left after a minute of spearing", c.HP)
 	}
+	reap(w, id)
 	p := mustPlayer(t, w, id)
 	for _, in := range CreatureBrachio.Loot() {
 		if got := p.Inv.Count(in.Item); got != in.Count {
@@ -146,8 +147,8 @@ func TestAFullBagStillFightsBack(t *testing.T) {
 	if !c.gone {
 		t.Fatal("a full bag kept a player from killing a raptor that attacks")
 	}
-	if p.Notice != NoticeBagFull {
-		t.Errorf("notice %d, want the bag-full notice for the lost meat", p.Notice)
+	if n := len(entitiesOf(w, EntityCorpse)); n != 1 {
+		t.Errorf("%d bodies: want the raptor lying on the ground, its meat not lost", n)
 	}
 }
 

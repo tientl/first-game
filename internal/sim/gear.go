@@ -66,10 +66,23 @@ func (inv *Inventory) BestArmor() (Tier, bool) {
 // struck hurts p with an animal's attack, less what p's armour stops.
 // Every creature that harms a player goes through here.
 func struck(p *Player, dmg float64) {
-	if t, ok := p.Inv.BestArmor(); ok {
-		dmg *= 1 - ArmorBlock(t)
-	}
+	dmg *= 1 - ArmorShare(&p.Inv)
 	hurt(p, dmg)
+}
+
+// DinoArmorBlock is the share of an attack dinosaur-hide armour stops.
+const DinoArmorBlock = 0.5
+
+// ArmorShare is the share of an attack the best armour in inv stops.
+func ArmorShare(inv *Inventory) float64 {
+	share := 0.0
+	if t, ok := inv.BestArmor(); ok {
+		share = ArmorBlock(t)
+	}
+	if inv.Count(ItemDinoArmor) > 0 {
+		share = max(share, DinoArmorBlock)
+	}
+	return share
 }
 
 // SwordRecipe and ArmorRecipe are the recipes for tier t's sword and

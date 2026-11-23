@@ -42,7 +42,7 @@ func TestJungleWorldsHaveWiderThickerWoods(t *testing.T) {
 	if (&World{style: StyleIce}).forestLine() != forestLine {
 		t.Error("an ice-age world would load with different woods")
 	}
-	if StyleLatest != StyleJungle {
+	if StyleLatest < StyleJungle {
 		t.Error("new games are not jungle worlds")
 	}
 }

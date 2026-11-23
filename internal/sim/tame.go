@@ -165,7 +165,7 @@ func (w *World) wound(c *Creature, dmg int, by *Player) (killed bool) {
 	c.HP -= dmg
 	c.Tame = 0
 	if c.HP <= 0 {
-		c.gone = true
+		w.fell(c) // the body falls; see drops.go
 		return true
 	}
 	if d.tough && c.State != CreatureHurt {
@@ -290,9 +290,7 @@ func (w *World) petFight(pet, foe *Creature, owner *Player, bite int) {
 		return
 	}
 	pet.State, pet.timer, pet.biteCD = CreatureStrike, AttackTicks, PetStrikeCD
-	if w.wound(foe, bite, owner) {
-		addAll(&owner.Inv, foe.Kind.loot()) // what does not fit is lost
-	}
+	w.wound(foe, bite, owner) // a kill's body lies there for its owner to butcher
 }
 
 // ride gets p on its nearest pet that can be ridden, or off the one it rides.

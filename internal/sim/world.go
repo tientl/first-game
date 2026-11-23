@@ -29,6 +29,13 @@ type World struct {
 	offline map[string]PlayerSave // players who left, by name, restored on rejoin
 
 	fauna fauna // animals; see creature.go
+
+	drops    []*Drop // piles on the ground; see drops.go
+	nextDrop DropID
+	webs     []*Web // webs spat by spiders, in the air; see cavelife.go
+	nextWeb  uint32
+	wx       weather   // lightning, tornadoes and ice; see weather.go
+	villages []Village // see tribe.go
 }
 
 func newWorld(width, height int) *World {
@@ -123,6 +130,10 @@ func (w *World) addEntity(kind EntityKind, tx, ty int) *Entity {
 		e.Fuel = FireStartFuel
 	case EntityChest:
 		w.chests[e.ID] = &Inventory{}
+	case EntityBonfire:
+		e.Fuel = FireMaxFuel // a village fire: it never goes out
+	case EntityTrap:
+		e.Ready = true
 	}
 	w.entities[e.ID] = e
 	w.occ[ty*w.width+tx] = e.ID
@@ -147,7 +158,7 @@ func (w *World) standable(x, y float64) bool {
 
 func (w *World) walkableAt(x, y float64) bool {
 	tx, ty := int(math.Floor(x)), int(math.Floor(y))
-	return w.TileAt(tx, ty).Walkable() && !w.blocked(tx, ty)
+	return w.landAt(tx, ty) && !w.blocked(tx, ty)
 }
 
 // Step advances the world by one tick.
@@ -158,6 +169,10 @@ func (w *World) Step() {
 	}
 	w.stepEntities()
 	w.stepCreatures()
+	w.stepWebs()
+	w.stepDrops()
+	w.stepWeather()
+	w.repopulateTribes()
 }
 
 func (w *World) stepEntities() {
@@ -171,7 +186,8 @@ func (w *World) stepEntities() {
 		}
 		switch e.Kind {
 		case EntityTree, EntityBerryBush, EntityGrassTuft, EntityTwig, EntityPebble, EntityCrop,
-			EntityCactus, EntityReed, EntityMushroom, EntityClam, EntityFigTree, EntityGinkgoTree, EntityPalm:
+			EntityCactus, EntityReed, EntityMushroom, EntityClam, EntityFigTree, EntityGinkgoTree, EntityPalm,
+			EntityFlower, EntityGlowPlant:
 			if !e.Ready && w.tick >= e.RegrowAt {
 				e.Ready = true // for a crop: ripe
 				e.HP = maxHP(e.Kind, e.Big)
@@ -180,11 +196,23 @@ func (w *World) stepEntities() {
 			if w.tick >= e.RegrowAt {
 				w.removeEntity(e) // left empty: grass again
 			}
-		case EntityCampfire:
+		case EntityCampfire, EntityTorchStand:
 			e.Fuel--
+			if w.wetFire(e.TX, e.TY) {
+				e.Fuel-- // rain: it burns down twice as fast
+			}
 			if e.Fuel <= 0 {
 				w.removeEntity(e) // deleting during range is safe in Go
 			}
+		case EntityCorpse:
+			if w.tick >= e.RegrowAt {
+				w.removeEntity(e) // rotted away
+			}
+		case EntitySapling:
+			if w.tick >= e.RegrowAt {
+				w.growSapling(e)
+			}
+
 		case EntityFurnace:
 			if e.Fuel > 0 {
 				e.Fuel-- // a cold furnace stays, waiting for fuel

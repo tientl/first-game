@@ -233,6 +233,10 @@ func FireReach(kind EntityKind, fuel int) (r float64, ok bool) {
 		return FireRadius(fuel), true
 	case EntityFurnace:
 		return FurnaceRadius, true
+	case EntityTorchStand:
+		return TorchStandReach, true
+	case EntityBonfire:
+		return MaxFireRadius, true
 	}
 	return 0, false
 }

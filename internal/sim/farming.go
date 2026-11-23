@@ -13,7 +13,7 @@ const CropStages = 3
 // Soft reports whether a hoe can till tiles of this kind.
 func (t Tile) Soft() bool {
 	switch t {
-	case TileGrass, TileForest, TileSand, TileMarsh, TileAsh:
+	case TileGrass, TileForest, TileSand, TileMarsh, TileAsh, TilePath:
 		return true
 	}
 	return false

@@ -63,14 +63,29 @@ func Generate(cfg GenConfig) (*World, error) {
 
 	if cfg.Style != StyleIsland {
 		sx, sy := w.openTerrain(seed)
+		tribal := cfg.Style >= StyleTribal
+		if tribal {
+			trng := rand.New(rand.NewPCG(cfg.Seed, 0x7e1b))
+			w.pickVillages(trng, sx, sy)
+			w.carvePaths(trng, sx, sy)
+		}
 		w.scatterOpen(rng, rand.New(rand.NewPCG(cfg.Seed, 0xb16b16)))
 		w.scatterPebbles(rand.New(rand.NewPCG(cfg.Seed, 0x9ebb1e)))
 		w.scatterOres(rand.New(rand.NewPCG(cfg.Seed, 0x0de5)))
 		w.scatterFruit(rand.New(rand.NewPCG(cfg.Seed, 0xf1f)))
 		w.spawnX, w.spawnY = float64(sx)+0.5, float64(sy)+0.5
+		if tribal {
+			prng := rand.New(rand.NewPCG(cfg.Seed, 0x91a47))
+			w.scatterPlants(prng, seed)
+			w.buildVillages(prng)
+			w.placeTreasure(prng)
+		}
 		w.clearAround(sx, sy, clearSpawnRadius)
 		w.starterKit(rng)
 		w.spawnCreatures()
+		if tribal {
+			w.spawnTribes()
+		}
 		return w, nil
 	}
 

@@ -70,6 +70,7 @@ func TestCrabCutOffFromTheWaterPinches(t *testing.T) {
 
 	w.SetInput(id, Input{Action: true})
 	w.Step()
+	reap(w, id)
 	if p := mustPlayer(t, w, id); p.Inv.Count(ItemCrabMeat) != 1 {
 		t.Fatalf("crab meat %d, want the crab caught", p.Inv.Count(ItemCrabMeat))
 	}
