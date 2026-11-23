@@ -37,7 +37,7 @@ func (g *Game) boatSprites(b protocol.BoatView) (back, front sprite, seatX, seat
 		back, front, seatX, seatY = a.sailBack, a.sailFront, sailSeatX, sailSeatY
 	}
 	if boatLeft(float64(b.Heading)) {
-		back, front, seatX = mirrorSprite(back), mirrorSprite(front), -seatX
+		back, front, seatX = flipped(back), flipped(front), -seatX
 	}
 	return back, front, seatX, seatY
 }
@@ -70,7 +70,7 @@ func (g *Game) drawBoat(dst *ebiten.Image, b protocol.BoatView, sx, sy float64) 
 		s := g.art.sea.sail[g.sailFrame(b)]
 		mx := float64(mastX)
 		if left {
-			s, mx = mirrorSprite(s), -mx
+			s, mx = flipped(s), -mx
 		}
 		drawAt(dst, s, sx+mx, sy+bob+mastY, 1, 1, 0, nil)
 	}
@@ -149,7 +149,7 @@ func (g *Game) seaSprite(c protocol.CreatureView) (sprite, float64, bool) {
 		return sprite{}, 0, false
 	}
 	if c.FaceLeft {
-		s = mirrorSprite(s)
+		s = flipped(s)
 	}
 	return s, 0, true
 }
@@ -166,7 +166,7 @@ func (g *Game) drawSeaShadow(dst *ebiten.Image, cam camera, c protocol.CreatureV
 		s = a.krakenShadow
 	}
 	if c.FaceLeft {
-		s = mirrorSprite(s)
+		s = flipped(s)
 	}
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(sx-s.ax, sy-s.ay)
@@ -175,7 +175,7 @@ func (g *Game) drawSeaShadow(dst *ebiten.Image, cam camera, c protocol.CreatureV
 	if c.Kind == sim.CreatureMosa && moving && (g.frame/50+int(c.ID))%3 == 0 {
 		r := a.mosaBack
 		if c.FaceLeft {
-			r = mirrorSprite(r)
+			r = flipped(r)
 		}
 		drawAt(dst, r, sx, sy+1, 1, 1, 0, nil)
 	}
@@ -190,7 +190,7 @@ func (g *Game) drawKrakenArms(dst *ebiten.Image, c protocol.CreatureView, d draw
 		ay := d.sy + math.Sin(ang)*10
 		arm := a.krakenArm[(g.frame/8+k)%len(a.krakenArm)]
 		if math.Cos(ang) < 0 {
-			arm = mirrorSprite(arm)
+			arm = flipped(arm)
 		}
 		drawAt(dst, arm, ax, ay, 1, 1, 0, nil)
 	}

@@ -170,6 +170,12 @@ func main() {
 			}
 		}
 	}
+	if *at == "pyramid" {
+		if tx, ty, ok := w.Pyramid(); ok {
+			sx, sy = float64(tx)+0.5, float64(ty)+4.5
+		}
+		*at = ""
+	}
 	if *at == "village" {
 		if vs := w.Villages(); len(vs) > 0 {
 			sx, sy = vs[0].X, vs[0].Y+3

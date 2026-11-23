@@ -682,6 +682,8 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 			verb = " đớp!"
 		case sim.CreatureKraken:
 			verb = " siết!"
+		case sim.CreatureScorpion:
+			verb = " kẹp và chích!"
 		}
 		return "Bị " + strings.ToLower(sim.CreatureKind(arg).Name()) + verb
 	case sim.NoticeNeedFire:

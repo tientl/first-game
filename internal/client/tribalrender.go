@@ -142,6 +142,24 @@ func (g *Game) tribalSprite(c protocol.CreatureView, moving bool) (sprite, float
 		return a.tribe[side][tribeStand], 0, true
 	case sim.CreatureFish:
 		return a.fish[int(c.ID)%len(a.fish)][side][(t/9)%fishFrames], 0, true
+	case sim.CreatureScorpion:
+		sc := g.art.desert.scorpion
+		pose := scorpionWalkA
+		switch {
+		case c.State == sim.CreatureClaw:
+			pose = scorpionPinch
+		case c.State == sim.CreatureStrike:
+			pose = scorpionSting
+		case moving && c.State == sim.CreatureChase:
+			pose = scorpionWalkA + (t/4)%2
+		case moving:
+			pose = scorpionWalkA + (t/8)%2
+		}
+		s := sc[pose]
+		if side == 1 {
+			s = flipped(s)
+		}
+		return s, 0, true
 	}
 	return sprite{}, 0, false
 }
@@ -154,6 +172,8 @@ func tribalLabel(c protocol.CreatureView) (string, color.RGBA, bool) {
 		return name + " — đánh (nhả tơ, cắn có độc!)", colBad, true
 	case sim.CreatureBear:
 		return name + " — đánh (cào và cắn rất đau!)", colBad, true
+	case sim.CreatureScorpion:
+		return name + " — đánh (kẹp rồi chích độc!)", colBad, true
 	case sim.CreatureTribesman:
 		if c.State == sim.CreatureFlee {
 			return name + " (bị thương, đang chạy về làng)", colWhite, true
@@ -221,6 +241,8 @@ func (g *Game) tribalEntitySprite(e protocol.EntityView) (sprite, float64, bool)
 		return a.totem, 0, true
 	case sim.EntityBonfire:
 		return a.bonfire, 0, true
+	case sim.EntityPyramid, sim.EntityPyramidStone:
+		return g.art.desert.pyramid, 0, true
 	}
 	return sprite{}, 0, false
 }
@@ -255,7 +277,7 @@ func tribalShadow(e protocol.EntityView) (float64, bool) {
 		return 54, true
 	case sim.EntityTotem:
 		return 14, true
-	case sim.EntityBonfire:
+	case sim.EntityBonfire, sim.EntityPyramid, sim.EntityPyramidStone:
 		return 0, true
 	}
 	return 0, false
@@ -266,8 +288,8 @@ func tribalShadow(e protocol.EntityView) (float64, bool) {
 func (g *Game) drawTribalEntity(dst *ebiten.Image, e protocol.EntityView, d drawable) bool {
 	a := &g.art.tribal
 	switch e.Kind {
-	case sim.EntityFloor:
-		return true // flat: drawn under everything by drawFloors
+	case sim.EntityFloor, sim.EntityPyramidStone:
+		return true // flat, or part of the pyramid drawn whole from its doorway
 	case sim.EntityCorpse:
 		g.drawBody(dst, e, d)
 		return true

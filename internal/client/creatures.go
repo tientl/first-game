@@ -884,6 +884,8 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 		return 30
 	case sim.CreatureTribesman:
 		return 12
+	case sim.CreatureScorpion:
+		return 30
 	default:
 		return 0 // fish and sea reptiles are under water; flying ones cast their own
 	}
