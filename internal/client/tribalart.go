@@ -90,7 +90,7 @@ type tribalArt struct {
 	glow         [3]sprite // mushrooms, fern, tree
 	glowMask     [3]sprite // just their glowing parts, drawn bright at night
 	glowPicked   [3]sprite
-	manEater     [2]sprite // waiting, snapping
+	manEater     [manEaterPoses]sprite
 	door, floor  sprite
 	spikes       sprite
 	trapSet      sprite
@@ -134,7 +134,9 @@ func genTribalArt() tribalArt {
 		a.glow[v], a.glowMask[v] = genGlowPlant(v, true)
 		a.glowPicked[v], _ = genGlowPlant(v, false)
 	}
-	a.manEater[0], a.manEater[1] = genManEater(false), genManEater(true)
+	for p := range manEaterPoses {
+		a.manEater[p] = genManEater(p)
+	}
 	a.door, a.floor, a.spikes = genDoor(), genFloor(), genSpikes()
 	a.trapSet, a.trapSprung = genTrap(true), genTrap(false)
 	a.torchStick = genTorchStick()
@@ -819,7 +821,16 @@ func genGlowPlant(v int, lit bool) (sprite, sprite) {
 // genManEater draws a man-eating plant: a thick stalk rising from broad
 // leaves to a great pair of toothed jaws, open and waiting, or snapped
 // shut and lunging forward.
-func genManEater(snap bool) sprite {
+// The man-eating plant's poses.
+const (
+	manEaterWait = iota // jaws open, waiting
+	manEaterSnap        // lunging, jaws snapping shut
+	manEaterChew        // jaws shut on something it caught, swollen, chewing
+	manEaterPoses
+)
+
+func genManEater(pose int) sprite {
+	snap := pose != manEaterWait
 	c := newCanvas(32, 36)
 	// Leaves at the foot.
 	for _, l := range []ell{{8, 32, 7, 2.6}, {24, 32, 7, 2.6}, {16, 33, 6, 2.2}} {

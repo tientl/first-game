@@ -85,11 +85,12 @@ const (
 	GlowSeedChance     = 0.5
 	GlowSporeYield     = 2
 	GlowLightRadius    = 2.6 // tiles of a glowing plant's light at night (the tree's is bigger)
-	ManEaterReach      = 1.6
-	ManEaterDamage     = 12.0
-	ManEaterBeastBite  = 2
+	ManEaterReach      = 2.2
+	ManEaterDamage     = 16.0
+	ManEaterBeastBite  = 3
 	ManEaterCooldown   = 3 * TicksPerSecond / 2
-	ManEaterSnapTicks  = 6 // the snap pose
+	ManEaterDigest     = 8 * TicksPerSecond // after swallowing a small beast whole, it chews this long
+	ManEaterSnapTicks  = 6                  // the snap pose
 	manEaterSpawnAway  = 30
 	manEaterSeedsYield = 2
 )
@@ -180,9 +181,15 @@ func (w *World) manEaterBites(p *Player) {
 	}
 }
 
-// manEaterBitesBeast lets a man-eater in reach snap at c.
+// manEaterBitesBeast lets a man-eater in reach snap at c. A small beast (a
+// rabbit, a little dinosaur) is swallowed whole; a big one is only bitten.
 func (w *World) manEaterBitesBeast(c *Creature) {
 	if e := w.manEaterNear(c.X, c.Y, c.Kind.def().radius, false); e != nil {
+		if SwallowedWhole(c.Kind) {
+			c.gone = true // eaten: nothing left to butcher
+			e.RegrowAt = w.tick + ManEaterDigest
+			return
+		}
 		e.RegrowAt = w.tick + ManEaterCooldown
 		if c.HP -= ManEaterBeastBite; c.HP <= 0 {
 			w.fell(c)
@@ -276,4 +283,21 @@ func (w *World) scatterPlants(rng *rand.Rand, seed uint32) {
 			}
 		}
 	}
+}
+
+// SwallowedWhole reports whether a man-eating plant swallows a creature of
+// kind k whole: the small beasts and the little dinosaurs.
+func SwallowedWhole(k CreatureKind) bool {
+	switch k {
+	case CreatureRabbit, CreatureSnake, CreatureCrab, CreatureWorm, CreatureThesc, CreatureOrnitho,
+		CreatureAchero, CreatureRaptor, CreatureAnzu, CreatureSpider, CreatureScorpion:
+		return true
+	}
+	return false
+}
+
+// ManEaterChewing reports whether a man-eater that may snap again at
+// readyAt is chewing at tick: it swallowed something.
+func ManEaterChewing(readyAt, tick uint64) bool {
+	return readyAt > tick && readyAt-tick > ManEaterCooldown
 }

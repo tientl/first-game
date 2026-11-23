@@ -30,7 +30,7 @@ const (
 	TrapDamage      = 2
 	TorchStandTicks = 4 * 60 * TicksPerSecond
 	TorchStandReach = 3.5 // tiles of light and warmth
-	ManEaterHits    = 6
+	ManEaterHits    = 10
 
 	PotionHealth    = 45.0
 	BigPotionHealth = 100.0

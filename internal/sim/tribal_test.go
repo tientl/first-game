@@ -402,3 +402,23 @@ func TestTribalWorldRuns(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestManEaterSwallowsSmallDinosaurs(t *testing.T) {
+	w := flatWorld()
+	e := w.addEntity(EntityManEater, 10, 10)
+	small := w.addCreature(CreatureThesc, 11.6, 10.5)
+	small.State, small.timer = CreatureIdle, 1000
+	stepN(w, 2*TicksPerSecond)
+	if !small.gone || len(entitiesOf(w, EntityCorpse)) != 0 {
+		t.Fatalf("thesc gone %v: want it swallowed whole, no body", small.gone)
+	}
+	if !ManEaterChewing(e.RegrowAt, w.tick) {
+		t.Fatal("not chewing after a meal")
+	}
+	big := w.addCreature(CreatureTrike, 11.9, 10.5)
+	hp := big.HP
+	stepN(w, ManEaterDigest+2*TicksPerSecond)
+	if big.gone || big.HP >= hp {
+		t.Fatalf("trike gone %v hp %d: want bitten, not swallowed", big.gone, big.HP)
+	}
+}

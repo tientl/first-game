@@ -226,10 +226,13 @@ func (g *Game) tribalEntitySprite(e protocol.EntityView) (sprite, float64, bool)
 		}
 		return a.glowPicked[v], 0.02, true
 	case sim.EntityManEater:
-		if sim.ManEaterSnapping(uint64(e.Fuel), 0) {
-			return a.manEater[1], 0, true
+		switch {
+		case sim.ManEaterChewing(uint64(e.Fuel), 0):
+			return a.manEater[manEaterChew], 0.01, true
+		case sim.ManEaterSnapping(uint64(e.Fuel), 0):
+			return a.manEater[manEaterSnap], 0, true
 		}
-		return a.manEater[0], 0.03, true
+		return a.manEater[manEaterWait], 0.03, true
 	case sim.EntityTreasure:
 		if e.Ready {
 			return a.treasure[0], 0, true
