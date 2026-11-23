@@ -17,6 +17,7 @@ const (
 	TileLava     // open world: impassable, glows, warms whoever stands near
 	TileSnow     // open world: the frozen north, freezing to stand on; see iceage.go
 	TilePath     // tribal worlds: a beaten trail, quicker going; see paths.go
+	TileIce      // never in a world: what the client draws frozen ponds as in winter
 	NumTiles
 )
 

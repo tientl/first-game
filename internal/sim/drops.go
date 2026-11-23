@@ -20,18 +20,18 @@ import (
 
 // Drop and corpse tuning.
 const (
-	DropReach        = 1.4                   // Space picks up a pile this close, before anything else
-	DropTouch        = 0.5                   // walking this close to a pile picks it up
-	DropPickupDelay  = TicksPerSecond / 2    // a fresh pile cannot be walked up at once: it is still falling
+	DropReach        = 1.4                // Space picks up a pile this close, before anything else
+	DropTouch        = 0.5                // walking this close to a pile picks it up
+	DropPickupDelay  = TicksPerSecond / 2 // a fresh pile cannot be walked up at once: it is still falling
 	DropLifeTicks    = 5 * 60 * TicksPerSecond
-	DropScatter      = 0.9                   // how far piles spread from where they fell
-	PickCooldown     = TicksPerSecond / 5    // Space picks up piles quickly, one after another
+	DropScatter      = 0.9                // how far piles spread from where they fell
+	PickCooldown     = TicksPerSecond / 5 // Space picks up piles quickly, one after another
 	CorpseRotTicks   = 4 * 60 * TicksPerSecond
-	TwigChance       = 0.7                   // a felled tree drops branches this often...
-	TreeSeedChance   = 0.3                   // ...and a seed this often
-	PebbleChance     = 0.35                  // a broken boulder leaves a pebble this often
-	DinoHideFromBig  = 2                     // dinosaur hides from a big dinosaur
-	ButcherKnifeBits = 2                     // a knife butchers this many times faster
+	TwigChance       = 0.7  // a felled tree drops branches this often...
+	TreeSeedChance   = 0.3  // ...and a seed this often
+	PebbleChance     = 0.35 // a broken boulder leaves a pebble this often
+	DinoHideFromBig  = 2    // dinosaur hides from a big dinosaur
+	ButcherKnifeBits = 2    // a knife butchers this many times faster
 )
 
 // DropID identifies a pile on the ground. It is never reused within a world.
@@ -39,14 +39,14 @@ type DropID uint32
 
 // Drop is a pile of one kind of item lying on the ground.
 type Drop struct {
-	ID     DropID
-	Item   ItemKind
-	Count  int
-	X, Y   float64 // where it lies
-	FromX  float64 `json:",omitempty"` // where it fell from: the client animates the fall
-	FromY  float64 `json:",omitempty"`
-	Born   uint64  // tick it fell
-	gone   bool
+	ID    DropID
+	Item  ItemKind
+	Count int
+	X, Y  float64 // where it lies
+	FromX float64 `json:",omitempty"` // where it fell from: the client animates the fall
+	FromY float64 `json:",omitempty"`
+	Born  uint64  // tick it fell
+	gone  bool
 }
 
 // Drops returns copies of every pile on the ground, in id order.

@@ -62,14 +62,14 @@ const (
 	LightningBeast  = 6
 	LightningShow   = TicksPerSecond // how long a strike is sent to clients
 
-	TornadoSpeed   = 1.6 / TicksPerSecond
-	TornadoPull    = 3.0 // it drags players this close...
-	TornadoHit     = 1.3 // ...and hurts those this close
-	TornadoDamage  = 8.0 / TicksPerSecond
-	TornadoSpin    = 2.6 / TicksPerSecond // how fast it whirls a player round it
-	TornadoAway    = 14.0                 // it appears this far from a player...
-	TornadoFell    = 0.04                 // per tick: a tree under it is torn down
-	pondMaxTiles   = 900                  // water bodies up to this size freeze; bigger is sea
+	TornadoSpeed  = 1.6 / TicksPerSecond
+	TornadoPull   = 3.0 // it drags players this close...
+	TornadoHit    = 1.3 // ...and hurts those this close
+	TornadoDamage = 8.0 / TicksPerSecond
+	TornadoSpin   = 2.6 / TicksPerSecond // how fast it whirls a player round it
+	TornadoAway   = 14.0                 // it appears this far from a player...
+	TornadoFell   = 0.04                 // per tick: a tree under it is torn down
+	pondMaxTiles  = 900                  // water bodies up to this size freeze; bigger is sea
 )
 
 // SeasonOf returns the season at tick.
@@ -94,7 +94,9 @@ func (wt Weather) Name() string {
 func (wt Weather) Wet() bool { return wt == WeatherRain || wt == WeatherStorm }
 
 // Windy reports whether the wind blows hard.
-func (wt Weather) Windy() bool { return wt == WeatherWind || wt == WeatherTornado || wt == WeatherStorm }
+func (wt Weather) Windy() bool {
+	return wt == WeatherWind || wt == WeatherTornado || wt == WeatherStorm
+}
 
 // weatherOdds is, per season, the chance of each weather.
 var weatherOdds = [NumSeasons][NumWeathers]float64{

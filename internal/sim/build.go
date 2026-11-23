@@ -22,14 +22,14 @@ import "math"
 // Building tuning.
 const (
 	SpikesHits      = 4
-	SpikeDamage     = 1                      // to a beast against the stakes, every SpikeEvery ticks
+	SpikeDamage     = 1 // to a beast against the stakes, every SpikeEvery ticks
 	SpikeEvery      = TicksPerSecond
-	SpikeReach      = 0.45                   // a beast's edge this close to the stakes is pricked
-	TrapHoldTicks   = 15 * TicksPerSecond    // a small beast struggles this long
-	TrapHoldTough   = 4 * TicksPerSecond     // a big one breaks free sooner
+	SpikeReach      = 0.45                // a beast's edge this close to the stakes is pricked
+	TrapHoldTicks   = 15 * TicksPerSecond // a small beast struggles this long
+	TrapHoldTough   = 4 * TicksPerSecond  // a big one breaks free sooner
 	TrapDamage      = 2
 	TorchStandTicks = 4 * 60 * TicksPerSecond
-	TorchStandReach = 3.5                    // tiles of light and warmth
+	TorchStandReach = 3.5 // tiles of light and warmth
 	ManEaterHits    = 6
 
 	PotionHealth    = 45.0

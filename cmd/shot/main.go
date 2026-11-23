@@ -58,7 +58,12 @@ func main() {
 	hell := flag.Bool("hell", false, "put one of each of the tyrant's neighbours around the player (pond crocodiles with -croc)")
 	eat := flag.Bool("eat", false, "with -dinos, -hell or -ice: the idle beasts are eating instead")
 	ride := flag.Bool("ride", false, "the player rides a tamed three-horn, with a pet raptor, someone else's waiting plate-back and a beaten raptor nearby")
+	tribal := flag.Bool("tribal", false, "put the tribal age's things round the player: cave beasts, a warrior, a body, a trophy, flowers, glowing plants, a man-eater, buildings, a chest and piles on the ground")
+	weather := flag.String("weather", "", "the weather: rain, wind, storm, tornado, snow")
+	season := flag.String("season", "", "the season: spring, summer, autumn, winter")
+	zoom := flag.Int("zoom", 0, "the view's zoom, -3 to 3")
 	flag.Parse()
+	client.SetZoom(*zoom)
 
 	N := 96
 	style := sim.StyleIsland
@@ -141,6 +146,26 @@ func main() {
 				most, sx, sy = n, float64(b.TX)+0.5, float64(b.TY)+1.5
 			}
 		}
+	}
+	if *at == "village" {
+		if vs := w.Villages(); len(vs) > 0 {
+			sx, sy = vs[0].X, vs[0].Y+3
+		}
+		*at = ""
+	}
+	if *at == "path" {
+		best := math.Inf(1)
+		for i, t := range w.Tiles() {
+			if t != sim.TilePath {
+				continue
+			}
+			x, y := float64(i%N)+0.5, float64(i/N)+0.5
+			if d := math.Hypot(x-sx, y-sy); d > 12 && d < best {
+				best, *at = d, ""
+				sx, sy = x, y
+			}
+		}
+		*at = ""
 	}
 	if *at != "" {
 		want := map[string]sim.Tile{"desert": sim.TileDesert, "marsh": sim.TileMarsh, "cave": sim.TileCave,
@@ -263,7 +288,7 @@ func main() {
 			ready = false
 		}
 		snap.Entities = append(snap.Entities, protocol.EntityView{
-			ID: e.ID, Kind: e.Kind, TX: int16(e.TX), TY: int16(e.TY), Ready: ready, Big: e.Big,
+			ID: e.ID, Kind: e.Kind, TX: int16(e.TX), TY: int16(e.TY), Ready: ready, Big: e.Big, Var: e.Var, Fuel: int32(e.Fuel),
 		})
 	})
 	w.EachCreatureIn(sx-20, sy-20, sx+20, sy+20, func(c sim.Creature) {
@@ -466,6 +491,19 @@ func main() {
 		}
 	}
 
+	if *tribal {
+		addTribal(&snap, sx, sy)
+	}
+	snap.Season = map[string]sim.Season{"summer": sim.Summer, "autumn": sim.Autumn, "winter": sim.Winter}[*season]
+	snap.Weather = map[string]sim.Weather{"rain": sim.WeatherRain, "wind": sim.WeatherWind, "storm": sim.WeatherStorm,
+		"tornado": sim.WeatherTornado, "snow": sim.WeatherSnow}[*weather]
+	if snap.Weather == sim.WeatherStorm {
+		snap.Strikes = []protocol.StrikeView{{X: float32(sx + 5), Y: float32(sy - 2), Age: 1}}
+	}
+	if snap.Weather == sim.WeatherTornado {
+		snap.Tornadoes = []protocol.TornadoView{{ID: 1, X: float32(sx - 6), Y: float32(sy + 1)}}
+	}
+
 	// A campfire next to the spawn, so lighting is visible at night.
 	snap.Entities = append(snap.Entities, protocol.EntityView{
 		ID: 1 << 30, Kind: sim.EntityCampfire, TX: int16(cx + 2), TY: int16(cy), Ready: true,
@@ -586,4 +624,61 @@ func abs(v int) int {
 		return -v
 	}
 	return v
+}
+
+// addTribal puts one of each of the tribal age's things round (sx, sy).
+func addTribal(snap *protocol.Snapshot, sx, sy float64) {
+	cx, cy := int16(math.Floor(sx)), int16(math.Floor(sy))
+	kept := snap.Entities[:0]
+	for _, e := range snap.Entities {
+		if e.TX < cx-9 || e.TX > cx+9 || e.TY < cy-6 || e.TY > cy+6 {
+			kept = append(kept, e)
+		}
+	}
+	snap.Entities = kept
+	id := sim.EntityID(1 << 28)
+	put := func(k sim.EntityKind, dx, dy int16, v uint8, ready bool) {
+		id++
+		snap.Entities = append(snap.Entities, protocol.EntityView{ID: id, Kind: k, TX: cx + dx, TY: cy + dy, Ready: ready, Var: v, Fuel: sim.TorchStandTicks})
+	}
+	put(sim.EntityCorpse, 3, 1, uint8(sim.CreatureRaptor), true)
+	put(sim.EntityCorpse, -4, 3, uint8(sim.CreatureTrike), true)
+	put(sim.EntityTrophy, 2, -2, uint8(sim.CreatureRex), true)
+	put(sim.EntityTrophy, 4, -2, uint8(sim.CreatureBear), true)
+	put(sim.EntityTrophy, 6, -2, uint8(sim.CreatureMammoth), true)
+	for f := range sim.NumFlowers {
+		put(sim.EntityFlower, -8+int16(f), -4, uint8(f), true)
+	}
+	put(sim.EntityGlowPlant, -6, 0, 0, true)
+	put(sim.EntityGlowPlant, -8, 1, 1, true)
+	put(sim.EntityGlowPlant, -7, -2, 2, true)
+	put(sim.EntityManEater, 7, 2, 0, true)
+	put(sim.EntityDoor, -2, -3, 0, true)
+	put(sim.EntityWall, -3, -3, 0, true)
+	put(sim.EntityWall, -1, -3, 0, true)
+	put(sim.EntitySpikes, 0, -3, 0, true)
+	put(sim.EntityFloor, -3, -2, 0, true)
+	put(sim.EntityFloor, -2, -2, 0, true)
+	put(sim.EntityTrap, 5, 3, 0, true)
+	put(sim.EntityTorchStand, 1, 2, 0, true)
+	put(sim.EntityTreasure, 8, 0, 0, true)
+	put(sim.EntitySapling, -1, 4, uint8(sim.SeedGlow), false)
+	put(sim.EntityHut, -6, 5, 0, true)
+	put(sim.EntityTotem, -3, 5, 0, true)
+	cid := sim.CreatureID(1 << 28)
+	beast := func(k sim.CreatureKind, dx, dy float64, st sim.CreatureState, left bool) {
+		cid++
+		snap.Creatures = append(snap.Creatures, protocol.CreatureView{ID: cid, Kind: k, X: float32(sx + dx), Y: float32(sy + dy), State: st, FaceLeft: left})
+	}
+	beast(sim.CreatureSpider, 4.5, 4.5, sim.CreatureChase, true)
+	beast(sim.CreatureSpider, 6.5, 5.2, sim.CreatureSpit, true)
+	beast(sim.CreatureBear, -6, -1, sim.CreatureClaw, false)
+	beast(sim.CreatureBear, 9, 4, sim.CreatureIdle, true)
+	beast(sim.CreatureTribesman, 2.5, 4.2, sim.CreatureStrike, true)
+	beast(sim.CreatureTribesman, -1.5, 3.2, sim.CreatureIdle, false)
+	for i, k := range []sim.ItemKind{sim.ItemWood, sim.ItemStick, sim.ItemDinoHide, sim.ItemPotion, sim.HeadItem(sim.CreatureRaptor)} {
+		snap.Drops = append(snap.Drops, protocol.DropView{ID: sim.DropID(i + 1), Item: k, Count: uint8(1 + i%2),
+			X: float32(sx + 1 + float64(i)*0.6), Y: float32(sy + 1.6 + float64(i%2)*0.4), Age: 999})
+	}
+	snap.Webs = []protocol.WebView{{ID: 1, X: float32(sx + 2), Y: float32(sy + 3)}}
 }

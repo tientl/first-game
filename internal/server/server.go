@@ -21,7 +21,7 @@ import (
 // Defaults for Config fields left at zero.
 const (
 	DefaultWorldSize      = 128
-	DefaultInterestRadius = 32 // tiles; covers a 2560px-wide screen
+	DefaultInterestRadius = 44 // tiles; covers a 1920px-wide screen zoomed all the way out
 )
 
 // maxMsgsPerTick bounds how many messages one client may have handled per

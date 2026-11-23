@@ -462,8 +462,10 @@ func nearAPlayer(ps []protocol.PlayerView, x, y, r float64) bool {
 type targetView struct {
 	ok       bool
 	creature bool // c is the target, else e
+	drop     bool // a pile on the ground, d
 	e        protocol.EntityView
 	c        protocol.CreatureView
+	d        protocol.DropView
 }
 
 // creatureCandidates lists the creatures in cs near (x, y), for sim.PickTarget.
@@ -532,6 +534,9 @@ func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {
 	}
 	if c.State == sim.CreatureCower {
 		return name + " (đã gục) — cầm " + strings.ToLower(c.Kind.TameFood().Def().Name) + " để thuần", colGood
+	}
+	if l, col, ok := tribalLabel(c); ok {
+		return l, col // see tribalrender.go
 	}
 	if l, col, ok := hellLabel(c); ok {
 		return l, col // see hellwire.go
@@ -621,6 +626,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 		side = 1
 	}
 	t := g.frame + int(c.ID)*7 // so a group does not move in lockstep
+	if s, bob, ok := g.tribalSprite(c, moving); ok {
+		return s, bob // see tribalrender.go
+	}
 	if s, bob, ok := g.hellSprite(c, moving); ok {
 		return s, bob // see hellwire.go
 	}
@@ -864,6 +872,12 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 		return 36
 	case sim.CreatureRaptor:
 		return 15
+	case sim.CreatureSpider:
+		return 18
+	case sim.CreatureBear:
+		return 30
+	case sim.CreatureTribesman:
+		return 12
 	default:
 		return 0 // fish and sea reptiles are under water; flying ones cast their own
 	}
@@ -884,6 +898,9 @@ func (g *Game) drawCreature(dst *ebiten.Image, c protocol.CreatureView, d drawab
 	if c.State == sim.CreatureHurt {
 		x += math.Round(math.Sin(float64(g.frame) * 1.3)) // flinch
 		op.ColorScale.Scale(1, 0.55, 0.55, 1)
+	}
+	if c.State == sim.CreatureTrapped {
+		x += math.Round(math.Sin(float64(g.frame) * 0.9)) // struggling in the snare
 	}
 	wades := c.Kind == sim.CreatureCrab || crocLike(c.Kind)
 	if wades && g.tileAt(int(math.Floor(float64(c.X))), int(math.Floor(float64(c.Y)))) == sim.TileWater {
@@ -984,10 +1001,12 @@ func (g *Game) drawFish(dst *ebiten.Image, cam camera, alpha float64) {
 			continue
 		}
 		if c.State == sim.CreatureLurk {
-			g.drawLurker(dst, cam, c)
+			if !g.underIce(c) {
+				g.drawLurker(dst, cam, c)
+			}
 			continue
 		}
-		if c.Kind != sim.CreatureFish {
+		if c.Kind != sim.CreatureFish || g.underIce(c) {
 			continue
 		}
 		x, y, moving := g.lerpCreature(c, alpha)
@@ -996,8 +1015,8 @@ func (g *Game) drawFish(dst *ebiten.Image, cam camera, alpha float64) {
 		bob := math.Round(math.Sin(float64(g.frame)*0.05 + float64(c.ID)))
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(sx-s.ax, sy+bob-s.ay)
-		op.ColorScale.Scale(0.62, 0.8, 0.9, 1) // seen through the water
-		op.ColorScale.ScaleAlpha(0.8)
+		op.ColorScale.Scale(0.86, 0.94, 1, 1) // seen through the water, colours and all
+		op.ColorScale.ScaleAlpha(0.9)
 		dst.DrawImage(s.img, op)
 
 		// Now and then a ring spreads on the surface above it.

@@ -161,6 +161,7 @@ func (m *mixer) Read(p []byte) (int, error) {
 type audioSettings struct {
 	Music   float64 `json:"music"`
 	Effects float64 `json:"effects"`
+	Zoom    int     `json:"zoom,omitempty"` // the view's zoom; see render.go
 }
 
 // --- sound system -----------------------------------------------------------
@@ -222,6 +223,8 @@ func InitAudio(settingsPath string) {
 		if json.Unmarshal(b, &st) == nil {
 			s.settings.Music = clamp01(st.Music)
 			s.settings.Effects = clamp01(st.Effects)
+			s.settings.Zoom = max(minZoom, min(maxZoom, st.Zoom))
+			viewZoom = s.settings.Zoom
 		}
 	}
 
@@ -433,4 +436,13 @@ func approach(cur, want, step float64) float64 {
 		return max(want, cur-step)
 	}
 	return cur
+}
+
+// saveZoom keeps the view's zoom with the settings.
+func (s *soundSystem) saveZoom(z int) {
+	if s == nil || s.settings.Zoom == z {
+		return
+	}
+	s.settings.Zoom = z
+	s.saveSettings()
 }

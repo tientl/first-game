@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 23
+const Version = 24
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -83,6 +83,42 @@ type Snapshot struct {
 	Players   []PlayerView // includes the client's own player
 	Entities  []EntityView
 	Creatures []CreatureView
+
+	Season    sim.Season
+	Weather   sim.Weather
+	Drops     []DropView    // piles on the ground nearby
+	Webs      []WebView     // spider webs in the air
+	Strikes   []StrikeView  // lightning in the last second
+	Tornadoes []TornadoView // whirlwinds nearby
+}
+
+// DropView is a pile on the ground.
+type DropView struct {
+	ID           sim.DropID
+	Item         sim.ItemKind
+	Count        uint8
+	X, Y         float32
+	FromX, FromY float32 // where it fell from
+	Age          uint16  // ticks since it fell, capped
+}
+
+// WebView is a web a spider spat, in flight.
+type WebView struct {
+	ID     uint32
+	X, Y   float32
+	VX, VY float32
+}
+
+// StrikeView is a bolt of lightning.
+type StrikeView struct {
+	X, Y float32
+	Age  uint8 // ticks since it struck
+}
+
+// TornadoView is a whirlwind.
+type TornadoView struct {
+	ID   uint32
+	X, Y float32
 }
 
 // SelfState is the client's own private state.
@@ -91,6 +127,9 @@ type SelfState struct {
 	Inv            sim.Inventory // hotbar slots first, then the bag
 	Selected       uint8         // the hotbar slot held
 	Dead, Cold     bool
+	Poisoned       bool          // spider venom eats health
+	Webbed         bool          // tangled in web: slowed
+	HomeBed        bool          // a bed is where this player comes back
 	TorchFuel      int32         // ticks left on the torch burning in the hand; 0 if none
 	Chest          sim.EntityID  // the chest open, 0 when none
 	ChestSlots     sim.Inventory // what that chest holds
@@ -102,19 +141,20 @@ type SelfState struct {
 
 // PlayerView is what everyone can see of a player.
 type PlayerView struct {
-	ID      sim.PlayerID
-	Name    string
-	X, Y    float32
-	Dir     sim.Dir
-	Dead    bool
-	Acting  bool
-	HasAxe  bool           // carries an axe
-	AxeTier sim.Tier       // what the best axe carried is made of
-	Armor   sim.Tier       // what the best armour carried is made of; 0 (stone) means none
-	Held    sim.ItemKind   // what is in the selected hotbar slot, drawn in the hand
-	Asleep  bool           // in bed: drawn lying down
-	Look    sim.Look       // body and hair
-	Mount   sim.CreatureID // the beast being ridden, 0 when on foot: drawn on its back
+	ID        sim.PlayerID
+	Name      string
+	X, Y      float32
+	Dir       sim.Dir
+	Dead      bool
+	Acting    bool
+	HasAxe    bool           // carries an axe
+	AxeTier   sim.Tier       // what the best axe carried is made of
+	Armor     sim.Tier       // what the best armour carried is made of; 0 (stone) means none
+	Held      sim.ItemKind   // what is in the selected hotbar slot, drawn in the hand
+	Asleep    bool           // in bed: drawn lying down
+	Look      sim.Look       // body and hair
+	Mount     sim.CreatureID // the beast being ridden, 0 when on foot: drawn on its back
+	DinoArmor bool           // wears dinosaur-hide armour
 
 	Cast       sim.CastState // fishing: whether the line is out, and whether the fish bites
 	BobX, BobY float32       // where the float sits while the line is out
@@ -128,7 +168,8 @@ type EntityView struct {
 	Ready  bool
 	Big    bool  // trees and boulders: the big size
 	Stage  uint8 // growing crops: 0 just planted to sim.CropStages-1
-	Fuel   int32 // campfires only
+	Fuel   int32 // campfires, furnaces and standing torches; a man-eater's ticks till it may snap again
+	Var    uint8 // a body's or trophy's creature kind, a flower's colour, a seedling's seed, a glowing plant's look
 }
 
 // CreatureView is what clients see of an animal.

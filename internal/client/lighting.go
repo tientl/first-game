@@ -20,6 +20,9 @@ func (g *Game) drawLighting(screen *ebiten.Image, cam camera) {
 	amb := sim.Ambient(g.curr.Tick)
 	night := (1 - amb) * maxDarkness
 	cave := g.caveDarkness() // inside a cave it is dark at any hour
+	if g.caveIn() < 0.5 {
+		night = math.Max(night, g.weatherDim()) // an overcast sky
+	}
 	dark := math.Max(night, cave)
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
 
@@ -58,6 +61,7 @@ func (g *Game) drawLighting(screen *ebiten.Image, cam camera) {
 			op.Blend = ebiten.BlendDestinationOut
 			g.darkness.DrawImage(g.art.light, op)
 		}
+		g.glowLights(g.darkness, cam, true, dark) // see tribalrender.go
 		screen.DrawImage(g.darkness, nil)
 	}
 	if lava {
@@ -77,6 +81,7 @@ func (g *Game) drawLighting(screen *ebiten.Image, cam camera) {
 		op.Blend = ebiten.BlendLighter
 		screen.DrawImage(g.art.light, op)
 	}
+	g.glowLights(screen, cam, false, dark)
 	for _, t := range g.torches(cam) {
 		k := float32(0.28 * (0.2 + dark) * g.flicker(t.id))
 		op := g.lightOpAt(t.sx, t.sy, sim.TorchRadius*0.7)

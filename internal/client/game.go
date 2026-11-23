@@ -4,6 +4,7 @@
 package client
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -63,6 +64,8 @@ type Game struct {
 	myID          sim.PlayerID
 	width, height int
 	tiles         []sim.Tile
+	pondMask      []bool     // lakes and ponds, which freeze in winter
+	groundSeason  sim.Season // the season the ground is drawn for
 
 	// The two latest snapshots; players are drawn interpolated between them.
 	hasCurr       bool
@@ -119,6 +122,11 @@ type Game struct {
 	canopy   *ebiten.Image // one pixel per tile in view: where the woods shade the ground
 	drawList []drawable
 	frame    int
+
+	lastScreenH int // the screen height last drawn, for mouse hit-testing
+	mapZoom     int // the world map's zoom, 1 = the whole map
+	zoomNoticed int // the zoom last shown in a notice
+	strikesSeen map[[2]float32]bool
 }
 
 // New returns a game that plays over conn under the given player name.
@@ -126,6 +134,7 @@ func New(conn Conn, name string) *Game {
 	return &Game{
 		conn:          conn,
 		name:          name,
+		zoomNoticed:   viewZoom,
 		prevPlayers:   make(map[sim.PlayerID]protocol.PlayerView),
 		prevCreatures: make(map[sim.CreatureID]protocol.CreatureView),
 		entAt:         make(map[[2]int]int),
@@ -301,8 +310,10 @@ func (g *Game) onMessage(m protocol.ServerMsg) {
 			return
 		}
 		g.myID, g.width, g.height, g.tiles = w.PlayerID, w.Width, w.Height, w.Tiles
+		g.pondMask = sim.PondMask(w.Width, w.Height, w.Tiles)
 		terr := newTerrain(w.Width, w.Height, w.Tiles)
 		g.ground.reset(terr)
+		g.groundSeason = sim.Spring
 		if !g.demo {
 			g.wmap.reset(terr, sim.ExploredFrom(w.Width, w.Height, w.Explored))
 		}
@@ -337,6 +348,11 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 		g.prevCreatures[c.ID] = c
 	}
 	g.curr, g.currAt, g.hasCurr = s, time.Now(), true
+	if want := groundSeason(s.Season); want != g.groundSeason {
+		// Snow on the ground and ice on the ponds come and go with winter.
+		g.groundSeason = want
+		g.ground.reset(newTerrain(g.width, g.height, seasonTiles(g.width, g.height, g.tiles, want, g.pondMask)))
+	}
 	g.noteSwings(s)
 	g.classifySwings(old, s)
 	if !g.selKnown && sim.IsHotbar(int(s.Self.Selected)) {
@@ -386,7 +402,7 @@ func (g *Game) handleInput() {
 		if ebiten.IsKeyPressed(ebiten.KeyD) || ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
 			in.MoveX++
 		}
-		in.Action = ebiten.IsKeyPressed(ebiten.KeySpace)
+		in.Action = ebiten.IsKeyPressed(ebiten.KeySpace) || g.mouseAction()
 	}
 
 	// Held input is sent only when it changes; if the send fails it is
@@ -420,6 +436,10 @@ func (g *Game) handleInput() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyC) {
 		g.command(sim.Command{Kind: sim.CmdCraft, Recipe: sim.RecipeCampfire})
 	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyV) && g.overlay == overlayNone {
+		g.command(sim.Command{Kind: sim.CmdPlace}) // a head on a post, a torch in the ground, a seed
+	}
+	g.updateZoom()
 	if inpututil.IsKeyJustPressed(ebiten.KeyQ) {
 		g.command(sim.Command{Kind: sim.CmdCraft, Recipe: sim.RecipeAxe})
 	}
@@ -457,7 +477,7 @@ func (g *Game) updateHotbar() {
 	if i, ok := hotbarKey(); ok {
 		sel = i
 	}
-	if g.overlay == overlayNone {
+	if g.overlay == overlayNone && !ctrlHeld() { // Ctrl and the wheel zoom instead
 		// A wheel notch is 1; touchpads send many small amounts, so they add
 		// up to a step.
 		_, dy := ebiten.Wheel()
@@ -492,9 +512,10 @@ func (g *Game) slotToEat() (int, bool) {
 		return g.hotSel, true
 	}
 	// Else the best food carried (cooked before raw), hotbar first on a tie.
+	// Medicine is only taken when held: it is no meal.
 	best, found := 0, false
 	for i := range inv {
-		if edible(i) && (!found || foodScore(inv[i].Item) > foodScore(inv[best].Item)) {
+		if edible(i) && !inv[i].Item.Healing() && (!found || foodScore(inv[i].Item) > foodScore(inv[best].Item)) {
 			best, found = i, true
 		}
 	}
@@ -644,10 +665,35 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 			verb = " quất đuôi!"
 		case sim.CreaturePtero:
 			verb = " mổ!"
+		case sim.CreatureSpider:
+			verb = " cắn — trúng độc!"
+		case sim.CreatureBear:
+			verb = " vồ!"
+		case sim.CreatureTribesman:
+			verb = " đâm giáo!"
 		}
 		return "Bị " + strings.ToLower(sim.CreatureKind(arg).Name()) + verb
 	case sim.NoticeNeedFire:
+		if r, ok := sim.RecipeByID(sim.RecipeID(arg)); ok && r.Gives.Healing() {
+			return "Phải đứng gần lửa trại đang cháy để nấu " + r.Name
+		}
 		return "Phải đứng gần lửa trại đang cháy để nướng"
+	case sim.NoticePickedUp:
+		return "" // the pick-up sound says it
+	case sim.NoticeCantPlace:
+		return "Cầm đầu thú, đuốc hoặc hạt giống trên tay rồi nhấn V để đặt xuống"
+	case sim.NoticePlantBite:
+		return "Bị cây ăn thịt người đớp!"
+	case sim.NoticeLightning:
+		return "Bị sét đánh!"
+	case sim.NoticeTornado:
+		return "Bị lốc xoáy cuốn! Chạy ra xa"
+	case sim.NoticeWebbed:
+		return "Dính tơ nhện — đi chậm lại!"
+	case sim.NoticeTreasure:
+		return "Mở được rương cổ!"
+	case sim.NoticeHomeSet:
+		return "Đây là nơi bạn sẽ hồi sinh"
 	}
 	return ""
 }
@@ -659,3 +705,69 @@ func (g *Game) myHeld() sim.ItemKind {
 	}
 	return sim.ItemNone
 }
+
+// groundSeason is the season whose ground is drawn: only winter looks different.
+func groundSeason(s sim.Season) sim.Season {
+	if s == sim.Winter {
+		return sim.Winter
+	}
+	return sim.Spring
+}
+
+// mouseAction reports whether the left mouse button works like Space: held
+// down over the world, not over the hotbar or the help.
+func (g *Game) mouseAction() bool {
+	if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) || g.lastScreenH == 0 {
+		return false
+	}
+	_, my := ebiten.CursorPosition()
+	return my < g.lastScreenH-slotPx-32 // not on the hotbar
+}
+
+func ctrlHeld() bool {
+	return ebiten.IsKeyPressed(ebiten.KeyControlLeft) || ebiten.IsKeyPressed(ebiten.KeyControlRight)
+}
+
+// updateZoom changes the view's zoom with = and - (or Ctrl and the wheel),
+// and on the map, the map's zoom with the wheel.
+func (g *Game) updateZoom() {
+	in := inpututil.IsKeyJustPressed(ebiten.KeyEqual) || inpututil.IsKeyJustPressed(ebiten.KeyNumpadAdd)
+	out := inpututil.IsKeyJustPressed(ebiten.KeyMinus) || inpututil.IsKeyJustPressed(ebiten.KeyNumpadSubtract)
+	if g.overlay == overlayMap {
+		_, dy := ebiten.Wheel()
+		switch {
+		case in || dy > 0:
+			g.mapZoom = min(maxMapZoom, g.mapZoom+1)
+		case out || dy < 0:
+			g.mapZoom = max(1, g.mapZoom-1)
+		}
+		return
+	}
+	if g.overlay != overlayNone {
+		return
+	}
+	if ctrlHeld() {
+		_, dy := ebiten.Wheel()
+		in, out = in || dy > 0, out || dy < 0
+	}
+	switch {
+	case in:
+		setZoom(viewZoom + 1)
+	case out:
+		setZoom(viewZoom - 1)
+	}
+	if g.zoomNoticed != viewZoom {
+		g.zoomNoticed = viewZoom
+		g.showNotice(fmt.Sprintf("Thu phóng: %+d", viewZoom))
+	}
+}
+
+// setZoom sets and saves the view's zoom.
+func setZoom(z int) {
+	viewZoom = max(minZoom, min(maxZoom, z))
+	snd.saveZoom(viewZoom)
+}
+
+// SetZoom sets the view's zoom, minZoom to maxZoom, without saving it: for
+// the screenshot tool.
+func SetZoom(z int) { viewZoom = max(minZoom, min(maxZoom, z)) }

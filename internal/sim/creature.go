@@ -67,25 +67,25 @@ const (
 type CreatureState uint8
 
 const (
-	CreatureIdle   CreatureState = iota
-	CreatureWander               // walking somewhere at its own pace
-	CreatureFlee                 // a rabbit bolting from a player
-	CreatureRest                 // a rabbit out of breath after bolting
-	CreatureSleep                // a rabbit asleep at night
-	CreatureChase                // a snake going for a player
-	CreatureStrike               // a snake biting
-	CreatureHurt                 // flinching from a hit
-	CreatureHooked               // a fish under someone's float; see fishing.go
-	CreatureHidden               // down its burrow or den: out of sight and reach; see homes.go
-	CreatureLurk                 // a crocodile in the water, only its eyes showing; out of reach
-	CreatureSoar                 // a flying reptile high in the air; out of reach
-	CreatureRoar                 // a tyrant roaring before it charges
-	CreatureCower                // a hunter beaten down: it lies low, and can be tamed; see tame.go
-	CreatureEat                  // grazing, or eating a kill: head down, chewing; see needs.go
-	CreatureDrink                // drinking at the water's edge
-	CreatureClaw                 // a bear's swipe (its bite is CreatureStrike)
-	CreatureTrapped              // caught in a snare: it struggles, going nowhere
-	CreatureSpit                 // a spider spitting web
+	CreatureIdle    CreatureState = iota
+	CreatureWander                // walking somewhere at its own pace
+	CreatureFlee                  // a rabbit bolting from a player
+	CreatureRest                  // a rabbit out of breath after bolting
+	CreatureSleep                 // a rabbit asleep at night
+	CreatureChase                 // a snake going for a player
+	CreatureStrike                // a snake biting
+	CreatureHurt                  // flinching from a hit
+	CreatureHooked                // a fish under someone's float; see fishing.go
+	CreatureHidden                // down its burrow or den: out of sight and reach; see homes.go
+	CreatureLurk                  // a crocodile in the water, only its eyes showing; out of reach
+	CreatureSoar                  // a flying reptile high in the air; out of reach
+	CreatureRoar                  // a tyrant roaring before it charges
+	CreatureCower                 // a hunter beaten down: it lies low, and can be tamed; see tame.go
+	CreatureEat                   // grazing, or eating a kill: head down, chewing; see needs.go
+	CreatureDrink                 // drinking at the water's edge
+	CreatureClaw                  // a bear's swipe (its bite is CreatureStrike)
+	CreatureTrapped               // caught in a snare: it struggles, going nowhere
+	CreatureSpit                  // a spider spitting web
 )
 
 // OutOfReach reports whether a creature in state s cannot be targeted: on
@@ -293,7 +293,7 @@ type Creature struct {
 	fedCD     int      // ticks before it takes another meal
 	healT     int      // ticks to its next point of mending, as a pet
 
-	village      int // the village a warrior belongs to, 1-based; 0 for everyone else
+	village int // the village a warrior belongs to, 1-based; 0 for everyone else
 
 	homeX, homeY float64
 	hx, hy       float64 // heading while walking or fleeing, a unit vector

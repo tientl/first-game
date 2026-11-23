@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"math"
@@ -48,6 +49,7 @@ var mapTiles = []struct {
 	{sim.TileAsh, ashRamp2, "Tro núi lửa"},
 	{sim.TileLava, lavaRamp, "Dung nham"},
 	{sim.TileSnow, snowRamp, "Tuyết"},
+	{sim.TilePath, pathRamp, "Đường mòn"},
 }
 
 // mapRamp is the palette the map paints land tile t with. Kinds missing from
@@ -274,7 +276,11 @@ func (g *Game) rememberFires(s protocol.Snapshot) {
 
 // --- drawing ----------------------------------------------------------------
 
+// maxMapZoom is how far the world map zooms in.
+const maxMapZoom = 6
+
 func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
+	full := screen
 	g.dim(screen, sw, sh, 0.65)
 	g.text(screen, "Bản đồ", float64(sw)/2, 18, colWhite, text.AlignCenter, 2)
 
@@ -285,6 +291,25 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 	dw, dh := mw*k, mh*k
 	x0, y0 := math.Round((float64(sw)-dw)/2), math.Round(top+(float64(sh)-top-bottom-dh)/2)
 	panel(screen, float32(x0)-8, float32(y0)-8, float32(dw)+16, float32(dh)+16)
+	legendY := y0 + dh + 22
+
+	// Zoomed in (the wheel, = and -), the map is bigger than its frame and
+	// centred on the player; everything is drawn clipped to the frame.
+	z := float64(max(1, g.mapZoom))
+	if z > 1 {
+		px, py := float64(g.width)/2, float64(g.height)/2
+		for _, p := range g.curr.Players {
+			if p.ID == g.myID {
+				px, py = float64(p.X), float64(p.Y)
+			}
+		}
+		fw, fh := dw, dh
+		dw, dh = fw*z, fh*z
+		vx0, vy0 := x0, y0
+		x0 = math.Round(min(vx0, max(vx0+fw-dw, vx0+fw/2-px/float64(g.width)*dw)))
+		y0 = math.Round(min(vy0, max(vy0+fh-dh, vy0+fh/2-py/float64(g.height)*dh)))
+		screen = screen.SubImage(image.Rect(int(vx0), int(vy0), int(vx0+fw), int(vy0+fh))).(*ebiten.Image)
+	}
 
 	if img := g.wmap.img; img != nil {
 		b := img.Bounds()
@@ -341,8 +366,8 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 		g.drawHeadMark(screen, x, y, 2, playerColors[int(p.ID)%len(playerColors)], p.Look)
 	}
 
-	g.drawMapLegend(screen, float64(sw)/2, y0+dh+22)
-	g.text(screen, "M / Esc  đóng bản đồ", float64(sw)/2, float64(sh)-26, colMuted, text.AlignCenter, 1)
+	g.drawMapLegend(full, float64(sw)/2, legendY)
+	g.text(full, fmt.Sprintf("M / Esc  đóng bản đồ · lăn chuột hoặc = / −  phóng to, thu nhỏ (×%d)", max(1, g.mapZoom)), float64(sw)/2, float64(sh)-26, colMuted, text.AlignCenter, 1)
 }
 
 // drawHeadMark draws a player on the map: their head (with look l) on a disc

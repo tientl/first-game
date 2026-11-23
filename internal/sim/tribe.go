@@ -44,7 +44,7 @@ var tribesmanDef = creatureDef{
 func init() {
 	creatureDefs[CreatureTribesman] = tribesmanDef
 	diets[CreatureTribesman] = dietDef{
-		prey: []CreatureKind{CreatureRabbit, CreatureThesc, CreatureOrnitho, CreatureAchero},
+		prey:   []CreatureKind{CreatureRabbit, CreatureThesc, CreatureOrnitho, CreatureAchero},
 		hunger: [2]int{120 * TicksPerSecond, 260 * TicksPerSecond},
 		thirst: [2]int{150 * TicksPerSecond, 300 * TicksPerSecond}, eatTicks: 6 * TicksPerSecond, bite: 3,
 	}

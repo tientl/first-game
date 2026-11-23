@@ -381,3 +381,24 @@ func TestDropsAndHomeAreSaved(t *testing.T) {
 		t.Fatalf("saved drops %+v", d.Drops)
 	}
 }
+
+// TestTribalWorldRuns steps a new world for a while, through every kind of
+// weather, with a player wandering about, to shake out panics.
+func TestTribalWorldRuns(t *testing.T) {
+	w := genOpen(t, 5, SizeMedium)
+	id := w.AddPlayer("a")
+	w.players[id].Inv.Add(ItemSpear, 1)
+	for i := range 6000 {
+		if i%400 == 0 {
+			w.tick += WeatherTicks * 3 // skip ahead to other weather and seasons
+		}
+		w.SetInput(id, Input{MoveX: int8(i/300%3 - 1), MoveY: int8(i/700%3 - 1), Action: i%7 == 0})
+		if p := w.players[id]; p.Dead {
+			w.Apply(id, Command{Kind: CmdRespawn})
+		}
+		w.Step()
+	}
+	if _, err := Load(w.Save()); err != nil {
+		t.Fatal(err)
+	}
+}

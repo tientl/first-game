@@ -52,6 +52,9 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 | B | Mở/đóng túi đồ: 20 ngăn túi + 10 ô nhanh, mỗi ô chứa một loại (tối đa 40, rìu 1). Nhấp một ô để nhấc lên, nhấp ô khác để đặt, gộp hoặc đổi chỗ (chuột phải để bỏ). Shift+nhấp chuyển nhanh giữa túi và ô nhanh; 1–0 đưa món đang trỏ vào ô nhanh đó; mũi tên/WASD + Enter cũng dùng được. Nhấp vào công thức để chế tạo |
 | M | Mở/đóng bản đồ: chỉ hiện những nơi bạn đã đi qua (trong vòng khoảng 10 ô quanh nhân vật), phần còn lại phủ sương; bản đồ đã khám phá được lưu theo từng người chơi. Có vị trí của bạn (icon đầu nhân vật), người chơi gần đó, lửa trại đã thấy. Góc trên bên phải màn hình luôn có minimap: vùng quanh bạn, chỉ hiện chỗ đã đi qua |
 | R | Cưỡi thú đã thuần đứng gần (cần Yên da trong túi), nhấn lần nữa để xuống. Khi đã chết: hồi sinh |
+| Chuột trái (giữ) | Như giữ Space |
+| V | Đặt món đang cầm xuống trước mặt: đầu thú lên cọc, cắm đuốc xuống đất, gieo hạt |
+| = / − (hoặc Ctrl + lăn chuột) | Thu phóng: nhìn gần hơn hoặc xa hơn; lưu trong settings.json. Khi mở bản đồ (M): lăn chuột hoặc = / − để phóng to bản đồ quanh chỗ bạn |
 | Esc | Tạm dừng: tiếp tục, lưu game, chỉnh âm lượng, về menu, thoát |
 | F11 | Toàn màn hình |
 
@@ -173,6 +176,38 @@ Cầm thức ăn nó thích trên tay rồi nhấn Space vào con thú (mỗi gi
 | Acheroraptor | 2 Thịt sống, khi nó đã bị đánh gục | Không | Cắn thú dữ quanh bạn |
 
 Thú cưng đi theo bạn (bỏ xa quá 24 ô thì nó tự tìm tới), tự hồi máu dần, và lao vào bất kỳ thú dữ nào đang đuổi hay cắn bạn trong vòng 6 ô; con nó hạ được thì bạn nhận chiến lợi phẩm. Nhấn Space vào thú của mình để bảo nó đứng chờ hoặc gọi đi theo; cầm thức ăn của nó thì Space là cho ăn hồi máu. Khi cưỡi, bạn với xa hơn nửa ô; chết, ngủ hoặc thoát game thì tự xuống thú. **Yên da**: 4 Da thú, 2 Cỏ khô, 1 Xương. **Áo lông**: 4 Lông thú, 2 Da thú, giữ ấm trên tuyết. **Giáo ngà**: 2 Cành cây, 1 Ngà voi, 1 Cỏ khô; đánh mạnh gấp bốn tay không, với xa nhất.
+
+## Thời bộ lạc (thế giới tạo mới)
+
+Thế giới mới (kiểu `StyleTribal`) có thêm những thứ dưới đây; bản lưu cũ giữ nguyên địa hình cũ nhưng vẫn có mùa, thời tiết, đồ rơi, xác thú, đồ xây mới.
+
+- **Đồ rơi dưới đất**: chặt cây, đập đá, mổ xác, mở rương cổ thì đồ văng ra đất. Nhấn Space (đống gần nhất trong tầm với trước tiên) hoặc đi ngang qua để nhặt. Chặt cây hay rơi thêm Cành cây, đôi khi Hạt cây; đập đá đôi khi rơi Đá cuội. Đồ nằm đất 5 phút thì mục mất.
+- **Xác thú**: hạ thú thì xác nằm lại trên vũng máu (thú bốn chân lật ngửa). Space vào xác để mổ (cầm dao thì nhanh gấp đôi): ra thịt, da, xương, **đầu thú**, và **Da khủng long** nếu là khủng long. Xác để 4 phút thì rữa mất. Xác thổ dân thì lục soát (có khi được giáo).
+- **Đầu thú**: cầm đầu trên tay, nhấn V để cắm lên cọc làm vật trang trí; Space để gỡ xuống.
+- **Mùa và thời tiết**: mỗi mùa 3 ngày (xuân, hạ, thu, đông). Thời tiết đổi vài phút một lần: mưa (lửa cháy nhanh gấp đôi), gió, giông bão (sét đánh gần người: 35 máu, cây bị sét thì đổ), lốc xoáy (cuốn người quay vòng, mất máu, quật đổ cây), tuyết. Mùa đông khi có tuyết hay gió thì ở ngoài trời rất lạnh kể cả ban ngày (mặc Áo lông, Áo da thú hoặc Giáp da khủng long, hoặc đứng gần lửa, đuốc); mặt đất phủ tuyết; ao hồ (không phải biển) đóng băng, đi lên được, cá trốn dưới băng. Mùa thu lá cây ngả vàng.
+- **Làng thổ dân**: xa chỗ xuất phát, lều gỗ mái tranh quanh cột vật tổ và đống lửa không bao giờ tắt. Thổ dân da đen, mặt vẽ sơn trắng, không mặc áo, cầm giáo: thấy bạn trong 7 ô (đêm 5 ô) là xông tới đâm (12 máu), bị thương nặng thì chạy về làng. Họ cũng đi săn thỏ, Thescelosaurus, Ornithomimus. Làng còn lều thì cứ một phút gửi thêm người.
+- **Đường mòn**: nối chỗ xuất phát với các làng và cửa hang, giữa các làng với nhau; đi trên đường nhanh hơn. Rừng thưa hơn trước.
+- **Hang sâu**: núi nhiều hơn, hang có nhiều nhánh và hầm rộng, ăn sâu vào lòng núi. Trong hang có **nhện độc** (nhả tơ làm bạn đi chậm, cắn có độc mất máu dần) và **gấu hang** (cào rồi cắn). Chỗ sâu nhất có **rương cổ**: Space để mở, càng sâu đồ càng quý (bình máu, quặng, hắc diện thạch, răng bạo chúa, hạt giống...).
+- **Hoa và hạt**: 6 loại hoa (anh túc đỏ, cúc vàng, hoa lam, oải hương, cúc trắng, hồng dại), hái được hoa và hay được Hạt hoa. Hạt quả mọng (hái bụi quả), Hạt cây (chặt cây), Hạt phát sáng, Hạt cây ăn thịt: cầm hạt nhấn V để gieo trước mặt.
+- **Cây phát sáng**: nấm, dương xỉ và cây cao phát sáng xanh lam, tím vào ban đêm, trong rừng sâu, đầm lầy và hang. Hái được Bào tử phát sáng.
+- **Cây ăn thịt người**: ở đầm lầy và rừng xa, đớp người và thú lại gần (12 máu). Chặt bằng vũ khí hoặc rìu, rơi hạt; cây trồng từ hạt thì chỉ đớp thú, canh nhà cho bạn.
+- **Tuyết và núi lửa** luôn ở rất xa chỗ xuất phát.
+- **Hồi sinh**: chết thì hồi sinh cạnh giường ngủ lần cuối (nếu giường còn), không thì ở chỗ xuất phát.
+- **Nhân vật** đầu tròn, thân tròn hơn. **Cá** nhiều màu: cá hề, cá đuôi gai xanh, cá chép vàng, cá koi, cá hồi cầu vồng, cá rô.
+
+| Món mới | Công thức | Tác dụng |
+| --- | --- | --- |
+| Cửa gỗ | 3 Gỗ | Người đi qua được, thú và thổ dân thì không |
+| Sàn gỗ | 1 Gỗ | Lát nền nhà |
+| Hàng rào chông | 2 Gỗ, 3 Cành cây | Chặn đường, đâm thú áp sát |
+| Bẫy thú | 3 Cành cây, 2 Cỏ khô, 1 Đá | Giữ thú đầu tiên giẫm phải 15 giây (thú to 4 giây); Space để đặt lại |
+| Đuốc cắm | 1 Đuốc (cầm, nhấn V) | Cháy 4 phút, sáng và ấm; Space để nhổ lên |
+| Bình máu | 2 Hoa anh túc đỏ, 1 Quả mọng, 1 Nấm (gần lửa) | +45 máu |
+| Bình máu lớn | 1 Bình máu, 2 Bào tử phát sáng, 1 Hoa lam (gần lửa) | +100 máu, giải độc |
+| Băng tơ nhện | 2 Tơ nhện, 1 Cỏ khô | +20 máu, giải độc |
+| Giáp da khủng long | 4 Da khủng long, 2 Xương, 1 Tơ nhện | Đỡ 50% sức tấn công, giữ ấm mùa đông |
+
+Xem nhanh: `go run ./cmd/shot -open -tribal`, `-at village`, `-at path`, `-weather storm|rain|wind|tornado|snow`, `-season winter|autumn`, `-zoom -2`.
 
 ## Chế tạo
 

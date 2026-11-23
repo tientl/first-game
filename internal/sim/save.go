@@ -53,7 +53,7 @@ type PlayerSave struct {
 	Selected       int    // held hotbar slot
 	Explored       []byte `json:",omitempty"` // tiles seen, as Explored.Bytes
 	Dead           bool
-	TorchFuel      int `json:",omitempty"` // ticks left on the torch being burnt
+	TorchFuel      int      `json:",omitempty"` // ticks left on the torch being burnt
 	Home           EntityID `json:",omitempty"` // the last bed slept in
 
 	// Inv is how saves before version 4 kept the inventory: a count per item

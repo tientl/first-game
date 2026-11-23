@@ -126,39 +126,43 @@ func padTop(c *canvas, n int) *canvas {
 func torsoSpan(female bool, d sim.Dir, y int) (x0, x1 int, ok bool) {
 	side := d == sim.DirRight || d == sim.DirLeft
 	switch {
+	// Everyone is round and soft: the torso swells from the neck to a
+	// round belly and tucks in again at the hem.
 	case !female && !side:
 		switch {
-		case y == 12, y == 18, y == 19:
+		case y == 12, y == 19:
 			return 6, 11, true
-		case y >= 13 && y <= 15:
-			return 4, 13, true
-		case y == 16, y == 17:
+		case y == 13, y == 18:
 			return 5, 12, true
+		case y >= 14 && y <= 17:
+			return 4, 13, true
 		}
 	case !female:
 		switch {
-		case y == 12:
+		case y == 12, y == 19:
 			return 7, 10, true
-		case y >= 13 && y <= 15:
-			return 5, 12, true
-		case y >= 16 && y <= 18:
+		case y == 13, y == 18:
 			return 6, 11, true
-		case y == 19:
-			return 7, 11, true
+		case y >= 14 && y <= 17:
+			return 5, 12, true
 		}
 	case !side:
 		switch {
-		case y == 12, y == 16, y == 17:
+		case y == 12:
 			return 6, 11, true
-		case y >= 13 && y <= 15, y == 18:
+		case y == 13, y == 17:
 			return 5, 12, true
+		case y >= 14 && y <= 16, y == 18:
+			return 4, 13, true
 		}
 	default:
 		switch {
-		case y == 12, y == 16, y == 17:
+		case y == 12:
 			return 7, 10, true
-		case y >= 13 && y <= 15, y == 18:
+		case y == 13, y == 17, y == 18:
 			return 6, 11, true
+		case y >= 14 && y <= 16:
+			return 5, 12, true
 		}
 	}
 	return 0, 0, false
@@ -385,7 +389,7 @@ func genHeadMark(l sim.Look) *ebiten.Image {
 
 // headRX and headRY are the head's radii in art pixels: a big head, but not
 // a chibi's.
-const headRX, headRY = 5.4, 5.2
+const headRX, headRY = 6.0, 5.9
 
 // drawHead draws a round head centred on (cx, cy) in c, with l's face and
 // hair. Hair hanging behind the body goes in behind.
@@ -395,14 +399,8 @@ func drawHead(c, behind *canvas, l sim.Look, d sim.Dir, cx, cy int) {
 	l = l.Sanitized()
 	hr, sk := hairColors[l.HairColor].ramp, skinTones[l.Skin].ramp
 	fx, fy := float64(cx), float64(cy)
-	// A round head; a man's has a squarer jaw, filling out the lower corners.
-	inHead := func(nx, ny float64) bool {
-		if nx*nx+ny*ny <= 1 {
-			return true
-		}
-		ax, ay := math.Abs(nx), math.Abs(ny)
-		return !l.Female && ny > 0.3 && ax*ax*ax+ay*ay*ay <= 1
-	}
+	// A round head, round as a ball, man or woman.
+	inHead := func(nx, ny float64) bool { return nx*nx+ny*ny <= 1 }
 	for y := cy - 7; y <= cy+7; y++ { // a box round the head (headRX, headRY < 7)
 		for x := cx - 7; x <= cx+7; x++ {
 			nx, ny := (float64(x)+0.5-fx)/rx, (float64(y)+0.5-fy)/ry

@@ -24,6 +24,8 @@ var (
 	caveWall    = mkRamp(0x0e1014, 0x161a20, 0x1f252c, 0x2a323a, 0x36404a)
 	crystalRamp = mkRamp(0x2b5a8a, 0x3f86c4, 0x62b8ea, 0x9ee2ff, 0xe8fbff)
 	colEmber    = hex(0xff7a2a)
+	pathRamp    = mkRamp(0x5a4128, 0x6e5233, 0x846440, 0x9a774e, 0xb08c60)
+	iceRamp     = mkRamp(0x5a86a8, 0x76a2c2, 0x94bcd6, 0xb4d4e6, 0xd2e8f2, 0xf0faff)
 )
 
 // openBiome colours a pixel of the open world's new ground kinds; ok is false
@@ -73,6 +75,31 @@ func openBiome(k sim.Tile, px, py int, u, v float64) (c color.RGBA, ok bool) {
 		return mountainTop(px, py, u, v), true
 	case sim.TileSnow:
 		return snowGround(px, py, u, v), true // see iceart.go
+	case sim.TilePath:
+		// Packed earth: two ruts worn by feet, small stones, tufts at the edges.
+		n := fbm2(u*0.4, v*0.5, 181, 3)
+		i := pathRamp.idx(0.5+(n-0.5)*0.7, px, py)
+		if math.Abs(vnoise(u*1.3, v*0.6, 182)-0.5) < 0.04 {
+			i-- // a rut
+		}
+		if hashf(px, py, 183) < 0.03 {
+			i += 2 // a pebble
+		}
+		return pathRamp.at(i), true
+	case sim.TileIce:
+		// Pond ice: pale and clear with white cracks and a dusting of snow.
+		n := fbm2(u*0.3, v*0.4, 191, 3)
+		i := iceRamp.idx(0.45+(n-0.5)*0.6, px, py)
+		if math.Abs(vnoise(u*2.4, v*2.8, 192)-0.5) < 0.02 {
+			return iceRamp.at(5), true // a crack
+		}
+		if fbm2(u*0.6+9, v*0.7, 193, 2) > 0.62 {
+			return snowGround(px, py, u, v), true // drifted snow
+		}
+		if hashf(px, py, 194) < 0.01 {
+			return colWhite, true // a glint
+		}
+		return iceRamp.at(i), true
 	}
 	return color.RGBA{}, false
 }
