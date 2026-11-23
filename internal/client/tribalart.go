@@ -829,51 +829,354 @@ const (
 	manEaterPoses
 )
 
-func genManEater(pose int) sprite {
-	snap := pose != manEaterWait
-	c := newCanvas(32, 36)
-	// Leaves at the foot.
-	for _, l := range []ell{{8, 32, 7, 2.6}, {24, 32, 7, 2.6}, {16, 33, 6, 2.2}} {
-		roundShape(c, l, maneatRamp, 0)
-	}
-	hx, hy := 16.0, 13.0
-	if snap {
-		hx, hy = 20.0, 15.0
-	}
-	for o := -1.0; o <= 1.0; o++ {
-		c.line(16+o, 32, hx+o-1, hy+4, func(x, y int, t float64) color.RGBA { return maneatRamp.pick(0.45-o*0.15, x, y) })
-	}
-	if snap {
-		roundShape(c, ell{hx, hy, 8, 5.4}, maneatRamp, 0.05)
-		c.line(hx-7, hy, hx+7, hy, func(x, y int, t float64) color.RGBA { return maneatMouth.at(0) })
-		for x := int(hx) - 6; x <= int(hx)+6; x += 2 {
-			c.set(x, int(hy)-1, hex(0xf4f0e0))
-			c.set(x+1, int(hy)+1, hex(0xf4f0e0))
+// The man-eater's own colours: the red of its jaws outside, the wet flesh
+// inside them, its fangs, and what is left of its meals.
+var (
+	maneatHead  = mkRamp(0x30050c, 0x520812, 0x780c1a, 0x9c1220, 0xbc1a26, 0xd62c30, 0xec4c48)
+	maneatFlesh = mkRamp(0x4a0818, 0x7a122a, 0xb02c44, 0xdc566a, 0xf48a96, 0xffbcbc)
+	maneatFang  = mkRamp(0x8a7a5a, 0xcfc09a, 0xf2e8c8, 0xfffbe8)
+	maneatPrey  = mkRamp(0x33260f, 0x5e4a1e, 0x8c7430, 0xb89c4a, 0xdcc478)
+	maneatBone  = mkRamp(0x7a705c, 0xb8ae94, 0xe6dec6, 0xfaf6e6)
+	maneatRoot  = mkRamp(0x22180e, 0x3a2a16, 0x554020, 0x70582e)
+)
+
+// manEaterTube fills a tapering tube along a cubic Bézier (four points in
+// bz), r0 thick at its start and r1 at its end. shade colours a pixel from
+// how far along the tube it is, in pixels, and its normal across it.
+func manEaterTube(c *canvas, bz [8]float64, r0, r1 float64, shade func(x, y int, s, nx, ny float64) color.RGBA) {
+	const n = 72
+	var px, py, ps [n + 1]float64
+	for i := 0; i <= n; i++ {
+		t := float64(i) / n
+		u := 1 - t
+		px[i] = u*u*u*bz[0] + 3*u*u*t*bz[2] + 3*u*t*t*bz[4] + t*t*t*bz[6]
+		py[i] = u*u*u*bz[1] + 3*u*u*t*bz[3] + 3*u*t*t*bz[5] + t*t*t*bz[7]
+		if i > 0 {
+			ps[i] = ps[i-1] + math.Hypot(px[i]-px[i-1], py[i]-py[i-1])
 		}
-	} else {
-		// Two lobes hinged at the back, gaping, red inside.
-		c.ellipse(hx, hy-5, 8, 4.4, func(x, y int, nx, ny float64) color.RGBA {
-			if ny > 0.2 {
-				return maneatMouth.pick(0.8-ny*0.3, x, y)
+	}
+	for y := 0; y < c.h; y++ {
+		for x := 0; x < c.w; x++ {
+			fx, fy := float64(x)+0.5, float64(y)+0.5
+			best, bi := math.Inf(1), 0
+			for i := 0; i <= n; i++ {
+				if d := (fx-px[i])*(fx-px[i]) + (fy-py[i])*(fy-py[i]); d < best {
+					best, bi = d, i
+				}
 			}
-			return maneatRamp.pick(lum(nx, ny)+0.1, x, y)
-		})
-		c.ellipse(hx, hy+4, 8, 4.4, func(x, y int, nx, ny float64) color.RGBA {
-			if ny < -0.2 {
-				return maneatMouth.pick(0.5+ny*0.3, x, y)
+			r := lerpf(r0, r1, float64(bi)/n)
+			if best > r*r {
+				continue
 			}
-			return maneatRamp.pick(lum(nx, ny), x, y)
-		})
-		for x := int(hx) - 7; x <= int(hx)+7; x += 2 {
-			c.set(x, int(hy)-2, hex(0xf4f0e0)) // teeth
-			c.set(x, int(hy)+1, hex(0xf4f0e0))
+			if col := shade(x, y, ps[bi], (fx-px[bi])/r, (fy-py[bi])/r); col.A > 0 {
+				c.put(x, y, col)
+			}
 		}
-		for _, sp := range [][2]int{{-3, -7}, {2, -8}, {5, 6}} {
-			c.set(int(hx)+sp[0], int(hy)+sp[1], hex(0xe84a5a)) // red spots
+	}
+}
+
+// manEaterLeaf draws one big serrated leaf from its base to its tip, w wide
+// at its broadest and bowed sideways by bend.
+func manEaterLeaf(c *canvas, bx, by, tx, ty, w, bend, bias float64) {
+	l := math.Hypot(tx-bx, ty-by)
+	ux, uy := (tx-bx)/l, (ty-by)/l
+	nx, ny := -uy, ux
+	lit := -(nx*0.55 + ny*0.7) // how much the +d side faces the light
+	for y := 0; y < c.h; y++ {
+		for x := 0; x < c.w; x++ {
+			fx, fy := float64(x)+0.5-bx, float64(y)+0.5-by
+			s := (fx*ux + fy*uy) / l
+			if s < 0 || s > 1 {
+				continue
+			}
+			d := fx*nx + fy*ny - bend*math.Sin(math.Pi*s)
+			saw := s*7 - math.Floor(s*7)
+			half := w * math.Pow(math.Sin(math.Pi*math.Pow(s, 0.7)), 0.8) * (1 - 0.28*saw)
+			if math.Abs(d) > half || half < 0.3 {
+				continue
+			}
+			t := 0.5 + bias + 0.3*lit*d/w + 0.12*s
+			switch {
+			case math.Abs(d) < 0.55:
+				t -= 0.3 // the midrib
+			case saw < 0.16 && math.Abs(d) < half-0.6:
+				t -= 0.16 // side veins
+			case math.Abs(d) > half-1:
+				t += 0.1
+			}
+			c.put(x, y, maneatRamp.pick(t, x, y))
+		}
+	}
+}
+
+// manEaterFang draws one fang from its root, n pixels long along (dx, dy)
+// and two thick at the root along (wx, wy).
+func manEaterFang(c *canvas, x, y, dx, dy, wx, wy, n, shadeBias float64) {
+	for k := 0.0; k < n; k += 0.5 {
+		i := 1 + int(k/n*3+shadeBias)
+		px, py := x+dx*k, y+dy*k
+		c.put(int(math.Floor(px)), int(math.Floor(py)), maneatFang.at(i))
+		if k < n*0.5 {
+			c.put(int(math.Floor(px+wx)), int(math.Floor(py+wy)), maneatFang.at(i-1))
+		}
+	}
+}
+
+// manEaterHead draws the jaws: two red lobes hinged at (hx, hy), pointing
+// along ang and gaping by gape radians, each l long and t deep. swell fattens
+// them around a meal.
+func manEaterHead(c *canvas, hx, hy, ang, gape, l, t, swell float64) {
+	open := gape > 0.6
+	type lobe struct{ ux, uy, vx, vy, w float64 }
+	aU, aL := ang-gape/2, ang+gape/2
+	up := lobe{math.Cos(aU), math.Sin(aU), math.Sin(aU), -math.Cos(aU), 0}
+	lo := lobe{math.Cos(aL), math.Sin(aL), -math.Sin(aL), math.Cos(aL), 0}
+	if open {
+		up.w, lo.w = l*0.2, l*0.34
+	}
+	prof := func(s float64) float64 {
+		return math.Pow(math.Sin(math.Pi*math.Pow(s, 0.8)), 0.6-0.22*swell) * (1 + swell*0.06*math.Sin(s*10+1))
+	}
+	lens := func(s float64) float64 { return math.Pow(math.Sin(math.Pi*s), 0.8) }
+	each := func(f func(x, y int, dx, dy float64)) {
+		r := int(l + t + 8)
+		for y := int(hy) - r; y <= int(hy)+r; y++ {
+			for x := int(hx) - r; x <= int(hx)+r; x++ {
+				f(x, y, float64(x)+0.5-hx, float64(y)+0.5-hy)
+			}
+		}
+	}
+	if open {
+		// The throat, dark between the lobes.
+		each(func(x, y int, dx, dy float64) {
+			r := math.Hypot(dx, dy)
+			d := math.Atan2(dy, dx) - ang
+			if r < l*0.62 && math.Abs(d) < gape/2 {
+				c.put(x, y, maneatFlesh.pick(0.25*r/(l*0.62)-0.05, x, y))
+			}
+		})
+		// The far row of fangs, behind the lower lobe's inner face.
+		for s := 0.2; s < 0.95; s += 4.2 / l {
+			o := lo.w * lens(s)
+			manEaterFang(c, hx+lo.ux*s*l-lo.vx*o, hy+lo.uy*s*l-lo.vy*o,
+				-lo.vx+lo.ux*0.3, -lo.vy+lo.uy*0.3, lo.ux, lo.uy, 3+2*math.Sin(math.Pi*s), -1)
+		}
+	}
+	for li, b := range []lobe{lo, up} {
+		each(func(x, y int, dx, dy float64) {
+			u, v := dx*b.ux+dy*b.uy, dx*b.vx+dy*b.vy
+			s := u / l
+			if s <= 0 || s >= 1 {
+				return
+			}
+			p := t * prof(s)
+			switch {
+			case v >= 0 && v <= p: // the red outside
+				nv := v / p
+				nx := b.vx*nv*0.92 + b.ux*(2*s-1)*0.4
+				ny := b.vy*nv*0.92 + b.uy*(2*s-1)*0.4
+				k := lum(nx, ny)*0.85 + 0.06
+				for _, rib := range []float64{0.36, 0.7} {
+					if math.Abs(nv-rib)*p < 0.55 && s > 0.08 {
+						k -= 0.2 // veins, running hinge to tip
+					}
+				}
+				if v < 1.2 {
+					k += 0.14 // the lip
+				}
+				col := maneatHead.pick(k, x, y)
+				// Yellow-green spots.
+				cu, cv := math.Floor(u/6), math.Floor(v/5)
+				if h := hashf(int(cu)+li*31, int(cv), 77); h > 0.72 && v > 2 && v < p-1.5 {
+					ox := (cu+0.3+0.4*hashf(int(cu), int(cv)+li*17, 78))*6 - u
+					oy := (cv+0.3+0.4*hashf(int(cu)+li*13, int(cv), 79))*5 - v
+					if ox*ox+oy*oy < 1.9 {
+						col = mix(hex(0xd8d456), maneatHead.at(3), 0.5-k*0.5)
+					}
+				}
+				c.put(x, y, col)
+			case v < 0 && -v <= b.w*lens(s): // the wet inside
+				q := -v / (b.w * lens(s))
+				k := 0.42 + 0.4*s - 0.3*q
+				if li == 1 {
+					k = 0.34 - 0.26*q // the upper lobe's is in its own shade
+				} else if math.Abs(q-0.5) < 0.09 {
+					k -= 0.22
+				}
+				c.put(x, y, maneatFlesh.pick(k, x, y))
+			}
+		})
+	}
+	// The fangs along both rims: long and bare when open, meshed when shut.
+	step := 4.4 / l
+	if open {
+		step = 5.2 / l
+	}
+	for i, b := range []lobe{lo, up} {
+		s0 := 0.2
+		if open {
+			s0 = 0.36
+		}
+		for s := s0 + float64(i)*step/2; s < 0.98; s += step {
+			n := 5.5
+			if open {
+				n = 5 + 3*math.Sin(math.Pi*s)
+			}
+			manEaterFang(c, hx+b.ux*s*l, hy+b.uy*s*l, -b.vx*0.95+b.ux*0.3, -b.vy*0.95+b.uy*0.3, b.ux, b.uy, n, 0)
+		}
+	}
+}
+
+// manEaterCanvas draws the plant and returns it with its anchor, the middle
+// of its foot.
+func manEaterCanvas(pose int) (*canvas, float64, float64) {
+	const ax, ay = 24.0, 77.0
+	c := newCanvas(72, 84)
+	// The stalk's curve from foot to neck, and the head on it.
+	var (
+		stalk               [8]float64
+		ang, gape, l, t, sw float64
+	)
+	switch pose {
+	case manEaterSnap:
+		stalk = [8]float64{ax, 75, 2, 62, 16, 30, 37, 42}
+		ang, gape, l, t = 0.36, 0.14, 32, 11.5
+	case manEaterChew:
+		stalk = [8]float64{ax, 75, 42, 62, 4, 52, 23, 36}
+		ang, gape, l, t, sw = -0.1, 0, 30, 15, 1
+	default:
+		stalk = [8]float64{ax, 75, 44, 60, 6, 50, 26, 33}
+		ang, gape, l, t = -0.46, 1.24, 31, 12
+	}
+	hx, hy := stalk[6], stalk[7]
+
+	// Roots gripping the ground, and the bones of old meals.
+	for i, r := range [][8]float64{
+		{ax, 75, 16, 73, 10, 79, 3, 78},
+		{ax, 75, 32, 73, 38, 80, 46, 78},
+		{ax, 76, 22, 79, 27, 80, 30, 82.5},
+	} {
+		manEaterTube(c, r, 2.1, 0.8, func(x, y int, s, nx, ny float64) color.RGBA {
+			return maneatRoot.pick(lum(nx, ny)*0.9+0.1-0.2*hashf(x/2, y+i, 5), x, y)
+		})
+	}
+	roundShape(c, ell{50.5, 78.5, 3.4, 2.8}, maneatBone, 0.15) // a small skull
+	c.rect(52, 80, 4, 2, func(x, y int) color.RGBA { return maneatBone.pick(0.5, x, y) })
+	c.set(49, 78, maneatBone.at(0))
+	c.set(52, 78, maneatBone.at(0))
+	for x := 53; x < 56; x += 2 {
+		c.set(x, 81, maneatBone.at(0))
+	}
+	c.line(5, 81.5, 14, 80, func(x, y int, _ float64) color.RGBA { return maneatBone.at(2) })
+	for _, e := range [][2]int{{4, 80}, {4, 82}, {14, 79}, {15, 81}} {
+		c.set(e[0], e[1], maneatBone.at(3))
+	}
+	for i := 0; i < 3; i++ { // ribs
+		c.line(float64(58+i*3), 79.5, float64(60+i*3), 75.5, func(x, y int, _ float64) color.RGBA { return maneatBone.at(1 + i%2) })
+	}
+
+	// The rosette of leaves behind the stalk.
+	for _, f := range [][5]float64{
+		{-22, -17, 6, 3, -0.08},
+		{20, -19, 6, -3, -0.1},
+		{-23, -4, 6.5, 3, 0},
+		{27, -5, 6.5, -3.5, 0.02},
+		{-9, -24, 5, 2, -0.14},
+		{9, -25, 5, -2, -0.16},
+	} {
+		manEaterLeaf(c, ax, 74, ax+f[0], 74+f[1], f[2], f[3], f[4])
+	}
+
+	// The stalk: thick, ribbed, thorny.
+	manEaterTube(c, stalk, 5, 3.6, func(x, y int, s, nx, ny float64) color.RGBA {
+		k := lum(nx, ny)*0.85 + 0.1
+		if math.Mod(s, 4.5) < 1.1 {
+			k -= 0.22
+		}
+		return maneatRamp.pick(k, x, y)
+	})
+	for i, tt := range []float64{0.14, 0.3, 0.46, 0.62, 0.78} {
+		u := 1 - tt
+		bx := u*u*u*stalk[0] + 3*u*u*tt*stalk[2] + 3*u*tt*tt*stalk[4] + tt*tt*tt*stalk[6]
+		by := u*u*u*stalk[1] + 3*u*u*tt*stalk[3] + 3*u*tt*tt*stalk[5] + tt*tt*tt*stalk[7]
+		dx := 3*u*u*(stalk[2]-stalk[0]) + 6*u*tt*(stalk[4]-stalk[2]) + 3*tt*tt*(stalk[6]-stalk[4])
+		dy := 3*u*u*(stalk[3]-stalk[1]) + 6*u*tt*(stalk[5]-stalk[3]) + 3*tt*tt*(stalk[7]-stalk[5])
+		d := math.Hypot(dx, dy)
+		side := float64(1 - 2*(i%2))
+		nx, ny := -dy/d*side, dx/d*side
+		for k := 4.5; k < 7.5; k += 0.5 { // a thorn
+			c.put(int(bx+nx*k-dx/d*(k-4.5)*0.5), int(by+ny*k-dy/d*(k-4.5)*0.5), maneatRamp.at(4-int(k-4.5)/2))
+		}
+	}
+	// Low leaves in front of the foot.
+	manEaterLeaf(c, ax, 75, ax-9, 81, 4.5, 1.5, 0.1)
+	manEaterLeaf(c, ax, 75, ax+11, 80.5, 4.5, -1.5, 0.06)
+
+	// The collar of sepals where the head sits on the stalk.
+	roundShape(c, ell{hx, hy, 5.6, 5.6}, maneatRamp, -0.05)
+	ux, uy := math.Cos(ang), math.Sin(ang)
+	tipX, tipY := hx+ux*l, hy+uy*l
+	if pose == manEaterChew {
+		// A tail still hanging out of the front of the jaws.
+		manEaterTube(c, [8]float64{tipX - ux*6, tipY - uy*6, tipX + 6, tipY + 1, tipX + 11, tipY + 6, tipX + 9, tipY + 17}, 3.3, 0.8,
+			func(x, y int, s, nx, ny float64) color.RGBA {
+				k := lum(nx, ny)*0.8 + 0.25
+				if math.Mod(s, 5) < 1.6 && ny < 0.3 {
+					k -= 0.4
+				}
+				return maneatPrey.pick(k, x, y)
+			})
+	}
+	manEaterHead(c, hx, hy, ang, gape, l, t, sw)
+	for _, s := range []float64{-2.2, 0, 2.2} { // sepals lapping the lobes
+		a := ang + s*0.42
+		manEaterLeaf(c, hx-ux*3, hy-uy*3, hx+math.Cos(a)*8.5, hy+math.Sin(a)*8.5, 2.6, 0, -0.02+0.05*math.Abs(s))
+	}
+	if pose == manEaterChew {
+		// A clawed foot caught between the fangs.
+		fx, fy := hx+ux*l*0.62-uy*1, hy+uy*l*0.62+ux*1
+		c.line(fx, fy, fx+2, fy+6, func(x, y int, _ float64) color.RGBA { return maneatPrey.at(3) })
+		c.line(fx+1, fy, fx+3, fy+6, func(x, y int, _ float64) color.RGBA { return maneatPrey.at(1) })
+		for i := 0.0; i < 3; i++ {
+			c.line(fx+2, fy+6, fx+0.5+i*2.2, fy+9.5-math.Abs(i-1), func(x, y int, tt float64) color.RGBA {
+				if tt > 0.7 {
+					return maneatFang.at(1)
+				}
+				return maneatPrey.at(2)
+			})
 		}
 	}
 	c.outline(0.8)
-	return mk(c, 16, 33)
+
+	// Sticky spit, drawn over the outline so it stays thin.
+	spit := func(x, y float64, n int) {
+		for i := 0; i <= n; i++ {
+			col := color.RGBA{0xd8, 0xf0, 0xc0, 215}
+			if i == n {
+				col = color.RGBA{0xf4, 0xff, 0xe8, 255}
+				c.put(int(x)+1, int(y)+i, color.RGBA{0xb8, 0xdc, 0xa8, 230})
+			}
+			c.put(int(x), int(y)+i, col)
+		}
+	}
+	switch pose {
+	case manEaterWait:
+		aL := ang + gape/2
+		spit(hx+math.Cos(aL)*l*0.93, hy+math.Sin(aL)*l*0.93+3, 8)
+	case manEaterSnap:
+		spit(tipX-1, tipY+3, 4)
+		for _, d := range [][2]float64{{4, -5}, {6, 1}, {2, 8}} { // flecks flung by the snap
+			c.put(int(tipX+d[0]), int(tipY+d[1]), color.RGBA{0xe8, 0xfc, 0xd8, 255})
+		}
+	default:
+		spit(tipX-4, tipY+4, 5)
+	}
+	return c, ax, ay
+}
+
+func genManEater(pose int) sprite {
+	c, ax, ay := manEaterCanvas(pose)
+	return mk(c, ax, ay)
 }
 
 // --- building ----------------------------------------------------------------
