@@ -269,6 +269,8 @@ func callOf(k sim.CreatureKind) (callVoice, bool) {
 		return callVoice{"croak", 0.35, 1.55, 16, 30 * s, 5 * s, 0}, true
 	case sim.CreatureSabre:
 		return callVoice{"sabre_roar", 0.4, 1, 22, 34 * s, 8 * s, 0}, true
+	case sim.CreatureMonkey: // a troop hooting and chattering in the trees
+		return callVoice{"chirp", 0.4, 1.9, 18, 14 * s, 3 * s, 0}, true
 	}
 	return callVoice{}, false
 }

@@ -117,7 +117,7 @@ func (w *World) petAction(p *Player, c *Creature) (handled, acted bool) {
 		return false, false // a hit
 	}
 	switch {
-	case c.Kind == CreatureOrnitho && c.State == CreatureFlee:
+	case (c.Kind == CreatureOrnitho || c.Kind == CreatureMonkey) && c.State == CreatureFlee:
 		p.notify(NoticeSkittish, uint8(c.Kind))
 		return true, false
 	case td.cower && c.State != CreatureCower:
@@ -135,7 +135,7 @@ func (w *World) petAction(p *Player, c *Creature) (handled, acted bool) {
 	if c.State != CreatureCower {
 		c.State, c.timer = CreatureIdle, 2*TicksPerSecond // it stops to eat
 	}
-	if c.Kind == CreatureOrnitho {
+	if c.Kind == CreatureOrnitho || c.Kind == CreatureMonkey {
 		c.cool = OrnithoCalmTicks // and lets the feeder stay close a while
 	}
 	if c.Tame < td.meals {

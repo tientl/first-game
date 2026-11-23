@@ -51,6 +51,8 @@ type Player struct {
 	home      EntityID   // the last bed slept in: where p comes back after dying; see build.go
 	poison    int        // ticks of spider venom left; see cavelife.go
 	webbed    int        // ticks left tangled in web
+	bees      int        // ticks a swarm keeps after them; see jungle.go
+	beeHive   [2]float64 // where the angry bees came from
 	boat      BoatID     // the boat p is aboard, 0 if none; see boats.go
 	swim      int        // ticks spent swimming without rest
 	travelCD  int        // ticks before a cave mouth takes p again
@@ -314,6 +316,7 @@ func (w *World) stepPlayer(p *Player) {
 	w.burnTorch(p)
 	p.Hunger = max(0, p.Hunger-HungerPerTick)
 	w.stepPoison(p) // see cavelife.go
+	w.stepBees(p)   // see jungle.go
 	w.stepSwim(p)   // see boats.go
 	w.manEaterBites(p)
 	p.Cold = (Ambient(w.tick) < ColdAmbient || w.freezing(p) || w.wintry(p)) && !w.warm(p.X, p.Y) // night, the snow, winter: see iceage.go, weather.go
@@ -417,12 +420,25 @@ func (w *World) interact(p *Player, e *Entity) bool {
 	}
 	switch e.Kind {
 	case EntityTree:
+		if w.takeHoney(p, e) { // see jungle.go
+			return true
+		}
 		dmg := withTool(ToolAxe)
 		return dmg > 0 && w.knock(e, dmg, func(x, y float64) {
+			if e.HasHive() {
+				w.angerBees(p, e) // the hive comes down with it
+				e.Var = 0
+			}
 			e.Ready = false // stump until it regrows, at the same size
 			e.RegrowAt = w.tick + TreeRegrowTicks
 			w.dropAt(x, y, w.treeYield(e))
 		})
+	case EntityGiantTree:
+		if w.takeHoney(p, e) {
+			return true
+		}
+		dmg := withTool(ToolAxe)
+		return dmg > 0 && w.fellGiant(p, e, dmg)
 	case EntityBoulder:
 		dmg := withTool(ToolPickaxe)
 		return dmg > 0 && w.knock(e, dmg, func(x, y float64) {
@@ -514,7 +530,7 @@ func (w *World) interact(p *Player, e *Entity) bool {
 			e.Ready = false
 			e.RegrowAt = w.tick + CactusRegrowTicks
 		})
-	case EntityFigTree, EntityGinkgoTree, EntityPalm:
+	case EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree:
 		f, _ := fruitOf(e.Kind)
 		return w.pickFruit(p, e, f)
 	case EntityReed:

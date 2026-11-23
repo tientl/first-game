@@ -94,6 +94,11 @@ const (
 	EntityCaveMouth // a mouth of rock on the ground: walk in to go down
 	EntityCaveExit  // the way up, under a shaft of daylight: walk in to go up
 	EntityCaveRock  // the rest of a cave mouth's rocks: blocks the way, drawn with the mouth
+
+	// The woods: see jungle.go.
+	EntityBananaTree // a fruit tree: bunches of bananas, picked by hand
+	EntityGiantTree  // a giant of the old forest, standing on the middle of its front edge
+	EntityGiantRoot  // the rest of a giant's foot: blocks the way, drawn with the giant
 	NumEntityKinds
 )
 
@@ -150,6 +155,10 @@ var entityNames = [NumEntityKinds]string{
 	EntityCaveMouth:    "Cửa hang",
 	EntityCaveExit:     "Lối ra",
 	EntityCaveRock:     "Cửa hang",
+
+	EntityBananaTree: "Cây chuối",
+	EntityGiantTree:  "Cây cổ thụ khổng lồ",
+	EntityGiantRoot:  "Cây cổ thụ khổng lồ",
 }
 
 // Name is the display name of k.
@@ -172,7 +181,8 @@ type Entity struct {
 	Ready    bool   // can be harvested now; false while a tree is a stump or a crop grows
 	RegrowAt uint64 // tick at which a harvested node becomes Ready again; for tilled soil, when it turns back to grass
 	Fuel     int    // ticks of burning left (campfires, furnaces, standing torches); a man-eater's bite cooldown
-	Var      uint8  `json:",omitempty"` // which one of a kind: a corpse's or trophy's creature, a flower's colour, a seedling's seed
+	Var      uint8  `json:",omitempty"` // which one of a kind: a corpse's or trophy's creature, a flower's colour, a seedling's seed; on a tree, 1 if bees nest in it
+	HoneyAt  uint64 `json:",omitempty"` // a beehive: the tick its honey is back
 }
 
 // Interactable reports whether a player can act on an entity of this kind and
@@ -185,7 +195,7 @@ func Interactable(kind EntityKind, ready, hasWood bool) bool {
 	case EntityCoal, EntityCopperOre, EntityIronOre, EntityPlatinumOre, EntityDiamondOre:
 		return true
 	case EntityTree, EntityBerryBush, EntityGrassTuft, EntityTwig, EntityPebble, EntityCrop,
-		EntityFigTree, EntityGinkgoTree, EntityPalm:
+		EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree, EntityGiantTree:
 		return ready
 	case EntityBoulder, EntityWall, EntityStoneWall, EntityBed, EntityFarmland, EntityChest:
 		return true
@@ -242,6 +252,8 @@ func hits(kind EntityKind, big bool) int {
 		return SpikesHits
 	case EntityManEater:
 		return ManEaterHits
+	case EntityGiantTree:
+		return GiantTreeHits
 	default:
 		return 1
 	}

@@ -62,6 +62,7 @@ func main() {
 	weather := flag.String("weather", "", "the weather: rain, wind, storm, tornado, snow")
 	season := flag.String("season", "", "the season: spring, summer, autumn, winter")
 	zoom := flag.Int("zoom", 0, "the view's zoom, -3 to 3")
+	woodsFlag := flag.Bool("woods", false, "put the woods round the player: a giant tree and a tree with beehives, banana trees, a troop of monkeys, and bees after the player")
 	dung := flag.Bool("dung", false, "with -farm: a fed bed, heaps of dung by a grazing three-horn, and dung in hand")
 	sea := flag.Bool("sea", false, "out at sea: the player sailing, a raft, a swimmer, a mosasaur and a giant squid")
 	flag.Parse()
@@ -430,6 +431,9 @@ func main() {
 			snap.Self.Inv.Add(sim.ItemDung, 4)
 		}
 	}
+	if *woodsFlag {
+		addWoods(&snap, sx, sy)
+	}
 	if *animals {
 		id := sim.CreatureID(1 << 30)
 		put := func(k sim.CreatureKind, dx, dy float64, st sim.CreatureState, left bool) {
@@ -763,4 +767,37 @@ func addTribal(snap *protocol.Snapshot, sx, sy float64) {
 			X: float32(sx + 1 + float64(i)*0.6), Y: float32(sy + 1.6 + float64(i%2)*0.4), Age: 999})
 	}
 	snap.Webs = []protocol.WebView{{ID: 1, X: float32(sx + 2), Y: float32(sy + 3)}}
+}
+
+// addWoods clears the ground round (sx, sy) and puts the woods there.
+func addWoods(snap *protocol.Snapshot, sx, sy float64) {
+	cx, cy := int16(math.Floor(sx)), int16(math.Floor(sy))
+	kept := snap.Entities[:0]
+	for _, e := range snap.Entities {
+		if e.TX < cx-9 || e.TX > cx+9 || e.TY < cy-7 || e.TY > cy+4 {
+			kept = append(kept, e)
+		}
+	}
+	snap.Entities = kept
+	id := sim.EntityID(1 << 27)
+	put := func(k sim.EntityKind, dx, dy int16, ready bool, v uint8, fuel int32) {
+		id++
+		snap.Entities = append(snap.Entities, protocol.EntityView{ID: id, Kind: k, TX: cx + dx, TY: cy + dy, Ready: ready, Var: v, Fuel: fuel})
+	}
+	put(sim.EntityGiantTree, -5, -2, true, 1, 0)
+	put(sim.EntityTree, 4, -3, true, 1, 0)
+	put(sim.EntityTree, 6, -1, true, 0, 0)
+	put(sim.EntityBananaTree, 1, -4, true, 0, 0)
+	put(sim.EntityBananaTree, 3, 1, true, 0, 0)
+	put(sim.EntityBananaTree, 7, 2, false, 0, 0)
+	cid := sim.CreatureID(1 << 29)
+	monkey := func(dx, dy float64, st sim.CreatureState, left bool) {
+		cid++
+		snap.Creatures = append(snap.Creatures, protocol.CreatureView{ID: cid, Kind: sim.CreatureMonkey, X: float32(sx + dx), Y: float32(sy + dy), State: st, FaceLeft: left})
+	}
+	monkey(2.2, -2.2, sim.CreatureIdle, true)
+	monkey(1.2, -1.5, sim.CreatureEat, false)
+	monkey(3.6, -0.6, sim.CreatureWander, true)
+	monkey(5.2, 0.6, sim.CreatureIdle, false)
+	snap.Players[0].Bees = true
 }

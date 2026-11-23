@@ -67,6 +67,9 @@ const (
 
 	// The desert island: see pyramid.go.
 	CreatureScorpion // a giant scorpion: pinches, and stings with venom
+
+	// The woods: see jungle.go.
+	CreatureMonkey // a monkey, in troops in the woods; tamed with bananas
 	NumCreatureKinds
 )
 
@@ -653,7 +656,7 @@ func (w *World) stepCreature(c *Creature) {
 		w.stepSabre(c) // see iceage.go
 	case CreatureRaptor, CreatureAchero:
 		w.stepRaptor(c)
-	case CreatureOrnitho:
+	case CreatureOrnitho, CreatureMonkey:
 		w.stepRunner(c) // see hellcreek.go
 	case CreatureAnzu:
 		w.stepAnzu(c)

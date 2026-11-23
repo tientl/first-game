@@ -92,7 +92,7 @@ func (e *Entity) Feedable(tick uint64) bool {
 		return !e.Big
 	case EntitySapling:
 		return tick < e.RegrowAt
-	case EntityCrop, EntityTree, EntityBerryBush, EntityFigTree, EntityGinkgoTree, EntityPalm,
+	case EntityCrop, EntityTree, EntityBerryBush, EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree,
 		EntityFlower, EntityGlowPlant, EntityGrassTuft, EntityReed, EntityCactus, EntityMushroom:
 		return !e.Ready && tick < e.RegrowAt
 	}

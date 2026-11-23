@@ -93,6 +93,8 @@ func Generate(cfg GenConfig) (*World, error) {
 			}
 			w.placeTreasure(prng)
 		}
+		w.spawnX, w.spawnY = float64(sx)+0.5, float64(sy)+0.5
+		w.growGiants(rand.New(rand.NewPCG(cfg.Seed, 0x6a17))) // see jungle.go
 		w.clearAround(sx, sy, clearSpawnRadius)
 		w.starterKit(rng)
 		w.spawnCreatures()

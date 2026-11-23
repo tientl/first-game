@@ -108,8 +108,8 @@ func (w *World) digCaveMouths(rng *rand.Rand) {
 				if y >= H || !w.TileAt(x, y).Walkable() || w.TileAt(x, y) == TilePath || w.TileAt(x, y) == TileLava {
 					return false
 				}
-				if e := w.entityAt(x, y); e != nil && blocksPlayers(e.Kind) {
-					return false // a hut, the pyramid
+				if e := w.entityAt(x, y); e != nil && (blocksPlayers(e.Kind) || e.Kind == EntityTreasure) {
+					return false // a hut, the pyramid and its chest
 				}
 			}
 		}

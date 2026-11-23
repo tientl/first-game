@@ -74,6 +74,7 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			DinoArmor: p.Inv.Count(sim.ItemDinoArmor) > 0,
 			Boat:      p.BoatID(),
 			Swimming:  s.world.Swimming(p),
+			Bees:      p.Swarmed(),
 			HasAxe:    hasAxe,
 			AxeTier:   axeTier,
 			Armor:     armor,
@@ -156,6 +157,9 @@ func entityFuel(e sim.Entity, tick uint64) int32 {
 			return int32(min(e.RegrowAt-tick, 1<<20))
 		}
 		return 0
+	}
+	if e.HasHive() { // ticks till the hive has honey again; 0 when it has
+		return int32(min(e.HoneyAt-min(e.HoneyAt, tick), 1<<20))
 	}
 	return int32(e.Fuel)
 }

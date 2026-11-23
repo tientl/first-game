@@ -635,6 +635,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 	if s, bob, ok := g.tribalSprite(c, moving); ok {
 		return s, bob // see tribalrender.go
 	}
+	if s, bob, ok := g.woodsSprite(c, moving); ok {
+		return s, bob // see jungleart.go
+	}
 	if s, bob, ok := g.hellSprite(c, moving); ok {
 		return s, bob // see hellwire.go
 	}
@@ -862,7 +865,7 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 		return 12
 	case sim.CreatureQuetzal:
 		return 20
-	case sim.CreatureRabbit:
+	case sim.CreatureRabbit, sim.CreatureMonkey:
 		return 12
 	case sim.CreatureSnake:
 		return 20

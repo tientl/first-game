@@ -715,6 +715,10 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 			return "Đã bón phân cho luống — khoai trồng ở đây lớn nhanh gấp đôi"
 		}
 		return "Đã bón phân — cây lớn nhanh gấp đôi"
+	case sim.NoticeBees:
+		return "Ong đốt! Chạy thật xa hoặc nhảy xuống nước"
+	case sim.NoticeBeesCalm:
+		return "Khói đuốc làm ong hiền lại"
 	case sim.NoticeNothingToFeed:
 		return "Đứng sát cây non, luống đất hoặc cây đang mọc lại rồi nhấn V để bón phân"
 	case sim.NoticeHomeSet:

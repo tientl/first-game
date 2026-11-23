@@ -198,7 +198,7 @@ func (w *World) stepEntities() {
 		}
 		switch e.Kind {
 		case EntityTree, EntityBerryBush, EntityGrassTuft, EntityTwig, EntityPebble, EntityCrop,
-			EntityCactus, EntityReed, EntityMushroom, EntityClam, EntityFigTree, EntityGinkgoTree, EntityPalm,
+			EntityCactus, EntityReed, EntityMushroom, EntityClam, EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree,
 			EntityFlower, EntityGlowPlant:
 			if !e.Ready && w.tick >= e.RegrowAt {
 				e.Ready = true // for a crop: ripe

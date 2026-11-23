@@ -364,6 +364,8 @@ const (
 
 	NoticeFertilized    // dung spread; Arg: the EntityKind fed
 	NoticeNothingToFeed // nothing growing in front to feed dung to
+	NoticeBees          // a swarm of bees is after you
+	NoticeBeesCalm      // the torch smoke calms the bees
 )
 
 // CommandKind is a discrete player request, as opposed to held input.

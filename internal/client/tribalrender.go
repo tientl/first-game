@@ -22,7 +22,8 @@ import (
 func (a *art) addTribalArt() {
 	a.tribal = genTribalArt()
 	genTribalIcons(&a.icons)
-	genDungIcon(&a.icons) // see dungart.go
+	genDungIcon(&a.icons)   // see dungart.go
+	genWoodsIcons(&a.icons) // see jungleart.go
 	a.heads = make(map[sim.CreatureKind]sprite)
 	for k := sim.CreatureKind(1); k < sim.NumCreatureKinds; k++ {
 		h := sim.HeadItem(k)

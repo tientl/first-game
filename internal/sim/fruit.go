@@ -20,6 +20,7 @@ var fruitTrees = [...]fruitDef{
 	{EntityFigTree, ItemFig, 3, DayTicks, [NumTiles]float64{TileForest: 0.01, TileGrass: 0.006}},
 	{EntityGinkgoTree, ItemGinkgoNut, 4, 3 * DayTicks / 2, [NumTiles]float64{TileGrass: 0.005, TileForest: 0.002}},
 	{EntityPalm, ItemCoconut, 2, 2 * DayTicks, [NumTiles]float64{TileSand: 0.025}},
+	{EntityBananaTree, ItemBanana, 3, DayTicks, [NumTiles]float64{TileForest: 0.016, TileMarsh: 0.008}}, // see jungle.go
 }
 
 // fruitOf is the fruit tree an entity of kind k is, if any.

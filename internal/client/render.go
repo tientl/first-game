@@ -291,6 +291,7 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		}
 		if d.isPlayer {
 			g.drawPlayer(dst, g.curr.Players[d.idx], d)
+			g.drawSwarm(dst, g.curr.Players[d.idx], d.sx, d.sy) // see jungleart.go
 			continue
 		}
 		if d.creature {
@@ -317,6 +318,9 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 }
 
 func shadowWidth(e protocol.EntityView) float64 {
+	if w, ok := woodsShadow(e); ok {
+		return w
+	}
 	if w, ok := tribalShadow(e); ok {
 		return w
 	}
@@ -411,6 +415,9 @@ func drawSwaying(dst *ebiten.Image, s sprite, x, y, skew float64) {
 // entitySprite returns the sprite for e and how much it sways in the wind.
 func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 	a := g.art
+	if s, sway, ok := g.woodsEntitySprite(e); ok {
+		return s, sway // see jungleart.go
+	}
 	if s, sway, ok := g.tribalEntitySprite(e); ok {
 		return s, sway // see tribalrender.go
 	}
@@ -527,6 +534,8 @@ func (g *Game) drawEntity(dst *ebiten.Image, e protocol.EntityView, d drawable) 
 		return // picked up; another will turn up here in time
 	case e.Kind == sim.EntityFarmland:
 		return // flat: drawn with the soil, under everything
+	case e.Kind == sim.EntityGiantRoot:
+		return // part of the giant, drawn whole from its front
 	}
 	if g.drawTribalEntity(dst, e, d) {
 		return
@@ -538,7 +547,7 @@ func (g *Game) drawEntity(dst *ebiten.Image, e protocol.EntityView, d drawable) 
 		gust := 0.55 + 0.45*math.Sin(t*0.011+float64(e.TX)*0.21+float64(e.TY)*0.13)
 		sway *= gust * math.Sin(t*0.045+float64(sim.HashTile(int(e.TX), int(e.TY))%628)/100)
 	}
-	if tint := g.treeTint(); tint != nil && e.Kind == sim.EntityTree && e.Ready && g.tileAt(int(e.TX), int(e.TY)) != sim.TileSnow {
+	if tint := g.treeTint(); tint != nil && (e.Kind == sim.EntityTree || e.Kind == sim.EntityGiantTree) && e.Ready && g.tileAt(int(e.TX), int(e.TY)) != sim.TileSnow {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(-s.ax, -s.ay)
 		op.GeoM.Skew(sway, 0)
@@ -559,6 +568,9 @@ func (g *Game) drawEntity(dst *ebiten.Image, e protocol.EntityView, d drawable) 
 	if e.Kind == sim.EntityFurnace && e.Fuel > 0 {
 		f := g.art.flames[(g.frame/4+int(e.ID))%flameFrames]
 		drawAt(dst, f, d.sx, d.sy-1, 0.45, 0.4, 0, nil) // in its mouth
+	}
+	if hasHive(e) {
+		g.drawHive(dst, e, s, d.sx, d.sy) // see jungleart.go
 	}
 }
 
@@ -789,6 +801,15 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				label += [2]string{" nhỏ", " lớn"}[sizeIdx(e.Big)]
 			}
 			switch {
+			case hasHive(e) && e.Fuel == 0: // see jungleart.go
+				label = "Tổ ong — lấy mật (cầm đuốc cho ong khỏi đốt)"
+				if g.myHeld() != sim.ItemTorch {
+					col = colBad
+				}
+			case e.Kind == sim.EntityGiantTree && !g.has(sim.ToolAxe):
+				label, col = label+" — cần rìu, chặt rất lâu", colBad
+			case e.Kind == sim.EntityGiantTree:
+				label += " — chặt (rất lâu)"
 			case e.Kind == sim.EntityCampfire:
 				label += " — thêm củi"
 				if g.hasRawFood() {

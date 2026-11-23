@@ -233,6 +233,7 @@ func (g *Game) frameSounds(alpha float64) {
 		g.sm.stepFrame = make(map[sim.PlayerID]int)
 	}
 
+	g.swarmSounds() // see jungleart.go
 	lx, ly := float64(g.width)/2, float64(g.height)/2
 	for _, p := range g.curr.Players {
 		if p.ID == g.myID {
