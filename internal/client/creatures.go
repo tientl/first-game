@@ -21,8 +21,6 @@ import (
 // water.
 
 var (
-	furRamp   = mkRamp(0x5a4334, 0x7d6049, 0xa07f60, 0xc3a37e, 0xe2c9a2)
-	tailRamp  = mkRamp(0xb9b2a6, 0xdcd6cc, 0xf6f3ec)
 	wormRamp  = mkRamp(0x7d3343, 0xb4566a, 0xd98393, 0xf1b3bc)
 	fishRamp  = mkRamp(0x24485e, 0x356a82, 0x4f8fa6, 0x86bfcf, 0xd2eef2)
 	finRamp   = mkRamp(0x2a5468, 0x3f7890, 0x5a96ac)
@@ -137,58 +135,6 @@ func roundShape(c *canvas, e ell, rp ramp, bias float64) {
 	c.ellipse(e.x, e.y, e.rx, e.ry, func(x, y int, nx, ny float64) color.RGBA {
 		return rp.pick(lum(nx, ny)*0.95+bias, x, y)
 	})
-}
-
-func genRabbit(pose int) sprite {
-	c := newCanvas(20, 18)
-	type body struct {
-		haunch, chest, head, farEar, nearEar, tail, foot ell
-		pawX, pawY                                       int
-	}
-	var b body
-	switch pose {
-	case rabbitHop: // stretched out mid-leap, ears swept back
-		b = body{
-			haunch: ell{6, 10.5, 4.4, 3}, chest: ell{10, 10, 4, 2.6}, head: ell{13.8, 7.8, 2.7, 2.3},
-			farEar: ell{10.6, 5.6, 2.6, 0.9}, nearEar: ell{11.4, 4.7, 2.6, 0.9},
-			tail: ell{2, 9.2, 1.5, 1.5}, foot: ell{3, 13.3, 2.6, 0.9}, pawX: 15, pawY: 11,
-		}
-	case rabbitSleep: // curled low, ears flat along the back
-		b = body{
-			haunch: ell{7, 13.2, 4.6, 2.9}, chest: ell{10.2, 13.4, 3.6, 2.5}, head: ell{13, 12, 2.6, 2.2},
-			farEar: ell{10, 10.2, 2.6, 0.85}, nearEar: ell{10.8, 9.6, 2.6, 0.85},
-			tail: ell{2.6, 12.6, 1.5, 1.4}, foot: ell{7.5, 15.4, 2.4, 0.8}, pawX: 12, pawY: 15,
-		}
-	default: // sitting up, ears high
-		b = body{
-			haunch: ell{6.6, 12.4, 4.4, 3.4}, chest: ell{10.4, 11.4, 3.2, 3.4}, head: ell{12.4, 8, 3, 2.6},
-			farEar: ell{10.4, 3.4, 1, 3.2}, nearEar: ell{12.2, 3.2, 1, 3.2},
-			tail: ell{2.4, 11.4, 1.7, 1.7}, foot: ell{7.4, 15.3, 2.8, 0.9}, pawX: 11, pawY: 14,
-		}
-	}
-	roundShape(c, b.farEar, furRamp, -0.2)
-	roundShape(c, b.tail, tailRamp, 0.1)
-	roundShape(c, b.foot, furRamp, -0.1)
-	roundShape(c, b.haunch, furRamp, 0)
-	roundShape(c, b.chest, furRamp, 0.06)
-	c.rect(b.pawX, b.pawY, 2, 2, func(x, y int) color.RGBA { return furRamp.pick(0.6, x, y) })
-	roundShape(c, b.head, furRamp, 0.1)
-	roundShape(c, b.nearEar, furRamp, 0.05)
-	if pose == rabbitSit {
-		for y := 1; y <= 4; y++ {
-			c.set(12, y, colPink) // inside of the near ear
-		}
-	}
-	hx, hy := int(b.head.x), int(b.head.y)
-	if pose == rabbitSleep {
-		c.set(hx, hy, colInk) // a closed eye
-		c.set(hx+1, hy, colInk)
-	} else {
-		c.set(hx+1, hy-1, colInk)
-	}
-	c.set(int(b.head.x+b.head.rx-0.9), hy, colPink) // nose
-	c.outline(0.75)
-	return mk(c, 9, 16)
 }
 
 // wormStamps draws a worm as discs along a wave from x0 to x1.

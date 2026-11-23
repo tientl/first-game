@@ -14,9 +14,10 @@ import (
 // a dark stripe behind the eye. Resting snakes lie coiled with the head up.
 
 var (
-	snakeRamp  = mkRamp(0x2b2416, 0x4a3d22, 0x6b5a30, 0x8c7a42, 0xb3a160) // olive-brown
-	blotchRamp = mkRamp(0x1a130b, 0x2e2216, 0x463422)                     // saddles on the back
-	bellyRamp  = mkRamp(0x8f8456, 0xb8ab78, 0xd9cd9a)
+	snakeRamp  = mkRamp(0x4a2f10, 0x7a551f, 0xa97f30, 0xcfa646, 0xe8ca6c) // sandy gold
+	blotchRamp = mkRamp(0x24100a, 0x431d0e, 0x6b3013, 0x8a4418)           // the diamonds on the back
+	bellyRamp  = mkRamp(0xa8946a, 0xd6c693, 0xf3e8bd)
+	snakeEye   = hex(0xffd23a)
 	colTongue  = hex(0xd8344a)
 	colFang    = hex(0xf2eee2)
 )
@@ -29,6 +30,8 @@ const (
 	snakeCoilLik = snakeSlither + 2 // resting, flicking its tongue
 	snakeSprites = snakeSlither + 3
 )
+
+const snakeDiamonds = 7 // down the back
 
 const snakeSquash = 0.6 // how much the ground plane is foreshortened
 
@@ -55,7 +58,7 @@ func withNormals(pts []spinePt) []spinePt {
 // snakeWidth is the body's half-width at s: a thin tail tip, a thick middle,
 // a slimmer neck.
 func snakeWidth(s float64) float64 {
-	return 0.5 + 1.5*smooth(clamp01(s/0.35)) - 0.55*smooth(clamp01((s-0.8)/0.2))
+	return 0.5 + 1.7*smooth(clamp01(s/0.35)) - 0.7*smooth(clamp01((s-0.8)/0.2))
 }
 
 // drawTube fills the body: each pixel takes the sample nearest the head that
@@ -115,75 +118,88 @@ func drawTubeWith(c *canvas, pts []spinePt, shade func(x, y int, p *spinePt, t f
 	}
 }
 
-// snakeScale colours one pixel of the body.
+// snakeScale colours one pixel of the body: sandy scales, a chain of dark
+// chestnut diamonds down the back, each rimmed with cream, and a pale belly
+// showing along the near side.
 func snakeScale(x, y int, p *spinePt, t float64) color.RGBA {
 	l := lum(p.nx*t*0.9, p.ny*t*0.9)
-	if t > -0.5 && t < -0.15 {
-		l += 0.18 // the light along the spine
+	back := t + 0.22 // across the body, 0 on the spine
+	if math.Abs(back) < 0.25 {
+		l += 0.14 // the light along the spine
 	}
-	// Saddles: diamond-ish dark patches down the back, narrower at the
-	// sides, every 1/9 of the body; none on the thin tail tip or the neck.
-	at := math.Abs(math.Mod(p.s*9, 1)-0.5) * 2 // 0 mid-saddle .. 1 between
-	saddle := p.s > 0.08 && p.s < 0.92 && at < 0.42-0.25*math.Abs(t)
+	at := math.Abs(math.Mod(p.s*snakeDiamonds+0.5, 1)-0.5) * 2 // 0 mid-diamond .. 1 between two
+	d := at + math.Abs(back)*0.85
+	patterned := p.s > 0.07 && p.s < 0.93
 	switch {
-	case t > 0.7:
-		return bellyRamp.pick(l+0.15, x, y)
-	case saddle:
-		return blotchRamp.pick(l+0.1, x, y)
-	case p.s > 0.08 && p.s < 0.92 && at < 0.58-0.25*math.Abs(t):
-		return snakeRamp.pick(l+0.35, x, y) // pale rim around each saddle
+	case t > 0.6:
+		return bellyRamp.pick(l+0.2, x, y)
+	case patterned && d < 0.62:
+		return flat(blotchRamp, l+0.05)
+	case patterned && d < 0.85:
+		return flat(snakeRamp, l+0.38) // the pale rim of each diamond
 	}
-	i := snakeRamp.idx(l+0.05, x, y)
-	if hashf(x, y, 77) < 0.06 {
-		i-- // scales
-	}
-	return snakeRamp.at(i)
+	return flat(snakeRamp, l-0.04)
 }
 
-// drawSnakeHead draws the wedge-shaped head at (hx, hy) pointing along
-// (dx, dy). open shows the mouth and fangs; tongue flicks the forked tongue.
-func drawSnakeHead(c *canvas, hx, hy, dx, dy float64, open, tongue bool) {
-	px, py := -dy, dx // the head's right side
-	at := func(along, side float64) (float64, float64) {
-		return hx + dx*along + px*side, hy + dy*along + py*side*snakeSquash*1.4
-	}
-	var poly []float64
-	// Wide at the jaws behind a narrow neck, tapering to a blunt snout.
-	for _, v := range [][2]float64{{-2, -2.3}, {0.8, -2.9}, {3.4, -1.5}, {4.6, 0}, {3.4, 1.5}, {0.8, 2.9}, {-2, 2.3}} {
-		x, y := at(v[0], v[1])
-		poly = append(poly, x, y)
-	}
-	c.polygon(poly, func(x, y int) color.RGBA {
-		fx, fy := float64(x)+0.5-hx, float64(y)+0.5-hy
-		along, side := fx*dx+fy*dy, (fx*px+fy*py)/2.6
-		l := lum(px*side*0.8, py*side*0.8-0.3) + 0.12
-		if along > -1.2 && along < 2.4 && math.Abs(side) < 0.18+0.12*(2.4-along)/3.6 {
-			return blotchRamp.pick(l, x, y) // a dark V on the crown
+// snakeHeads are the head, shut and striking, side-on and facing right: a
+// pale crown, a dark stripe running back from a yellow eye, a cream lip.
+var snakeHeads = [2][]string{
+	{
+		".AAAA...",
+		"AddyAAb.",
+		"bbbbbbbb",
+		".cccccc.",
+	},
+	{
+		"..AAAAA..",
+		".AddyAAbb",
+		"bbbbmwmw.",
+		"bbmmmm...",
+		"ccmmwcw..",
+		".cccccc..",
+	},
+}
+
+// stamp draws the rows of a little picture with its top-left at (x0, y0),
+// each letter the colour pal gives it; any other letter is left clear.
+func stamp(c *canvas, x0, y0 int, rows []string, pal map[byte]color.RGBA) {
+	for y, row := range rows {
+		for x := range len(row) {
+			if col, ok := pal[row[x]]; ok {
+				c.set(x0+x, y0+y, col)
+			}
 		}
-		return snakeRamp.pick(l+0.12, x, y)
-	})
-	ex, ey := at(1.8, -1.3)
-	c.set(int(ex), int(ey), colInk) // the eye
-	for k := 1.0; k <= 2; k++ {
-		sx, sy := at(1.8-k, -1.3+0.3*k)
-		c.set(int(sx), int(sy), blotchRamp[0]) // the stripe behind it
 	}
-	tx, ty := at(5, 0)
+}
+
+// flat takes the colour of rp for brightness l without dithering, for skin
+// too finely patterned to dither.
+func flat(rp ramp, l float64) color.RGBA {
+	return rp.at(int(math.Round(clamp01(l) * float64(len(rp)-1))))
+}
+
+// drawSnakeHead draws the head with the back of its skull at (hx, hy),
+// looking right. open shows the mouth and fangs; tongue flicks the forked
+// tongue.
+func drawSnakeHead(c *canvas, hx, hy float64, open, tongue bool) {
+	rows := snakeHeads[0]
+	x0, y0 := int(math.Round(hx)), int(math.Round(hy))-2
 	if open {
-		for k := 0.0; k < 2.5; k++ {
-			mx, my := at(3.6-k, 0.2)
-			c.set(int(mx), int(my), hex(0x3a0d12))
-		}
-		fx, fy := at(3.4, 0.9)
-		c.set(int(fx), int(fy), colFang)
+		rows = snakeHeads[1]
 	}
+	stamp(c, x0, y0, rows, map[byte]color.RGBA{
+		'A': snakeRamp[4], 'b': snakeRamp[2], 'd': blotchRamp[0], 'y': snakeEye,
+		'c': bellyRamp[2], 'm': hex(0x7a1420), 'w': colFang,
+	})
 	if tongue {
-		for k := 0.0; k < 2; k++ {
-			c.set(int(tx+dx*k), int(ty+dy*k), colTongue)
+		tx, ty := x0+len(rows[0]), y0+2
+		if open {
+			tx, ty = tx-3, ty+1
 		}
-		fx, fy := tx+dx*2.2, ty+dy*2.2
-		c.set(int(fx+px*0.8), int(fy-0.8), colTongue)
-		c.set(int(fx-px*0.8), int(fy+0.8), colTongue)
+		c.set(tx, ty, colTongue)
+		c.set(tx+1, ty, colTongue)
+		c.set(tx+2, ty-1, colTongue)
+		c.set(tx+2, ty+1, colTongue)
 	}
 }
 
@@ -226,7 +242,7 @@ func snakeCanvas(frame int) (c *canvas, ax, ay float64) {
 	case snakeCoil, snakeCoilLik:
 		return snakeCoilCanvas(frame == snakeCoilLik)
 	}
-	c = newCanvas(44, 24)
+	c = newCanvas(47, 24)
 	const neckX, neckY = 34.0, 13.0
 	strike := frame == snakeStrike
 	ph := float64(frame) * 2 * math.Pi / snakeSlither
@@ -234,17 +250,17 @@ func snakeCanvas(frame int) (c *canvas, ax, ay float64) {
 		ph = 0
 	}
 	pts := serpenoid(32, 1.3, 1.15, ph, neckX, neckY)
-	hx, hy, dx, dy := neckX+1.8, neckY, 1.0, 0.0
+	hx, hy := neckX-0.5, neckY
 	if strike { // the fore-body rears up and the head lunges
 		for i := range pts {
 			pts[i].y -= 6 * smooth(clamp01((pts[i].s-0.55)/0.45))
 			pts[i].x += 2 * smooth(clamp01((pts[i].s-0.7)/0.3))
 		}
 		pts = withNormals(pts)
-		hx, hy, dx, dy = neckX+4, neckY-6.4, 0.97, 0.24
+		hx, hy = neckX+1.5, neckY-6
 	}
 	drawTube(c, pts)
-	drawSnakeHead(c, hx, hy, dx, dy, strike, strike || frame == 1)
+	drawSnakeHead(c, hx, hy, strike, strike || frame == 1)
 	c.outline(0.8)
 	return c, 20, 14
 }
@@ -276,7 +292,7 @@ func snakeCoilCanvas(tongue bool) (*canvas, float64, float64) {
 		pts = append(pts, spinePt{x: x, y: y, r: snakeWidth(s) * 0.88, s: s})
 	}
 	drawTube(c, withNormals(pts))
-	drawSnakeHead(c, cx+3.8, cy-8.2, 1, 0, false, tongue)
+	drawSnakeHead(c, cx+1.4, cy-8.2, false, tongue)
 	c.outline(0.8)
 	return c, cx, cy + 3
 }
