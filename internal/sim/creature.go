@@ -60,6 +60,10 @@ const (
 	CreatureSpider    // a venomous cave spider that spits webs
 	CreatureBear      // a cave bear that claws and bites
 	CreatureTribesman // a warrior of the woodland tribes, spear in hand
+
+	// Monsters of the open sea: see seamonsters.go.
+	CreatureMosa   // Mosasaurus: a giant sea lizard that hunts boats in deep water
+	CreatureKraken // a giant squid that seizes boats with its arms
 	NumCreatureKinds
 )
 
@@ -86,6 +90,7 @@ const (
 	CreatureClaw                  // a bear's swipe (its bite is CreatureStrike)
 	CreatureTrapped               // caught in a snare: it struggles, going nowhere
 	CreatureSpit                  // a spider spitting web
+	CreatureGrab                  // a giant squid holding a boat in its arms
 )
 
 // OutOfReach reports whether a creature in state s cannot be targeted: on

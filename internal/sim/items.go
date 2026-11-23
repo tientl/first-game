@@ -101,7 +101,11 @@ const (
 	ItemTreeSeed
 	ItemGlowSeed
 	ItemManEaterSeed
-	itemsEnd // new items go above this line
+
+	// The open sea: see boats.go.
+	ItemRaft     // a raft, set on the water with V
+	ItemSailboat // a sailing boat, set on the water with V
+	itemsEnd     // new items go above this line
 
 	// The head of each kind of beast, a trophy: HeadItem(k). They sit at a
 	// fixed place so new items above never move them.
@@ -216,6 +220,8 @@ var itemDefs = [NumItems]ItemDef{
 	ItemTreeSeed:     {Name: "Hạt cây"},
 	ItemGlowSeed:     {Name: "Hạt phát sáng"},
 	ItemManEaterSeed: {Name: "Hạt cây ăn thịt"},
+	ItemRaft:         {Name: "Bè gỗ", Stack: 1},
+	ItemSailboat:     {Name: "Thuyền buồm", Stack: 1},
 }
 
 // Valid reports whether k is a real item kind (not ItemNone, in range).
