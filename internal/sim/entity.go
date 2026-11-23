@@ -89,6 +89,11 @@ const (
 	// The desert island's pyramid: see pyramid.go.
 	EntityPyramid      // the pyramid itself, standing on the middle of its south face
 	EntityPyramidStone // the rest of its foot: blocks the way, drawn as part of the pyramid
+
+	// The caves under the archipelago: see underground.go.
+	EntityCaveMouth // a mouth of rock on the ground: walk in to go down
+	EntityCaveExit  // the way up, under a shaft of daylight: walk in to go up
+	EntityCaveRock  // the rest of a cave mouth's rocks: blocks the way, drawn with the mouth
 	NumEntityKinds
 )
 
@@ -142,6 +147,9 @@ var entityNames = [NumEntityKinds]string{
 
 	EntityPyramid:      "Kim tự tháp",
 	EntityPyramidStone: "Kim tự tháp",
+	EntityCaveMouth:    "Cửa hang",
+	EntityCaveExit:     "Lối ra",
+	EntityCaveRock:     "Cửa hang",
 }
 
 // Name is the display name of k.
