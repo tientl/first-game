@@ -100,6 +100,16 @@ func flatCrown(cx, cy, half, thick float64, rng *rand.Rand) crown {
 // genBroadleaf draws a leafy tree of the given shape at scale s. seed varies
 // the details, so two trees of a shape are not twins.
 func genBroadleaf(shape treeShape, palette int, vines bool, s float64, seed uint64) sprite {
+	return genBroadleafIn(shape, leafRamps[palette], uint32(palette), vines, s, seed)
+}
+
+// genBroadleafIn is genBroadleaf with leaves of rp, their texture varied by tex.
+func genBroadleafIn(shape treeShape, rp ramp, tex uint32, vines bool, s float64, seed uint64) sprite {
+	return trimmed(broadleafCanvas(shape, rp, tex, vines, s, seed))
+}
+
+// broadleafCanvas draws genBroadleafIn's tree and gives its ground point.
+func broadleafCanvas(shape treeShape, rp ramp, tex uint32, vines bool, s float64, seed uint64) (*canvas, float64, float64) {
 	rng := rand.New(rand.NewPCG(seed, 99))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
 	c := newCanvas(int(math.Ceil(56*s)), int(math.Ceil(64*s)))
@@ -181,17 +191,17 @@ func genBroadleaf(shape treeShape, palette int, vines bool, s float64, seed uint
 	// Leaves, back (higher up) to front.
 	slices.SortStableFunc(crowns, func(a, b crown) int { return cmp.Compare(a.cy, b.cy) })
 	for i, cr := range crowns {
-		leafCluster(c, cr.blobs, cr.cx, cr.cy, cr.rx, cr.ry, leafRamps[palette], 100+uint32(palette)+uint32(i)*17)
+		leafCluster(c, cr.blobs, cr.cx, cr.cy, cr.rx, cr.ry, rp, 100+tex+uint32(i)*17)
 	}
 	if shape == shapeWeeping {
-		hangCurtains(c, rng, leafRamps[palette], s)
+		hangCurtains(c, rng, rp, s)
 	}
 	shadeUnderCrown(c)
 	if vines {
 		growVines(c, rng, trunk, s)
 	}
 	c.outline(0.75)
-	return trimmed(c, bx, by)
+	return c, bx, by
 }
 
 // crownUnderside is, per column, the lowest leaf pixel of the crown, or -1.
@@ -288,7 +298,10 @@ func growVines(c *canvas, rng *rand.Rand, trunk limb, s float64) {
 
 // genPine draws a conifer at scale s: variant sets the number of tiers, and
 // seed the ragged edges.
-func genPine(variant int, s float64, seed uint64) sprite {
+func genPine(variant int, s float64, seed uint64) sprite { return genPineOf(variant, s, seed, false) }
+
+// genPineOf draws a conifer; a snowy one has snow lying on its boughs.
+func genPineOf(variant int, s float64, seed uint64, snowy bool) sprite {
 	rng := rand.New(rand.NewPCG(seed, 121))
 	c := newCanvas(int(math.Ceil(34*s)), int(math.Ceil(62*s)))
 	bx, by := c.w/2, c.h-3               // ground point
@@ -324,7 +337,11 @@ func genPine(variant int, s float64, seed uint64) sprite {
 				if hashf(x, y, 121) < 0.08 {
 					l += 0.15
 				}
-				c.set(x, y, pineRamp.pick(l, x, y))
+				col := pineRamp.pick(l, x, y)
+				if snowy && (f < 0.38 || f < 0.7 && hashf(x, y, 124) < 0.3) {
+					col = snowRamp.pick(l+0.35, x, y) // snow on the bough
+				}
+				c.set(x, y, col)
 			}
 		}
 	}
@@ -370,4 +387,244 @@ func trimmed(c *canvas, ax, ay float64) sprite {
 		copy(t.px[y*t.w:(y+1)*t.w], c.px[(y+y0)*c.w+x0:(y+y0)*c.w+x1+1])
 	}
 	return mk(t, ax-float64(x0), ay-float64(y0))
+}
+
+// Prehistoric trees: tree ferns, cycads, araucarias, ginkgos and giant
+// redwoods. They are trees like any other in the game (an axe, wood, a
+// small and a big size); only their look differs, picked by terrain.
+
+var (
+	treeFernRamp  = mkRamp(0x173a1d, 0x245524, 0x37722b, 0x529332, 0x7cb444)
+	treeFernTrunk = mkRamp(0x24180f, 0x382618, 0x4e3622, 0x66482e)
+	cycadRamp     = mkRamp(0x18301f, 0x25472a, 0x376131, 0x507d39, 0x739a45)
+	cycadTrunk    = mkRamp(0x3a2a17, 0x56401f, 0x725a2c, 0x90763c)
+	araucariaRamp = mkRamp(0x0d2622, 0x153a30, 0x1f4f3c, 0x2d6648, 0x438054)
+	ginkgoRamp    = mkRamp(0x3a561c, 0x587a22, 0x7d9d2b, 0xa6c03b, 0xcfdb59)
+	redwoodRamp   = mkRamp(0x35160e, 0x582616, 0x7d3a1f, 0xa0532c, 0xbd7343)
+	redwoodLeaf   = mkRamp(0x10291c, 0x183d24, 0x22542c, 0x326c36, 0x4a8743)
+)
+
+// drawLimbIn is drawLimb in the wood colours of rp.
+func drawLimbIn(c *canvas, l limb, rp ramp, streak uint32) {
+	n := int(math.Hypot(l.x1-l.x0, l.y1-l.y0)*2) + 2
+	for i := 0; i <= n; i++ {
+		t := float64(i) / float64(n)
+		x, y := l.at(t)
+		w := lerpf(l.w0, l.w1, t)
+		for py := int(math.Floor(y - w)); py <= int(math.Ceil(y+w)); py++ {
+			for px := int(math.Floor(x - w)); px <= int(math.Ceil(x+w)); px++ {
+				dx, dy := float64(px)+0.5-x, float64(py)+0.5-y
+				if dx*dx+dy*dy > w*w+0.25 {
+					continue
+				}
+				k := rp.idx(0.85-(dx/max(w, 0.5)+1)/2*0.7, px, py)
+				if hashf(px, py/3, streak) < 0.22 {
+					k--
+				}
+				c.set(px, py, rp.at(k))
+			}
+		}
+	}
+}
+
+// frond draws one fern-like leaf from (x0, y0): a stem arching out along
+// angle a (radians, screen space: -π/2 is straight up) for length L,
+// drooping at the tip, with leaflets either side that shrink to the tip.
+// stiff fronds (cycads) barely droop and have short, dense leaflets.
+func frond(c *canvas, x0, y0, a, L float64, rp ramp, stiff bool, seed uint32) {
+	droop, leaf, every := 0.95, 0.2, 2
+	sag := 0.18 // how much leaflets droop
+	if stiff {
+		droop, leaf, every = -0.05, 0.16, 2
+		sag = 0.02
+	}
+	ex, ey := x0+math.Cos(a)*L, y0+math.Sin(a)*L*0.75+L*droop
+	cx, cy := x0+math.Cos(a)*L*0.6, y0+math.Sin(a)*L*0.95
+	at := func(t float64) (float64, float64) {
+		u := 1 - t
+		return u*u*x0 + 2*u*t*cx + t*t*ex, u*u*y0 + 2*u*t*cy + t*t*ey
+	}
+	n := int(L*1.5) + 4
+	for i := 0; i <= n; i++ {
+		t := float64(i) / float64(n)
+		x, y := at(t)
+		x2, y2 := at(min(1, t+0.02))
+		tx, ty := x2-x, y2-y
+		d := math.Hypot(tx, ty)
+		if d == 0 {
+			continue
+		}
+		nx, ny := -ty/d, tx/d // across the stem
+		ln := leaf * L * (1 - t*0.85) * (0.6 + 0.4*math.Sin(t*math.Pi))
+		if t > 0.08 && i%every == 0 {
+			for _, side := range []float64{-1, 1} {
+				for k := 1.0; k <= ln; k++ {
+					// Leaflets sweep forward a little, and droop.
+					px := x + nx*side*k + tx/d*k*0.6
+					py := y + ny*side*k + ty/d*k*0.6 + k*sag
+					l := 0.75 - k/ln*0.25 - side*0.12 - t*0.15 + (hashf(int(px), int(py), seed)-0.5)*0.2
+					c.set(int(px), int(py), rp.pick(l, int(px), int(py)))
+				}
+			}
+		}
+		c.set(int(x), int(y), rp.pick(0.35, int(x), int(y)))
+	}
+}
+
+// genTreeFern is a tree fern: a slim shaggy trunk under a crown of long,
+// arching fronds.
+func genTreeFern(s float64, seed uint64) sprite {
+	rng := rand.New(rand.NewPCG(seed, 31))
+	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
+	c := newCanvas(int(math.Ceil(58*s)), int(math.Ceil(66*s)))
+	bx, by := math.Round(float64(c.w)/2), float64(c.h-3)
+	lean := r(-3, 3) * s
+	tx, ty := bx+lean, by-r(34, 40)*s
+	trunk := limb{bx, by, bx + lean*0.2, (by + ty) / 2, tx, ty, 2.2 * s, 1.5 * s}
+	drawLimbIn(c, trunk, treeFernTrunk, 81)
+	for t := 0.1; t < 0.95; t += 0.09 { // the scars of old fronds ring the trunk
+		x, y := trunk.at(t)
+		w := lerpf(trunk.w0, trunk.w1, t)
+		c.line(x-w, y, x+w, y+1, func(px, py int, _ float64) color.RGBA { return treeFernTrunk[0] })
+	}
+	n := 7 + rng.IntN(3)
+	type fr struct{ a, L float64 }
+	var fronds []fr
+	for i := range n {
+		a := -math.Pi - 0.2 + (math.Pi+0.4)*float64(i)/float64(n-1) + r(-0.15, 0.15)
+		fronds = append(fronds, fr{a, r(16, 22) * s})
+	}
+	// The ones pointing up (behind) first, the drooping side ones last.
+	slices.SortFunc(fronds, func(p, q fr) int {
+		return cmp.Compare(math.Abs(p.a+math.Pi/2), math.Abs(q.a+math.Pi/2))
+	})
+	for i, f := range fronds {
+		frond(c, tx, ty, f.a, f.L, treeFernRamp, false, 90+uint32(i))
+	}
+	c.outline(0.55)
+	return trimmed(c, bx, by)
+}
+
+// genCycad is a cycad: a stout, scaly trunk and a stiff crown of
+// palm-like fronds.
+func genCycad(s float64, seed uint64) sprite {
+	rng := rand.New(rand.NewPCG(seed, 37))
+	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
+	c := newCanvas(int(math.Ceil(58*s)), int(math.Ceil(50*s)))
+	bx, by := math.Round(float64(c.w)/2), float64(c.h-3)
+	h, half := r(14, 19)*s, 3.8*s
+	for y := int(by - h); y <= int(by); y++ {
+		for x := int(bx - half); x < int(math.Ceil(bx+half)); x++ {
+			l := 0.8 - (float64(x)+0.5-(bx-half))/(2*half)*0.6
+			if (x+y*2)%5 == 0 || (x-y*2)%5 == 0 { // diamond scales
+				l -= 0.25
+			}
+			c.set(x, y, cycadTrunk.pick(l, x, y))
+		}
+	}
+	tx, ty := bx, by-h
+	n := 9 + rng.IntN(3)
+	for i := range n {
+		a := -math.Pi + 0.5 + (math.Pi-1.0)*float64(i)/float64(n-1) + r(-0.1, 0.1)
+		frond(c, tx, ty+1, a, r(15, 19)*s, cycadRamp, true, 140+uint32(i))
+	}
+	c.outline(0.6)
+	return trimmed(c, bx, by)
+}
+
+// genAraucaria is a monkey-puzzle tree: a tall bare trunk, branches in
+// tiers near the top, the whole crown a flat-topped umbrella of ropy
+// foliage.
+func genAraucaria(s float64, seed uint64) sprite {
+	rng := rand.New(rand.NewPCG(seed, 41))
+	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
+	c := newCanvas(int(math.Ceil(60*s)), int(math.Ceil(76*s)))
+	bx, by := math.Round(float64(c.w)/2), float64(c.h-3)
+	tx, ty := bx+r(-1.5, 1.5)*s, by-r(50, 56)*s
+	trunk := limb{bx, by, bx, (by + ty) / 2, tx, ty, 2.0 * s * s, 1.0 * s}
+	drawLimb(c, trunk)
+	var crowns []crown
+	tiers := 4
+	for k := range tiers {
+		y := ty + float64(k)*5*s
+		span := (10 + float64(k)*4.5) * s
+		for _, side := range []float64{-1, 1} {
+			ex, ey := tx+side*span, y-r(1, 3)*s
+			l := limb{tx, y + 1, tx + side*span*0.5, y + 1.5*s, ex, ey, 1.1 * s, 0.6}
+			drawLimb(c, l)
+			// Ropy foliage: a row of small clumps along the outer branch.
+			for t := 0.35; t <= 1.0; t += 0.16 {
+				x, yy := l.at(t)
+				crowns = append(crowns, crown{[]blob{{x, yy - 1.5*s, (2.2 + rng.Float64()) * s}, {x, yy, 2.3 * s}}, x, yy, 4 * s, 3 * s})
+			}
+		}
+	}
+	crowns = append(crowns, roundCrown(tx, ty-2*s, 5.5*s, rng)) // the domed top
+	slices.SortStableFunc(crowns, func(a, b crown) int { return cmp.Compare(a.cy, b.cy) })
+	for i, cr := range crowns {
+		leafCluster(c, cr.blobs, cr.cx, cr.cy, cr.rx, cr.ry, araucariaRamp, 200+uint32(i))
+	}
+	shadeUnderCrown(c)
+	c.outline(0.7)
+	return trimmed(c, bx, by)
+}
+
+// genRedwood is a giant: a great fluted red trunk, bare a long way up, under
+// a tall narrow crown of dark needles. The biggest thing in the woods.
+func genRedwood(s float64, seed uint64) sprite {
+	rng := rand.New(rand.NewPCG(seed, 43))
+	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
+	c := newCanvas(int(math.Ceil(48*s)), int(math.Ceil(100*s)))
+	bx, by := math.Round(float64(c.w)/2), float64(c.h-3)
+	top := by - r(88, 94)*s
+	base, tip := 4.2*s*s, 0.8*s
+	for y := int(top); y <= int(by); y++ {
+		f := (by - float64(y)) / (by - top) // 0 at the ground, 1 at the top
+		half := lerpf(base, tip, math.Pow(f, 0.7))
+		if f < 0.06 {
+			half += (0.06 - f) * 40 * s // the buttressed foot
+		}
+		for x := int(bx - half); x < int(math.Ceil(bx+half)); x++ {
+			u := (float64(x) + 0.5 - (bx - half)) / (2 * half)
+			l := 0.85 - u*0.65
+			if (x+int(f*7))%3 == 0 { // deep vertical furrows
+				l -= 0.28
+			}
+			c.set(x, y, redwoodRamp.pick(l, x, y))
+		}
+	}
+	// The crown: clumps up the top three fifths, narrowing to a spire.
+	var crowns []crown
+	for y := by - (by-top)*0.42; y > top+2*s; y -= 4.2 * s {
+		f := (by - y) / (by - top)
+		w := (1 - f) * 15 * s
+		for _, side := range []float64{-1, 1} {
+			x := bx + side*(w*r(0.4, 0.9))
+			crowns = append(crowns, crown{[]blob{{x, y, (2.6 + (1-f)*3.2) * s}, {x - side*2*s, y + 1.5*s, (2.2 + (1-f)*2.5) * s}}, x, y, 8 * s, 5 * s})
+		}
+	}
+	crowns = append(crowns, crown{[]blob{{bx, top + 2*s, 2.2 * s}}, bx, top, 3 * s, 3 * s})
+	slices.SortStableFunc(crowns, func(a, b crown) int { return cmp.Compare(a.cy, b.cy) })
+	for i, cr := range crowns {
+		leafCluster(c, cr.blobs, cr.cx, cr.cy, cr.rx, cr.ry, redwoodLeaf, 260+uint32(i))
+	}
+	c.outline(0.75)
+	return trimmed(c, bx, by)
+}
+
+// ancientTrees are the prehistoric trees of one size, three of each.
+type ancientTrees struct {
+	ferns, cycads, araucarias, ginkgos, redwoods []sprite
+}
+
+func genAncientTrees(s float64) ancientTrees {
+	var t ancientTrees
+	for v := uint64(1); v <= 3; v++ {
+		t.ferns = append(t.ferns, genTreeFern(s, v))
+		t.cycads = append(t.cycads, genCycad(s, v))
+		t.araucarias = append(t.araucarias, genAraucaria(s, v))
+		t.ginkgos = append(t.ginkgos, genBroadleafIn([]treeShape{shapeOak, shapeRound, shapeTall}[v-1], ginkgoRamp, 7, false, s, 70+v))
+		t.redwoods = append(t.redwoods, genRedwood(s, v))
+	}
+	return t
 }

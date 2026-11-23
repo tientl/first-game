@@ -57,7 +57,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		tg, ok := sim.PickTarget(px, py, hasWood, func(tx, ty int) (sim.TargetCandidate, bool) {
 			e, ok := oldAt[[2]int{tx, ty}]
 			return sim.TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready}, ok
-		}, creatureCandidates(old.Creatures, px, py), sim.ReachBonusFor(p.Held))
+		}, creatureCandidates(old.Creatures, px, py), sim.ReachBonusFor(p.Held)+sim.RideReach(p.Mount != 0))
 		if !ok {
 			continue
 		}
@@ -70,7 +70,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 				switch {
 				case c.Kind == sim.CreatureFish && p.Held == sim.ItemRod:
 					snd.playAt("cast", float64(p.X), float64(p.Y), 0.45, 0.06)
-				case p.Held == sim.ItemSpear:
+				case p.Held == sim.ItemSpear || p.Held == sim.ItemIvorySpear:
 					snd.playAt("swish", float64(p.X), float64(p.Y), 0.5, 0.1)
 				}
 			}
@@ -82,7 +82,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		case sim.EntityTree:
 			snd.playAt("chop", x, y, 0.75, 0.06)
 		case sim.EntityBoulder:
-			if _, pick := old.Self.Inv.BestTool(sim.ToolPickaxe); p.ID == g.myID && pick {
+			if g.swingWhat[p.ID].kind == swingPick { // the sound of the tool drawn swinging
 				snd.playAt("pick_hit", x, y, 0.6, 0.06)
 			} else {
 				snd.playAt("stone", x, y, 0.6, 0.06)
@@ -169,6 +169,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		sim.ItemStick: "pick_stick", sim.ItemMeat: "pick_meat",
 		sim.ItemWorm: "pick_worm", sim.ItemFish: "pick_meat", sim.ItemCrabMeat: "pick_meat",
 		sim.ItemPebble: "pick_stone", sim.ItemPotato: "pick_grass",
+		sim.ItemFig: "pick_berry", sim.ItemGinkgoNut: "pick_berry", sim.ItemCoconut: "pick_wood",
 		sim.ItemCactus: "pick_grass", sim.ItemMushroom: "pick_berry", sim.ItemCoal: "pick_stone",
 		sim.ItemClam: "pick_stone",
 	}
@@ -253,6 +254,8 @@ func (g *Game) frameSounds(alpha float64) {
 				name = "step_rock"
 			case sim.TileForest:
 				name = "step_forest"
+			case sim.TileSnow:
+				name = "step_snow"
 			}
 			if p.ID == g.myID {
 				snd.playVar(name, 0.28, 0, 0.08)

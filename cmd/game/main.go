@@ -40,7 +40,7 @@ func main() {
 	a := &app{seed: *seed, name: *name, size: *size, savePath: *savePath}
 	a.openMenu()
 
-	ebiten.SetWindowTitle("Sinh Tồn — prototype")
+	ebiten.SetWindowTitle("Sinh Tồn: Thời Khủng Long")
 	ebiten.SetWindowSize(1280, 720)
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowClosingHandled(true)
@@ -147,7 +147,7 @@ func (a *app) Update() error {
 		if a.size > 0 {
 			size = a.size // -size on the command line wins
 		}
-		cfg.Width, cfg.Height, cfg.Style = size, size, sim.StyleOpen
+		cfg.Width, cfg.Height, cfg.Style = size, size, sim.StyleLatest
 		log.Printf("new world, seed %d, %dx%d", cfg.Seed, size, size)
 		a.background("Đang tạo thế giới", func() loaded {
 			srv, err := server.New(cfg)

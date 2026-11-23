@@ -1,9 +1,11 @@
 package client
 
 import (
+	"fmt"
 	"image/color"
 	"math"
 	"math/rand/v2"
+	"strings"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -51,6 +53,19 @@ type creatureArt struct {
 	den    sprite                  // a snake den
 	worm   [2][wormFrames]sprite
 	fish   [2][fishFrames]sprite
+
+	// The great beasts: see dinoart.go, hunterart.go and skyseaart.go.
+	trike       [2][trikePoses]sprite
+	stego       [2][stegoPoses]sprite
+	brachio     [2][brachPoses]sprite
+	raptor      [2][raptorPoses]sprite
+	rex         [2][rexPoses]sprite
+	ptero       [2][pteroPoses]sprite
+	plesio      [2][plesioPoses]sprite
+	mammoth     [2][mammothPoses]sprite // see iceart.go
+	sabre       [2][sabrePoses]sprite
+	hell        hellArt // the tyrant's neighbours: see hellart.go and hellwire.go
+	pteroShadow sprite
 }
 
 func genCreatureArt() creatureArt {
@@ -79,8 +94,39 @@ func genCreatureArt() creatureArt {
 		a.croc[1][p] = mirrorSprite(a.croc[0][p])
 	}
 	a.burrow, a.den = genBurrow(), genDen()
+	for p := range trikePoses {
+		a.trike[0][p], a.trike[1][p] = sidedPair(genTrike(p))
+	}
+	for p := range stegoPoses {
+		a.stego[0][p], a.stego[1][p] = sidedPair(genStego(p))
+	}
+	for p := range brachPoses {
+		a.brachio[0][p], a.brachio[1][p] = sidedPair(genBrachio(p))
+	}
+	for p := range raptorPoses {
+		a.raptor[0][p], a.raptor[1][p] = sidedPair(genRaptor(p))
+	}
+	for p := range rexPoses {
+		a.rex[0][p], a.rex[1][p] = sidedPair(genRex(p))
+	}
+	for p := range pteroPoses {
+		a.ptero[0][p], a.ptero[1][p] = sidedPair(genPtero(p))
+	}
+	for p := range plesioPoses {
+		a.plesio[0][p], a.plesio[1][p] = sidedPair(genPlesio(p))
+	}
+	for p := range mammothPoses {
+		a.mammoth[0][p], a.mammoth[1][p] = sidedPair(genMammoth(p))
+	}
+	for p := range sabrePoses {
+		a.sabre[0][p], a.sabre[1][p] = sidedPair(genSabre(p))
+	}
+	a.hell = genHellArt()
+	a.pteroShadow = mk(pteroShadow(), 10, 3)
 	return a
 }
+
+func sidedPair(s sprite) (sprite, sprite) { return s, mirrorSprite(s) }
 
 // --- sprites ----------------------------------------------------------------
 
@@ -235,6 +281,14 @@ func genCreatureIcons(icons *[sim.NumItems]*ebiten.Image) {
 	icons[sim.ItemCookedMeat] = iconCookedMeat()
 	icons[sim.ItemCookedFish] = iconCookedFish()
 	icons[sim.ItemCrabMeat], icons[sim.ItemCookedCrab] = iconCrabMeat(), iconCookedCrab() // crab.go
+	icons[sim.ItemHide] = iconHide().image()                                              // dinoart.go
+	icons[sim.ItemBone] = iconBone().image()
+	icons[sim.ItemRexTooth] = iconRexTooth().image()
+	icons[sim.ItemSaddle] = iconSaddle().image() // ride.go
+	icons[sim.ItemFur] = iconFur().image()       // iceart.go
+	icons[sim.ItemIvory] = iconIvory().image()
+	icons[sim.ItemFurCoat] = iconFurCoat().image()
+	icons[sim.ItemIvorySpear] = iconIvorySpear().image()
 }
 
 // --- sounds -----------------------------------------------------------------
@@ -298,6 +352,8 @@ func genCreatureSFX(r *rand.Rand, add func(name string, peak float64, x []float6
 		addAt(x, noiseBurst(r, 0.04, bandpass, 2200, 2, 0.0003, 0.006), 0.01, 0.6)
 		add("chomp", 1, x)
 	}
+	genDinoSFX(r, add) // last, so the rng gives the sounds above as before
+	genIceSFX(r, add)
 }
 
 // creatureSounds plays what animals did between two snapshots.
@@ -312,6 +368,9 @@ func (g *Game) creatureSounds(old, cur protocol.Snapshot) {
 		if !seen || o.State == c.State {
 			continue
 		}
+		if g.feedSound(o, c) || dinoSound(o, c) || iceSound(o, c) {
+			continue // see dinosound.go and iceart.go
+		}
 		if c.State == sim.CreatureHidden || o.State == sim.CreatureHidden {
 			if c.Kind == sim.CreatureCrab {
 				snd.playAt("splash", float64(c.X), float64(c.Y), 0.25, 0.2) // under the water, or up again
@@ -320,10 +379,14 @@ func (g *Game) creatureSounds(old, cur protocol.Snapshot) {
 			}
 			continue
 		}
+		if hellSound(o, c) {
+			continue // see hellwire.go
+		}
 		if c.Kind == sim.CreatureCroc {
 			switch {
 			case o.State == sim.CreatureLurk && c.State == sim.CreatureChase:
 				snd.playAt("splash", float64(c.X), float64(c.Y), 0.7, 0.05) // bursting out of the water
+				callAt("croc_hiss", float64(c.X), float64(c.Y), 0.75, 1, 16)
 			case c.State == sim.CreatureStrike:
 				snd.playAt("chomp", float64(c.X), float64(c.Y), 0.8, 0.06)
 			case c.State == sim.CreatureLurk:
@@ -356,8 +419,15 @@ func (g *Game) creatureSounds(old, cur protocol.Snapshot) {
 			snd.playAt("squeak", float64(c.X), float64(c.Y), 0.45, 0.1)
 		case sim.CreatureSnake:
 			snd.playAt("hiss", float64(c.X), float64(c.Y), 0.4, 0.15)
+		case sim.CreatureTrike, sim.CreatureStego, sim.CreatureBrachio, sim.CreatureRex, sim.CreatureMammoth, sim.CreatureToro, sim.CreatureQuetzal:
+			snd.playAt("treefall", float64(c.X), float64(c.Y), 0.5, 0.1) // the great body comes down
 		}
 	}
+	g.beastSteps(cur)
+	g.tameEffects(old, cur) // see ride.go
+	g.chewSounds(cur)       // see hellwire.go
+	g.beastCalls(cur)       // see roar.go
+	g.predatorGrowls(cur)   // see predsound.go
 }
 
 // swingAtCreatureSound is the sound of an Action landing on c.
@@ -368,6 +438,10 @@ func swingAtCreatureSound(c protocol.CreatureView) {
 		snd.playAt("splash", x, y, 0.55, 0.08)
 	case sim.CreatureWorm:
 		snd.playAt("rustle", x, y, 0.25, 0.15)
+	case sim.CreatureTrike, sim.CreatureStego, sim.CreatureBrachio, sim.CreatureRex,
+		sim.CreatureRaptor, sim.CreaturePtero, sim.CreaturePlesio, sim.CreatureMammoth, sim.CreatureSabre,
+		sim.CreatureToro, sim.CreatureAchero, sim.CreatureQuetzal, sim.CreatureBrachy, sim.CreatureChampso, sim.CreatureAnzu, sim.CreatureThesc:
+		snd.playAt("whack", x, y, 0.6, 0.1)
 	default:
 		snd.playAt("rustle", x, y, 0.45, 0.1)
 	}
@@ -394,12 +468,12 @@ type targetView struct {
 
 // creatureCandidates lists the creatures in cs near (x, y), for sim.PickTarget.
 func creatureCandidates(cs []protocol.CreatureView, x, y float64) []sim.CreatureCandidate {
-	const far = 3.0 // more than any creature's reach
+	const far = sim.CandidateRange // more than any creature's reach
 	var out []sim.CreatureCandidate
 	for _, c := range cs {
 		cx, cy := float64(c.X), float64(c.Y)
-		if c.State == sim.CreatureHooked || c.State == sim.CreatureHidden || c.State == sim.CreatureLurk {
-			continue // under someone's float, or down a hole: not a target, as on the server
+		if c.State.OutOfReach() || c.Ridden {
+			continue // under someone's float, down a hole, under water, up in the air or ridden: as on the server
 		}
 		if math.Abs(cx-x) <= far && math.Abs(cy-y) <= far {
 			out = append(out, sim.CreatureCandidate{ID: c.ID, Kind: c.Kind, X: cx, Y: cy})
@@ -409,8 +483,59 @@ func creatureCandidates(cs []protocol.CreatureView, x, y float64) []sim.Creature
 }
 
 // creatureLabel is what the target marker says over c.
+// creatureLabel is creatureLabelBase with what a beast is busy at, if
+// anything: eating, drinking or hunting.
 func (g *Game) creatureLabel(c protocol.CreatureView) (string, color.RGBA) {
+	label, col := g.creatureLabelBase(c)
+	busy := ""
+	switch {
+	case c.State == sim.CreatureEat:
+		busy = " (đang ăn)"
+	case c.State == sim.CreatureDrink:
+		busy = " (đang uống)"
+	case c.State == sim.CreatureChase && c.Kind.Hunts():
+		busy = " (đang săn)"
+	}
+	if name := c.Kind.Name(); busy != "" && strings.HasPrefix(label, name) {
+		label = name + busy + label[len(name):]
+	}
+	return label, col
+}
+
+func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {
 	name := c.Kind.Name()
+	if c.Tamed { // see ride.go
+		if c.Owner != g.myID {
+			return name + " — thú của " + g.playerName(c.Owner), colWhite
+		}
+		if food := c.Kind.TameFood(); g.myHeld() == food {
+			return name + " của bạn — cho ăn để hồi máu", colGood
+		}
+		verb := "bảo đứng chờ"
+		if c.Stay {
+			verb = "gọi đi theo"
+		}
+		if c.Kind.Rideable() {
+			return name + " của bạn — Space: " + verb + ", R: cưỡi", colGood
+		}
+		return name + " của bạn — Space: " + verb, colGood
+	}
+	if food := c.Kind.TameFood(); food.Valid() && g.myHeld() == food {
+		progress := fmt.Sprintf(" (%d/%d)", c.Tame, c.Kind.TameMeals())
+		switch {
+		case c.Kind.MustCower() && c.State != sim.CreatureCower:
+			return name + " — đánh cho gục rồi mới cho ăn được", colBad
+		case c.State == sim.CreatureChase || c.State == sim.CreatureStrike:
+			return name + " — đang nổi giận, không chịu ăn", colBad
+		}
+		return name + " — cho " + strings.ToLower(food.Def().Name) + " để thuần" + progress, colGood
+	}
+	if c.State == sim.CreatureCower {
+		return name + " (đã gục) — cầm " + strings.ToLower(c.Kind.TameFood().Def().Name) + " để thuần", colGood
+	}
+	if l, col, ok := hellLabel(c); ok {
+		return l, col // see hellwire.go
+	}
 	switch c.Kind {
 	case sim.CreatureRabbit:
 		if c.State == sim.CreatureSleep {
@@ -428,6 +553,36 @@ func (g *Game) creatureLabel(c protocol.CreatureView) (string, color.RGBA) {
 		return name + " — bắt", colWhite
 	case sim.CreatureCroc:
 		return name + " — đánh (cắn rất đau!)", colBad
+	case sim.CreatureTrike:
+		if c.State == sim.CreatureChase || c.State == sim.CreatureStrike {
+			return name + " — đang húc! chạy hoặc đánh", colBad
+		}
+		return name + " — săn (cả đàn sẽ húc lại)", colWhite
+	case sim.CreatureStego:
+		if c.State == sim.CreatureChase || c.State == sim.CreatureStrike {
+			return name + " — coi chừng đuôi gai!", colBad
+		}
+		return name + " — săn (đuôi gai quất người đứng gần)", colWhite
+	case sim.CreatureBrachio:
+		return name + " — săn (hiền, chỉ bỏ đi)", colWhite
+	case sim.CreatureRaptor:
+		return name + " — đánh (săn theo bầy!)", colBad
+	case sim.CreatureRex:
+		return name + " — đánh (cực kỳ nguy hiểm!)", colBad
+	case sim.CreaturePtero:
+		if c.State == sim.CreatureIdle {
+			return name + " (đang đậu) — đánh", colWhite
+		}
+		return name + " — đánh khi nó bổ nhào", colBad
+	case sim.CreaturePlesio:
+		return name + " — đánh vào cổ (cắn người trên bờ)", colBad
+	case sim.CreatureMammoth:
+		if c.State == sim.CreatureChase || c.State == sim.CreatureStrike {
+			return name + " — đang húc ngà! chạy hoặc đánh", colBad
+		}
+		return name + " — săn (cả đàn sẽ húc lại)", colWhite
+	case sim.CreatureSabre:
+		return name + " — đánh (rình rồi vồ!)", colBad
 	case sim.CreatureFish:
 		if tool := c.Kind.Tool(); tool.Valid() && g.myHeld() != tool {
 			return name + " — cầm " + tool.Def().Name + " trên tay để câu", colBad
@@ -466,6 +621,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 		side = 1
 	}
 	t := g.frame + int(c.ID)*7 // so a group does not move in lockstep
+	if s, bob, ok := g.hellSprite(c, moving); ok {
+		return s, bob // see hellwire.go
+	}
 	switch c.Kind {
 	case sim.CreatureRabbit:
 		switch {
@@ -517,21 +675,197 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 			return a.croc[side][crocWalkA+(t/9)%2], 0
 		}
 		return a.croc[side][crocWalkA], 0
+	case sim.CreatureTrike:
+		switch {
+		case feeding(c):
+			return a.trike[side][trikeEatA+chew(c, t)], 0
+		case c.State == sim.CreatureStrike, calling(c): // a gore, or a bellow with the head thrown up
+			return a.trike[side][trikeGore], 0
+		case c.State == sim.CreatureChase && moving: // a pounding charge
+			return a.trike[side][trikeCharge], float64((t / 4) % 2)
+		case c.State == sim.CreatureChase:
+			return a.trike[side][trikeCharge], 0
+		case moving:
+			return a.trike[side][trikeWalkA+(t/12)%2], 0
+		}
+		return a.trike[side][trikeWalkA], 0
+	case sim.CreatureStego:
+		switch {
+		case feeding(c):
+			return a.stego[side][stegoEatA+chew(c, t)], 0
+		case c.State == sim.CreatureStrike:
+			return a.stego[side][stegoSwipe], 0
+		case moving:
+			return a.stego[side][stegoWalkA+(t/14)%2], 0
+		}
+		return a.stego[side][stegoWalkA], 0
+	case sim.CreatureBrachio:
+		if feeding(c) {
+			return a.brachio[side][brachEatA+chew(c, t)], 0
+		}
+		if moving {
+			return a.brachio[side][brachWalkA+(t/16)%2], 0
+		}
+		return a.brachio[side][brachWalkA], 0
+	case sim.CreatureRaptor:
+		switch {
+		case feeding(c):
+			return a.raptor[side][raptorEatA+chew(c, t)], 0
+		case c.State == sim.CreatureStrike:
+			return a.raptor[side][raptorPounce], 3
+		case c.State == sim.CreatureCower:
+			return a.raptor[side][raptorCower], 0
+		case moving && (c.State == sim.CreatureChase || c.State == sim.CreatureFlee):
+			return a.raptor[side][raptorRunA+(t/4)%2], 0
+		case moving:
+			return a.raptor[side][raptorRunA+(t/8)%2], 0
+		}
+		return a.raptor[side][raptorStand], 0
+	case sim.CreatureRex:
+		switch {
+		case feeding(c):
+			return a.rex[side][rexEatA+chew(c, t)], 0
+		case c.State == sim.CreatureRoar, calling(c):
+			return a.rex[side][rexRoar], 0
+		case c.State == sim.CreatureStrike:
+			return a.rex[side][rexBite], 0
+		case moving && c.State == sim.CreatureChase:
+			return a.rex[side][rexWalkA+(t/7)%2], 0
+		case moving:
+			return a.rex[side][rexWalkA+(t/11)%2], 0
+		}
+		return a.rex[side][rexWalkA], 0
+	case sim.CreaturePtero:
+		flap := [4]int{pteroUp, pteroGlide, pteroDown, pteroGlide}
+		switch c.State {
+		case sim.CreatureIdle:
+			return a.ptero[side][pteroPerch], 0
+		case sim.CreatureSoar:
+			if (t/90)%3 == 0 { // now and then it flaps; mostly it glides
+				return a.ptero[side][flap[(t/6)%4]], pteroSoarAlt
+			}
+			return a.ptero[side][pteroGlide], pteroSoarAlt
+		case sim.CreatureFlee:
+			return a.ptero[side][flap[(t/4)%4]], pteroClimbAlt
+		case sim.CreatureStrike:
+			return a.ptero[side][pteroGlide], pteroDiveAlt - 3
+		}
+		return a.ptero[side][pteroDive], pteroDiveAlt
+	case sim.CreaturePlesio:
+		switch c.State {
+		case sim.CreatureLurk:
+			return a.plesio[side][plesioUnder], 0
+		case sim.CreatureStrike:
+			return a.plesio[side][plesioStrike], 0
+		}
+		return a.plesio[side][plesioUp], 0
+	case sim.CreatureMammoth:
+		switch {
+		case feeding(c):
+			return a.mammoth[side][mammothEatA+chew(c, t)], 0
+		case c.State == sim.CreatureStrike, calling(c): // a gore, or trumpeting with the trunk raised
+			return a.mammoth[side][mammothGore], 0
+		case c.State == sim.CreatureChase:
+			bob := 0.0
+			if moving {
+				bob = float64((t / 5) % 2)
+			}
+			return a.mammoth[side][mammothCharge], bob
+		case moving:
+			return a.mammoth[side][mammothWalkA+(t/14)%2], 0
+		}
+		return a.mammoth[side][mammothWalkA], 0
+	case sim.CreatureSabre:
+		switch {
+		case feeding(c):
+			return a.sabre[side][sabreEatA+chew(c, t)], 0
+		case c.State == sim.CreatureStrike:
+			return a.sabre[side][sabreSpring], 3
+		case c.State == sim.CreatureCower:
+			return a.sabre[side][sabreCower], 0
+		case c.State == sim.CreatureChase:
+			return a.sabre[side][sabreStalk], 0
+		case moving && c.State == sim.CreatureFlee:
+			return a.sabre[side][sabreWalkA+(t/4)%2], 0
+		case moving:
+			return a.sabre[side][sabreWalkA+(t/9)%2], 0
+		}
+		return a.sabre[side][sabreStand], 0
 	default:
 		return a.fish[side][(t/9)%fishFrames], 0
 	}
 }
 
-func creatureShadow(k sim.CreatureKind) float64 {
+// inTheSky reports whether c is drawn high in the air, above everything on
+// the ground, by drawSky.
+func inTheSky(c protocol.CreatureView) bool {
+	return c.Kind == sim.CreaturePtero && (c.State == sim.CreatureSoar || c.State == sim.CreatureFlee) ||
+		c.Kind == sim.CreatureQuetzal && c.State == sim.CreatureSoar
+}
+
+// drawSky draws the flying reptiles high overhead, after everything on the
+// ground, with their shadows far below. Inside a cave there is no sky.
+func (g *Game) drawSky(dst *ebiten.Image, cam camera, alpha float64) {
+	if g.caveIn() > 0.5 {
+		return
+	}
+	for _, c := range g.curr.Creatures {
+		if !inTheSky(c) {
+			continue
+		}
+		x, y, moving := g.lerpCreature(c, alpha)
+		sx, sy := cam.toScreen(x, y)
+		s, alt := g.creatureSprite(c, moving)
+		sh := &ebiten.DrawImageOptions{}
+		sh.GeoM.Translate(sx-g.art.beasts.pteroShadow.ax, sy-g.art.beasts.pteroShadow.ay)
+		if c.Kind == sim.CreatureQuetzal { // a far bigger shadow
+			sh.GeoM.Translate(-sx, -sy)
+			sh.GeoM.Scale(2.4, 2.4)
+			sh.GeoM.Translate(sx, sy)
+		}
+		sh.ColorScale.ScaleAlpha(0.6)
+		dst.DrawImage(g.art.beasts.pteroShadow.img, sh)
+		alt += math.Round(math.Sin(float64(g.frame)*0.05+float64(c.ID)) * 1.5)
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(sx-s.ax, sy-alt-s.ay)
+		dst.DrawImage(s.img, op)
+	}
+}
+
+// creatureShadow is the width of the shadow under a creature of kind k, in
+// art pixels; the great beasts' grow with how big they are drawn.
+func creatureShadow(k sim.CreatureKind) float64 { return creatureShadowBase(k) * beastScale(k) }
+
+func creatureShadowBase(k sim.CreatureKind) float64 {
 	switch k {
+	case sim.CreatureToro:
+		return 30
+	case sim.CreatureOrnitho, sim.CreatureAnzu:
+		return 13
+	case sim.CreatureThesc:
+		return 18
+	case sim.CreatureAchero:
+		return 12
+	case sim.CreatureQuetzal:
+		return 20
 	case sim.CreatureRabbit:
 		return 12
 	case sim.CreatureSnake:
 		return 20
 	case sim.CreatureCrab:
 		return 14
+	case sim.CreatureTrike, sim.CreatureStego, sim.CreatureRex:
+		return 30
+	case sim.CreatureMammoth:
+		return 38
+	case sim.CreatureSabre:
+		return 18
+	case sim.CreatureBrachio:
+		return 36
+	case sim.CreatureRaptor:
+		return 15
 	default:
-		return 0
+		return 0 // fish and sea reptiles are under water; flying ones cast their own
 	}
 }
 
@@ -541,12 +875,17 @@ func (g *Game) drawCreature(dst *ebiten.Image, c protocol.CreatureView, d drawab
 	}
 	s, bob := g.creatureSprite(c, d.moving)
 	x := d.sx
+	if c.Kind == sim.CreaturePtero && bob > 0 { // swooping low: its shadow right under it
+		sh := &ebiten.DrawImageOptions{}
+		sh.GeoM.Translate(d.sx-g.art.beasts.pteroShadow.ax, d.sy-g.art.beasts.pteroShadow.ay)
+		dst.DrawImage(g.art.beasts.pteroShadow.img, sh)
+	}
 	op := &ebiten.DrawImageOptions{}
 	if c.State == sim.CreatureHurt {
 		x += math.Round(math.Sin(float64(g.frame) * 1.3)) // flinch
 		op.ColorScale.Scale(1, 0.55, 0.55, 1)
 	}
-	wades := c.Kind == sim.CreatureCrab || c.Kind == sim.CreatureCroc
+	wades := c.Kind == sim.CreatureCrab || crocLike(c.Kind)
 	if wades && g.tileAt(int(math.Floor(float64(c.X))), int(math.Floor(float64(c.Y)))) == sim.TileWater {
 		op.ColorScale.Scale(0.72, 0.86, 0.95, 1) // wading: seen through the shallows
 	}
@@ -605,12 +944,43 @@ func (g *Game) drawLurker(dst *ebiten.Image, cam camera, c protocol.CreatureView
 	}
 }
 
+// drawSeaReptile draws a sea reptile in the water: a dark shape gliding
+// below the surface, or reared up with rings spreading round its neck.
+func (g *Game) drawSeaReptile(dst *ebiten.Image, cam camera, c protocol.CreatureView, alpha float64) {
+	x, y, moving := g.lerpCreature(c, alpha)
+	sx, sy := cam.toScreen(x, y)
+	s, _ := g.creatureSprite(c, moving)
+	bob := math.Round(math.Sin(float64(g.frame)*0.05 + float64(c.ID)))
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(sx-s.ax, sy+bob-s.ay)
+	if c.State == sim.CreatureLurk {
+		op.ColorScale.ScaleAlpha(0.45) // seen through the water
+		dst.DrawImage(s.img, op)
+		return
+	}
+	if c.State == sim.CreatureHurt {
+		op.ColorScale.Scale(1, 0.55, 0.55, 1)
+	}
+	dst.DrawImage(s.img, op)
+	ph := math.Mod(float64(g.frame)/90+float64(c.ID)*0.31, 1)
+	r, a := 5+ph*9, uint8(130*(1-ph))
+	for k := range 28 {
+		ang := 2 * math.Pi * float64(k) / 28
+		px, py := math.Round(sx+r*math.Cos(ang)*1.3), math.Round(sy+r*0.4*math.Sin(ang))
+		vector.FillRect(dst, float32(px), float32(py), 1, 1, color.RGBA{a, a, a, a}, false)
+	}
+}
+
 // drawFish draws the fish under the water's surface, before anything that
 // stands on land.
 func (g *Game) drawFish(dst *ebiten.Image, cam camera, alpha float64) {
 	for _, c := range g.curr.Creatures {
 		if c.Kind == sim.CreatureCrab && c.State == sim.CreatureHidden {
 			g.drawBubbles(dst, cam, c) // a crab gone under
+			continue
+		}
+		if c.Kind == sim.CreaturePlesio {
+			g.drawSeaReptile(dst, cam, c, alpha)
 			continue
 		}
 		if c.State == sim.CreatureLurk {

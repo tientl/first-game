@@ -47,6 +47,7 @@ var mapTiles = []struct {
 	{sim.TileCave, caveRamp, "Hang"},
 	{sim.TileAsh, ashRamp2, "Tro núi lửa"},
 	{sim.TileLava, lavaRamp, "Dung nham"},
+	{sim.TileSnow, snowRamp, "Tuyết"},
 }
 
 // mapRamp is the palette the map paints land tile t with. Kinds missing from

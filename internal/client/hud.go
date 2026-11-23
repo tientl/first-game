@@ -115,6 +115,9 @@ func (g *Game) drawHUD(screen *ebiten.Image, sw, sh int) {
 	warn, warnCol := "", colColdTxt
 	if self.Cold {
 		warn = "Lạnh cóng! Hãy đến gần lửa trại"
+		if sim.Ambient(g.curr.Tick) >= sim.ColdAmbient { // by day: it is the snow
+			warn = "Tuyết lạnh cóng! Mặc Áo lông, cưỡi voi ma mút hoặc đứng gần lửa"
+		}
 	} else if self.Hunger <= 0 && !self.Dead {
 		warn, warnCol = "Đang chết đói!", colHunger
 	}
@@ -270,6 +273,13 @@ func (g *Game) drawHelp(screen *ebiten.Image, sh int) {
 			c = colGood
 		}
 		lines = append(lines, line{"F", "nướng thịt / cá (đứng gần lửa trại)", c})
+	}
+	if verb, can, ok := g.mountHint(); ok { // see ride.go
+		c := color.Color(colMuted)
+		if can {
+			c = colGood
+		}
+		lines = append(lines, line{"R", verb, c})
 	}
 	lines = append(lines,
 		line{"B", "túi đồ", colMuted},

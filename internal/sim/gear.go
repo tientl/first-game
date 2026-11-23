@@ -1,9 +1,11 @@
 package sim
 
-// Swords and armour of each metal tier, and stone walls. A sword works in
-// the hand, like the spear; armour works from anywhere in the bag, the best
-// piece carried; a stone wall blocks the way like a wooden one but takes a
-// pickaxe, and many more hits, to bring down.
+// Knives and armour of each tier, and stone walls. (In the code they are
+// still "swords", after the metal tiers they replaced.) A knife works in the
+// hand, like the spear; armour works from anywhere in the bag, the best
+// piece carried: hide, bone, agate plates, a tyrant's teeth. A stone wall
+// blocks the way like a wooden one but takes a pickaxe, and many more hits,
+// to bring down.
 
 // Gear tuning.
 const (
@@ -81,7 +83,16 @@ const (
 	armorCost = 5
 )
 
-// fillGear writes the sword and armour recipes into the table.
+// armorInputs is what each tier's armour is made of: hides and bones from
+// the hunt, then plates of agate, then a tyrant's teeth. Stone has none.
+var armorInputs = [NumTiers][]Ingredient{
+	TierCopper:   {{Item: ItemHide, Count: armorCost}},
+	TierIron:     {{Item: ItemHide, Count: 3}, {Item: ItemBone, Count: 5}},
+	TierPlatinum: {{Item: ItemHide, Count: 4}, {Item: ItemBone, Count: 2}, {Item: ItemPlatinumBar, Count: 3}},
+	TierDiamond:  {{Item: ItemHide, Count: 4}, {Item: ItemBone, Count: 4}, {Item: ItemRexTooth, Count: 2}},
+}
+
+// fillGear writes the knife and armour recipes into the table.
 func fillGear() {
 	for t := TierCopper; t < NumTiers; t++ {
 		m := TierMaterial(t)
@@ -92,7 +103,7 @@ func fillGear() {
 		}
 		recipes[ArmorRecipe(t)] = Recipe{
 			ID: ArmorRecipe(t), Name: armor.Def().Name, Gives: armor,
-			Inputs: []Ingredient{{Item: m, Count: armorCost}},
+			Inputs: append([]Ingredient(nil), armorInputs[t]...),
 		}
 	}
 }

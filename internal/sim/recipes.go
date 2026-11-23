@@ -29,11 +29,16 @@ const (
 	RecipeRoastClam = recipeTierTools + RecipeID(NumToolClasses-1)*RecipeID(NumTiers-1) + iota
 	RecipeCookCrab
 	RecipeStoneWall
-	recipeSwords                                       // the swords, copper to diamond: see SwordRecipe
-	recipeArmors = recipeSwords + RecipeID(NumTiers-1) // the armours, copper to diamond: see ArmorRecipe
-	RecipeChest  = recipeArmors + RecipeID(NumTiers-1)
+	recipeSwords                                           // the swords, copper to diamond: see SwordRecipe
+	recipeArmors     = recipeSwords + RecipeID(NumTiers-1) // the armours, copper to diamond: see ArmorRecipe
+	RecipeChest      = recipeArmors + RecipeID(NumTiers-1)
+	RecipeSaddle     = RecipeChest + 1
+	RecipeFurCoat    = RecipeSaddle + 1 // see iceage.go
+	RecipeIvorySpear = RecipeFurCoat + 1
 
-	NumRecipes = RecipeChest + 1
+	RecipeRoastGinkgo = RecipeIvorySpear + 1 // see fruit.go
+
+	NumRecipes = RecipeRoastGinkgo + 1
 )
 
 // Recipe turns ingredients into either a structure placed in front of the
@@ -162,21 +167,21 @@ var recipes = [NumRecipes]Recipe{
 	},
 	RecipeSmeltCopper: {
 		ID:          RecipeSmeltCopper,
-		Name:        "Thỏi đồng",
+		Name:        "Lưỡi đá lửa",
 		Inputs:      []Ingredient{{Item: ItemCopperOre, Count: 1}},
 		Gives:       ItemCopperBar,
 		NearFurnace: true,
 	},
 	RecipeSmeltIron: {
 		ID:          RecipeSmeltIron,
-		Name:        "Thỏi sắt",
+		Name:        "Ngọc bích mài",
 		Inputs:      []Ingredient{{Item: ItemIronOre, Count: 1}},
 		Gives:       ItemIronBar,
 		NearFurnace: true,
 	},
 	RecipeSmeltPlatinum: {
 		ID:          RecipeSmeltPlatinum,
-		Name:        "Thỏi bạch kim",
+		Name:        "Mã não mài",
 		Inputs:      []Ingredient{{Item: ItemPlatinumOre, Count: 1}},
 		Gives:       ItemPlatinumBar,
 		NearFurnace: true,
@@ -192,6 +197,31 @@ var recipes = [NumRecipes]Recipe{
 		Name:   "Rương",
 		Inputs: []Ingredient{{Item: ItemWood, Count: 6}},
 		Places: EntityChest,
+	},
+	RecipeSaddle: {
+		ID:     RecipeSaddle,
+		Name:   "Yên da",
+		Inputs: []Ingredient{{Item: ItemHide, Count: 4}, {Item: ItemGrass, Count: 2}, {Item: ItemBone, Count: 1}},
+		Gives:  ItemSaddle,
+	},
+	RecipeFurCoat: {
+		ID:     RecipeFurCoat,
+		Name:   "Áo lông",
+		Inputs: []Ingredient{{Item: ItemFur, Count: 4}, {Item: ItemHide, Count: 2}},
+		Gives:  ItemFurCoat,
+	},
+	RecipeIvorySpear: {
+		ID:     RecipeIvorySpear,
+		Name:   "Giáo ngà",
+		Inputs: []Ingredient{{Item: ItemStick, Count: 2}, {Item: ItemIvory, Count: 1}, {Item: ItemGrass, Count: 1}},
+		Gives:  ItemIvorySpear,
+	},
+	RecipeRoastGinkgo: {
+		ID:       RecipeRoastGinkgo,
+		Name:     "Hạt bạch quả rang",
+		Inputs:   []Ingredient{{Item: ItemGinkgoNut, Count: 1}},
+		Gives:    ItemRoastGinkgo,
+		NearFire: true,
 	},
 	// The metal tools are filled in by fillTierTools, swords and armour by fillGear.
 }
@@ -232,6 +262,19 @@ const (
 	NoticeNeedFurnace              // Arg: RecipeID that must be made beside a lit furnace
 	NoticeChestFull                // Arg: ItemKind that did not fit in the chest
 	NoticeChestNotEmpty            // a chest is only taken down empty
+
+	// Taming and riding: see tame.go. Arg: CreatureKind unless noted.
+	NoticeFed      // one more meal towards taming it
+	NoticeTamed    // it is yours now
+	NoticeTooWild  // a hunter must be beaten down before it takes food
+	NoticeAngry    // an angry beast will not eat from your hand
+	NoticeNotYours // someone else's beast
+	NoticePetStay  // your beast waits here
+	NoticePetCome  // your beast follows you
+	NoticeNoMount  // no beast of yours to ride close by; Arg unused
+	NoticeCantRide // this beast cannot be ridden
+	NoticeHealed   // your beast ate and is mended
+	NoticeSkittish // it bolts: wait till it stops for breath, then feed it
 )
 
 // CommandKind is a discrete player request, as opposed to held input.
@@ -249,6 +292,7 @@ const (
 	CmdChestTake                 // move the stack in the open chest's Slot into my inventory
 	CmdChestClose                // close my open chest
 	CmdChestTakeDown             // take my open chest down; it must be empty
+	CmdRide                      // get on my nearest beast that can be ridden, or off the one I ride
 )
 
 // Command is a discrete player request. Fields not used by Kind are ignored.

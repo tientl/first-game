@@ -207,9 +207,11 @@ func (m *Menu) Draw(screen *ebiten.Image) {
 
 	ty := float64(sh)*0.2 - 30
 	drawTitle(screen, cx, ty, 6, color.RGBA{250, 214, 110, 255}, color.RGBA{60, 30, 10, 255})
-	drawText(screen, "Hòn đảo hoang đang chờ bạn", cx, ty+84, color.RGBA{236, 226, 200, 255}, text.AlignCenter, 2)
+	drawText(screen, "Thời Khủng Long", cx+3, ty+81, color.RGBA{60, 30, 10, 255}, text.AlignCenter, 3)
+	drawText(screen, "Thời Khủng Long", cx, ty+78, color.RGBA{214, 120, 72, 255}, text.AlignCenter, 3)
+	drawText(screen, "Một thế giới tiền sử đang chờ bạn", cx, ty+128, color.RGBA{236, 226, 200, 255}, text.AlignCenter, 1)
 
-	m.list.draw(screen, cx, float64(sh)*0.2+110, 420)
+	m.list.draw(screen, cx, float64(sh)*0.2+124, 420)
 
 	if m.status != "" {
 		drawText(screen, m.status, cx, float64(sh)-80, color.RGBA{255, 140, 130, 255}, text.AlignCenter, 1)
@@ -276,6 +278,21 @@ func newDemo() *Game {
 			ID: 1 << 30, Kind: sim.EntityCampfire, TX: int16(fx), TY: int16(fy), Ready: true, Fuel: sim.FireStartFuel,
 		})
 	}
+	// A few of the great beasts about the place, on dry land.
+	beast := func(k sim.CreatureKind, dx, dy float64, st sim.CreatureState, left bool) {
+		x, y := sx+dx, sy+dy
+		if t := w.TileAt(int(x), int(y)); k != sim.CreaturePtero && (!t.Walkable() || t == sim.TileRocky) {
+			return
+		}
+		snap.Creatures = append(snap.Creatures, protocol.CreatureView{
+			ID: sim.CreatureID(1<<29 + len(snap.Creatures)), Kind: k, X: float32(x), Y: float32(y), State: st, FaceLeft: left,
+		})
+	}
+	beast(sim.CreatureBrachio, -7, 1.5, sim.CreatureIdle, false)
+	beast(sim.CreatureTrike, 5, 2.5, sim.CreatureIdle, true)
+	beast(sim.CreatureTrike, 7.5, 3.6, sim.CreatureIdle, true)
+	beast(sim.CreatureTrike, 6.2, 5.2, sim.CreatureIdle, false)
+	beast(sim.CreaturePtero, 1, -3, sim.CreatureSoar, false)
 	c := &demoConn{ch: make(chan protocol.ServerMsg, 2)}
 	c.ch <- protocol.ServerMsg{Kind: protocol.ServerWelcome, Welcome: protocol.Welcome{Width: size, Height: size, Tiles: w.Tiles()}}
 	c.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}

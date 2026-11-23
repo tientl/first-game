@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 21
+const Version = 23
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -108,12 +108,13 @@ type PlayerView struct {
 	Dir     sim.Dir
 	Dead    bool
 	Acting  bool
-	HasAxe  bool         // carries an axe
-	AxeTier sim.Tier     // what the best axe carried is made of
-	Armor   sim.Tier     // what the best armour carried is made of; 0 (stone) means none
-	Held    sim.ItemKind // what is in the selected hotbar slot, drawn in the hand
-	Asleep  bool         // in bed: drawn lying down
-	Look    sim.Look     // body and hair
+	HasAxe  bool           // carries an axe
+	AxeTier sim.Tier       // what the best axe carried is made of
+	Armor   sim.Tier       // what the best armour carried is made of; 0 (stone) means none
+	Held    sim.ItemKind   // what is in the selected hotbar slot, drawn in the hand
+	Asleep  bool           // in bed: drawn lying down
+	Look    sim.Look       // body and hair
+	Mount   sim.CreatureID // the beast being ridden, 0 when on foot: drawn on its back
 
 	Cast       sim.CastState // fishing: whether the line is out, and whether the fish bites
 	BobX, BobY float32       // where the float sits while the line is out
@@ -137,4 +138,10 @@ type CreatureView struct {
 	X, Y     float32
 	State    sim.CreatureState
 	FaceLeft bool
+
+	Owner  sim.PlayerID // the online player it belongs to, 0 if wild or its owner is away
+	Tamed  bool         // it belongs to someone
+	Tame   uint8        // meals towards taming it, while wild
+	Stay   bool         // a pet told to wait
+	Ridden bool         // someone is riding it: not a target
 }

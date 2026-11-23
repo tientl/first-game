@@ -14,7 +14,7 @@ import (
 
 func genOpen(t *testing.T, seed uint64, size int) *World {
 	t.Helper()
-	w, err := Generate(GenConfig{Seed: seed, Width: size, Height: size, Style: StyleOpen})
+	w, err := Generate(GenConfig{Seed: seed, Width: size, Height: size, Style: StyleLatest})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,8 +108,8 @@ func TestOpenWorldIsDeterministicAndSaves(t *testing.T) {
 		t.Fatal("two open worlds from one seed differ")
 	}
 	d := a.Save()
-	if d.Style != StyleOpen {
-		t.Fatalf("saved style %d, want open", d.Style)
+	if d.Style != StyleLatest {
+		t.Fatalf("saved style %d, want %d", d.Style, StyleLatest)
 	}
 	c, err := Load(d)
 	if err != nil {

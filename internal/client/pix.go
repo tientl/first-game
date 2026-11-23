@@ -140,12 +140,47 @@ func lum(nx, ny float64) float64 {
 type canvas struct {
 	w, h int
 	px   []color.RGBA // straight (not premultiplied) alpha
+	// s scales the drawing calls (ellipse, rect, polygon, line, set and
+	// drawTubeWith): a shape drawn in design units comes out s times bigger,
+	// with the same one-pixel detail. 0 means 1. Callbacks, at and the
+	// pixel loops of outline and over work in pixels.
+	s float64
+	// tx and ty shift the drawing calls by that many design units, to make room
+	// above or beside a design without redrawing it.
+	tx, ty float64
 }
 
 func newCanvas(w, h int) *canvas { return &canvas{w: w, h: h, px: make([]color.RGBA, w*h)} }
 
+// newScaledCanvas is a canvas of w by h design units drawn s times bigger.
+func newScaledCanvas(w, h int, s float64) *canvas {
+	c := newCanvas(int(math.Ceil(float64(w)*s)), int(math.Ceil(float64(h)*s)))
+	c.s = s
+	return c
+}
+
+// k is the canvas's scale.
+func (c *canvas) k() float64 {
+	if c.s == 0 {
+		return 1
+	}
+	return c.s
+}
+
+// lx and ly are the design coordinates of the centre of pixel column x and
+// row y.
+func (c *canvas) lx(x int) float64 { return (float64(x)+0.5)/c.k() - c.tx }
+func (c *canvas) ly(y int) float64 { return (float64(y)+0.5)/c.k() - c.ty }
+
+// toPx maps design point (x, y) to pixel space.
+func (c *canvas) toPx(x, y float64) (float64, float64) {
+	k := c.k()
+	return (x + c.tx) * k, (y + c.ty) * k
+}
+
 func (c *canvas) in(x, y int) bool { return x >= 0 && y >= 0 && x < c.w && y < c.h }
 
+// at reads the pixel at (x, y).
 func (c *canvas) at(x, y int) color.RGBA {
 	if !c.in(x, y) {
 		return color.RGBA{}
@@ -153,9 +188,32 @@ func (c *canvas) at(x, y int) color.RGBA {
 	return c.px[y*c.w+x]
 }
 
-func (c *canvas) set(x, y int, col color.RGBA) {
+// atL reads the pixel at design point (x, y).
+func (c *canvas) atL(x, y int) color.RGBA {
+	px, py := c.toPx(float64(x)+0.5, float64(y)+0.5)
+	return c.at(int(math.Floor(px)), int(math.Floor(py)))
+}
+
+// put writes the pixel at (x, y).
+func (c *canvas) put(x, y int, col color.RGBA) {
 	if c.in(x, y) {
 		c.px[y*c.w+x] = col
+	}
+}
+
+// set fills design unit (x, y): one pixel, or on a scaled canvas the block
+// of pixels it covers.
+func (c *canvas) set(x, y int, col color.RGBA) {
+	if (c.s == 0 || c.s == 1) && c.tx == 0 && c.ty == 0 {
+		c.put(x, y, col)
+		return
+	}
+	x0, y0 := c.toPx(float64(x), float64(y))
+	x1, y1 := c.toPx(float64(x+1), float64(y+1))
+	for py := int(math.Floor(y0)); py < int(math.Floor(y1)); py++ {
+		for px := int(math.Floor(x0)); px < int(math.Floor(x1)); px++ {
+			c.put(px, py, col)
+		}
 	}
 }
 
@@ -164,12 +222,15 @@ func (c *canvas) opaque(x, y int) bool { return c.at(x, y).A >= 128 }
 // ellipse fills the pixels whose centres lie inside the ellipse, colouring
 // each from its normalised offset (nx, ny) in [-1, 1].
 func (c *canvas) ellipse(cx, cy, rx, ry float64, f func(x, y int, nx, ny float64) color.RGBA) {
+	k := c.k()
+	cx, cy = c.toPx(cx, cy)
+	rx, ry = rx*k, ry*k
 	for y := int(math.Floor(cy - ry)); y <= int(math.Ceil(cy+ry)); y++ {
 		for x := int(math.Floor(cx - rx)); x <= int(math.Ceil(cx+rx)); x++ {
 			nx, ny := (float64(x)+0.5-cx)/rx, (float64(y)+0.5-cy)/ry
 			if nx*nx+ny*ny <= 1 {
 				if col := f(x, y, nx, ny); col.A > 0 {
-					c.set(x, y, col)
+					c.put(x, y, col)
 				}
 			}
 		}
@@ -177,10 +238,14 @@ func (c *canvas) ellipse(cx, cy, rx, ry float64, f func(x, y int, nx, ny float64
 }
 
 func (c *canvas) rect(x0, y0, w, h int, f func(x, y int) color.RGBA) {
-	for y := y0; y < y0+h; y++ {
-		for x := x0; x < x0+w; x++ {
+	fx0, fy0 := c.toPx(float64(x0), float64(y0))
+	fx1, fy1 := c.toPx(float64(x0+w), float64(y0+h))
+	px0, py0 := int(math.Floor(fx0)), int(math.Floor(fy0))
+	px1, py1 := int(math.Floor(fx1)), int(math.Floor(fy1))
+	for y := py0; y < py1; y++ {
+		for x := px0; x < px1; x++ {
 			if col := f(x, y); col.A > 0 {
-				c.set(x, y, col)
+				c.put(x, y, col)
 			}
 		}
 	}
@@ -192,6 +257,13 @@ func solid(col color.RGBA) func(x, y int) color.RGBA {
 
 // polygon fills the pixels whose centres are inside the polygon (even-odd).
 func (c *canvas) polygon(pts []float64, f func(x, y int) color.RGBA) {
+	if c.k() != 1 || c.tx != 0 || c.ty != 0 {
+		scaled := make([]float64, len(pts))
+		for i := 0; i+1 < len(pts); i += 2 {
+			scaled[i], scaled[i+1] = c.toPx(pts[i], pts[i+1])
+		}
+		pts = scaled
+	}
 	minY, maxY := math.Inf(1), math.Inf(-1)
 	minX, maxX := math.Inf(1), math.Inf(-1)
 	for i := 0; i < len(pts); i += 2 {
@@ -211,7 +283,7 @@ func (c *canvas) polygon(pts []float64, f func(x, y int) color.RGBA) {
 			}
 			if inside {
 				if col := f(x, y); col.A > 0 {
-					c.set(x, y, col)
+					c.put(x, y, col)
 				}
 			}
 		}
@@ -220,12 +292,14 @@ func (c *canvas) polygon(pts []float64, f func(x, y int) color.RGBA) {
 
 // line plots a 1-pixel line; f gets the position t in [0, 1] along it.
 func (c *canvas) line(x0, y0, x1, y1 float64, f func(x, y int, t float64) color.RGBA) {
+	x0, y0 = c.toPx(x0, y0)
+	x1, y1 = c.toPx(x1, y1)
 	n := int(math.Ceil(math.Max(math.Abs(x1-x0), math.Abs(y1-y0))*2)) + 1
 	for i := 0; i <= n; i++ {
 		t := float64(i) / float64(n)
 		x, y := int(math.Floor(lerpf(x0, x1, t))), int(math.Floor(lerpf(y0, y1, t)))
 		if col := f(x, y, t); col.A > 0 {
-			c.set(x, y, col)
+			c.put(x, y, col)
 		}
 	}
 }
@@ -263,7 +337,7 @@ func (c *canvas) over(o *canvas, dx, dy int) {
 	for y := 0; y < o.h; y++ {
 		for x := 0; x < o.w; x++ {
 			if p := o.px[y*o.w+x]; p.A >= 128 {
-				c.set(x+dx, y+dy, p)
+				c.put(x+dx, y+dy, p)
 			}
 		}
 	}

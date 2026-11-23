@@ -19,6 +19,11 @@ const (
 	StyleOpenV1                   // the first open worlds: caves open to the sky at any side
 	StyleOpenV2                   // caves under the mountains, entered through mouths in the south cliffs
 	StyleOpen                     // as V2, with larger deserts, swamps and beaches
+	StyleIce                      // as StyleOpen, with a frozen north; see iceage.go
+	StyleJungle                   // as StyleIce, with the woods spread over far more of the lowland
+
+	// StyleLatest is what a new game is made with.
+	StyleLatest = StyleJungle
 )
 
 // biomeShares is how much of the lowland each biome takes, and how wide the
@@ -122,7 +127,7 @@ func (w *World) openTerrain(seed uint32) (sx, sy int) {
 	// Temperature (warmer to the south) and moisture pick the lowland biomes.
 	temp := make([]float64, W*H)
 	wet := make([]float64, W*H)
-	var lowDesert, lowMarsh []float64
+	var lowDesert, lowMarsh, lowTemp []float64
 	for _, i := range land {
 		x, y := float64(i%W)+0.5, float64(i/W)+0.5
 		temp[i] = fbm(x/bScale, y/bScale, seed+41, 3) + 0.3*(y/float64(H)-0.5)
@@ -131,11 +136,16 @@ func (w *World) openTerrain(seed uint32) (sx, sy int) {
 			e := clamp((elev[i]-sea)/(top-sea), 0, 1)
 			lowDesert = append(lowDesert, temp[i]-wet[i])
 			lowMarsh = append(lowMarsh, wet[i]-0.6*e-0.4*temp[i])
+			lowTemp = append(lowTemp, temp[i]+0.25*wet[i])
 		}
 	}
 	shares := w.biomeShares()
 	desert := quantile(lowDesert, 1-shares.desert)
 	marsh := quantile(lowMarsh, 1-shares.marsh)
+	snow := math.Inf(-1) // the coldest lowland freezes over, in worlds made since StyleIce
+	if w.style >= StyleIce {
+		snow = quantile(lowTemp, snowShare)
+	}
 
 	for _, i := range land {
 		x, y := float64(i%W)+0.5, float64(i/W)+0.5
@@ -150,6 +160,8 @@ func (w *World) openTerrain(seed uint32) (sx, sy int) {
 			}
 		case hill[i] >= rocky:
 			t = TileRocky
+		case temp[i]+0.25*wet[i] < snow:
+			t = TileSnow
 		case e < shares.beach:
 			t = TileSand
 		case temp[i]-wet[i] >= desert:
@@ -159,7 +171,7 @@ func (w *World) openTerrain(seed uint32) (sx, sy int) {
 			if fbm(x/7+13, y/7+57, seed+51, 2) > openPondLevel {
 				t = TileWater // a pond
 			}
-		case fbm(x/28+57, y/28+213, seed+202, 4) > forestLine:
+		case fbm(x/28+57, y/28+213, seed+202, 4) > w.forestLine():
 			t = TileForest
 		default:
 			t = TileGrass
@@ -173,6 +185,14 @@ func (w *World) openTerrain(seed uint32) (sx, sy int) {
 		w.cutCaveMouths()
 	}
 	return sx, sy
+}
+
+// forestLine is the noise level above which open lowland is forest.
+func (w *World) forestLine() float64 {
+	if w.style >= StyleJungle {
+		return jungleForestLine
+	}
+	return forestLine
 }
 
 // minCave is the smallest cave system kept; smaller pockets are filled in.
@@ -376,9 +396,9 @@ func (w *World) scatterOpen(rng, sizeRng *rand.Rand) {
 			tile := w.tiles[ty*w.width+tx]
 			switch tile {
 			case TileForest:
-				kind = pick(r, chance{EntityTree, 0.38}, chance{EntityBerryBush, 0.03}, chance{EntityGrassTuft, 0.03}, chance{EntityTwig, 0.035})
+				kind = pick(r, chance{EntityTree, forestTrees}, chance{EntityBerryBush, 0.03}, chance{EntityGrassTuft, 0.03}, chance{EntityTwig, 0.035})
 			case TileGrass:
-				kind = pick(r, chance{EntityTree, 0.04}, chance{EntityGrassTuft, 0.08}, chance{EntityBerryBush, 0.03}, chance{EntityTwig, 0.015})
+				kind = pick(r, chance{EntityTree, grassTrees}, chance{EntityGrassTuft, 0.08}, chance{EntityBerryBush, 0.03}, chance{EntityTwig, 0.015})
 			case TileRocky:
 				kind = pick(r, chance{EntityBoulder, 0.12}, chance{EntityGrassTuft, 0.02})
 			case TileSand:
@@ -390,11 +410,13 @@ func (w *World) scatterOpen(rng, sizeRng *rand.Rand) {
 			case TileDesert:
 				kind = pick(r, chance{EntityCactus, 0.045}, chance{EntityBoulder, 0.012}, chance{EntityTwig, 0.012})
 			case TileMarsh:
-				kind = pick(r, chance{EntityReed, 0.14}, chance{EntityMushroom, 0.03}, chance{EntityTree, 0.05}, chance{EntityGrassTuft, 0.02})
+				kind = pick(r, chance{EntityReed, 0.14}, chance{EntityMushroom, 0.03}, chance{EntityTree, marshTrees}, chance{EntityGrassTuft, 0.02})
 			case TileCave:
 				kind = pick(r, chance{EntityBoulder, 0.07}, chance{EntityCoal, 0.05}, chance{EntityMushroom, 0.03})
 			case TileAsh:
 				kind = pick(r, chance{EntityBoulder, 0.05}, chance{EntityCoal, 0.025})
+			case TileSnow: // snowy pines, a few rocks and fallen branches, frozen tufts
+				kind = pick(r, chance{EntityTree, 0.1}, chance{EntityBoulder, 0.02}, chance{EntityTwig, 0.02}, chance{EntityGrassTuft, 0.015}, chance{EntityPebble, 0.008})
 			}
 			if kind == EntityNone {
 				continue
@@ -426,6 +448,9 @@ func (w *World) seaside(tx, ty int) bool {
 
 // speedAt is how fast a player walks on the ground at (x, y): mud is slow.
 func (w *World) speedAt(x, y float64) float64 {
+	if t := w.TileAt(int(math.Floor(x)), int(math.Floor(y))); t == TileSnow {
+		return snowSpeed // deep snow
+	}
 	if w.TileAt(int(math.Floor(x)), int(math.Floor(y))) == TileMarsh {
 		return openMarshSpeed
 	}

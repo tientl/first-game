@@ -1,7 +1,7 @@
-# Sinh Tồn — prototype
+# Sinh Tồn: Thời Khủng Long
 
-Game sinh tồn 2D góc nhìn 3/4, viết bằng Go + [Ebitengine](https://ebitengine.org).
-Tên và art đều là tạm; mọi hình vẽ là pixel art dựng bằng code trong `internal/client` (`art.go` cho sprite, `ground.go` cho mặt đất và nước, `pix.go` là bộ vẽ pixel).
+Game sinh tồn thời tiền sử 2D góc nhìn 3/4: săn và thuần hóa khủng long, làm đồ đá, mặc đồ da. Viết bằng Go + [Ebitengine](https://ebitengine.org).
+Tên và art đều là tạm; mọi hình vẽ là pixel art dựng bằng code trong `internal/client` (`art.go` cho sprite, `ground.go` cho mặt đất và nước, `pix.go` là bộ vẽ pixel). Riêng khủng long, thằn lằn bay và thằn lằn cổ dài vẽ từ hình trong `internal/client/dinos/`; các tư thế (bước, cúi ăn, gầm, vồ, vỗ cánh) suy ra từ hình đó trong `dinorig.go` và `dinorigs.go`.
 
 ## Chạy
 
@@ -33,6 +33,8 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 - `internal/client/music.go`: ba bản nhạc nền (menu, ban ngày, ban đêm) được soạn và "chơi" bằng code rồi lặp liền mạch; nhạc tự chuyển theo giờ trong game.
 - `internal/client/audio.go`: bộ trộn phần mềm (âm lượng, pan trái/phải, độ cao) đưa ra một luồng Ebitengine.
 - `internal/client/sound_events.go`: server chỉ gửi trạng thái, nên client so hai snapshot liên tiếp để biết khi nào phát tiếng.
+- `internal/client/roar.go`: tiếng gầm và tiếng kêu của thú. Mỗi loài một giọng: bạo chúa gầm (3 kiểu, có tiếng vọng; ở xa nghe trầm và đục, vọng tới khoảng 32 ô), cổ dài hú trầm dài, ba sừng, Torosaurus, gai lưng rống, voi ma mút rống vòi, raptor sủa từng tràng ngắn, Anzu "bùm" ba tiếng từ ngực, Quetzalcoatlus kêu khàn. Thú đứng hoặc đi thong thả thỉnh thoảng tự cất tiếng (mỗi lần chỉ một con, cách nhau ít nhất 2,5 giây); bạo chúa ngửa cổ há hàm khi gầm, ba sừng hất đầu, voi giơ vòi, Anzu xù mào. Bạo chúa còn gầm khi thấy người, khi lao đi săn, khi hạ được mồi và khi bị đánh; bầy raptor kêu khi hạ mồi.
+- `internal/client/predsound.go`: giọng của thú săn mồi, làm cho đáng sợ. Tiếng gầm bạo chúa bắt đầu bằng tiếng gừ trong ngực rồi bật ra từ ba cổ họng cùng lúc (gầm khàn, một giọng trầm hơn bên dưới, tiếng rú chói ở đỉnh), được ép rè và vọng dài. Raptor rít khàn như ngỗng lẫn rắn khi lao vào; hổ răng kiếm gầm như mèo lớn khi nhắm mồi và gầm gừ khi vồ; cá sấu phì phò khi lao khỏi nước. Thú săn đang đuổi trong vòng 12 ô thì nghe tiếng nó tới gần: bạo chúa thở gừ, raptor gừ lách cách trong cổ, hổ gầm gừ.
 
 Âm lượng nhạc và hiệu ứng chỉnh trong menu chính hoặc menu Esc (A/D hoặc phím mũi tên), lưu ở `%AppData%\SinhTon\settings.json`.
 
@@ -49,7 +51,7 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 | C | Dựng lửa trại (2 Gỗ, 2 Cỏ khô, 3 Đá) |
 | B | Mở/đóng túi đồ: 20 ngăn túi + 10 ô nhanh, mỗi ô chứa một loại (tối đa 40, rìu 1). Nhấp một ô để nhấc lên, nhấp ô khác để đặt, gộp hoặc đổi chỗ (chuột phải để bỏ). Shift+nhấp chuyển nhanh giữa túi và ô nhanh; 1–0 đưa món đang trỏ vào ô nhanh đó; mũi tên/WASD + Enter cũng dùng được. Nhấp vào công thức để chế tạo |
 | M | Mở/đóng bản đồ: chỉ hiện những nơi bạn đã đi qua (trong vòng khoảng 10 ô quanh nhân vật), phần còn lại phủ sương; bản đồ đã khám phá được lưu theo từng người chơi. Có vị trí của bạn (icon đầu nhân vật), người chơi gần đó, lửa trại đã thấy. Góc trên bên phải màn hình luôn có minimap: vùng quanh bạn, chỉ hiện chỗ đã đi qua |
-| R | Hồi sinh khi đã chết |
+| R | Cưỡi thú đã thuần đứng gần (cần Yên da trong túi), nhấn lần nữa để xuống. Khi đã chết: hồi sinh |
 | Esc | Tạm dừng: tiếp tục, lưu game, chỉnh âm lượng, về menu, thoát |
 | F11 | Toàn màn hình |
 
@@ -70,9 +72,41 @@ bay lập lòe trên đồng cỏ, trong rừng và đầm lầy.
 | Cua | Bãi cát sát mép nước (cả hồ) | Thấy bạn trong vòng khoảng 2,5 ô là bò ra nước và lặn mất (chỉ còn bọt nước), chờ không ai ở gần mới bò lên. Chặn đường ra nước rồi nhấn Space để bắt; cua bị dồn vào chỗ không có nước sẽ giơ càng và kẹp (mất 4 máu) nếu bạn sát quá. | 1 Thịt cua |
 | Cá sấu | Ao trong đầm lầy (chỉ có ở thế giới mở) | Thường rình dưới nước, chỉ lộ đôi mắt: lúc đó không đánh được. Ai lại gần mép nước trong khoảng 3 ô thì nó lao lên nhanh hơn bạn chạy và cắn rất đau (18 máu, giáp giảm bớt), rồi lặn lại và phải chờ vài giây mới phục kích tiếp. Trên cạn nó chậm hơn bạn (trong bùn thì chỉ hơi chậm hơn) và chỉ đuổi khoảng 3 giây. Thỉnh thoảng nó lên bờ phơi nắng: lúc đó mới đánh được, cần 6 nhát tay không (3 nhát giáo); bị thương thì nó bò về nước. | 3 Thịt sống |
 
+### Khủng long và bò sát tiền sử
+
+Chỉ có ở thế giới mở, không bao giờ ở gần chỗ xuất phát (loài nguy hiểm càng ở xa). Thú to bị đánh chỉ khựng lại một chút rồi làm tiếp việc đang làm. Thú biết đánh trả thì túi đầy vẫn đánh được; phần không vừa túi khi hạ nó sẽ mất.
+
+| Con | Ở đâu | Tính nết | Máu (nhát tay không) | Được gì |
+| --- | --- | --- | --- | --- |
+| Khủng long ba sừng | Đồng cỏ, theo đàn 4 con | Hiền; đánh một con thì cả đàn quanh đó (8 ô) nổi giận khoảng 12 giây: lao tới húc (22 máu). Chạy chậm hơn bạn | 14 | 6 Thịt sống, 2 Da thú, 1 Xương |
+| Khủng long gai lưng | Rừng, theo cặp | Hiền; bị đánh thì quất đuôi gai vào ai đứng gần (20 máu), đuổi rất chậm | 16 | 6 Thịt sống, 2 Da thú, 2 Xương |
+| Khủng long cổ dài | Đồng cỏ, rừng, nhóm 3 con | Không bao giờ đánh; bị đánh thì lững thững bỏ đi | 30 | 12 Thịt sống, 4 Da thú, 4 Xương |
+| Dakotaraptor | Rừng sâu, bầy 3 con | Thấy bạn trong 7 ô (ban đêm 10 ô) là đuổi, tới gần thì vồ cắn (9 máu) rồi lùi ra. Chạy chậm hơn bạn, nên cứ chạy là thoát; con bị thương nặng tự bỏ chạy | 6 | 2 Thịt sống, 1 Da thú, 1 Xương |
+| Khủng long bạo chúa | Vùng tro quanh núi lửa, hoang mạc xa | Thấy bạn trong 8 ô thì gầm lên rồi lao tới cắn (35 máu). Chậm hơn bạn; đuổi tối đa 20 giây rồi bỏ | 40 | 10 Thịt sống, 4 Da thú, 4 Xương, 2 Răng bạo chúa |
+| Thằn lằn bay | Bay lượn trên đồi đá, bờ biển | Bay cao thì không đánh được; thấy bạn trong 6 ô thì bổ nhào mổ (8 máu) rồi bay lên. Đánh được khi nó bổ nhào hoặc đậu dưới đất | 4 | 2 Thịt sống, 1 Da thú |
+| Thằn lằn cổ dài | Biển, cách bờ 2–6 ô | Bơi dưới nước (không đánh được), ai đứng trên bờ trong khoảng 4,5 ô thì ngoi lên vươn cổ cắn (16 máu). Lúc ngoi lên thì đánh vào cổ được từ trên bờ | 12 | 6 Thịt sống, 2 Xương, 1 Da thú |
+| Voi ma mút | Vùng tuyết, đàn 3 con | Hiền; đánh một con thì cả đàn quanh đó nổi giận, lao tới húc ngà (26 máu). Chạy chậm hơn bạn | 24 | 10 Thịt sống, 4 Lông thú, 2 Ngà voi, 1 Da thú |
+| Hổ răng kiếm | Vùng tuyết, đi một mình | Thấy bạn trong 9 ô thì rình lại gần, cách khoảng 3 ô thì vồ cắn (20 máu) rồi lùi ra vồ tiếp. Chạy chậm hơn bạn; còn 3 máu thì nằm gục 8 giây | 10 | 4 Thịt sống, 2 Lông thú, 1 Xương |
+| Ornithomimus | Đồng cỏ, hoang mạc, đàn 5 con | Giống đà điểu, chạy rất nhanh (nhanh hơn bạn nhiều), thấy bạn trong 6 ô là chạy. Chạy 3 giây thì dừng lại thở dốc: lúc đó mới bắt được | 4 | 3 Thịt sống, 1 Da thú, 1 Xương |
+| Thescelosaurus | Rừng, đồng cỏ, đàn 3 con | Ăn cỏ cỡ vừa, hiền; bị đánh thì bỏ chạy | 8 | 4 Thịt sống, 1 Da thú, 1 Xương |
+| Anzu | Rừng, đầm lầy, theo cặp | Như con gà khổng lồ có mào. Ai lại gần trong 3,5 ô thì xù mào dọa, lại gần nữa thì đá (10 máu); không đuổi xa | 7 | 3 Thịt sống, 1 Xương |
+| Torosaurus | Đồng cỏ, rừng, đàn 3 con | Họ hàng ba sừng, to hơn, diềm cổ lớn có lỗ. Đánh một con thì cả đàn húc (26 máu) | 18 | 8 Thịt sống, 3 Da thú, 2 Xương |
+| Acheroraptor | Rừng sâu, bầy 5 con | Raptor nhỏ hơn Dakotaraptor, bầy đông hơn: vồ cắn 6 máu; chạy chậm hơn bạn | 4 | 1 Thịt sống, 1 Da thú |
+| Quetzalcoatlus | Đồng cỏ, bãi cát, đồi đá, hoang mạc, đi một mình | Thằn lằn bay khổng lồ, đứng cao ngang hươu cao cổ. Đi bộ rình, thấy bạn trong 6 ô thì lại gần mổ (18 máu); còn 40% máu thì bay vụt đi chỗ khác | 16 | 6 Thịt sống, 2 Da thú, 3 Xương |
+| Brachychampsa | Ao trong đầm lầy | Giống cá sấu mõm tù: rình dưới nước, ai lại gần mép ao 2,8 ô thì lao lên cắn (16 máu) | 7 | 3 Thịt sống, 1 Da thú |
+| Champsosaurus | Ao trong đầm lầy | Giống cá sấu mõm dài mảnh: rình dưới nước, ai lại gần 2,2 ô thì đớp (10 máu) | 5 | 2 Thịt sống, 1 Da thú |
+
+**Ăn, uống và săn mồi.** Thú hoang cũng biết đói và khát:
+
+- **Thú ăn cỏ** (ba sừng, Torosaurus, gai lưng, cổ dài, voi ma mút, Thescelosaurus, Ornithomimus, Anzu) cứ khoảng 40–90 giây lại cúi xuống gặm cỏ ngay chỗ đang đứng, chừng 6 giây, miệng nhai (voi ma mút cuộn vòi nhổ cỏ đưa lên miệng). Ai lại gần trong 2,5 ô là chúng thôi ăn; Thescelosaurus và Ornithomimus nhát hơn, chỉ cần bạn cách 6 ô là đã ngẩng lên.
+- **Uống nước**: cứ vài phút một lần, con thú khát đi tìm mép nước gần nhất (trong khoảng 22 ô), cúi xuống uống khoảng 4 giây. Mép ao đầm lầy là chỗ nguy hiểm: cá sấu, Brachychampsa và Champsosaurus đang rình sẽ lao lên đớp con đang uống, và con kia bỏ chạy.
+- **Thú săn mồi** đói thì đi tìm con mồi vừa sức trong khoảng 11 ô, đuổi theo, cắn tới khi con mồi gục, rồi đứng tại chỗ xé thịt ăn (8–12 giây, hàm há ra ngậm vào). Bạo chúa săn Thescelosaurus, Ornithomimus, ba sừng, Torosaurus và cổ dài; Dakotaraptor, Acheroraptor và hổ răng kiếm săn thỏ, Ornithomimus và Thescelosaurus; Quetzalcoatlus mổ thỏ và cua. Con mồi chạy tới khi hết hơi (khoảng 4 giây) thì phải dừng thở. Ba sừng, Torosaurus, gai lưng và voi ma mút thì không chạy mà quay lại húc kẻ săn; kẻ săn mất nửa máu sẽ bỏ cuộc.
+- **Người chơi vẫn là ưu tiên**: thú săn đang đuổi mồi mà thấy bạn ở gần thì bỏ mồi quay sang bạn như trước. Đứng xa mà xem thì an toàn hơn.
+- Bảng tên trên đầu con thú ghi "(đang ăn)", "(đang uống)" hoặc "(đang săn)". Thú đã thuần hóa thì không tự đi săn hay đi uống: chủ cho ăn.
+
 Động vật bị bắt hết sẽ dần xuất hiện lại ở chỗ xa người chơi. Động vật không được lưu: mở lại bản lưu thì đảo có đàn mới.
 
-**Hang thỏ** (ụ đất có miệng hang) nằm trên đồng cỏ và trong rừng, mỗi hang có vài con thỏ. Thỏ đang chạy trốn sẽ lao về hang nếu hang cách nó không quá 6 ô và bạn không đứng gần hang hơn nó; vào hang rồi thì không bắt được. Thỏ trốn ít nhất 8 giây và chỉ ló ra khi không còn ai đứng trong vòng 4 ô, nên muốn bắt thì chặn đường về hang, hoặc đứng xa chờ nó ra. **Hang rắn** (kẽ đá có xác da rắn lột) nằm ở bãi đá, bãi cát, không bao giờ gần chỗ xuất phát. Khi trời tối rắn bỏ cả con mồi để về hang và ở trong đó tới sáng, nên ban đêm không lo rắn cắn. Thỏ và rắn mới sinh ra chui ra từ hang. Hang không phá được và được lưu cùng bản đồ.
+**Hang thỏ** (ụ đất có miệng hang) được đào trên đồng cỏ gần bìa rừng (thỏ cần chỗ nấp), mỗi hang một bầy 2–3 con, các bầy ở cách xa nhau. Thỏ đang chạy trốn sẽ lao về hang nếu hang cách nó không quá 6 ô và bạn không đứng gần hang hơn nó; vào hang rồi thì không bắt được. Thỏ trốn ít nhất 8 giây và chỉ ló ra khi không còn ai đứng trong vòng 4 ô, nên muốn bắt thì chặn đường về hang, hoặc đứng xa chờ nó ra. **Hang rắn** (kẽ đá có xác da rắn lột) chủ yếu ở bãi đá, thưa thớt ở bãi cát, sa mạc và tro núi lửa, không bao giờ gần chỗ xuất phát. Rắn sống đơn độc: mỗi hang một con, mỗi con giữ một vùng rộng. Khi trời tối rắn bỏ cả con mồi để về hang và ở trong đó tới sáng, nên ban đêm không lo rắn cắn. Thỏ và rắn mới sinh ra chui ra từ hang còn chỗ: thỏ sinh nhanh (khoảng 30 giây một con), rắn rất chậm (khoảng 2 phút một con). Hang không phá được và được lưu cùng bản đồ.
 
 ### Câu cá
 
@@ -108,17 +142,37 @@ Trò chơi mới tạo một thế giới mở (`sim/openworld.go`): một lục
 
 | Vùng | Có gì | Lưu ý |
 | --- | --- | --- |
-| Đồng cỏ, rừng | Cây, bụi quả, cỏ, cành, thỏ, giun | Chỗ xuất phát luôn ở đây |
+| Đồng cỏ, rừng rậm | Cây, bụi quả, cỏ, cành, thỏ, giun. Rừng mọc dày, nền phủ dương xỉ, lá to và cây bụi dưới bóng tán lá; đồng cỏ có cỏ xanh và hoa dại. Thế giới mới có rừng rộng gấp đôi | Chỗ xuất phát luôn ở đây |
 | Bờ biển | Sóng vỗ vào bờ, bãi sò trên cát sát nước (nhặt tay, nướng thành Sò nướng) | Sò mọc lại mỗi ngày |
 | Đồi đá | Tảng đá, đá cuội | Bao quanh các dãy núi |
-| Núi | Vách đá cao, không leo được | **Cửa hang** là những vòm đen ở vách phía nam. Bước vào thì mái đá biến mất, cảnh tối lại (mang Đuốc), pha lê phát sáng trong vách, có tiếng nước nhỏ giọt và nhạc riêng; trong hang có tảng đá, mỏ than, quặng sắt, nấm |
+| Núi | Vách đá cao, không leo được | **Cửa hang** là những vòm đen ở vách phía nam. Bước vào thì mái đá biến mất, cảnh tối lại (mang Đuốc), pha lê phát sáng trong vách, có tiếng nước nhỏ giọt và nhạc riêng; trong hang có tảng đá, mỏ than, mạch ngọc bích, nấm |
 | Hoang mạc | Xương rồng (cần rìu, ăn được), rắn | Ở phía nóng (phía nam) |
-| Đầm lầy | Lau sậy (cho cỏ khô), nấm, ao có cá | Đi chậm trong bùn |
+| Đầm lầy | Lau sậy (cho cỏ khô), nấm (thường mọc trên khúc gỗ mục), ao có cá. Bùn xanh rêu lỗ chỗ vũng nước; ao nước xanh đục viền bùn, có lá súng, rong; cây bụt mọc rủ rêu và thân cây chết (chặt vẫn ra gỗ) | Đi chậm trong bùn |
 | Núi lửa | Tro, mỏ than, sông dung nham | Luôn ở xa chỗ xuất phát; đứng gần dung nham thì ấm, ban đêm dung nham phát sáng |
+| Vùng tuyết | Thông phủ tuyết, đá, cành cây, voi ma mút, hổ răng kiếm | Phía bắc lạnh nhất (chỉ có ở thế giới tạo mới). Đứng trên tuyết là lạnh cóng cả ngày lẫn đêm, trừ khi có Áo lông trong túi, đang cưỡi voi ma mút hoặc đứng gần lửa, đuốc. Đi trong tuyết chậm hơn, tuyết rơi lất phất |
 
 Than đào ở mỏ than (cần cúp đá); bỏ vào lửa trại cháy lâu gấp đôi gỗ. Bản lưu cũ vẫn giữ nguyên hòn đảo của nó.
 
 Xem nhanh: `go run ./cmd/shot -open -size 512 -at cave` (hoặc desert, marsh, mountain, ash, lava); bản đồ toàn thế giới ra PNG: `OPEN_DUMP=<thư mục> go test ./internal/sim -run DumpOpen`.
+
+### Thuần hóa và cưỡi
+
+Cầm thức ăn nó thích trên tay rồi nhấn Space vào con thú (mỗi giây một lần). Đánh nó thì công thuần hóa mất hết. Thú đã thuần là của bạn mãi, được lưu cùng bản lưu, có trái tim đỏ trên đầu (thú của người khác có tim trắng, không đánh và không cưỡi được).
+
+| Con | Cho ăn | Cưỡi được | Ghi chú |
+| --- | --- | --- | --- |
+| Khủng long ba sừng | 5 Quả mọng, lúc nó đang hiền | Có, chạy 5,5 ô/giây | Đi theo và húc thú dữ đang tấn công bạn |
+| Khủng long gai lưng | 5 Quả mọng, lúc nó đang hiền | Không | Đi chậm, quất đuôi gai vào thú dữ quanh bạn |
+| Dakotaraptor | 3 Thịt sống, chỉ khi nó đã bị đánh gục (còn 2 máu thì nó nằm rạp 8 giây rồi mới bỏ chạy) | Có, chạy 6,5 ô/giây | cắn thú dữ quanh bạn |
+| Voi ma mút | 6 Cỏ khô, lúc nó đang hiền | Có, chạy 5 ô/giây | Cưỡi voi thì không bị lạnh trên tuyết; húc thú dữ quanh bạn |
+| Hổ răng kiếm | 4 Thịt sống, chỉ khi nó đã bị đánh gục | Không | Cắn thú dữ quanh bạn |
+| Ornithomimus | 4 Quả mọng, lúc nó đang dừng thở (cho ăn xong nó đứng yên vài giây) | Có, chạy 7,5 ô/giây — nhanh nhất | Không đánh |
+| Torosaurus | 6 Quả mọng, lúc nó đang hiền | Có, chạy 5 ô/giây | Húc thú dữ quanh bạn |
+| Anzu | 5 Quả mọng, lúc nó đang hiền | Không | Đá thú dữ quanh bạn |
+| Thescelosaurus | 4 Quả mọng | Không | Không đánh |
+| Acheroraptor | 2 Thịt sống, khi nó đã bị đánh gục | Không | Cắn thú dữ quanh bạn |
+
+Thú cưng đi theo bạn (bỏ xa quá 24 ô thì nó tự tìm tới), tự hồi máu dần, và lao vào bất kỳ thú dữ nào đang đuổi hay cắn bạn trong vòng 6 ô; con nó hạ được thì bạn nhận chiến lợi phẩm. Nhấn Space vào thú của mình để bảo nó đứng chờ hoặc gọi đi theo; cầm thức ăn của nó thì Space là cho ăn hồi máu. Khi cưỡi, bạn với xa hơn nửa ô; chết, ngủ hoặc thoát game thì tự xuống thú. **Yên da**: 4 Da thú, 2 Cỏ khô, 1 Xương. **Áo lông**: 4 Lông thú, 2 Da thú, giữ ấm trên tuyết. **Giáo ngà**: 2 Cành cây, 1 Ngà voi, 1 Cỏ khô; đánh mạnh gấp bốn tay không, với xa nhất.
 
 ## Chế tạo
 
@@ -135,6 +189,26 @@ Mở túi đồ (B) để xem mọi công thức và nhấp vào để làm. Mó
 | Tường gỗ | 2 Gỗ | Chặn đường người và thú; dỡ bằng rìu, trả lại 1 Gỗ |
 | Giường cỏ | 6 Cỏ khô, 2 Gỗ | Nhấn Space lúc trời tối để ngủ: không bị lạnh, hồi máu nhanh; ai cũng ngủ thì đêm trôi nhanh gấp 8 |
 | Thịt / Cá / Quả mọng nướng | 1 món sống | Đứng gần lửa trại, nhấn F |
+
+### Thời đồ đá: vật liệu theo bậc
+
+Mỗi bậc nằm thành mạch trong đá ở một vùng riêng, càng tốt càng xa chỗ xuất phát, và chỉ cúp bậc dưới nó mới đào được. Đá lửa, ngọc bích, mã não thô phải mang tới **Lò nung** đang cháy (8 Đá, 2 Gỗ; thêm than hoặc củi) để thành lưỡi hoặc đá mài; hắc diện thạch dùng luôn. Mỗi bậc làm rìu, cúp, cuốc (2 Cành cây + 3 hoặc 2 vật liệu) và dao (1 Cành cây + 2 vật liệu), đánh mạnh hơn bậc dưới.
+
+| Bậc | Đào ở | Cần cúp | Thành |
+| --- | --- | --- | --- |
+| Đá lửa | Mạch đá lửa trên đồi đá quanh núi | Cúp đá | Lưỡi đá lửa |
+| Ngọc bích | Mạch ngọc bích trong hang (mang đuốc) | Cúp đá lửa | Ngọc bích mài |
+| Mã não | Mạch mã não giữa hoang mạc | Cúp ngọc bích | Mã não mài |
+| Hắc diện thạch | Vùng tro quanh núi lửa | Cúp mã não | (dùng luôn) |
+
+Giáp may từ đồ săn được; chỉ bộ tốt nhất trong túi có tác dụng, đỡ một phần sức tấn công của thú dữ:
+
+| Giáp | Công thức | Đỡ |
+| --- | --- | --- |
+| Áo da thú | 5 Da thú | 25% |
+| Giáp xương | 3 Da thú, 5 Xương | 40% |
+| Giáp mã não | 4 Da thú, 2 Xương, 3 Mã não mài | 55% |
+| Giáp răng bạo chúa | 4 Da thú, 4 Xương, 2 Răng bạo chúa | 70% |
 
 ## Kiến trúc
 

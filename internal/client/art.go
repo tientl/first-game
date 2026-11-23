@@ -29,7 +29,11 @@ type sprite struct {
 	ax, ay float64
 }
 
-func mk(c *canvas, ax, ay float64) sprite { return sprite{c.image(), ax, ay} }
+// mk makes a sprite of c anchored at design point (ax, ay).
+func mk(c *canvas, ax, ay float64) sprite {
+	x, y := c.toPx(ax, ay)
+	return sprite{c.image(), x, y}
+}
 
 // art holds every placeholder image, generated in code at start-up. Swapping
 // in real art later only touches the art files.
@@ -37,6 +41,9 @@ type art struct {
 	// Trees and boulders come in two sizes, indexed by sizeIdx. Each tree
 	// in vineTrees is the one at the same index in trees, hung with vines.
 	trees, vineTrees, pines [2][]sprite
+	ancient                 [2]ancientTrees // prehistoric trees; see treeart.go
+	snowPines               [2][]sprite     // conifers on the snow, frosted; see iceart.go
+	heldIvorySpear          sprite
 	stumps                  [2]sprite
 	boulders                [2][]sprite
 	bushFull                sprite
@@ -48,10 +55,11 @@ type art struct {
 	blanket                 sprite
 
 	heldSpear, heldTorch, heldRod sprite
-	farm                          farmArt // pebbles, the hoe, soil and sweet potatoes
-	ore                           oreArt  // ores, the furnace and the tools of every tier
-	gear                          gearArt // stone walls and the swords of every tier
-	open                          openArt // cacti, reeds, mushrooms, coal
+	farm                          farmArt  // pebbles, the hoe, soil and sweet potatoes
+	ore                           oreArt   // ores, the furnace and the tools of every tier
+	gear                          gearArt  // stone walls and the swords of every tier
+	fruit                         fruitArt // fruit trees, ripe and picked; see fruitart.go
+	open                          openArt  // cacti, reeds, mushrooms, coal
 	campBack                      sprite
 	campFront                     sprite
 	flames                        [flameFrames]sprite
@@ -107,6 +115,7 @@ func newArt() *art {
 	a := &art{}
 	for size := range 2 {
 		a.trees[size], a.vineTrees[size], a.pines[size] = genTrees(treeScale[size])
+		a.ancient[size] = genAncientTrees(treeScale[size])
 		a.stumps[size] = genStump(stumpScale[size])
 		for v := 0; v < 3; v++ {
 			a.boulders[size] = append(a.boulders[size], genBoulder(v, boulderScale[size]))
@@ -117,8 +126,15 @@ func newArt() *art {
 	a.twig = genTwig()
 	a.wall, a.bed, a.blanket = genWall(), genBed(), genBlanket()
 	a.heldSpear, a.heldTorch, a.heldRod = genHeldSpear(), genHeldTorch(), genHeldRod()
+	a.heldIvorySpear = genHeldIvorySpear()
+	for size := range 2 {
+		for v := range pineVariants {
+			a.snowPines[size] = append(a.snowPines[size], genPineOf(v, treeScale[size], uint64(v)*13+1, true))
+		}
+	}
 	a.ore = genOreArt()
 	a.gear = genGearArt()
+	a.fruit = genFruitArt()
 	a.farm = genFarmArt()
 	a.open = genOpenArt()
 	a.campBack, a.campFront = genCampfire()
@@ -142,6 +158,7 @@ func newArt() *art {
 	genFarmIcons(&a.icons)
 	genOreIcons(&a.icons)
 	genGearIcons(&a.icons)
+	genFruitIcons(&a.icons)
 	a.heart, a.food = genHeart(), genFood()
 	return a
 }

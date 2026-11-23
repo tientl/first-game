@@ -171,7 +171,7 @@ func (w *World) stepEntities() {
 		}
 		switch e.Kind {
 		case EntityTree, EntityBerryBush, EntityGrassTuft, EntityTwig, EntityPebble, EntityCrop,
-			EntityCactus, EntityReed, EntityMushroom, EntityClam:
+			EntityCactus, EntityReed, EntityMushroom, EntityClam, EntityFigTree, EntityGinkgoTree, EntityPalm:
 			if !e.Ready && w.tick >= e.RegrowAt {
 				e.Ready = true // for a crop: ripe
 				e.HP = maxHP(e.Kind, e.Big)

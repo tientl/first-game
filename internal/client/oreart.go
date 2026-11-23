@@ -14,16 +14,18 @@ import (
 // Ores, bars, the furnace and the tools of each tier.
 
 var (
-	copperRamp   = mkRamp(0x5a2a14, 0x8c4a24, 0xbf6e35, 0xe39a5a, 0xf7c48d)
-	ironRamp     = mkRamp(0x2b3036, 0x495159, 0x6c7680, 0x97a1ab, 0xc8d0d7)
-	platinumRamp = mkRamp(0x59606c, 0x858fa0, 0xb3bdcc, 0xdae2ee, 0xf6f9ff)
-	diamondRamp  = mkRamp(0x0f4a58, 0x1d8496, 0x3cc2cf, 0x8eecf0, 0xeaffff)
-	rustRamp     = mkRamp(0x4f2616, 0x7d3f22, 0xa95f33, 0xcf8a52)
-	patinaRamp   = mkRamp(0x184a3c, 0x26735a, 0x3fa07a, 0x7fd0a4) // copper ore is green in the rock
-	brickRamp    = mkRamp(0x3a2f2c, 0x584640, 0x76605a, 0x947c72, 0xb39c90)
+	ironRamp  = mkRamp(0x2b3036, 0x495159, 0x6c7680, 0x97a1ab, 0xc8d0d7)
+	brickRamp = mkRamp(0x3a2f2c, 0x584640, 0x76605a, 0x947c72, 0xb39c90)
+
+	// The stone-age tiers that took the metals' places: dark glossy flint,
+	// green jade, banded orange agate and black glassy obsidian.
+	flintRamp    = mkRamp(0x221d1b, 0x3b3330, 0x5a4e47, 0x7f7166, 0xaa9b8c)
+	jadeRamp     = mkRamp(0x10392a, 0x1b5a42, 0x2a8260, 0x49ab84, 0x8fd6b2)
+	agateRamp    = mkRamp(0x561c16, 0x8a3222, 0xbb5733, 0xdf8a56, 0xf3c39a)
+	obsidianRamp = mkRamp(0x08070c, 0x17121f, 0x2c2338, 0x4e4266, 0x9686bc)
 
 	// tierRamps colour the heads of each tier's tools, indexed by sim.Tier.
-	tierRamps = [sim.NumTiers]ramp{stoneRamp, copperRamp, ironRamp, platinumRamp, diamondRamp}
+	tierRamps = [sim.NumTiers]ramp{stoneRamp, flintRamp, jadeRamp, agateRamp, obsidianRamp}
 )
 
 // oreLook is how one ore shows in its rock: coloured flecks, or crystals.
@@ -32,8 +34,9 @@ type oreLook struct {
 	crystal bool
 }
 
-// oreLooks is indexed by an ore's tier less one: copper, iron, platinum, diamond.
-var oreLooks = [sim.NumTiers - 1]oreLook{{patinaRamp, false}, {rustRamp, false}, {platinumRamp, false}, {diamondRamp, true}}
+// oreLooks is indexed by a vein's tier less one: flint nodules, jade,
+// agate, and obsidian glass.
+var oreLooks = [sim.NumTiers - 1]oreLook{{flintRamp, false}, {jadeRamp, false}, {agateRamp, false}, {obsidianRamp, true}}
 
 // interior reports whether (x, y) is opaque with opaque neighbours all
 // round: on the face of a shape, not its outline.
@@ -156,34 +159,40 @@ func iconOreCanvas(o int) *canvas {
 	return c
 }
 
-// iconBarCanvas is an ingot of rp.
+// iconBarCanvas is worked stone of rp, ready to be hafted: a leaf-shaped
+// blade knapped all over into shallow scars, or for agate, banded.
 func iconBarCanvas(rp ramp) *canvas {
 	c := newCanvas(16, 16)
-	c.polygon([]float64{1.5, 9, 4.5, 6, 14.5, 6, 11.5, 9}, func(x, y int) color.RGBA { return rp.pick(0.95-float64(x)*0.02, x, y) })    // top
-	c.polygon([]float64{1.5, 9, 11.5, 9, 11.5, 13, 1.5, 13}, func(x, y int) color.RGBA { return rp.pick(0.6-float64(y-9)*0.06, x, y) }) // front
-	c.polygon([]float64{11.5, 9, 14.5, 6, 14.5, 10, 11.5, 13}, func(x, y int) color.RGBA { return rp.pick(0.3, x, y) })                 // side
-	c.line(3, 8, 9, 8, func(x, y int, _ float64) color.RGBA { return rp[len(rp)-1] })                                                   // shine
+	c.polygon([]float64{2, 13.5, 5, 7, 10, 3, 14, 2, 12.5, 6.5, 8, 11.5}, func(x, y int) color.RGBA {
+		u := float64(x-y) / 12 // across the blade
+		l := 0.78 - u*0.35
+		if hashf(x/2, y/2, 61) < 0.35 {
+			l -= 0.18 // flake scars
+		}
+		if rp[0] == agateRamp[0] && (x+y)%3 == 0 {
+			l += 0.2 // bands
+		}
+		return rp.pick(l, x, y)
+	})
+	c.line(4, 12, 12.5, 3.5, func(x, y int, _ float64) color.RGBA { return rp[len(rp)-1] }) // the ridge
 	c.outline(0.8)
 	return c
 }
 
-// iconDiamondCanvas is a cut gem.
+// iconDiamondCanvas is a shard of obsidian: black volcanic glass with a
+// sheen down its sharp edges.
 func iconDiamondCanvas() *canvas {
 	c := newCanvas(16, 16)
-	rp := diamondRamp
-	c.polygon([]float64{2, 6, 5, 3, 11, 3, 14, 6, 8, 14}, func(x, y int) color.RGBA {
-		l := 0.75 - float64(x-2)/12*0.45
-		if y < 6 {
-			l += 0.2 // the table
-		}
-		if (x+y)%4 == 0 {
-			l -= 0.15 // facets
+	rp := obsidianRamp
+	c.polygon([]float64{3, 13, 2, 8, 6, 3, 11, 2, 14, 5, 12, 10, 8, 14}, func(x, y int) color.RGBA {
+		l := 0.45 - float64(x+y-10)/18*0.3
+		if (x*2+y)%5 == 0 {
+			l += 0.25 // conchoidal ripples
 		}
 		return rp.pick(l, x, y)
 	})
-	c.line(2, 6, 14, 6, func(x, y int, _ float64) color.RGBA { return rp[1] })
-	c.set(5, 4, rp[4])
-	c.set(6, 4, rp[4])
+	c.line(6, 3, 3, 12, func(x, y int, _ float64) color.RGBA { return rp[4] }) // the glassy edge
+	c.set(10, 3, rp[4])
 	c.outline(0.8)
 	return c
 }
@@ -311,9 +320,9 @@ func genOreIcons(icons *[sim.NumItems]*ebiten.Image) {
 		icons[k] = iconOreCanvas(o).image()
 	}
 	icons[sim.ItemDiamond] = iconDiamondCanvas().image()
-	icons[sim.ItemCopperBar] = iconBarCanvas(copperRamp).image()
-	icons[sim.ItemIronBar] = iconBarCanvas(ironRamp).image()
-	icons[sim.ItemPlatinumBar] = iconBarCanvas(platinumRamp).image()
+	icons[sim.ItemCopperBar] = iconBarCanvas(flintRamp).image()
+	icons[sim.ItemIronBar] = iconBarCanvas(jadeRamp).image()
+	icons[sim.ItemPlatinumBar] = iconBarCanvas(agateRamp).image()
 	for t := sim.TierStone; t < sim.NumTiers; t++ {
 		icons[sim.ToolItem(sim.ToolAxe, t)] = iconAxeCanvas(tierRamps[t]).image()
 		icons[sim.ToolItem(sim.ToolPickaxe, t)] = iconPickaxeCanvas(tierRamps[t]).image()
@@ -392,15 +401,15 @@ func (g *Game) byFurnace() bool {
 // The bag's notes on ores, bars and the tools of every tier.
 func init() {
 	notes := map[sim.ItemKind]string{
-		sim.ItemCopperOre:   "Đào ở mỏ đồng trên đồi đá quanh núi (cần Cúp đá). Nung ở Lò nung thành Thỏi đồng.",
-		sim.ItemIronOre:     "Đào ở mỏ sắt trong hang tối trong núi — mang đuốc (cần Cúp đồng). Nung ở Lò nung thành Thỏi sắt.",
-		sim.ItemPlatinumOre: "Đào ở mỏ bạch kim giữa sa mạc (cần Cúp sắt). Nung ở Lò nung thành Thỏi bạch kim.",
-		sim.ItemDiamond:     "Đào ở mỏ kim cương trong vùng tro quanh núi lửa (cần Cúp bạch kim). Không cần nung: làm thẳng dụng cụ mạnh nhất.",
-		sim.ItemCopperBar:   "Nung quặng đồng ở Lò nung đang cháy. Làm rìu, cúp, cuốc bằng đồng.",
-		sim.ItemIronBar:     "Nung quặng sắt ở Lò nung đang cháy. Làm rìu, cúp, cuốc bằng sắt.",
-		sim.ItemPlatinumBar: "Nung quặng bạch kim ở Lò nung đang cháy. Làm rìu, cúp, cuốc bằng bạch kim.",
+		sim.ItemCopperOre:   "Đào ở mạch đá lửa trên đồi đá quanh núi (cần Cúp đá). Nung ở Lò nung cho giòn rồi ghè thành Lưỡi đá lửa.",
+		sim.ItemIronOre:     "Đào ở mạch ngọc bích trong hang tối trong núi — mang đuốc (cần Cúp đá lửa). Mài ở Lò nung thành Ngọc bích mài.",
+		sim.ItemPlatinumOre: "Đào ở mạch mã não giữa sa mạc (cần Cúp ngọc bích). Nung ở Lò nung thành Mã não mài.",
+		sim.ItemDiamond:     "Đá thủy tinh núi lửa, sắc nhất thời đồ đá. Đào ở vùng tro quanh núi lửa (cần Cúp mã não). Không cần nung.",
+		sim.ItemCopperBar:   "Đá lửa nung ở Lò nung rồi ghè thành lưỡi. Làm rìu, cúp, cuốc, dao đá lửa.",
+		sim.ItemIronBar:     "Ngọc bích mài nhẵn ở Lò nung. Làm rìu, cúp, cuốc, dao ngọc bích.",
+		sim.ItemPlatinumBar: "Mã não nung ở Lò nung. Làm rìu, cúp, cuốc, dao mã não và Giáp mã não.",
 	}
-	mines := []string{"tảng đá, mỏ than và mỏ đồng", "cả mỏ sắt", "cả mỏ bạch kim", "cả mỏ kim cương", "mọi loại mỏ"}
+	mines := []string{"tảng đá, mỏ than và mạch đá lửa", "cả mạch ngọc bích", "cả mạch mã não", "cả mạch hắc diện thạch", "mọi loại mạch đá"}
 	for t := sim.TierCopper; t < sim.NumTiers; t++ {
 		notes[sim.ToolItem(sim.ToolAxe, t)] = "Dụng cụ. Chặt cây, xương rồng và dỡ tường nhanh hơn rìu bậc dưới."
 		notes[sim.ToolItem(sim.ToolPickaxe, t)] = "Dụng cụ. Đập đá nhanh hơn cúp bậc dưới, đào được " + mines[t] + "."

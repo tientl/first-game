@@ -66,6 +66,15 @@ func drawTube(c *canvas, pts []spinePt) { drawTubeWith(c, pts, snakeScale) }
 // drawTubeWith is drawTube with its own skin: shade colours one pixel given
 // the sample it belongs to and how far across the body it is (-1..1).
 func drawTubeWith(c *canvas, pts []spinePt, shade func(x, y int, p *spinePt, t float64) color.RGBA) {
+	if k := c.k(); k != 1 || c.tx != 0 || c.ty != 0 { // a scaled canvas: the spine is in design units
+		scaled := make([]spinePt, len(pts))
+		for i, p := range pts {
+			p.x, p.y = c.toPx(p.x, p.y)
+			p.r *= k
+			scaled[i] = p
+		}
+		pts = scaled
+	}
 	best := make([]float64, c.w*c.h)
 	for i := range best {
 		best[i] = -1
@@ -86,7 +95,7 @@ func drawTubeWith(c *canvas, pts []spinePt, shade func(x, y int, p *spinePt, t f
 			}
 			best[y*c.w+x] = hit.s
 			t := ((px-hit.x)*hit.nx + (py-hit.y)*hit.ny) / hit.r // -1 far side .. 1 near side
-			c.set(x, y, shade(x, y, hit, t))
+			c.put(x, y, shade(x, y, hit, t))
 		}
 	}
 	for y := 0; y < c.h; y++ {
@@ -98,7 +107,7 @@ func drawTubeWith(c *canvas, pts []spinePt, shade func(x, y int, p *spinePt, t f
 			for _, d := range [2][2]int{{0, -1}, {-1, 0}} {
 				nx, ny := x+d[0], y+d[1]
 				if c.in(nx, ny) && best[ny*c.w+nx] > s+0.2 {
-					c.set(x, y, mix(c.at(x, y), colInk, 0.45)) // tucked under the coil above
+					c.put(x, y, mix(c.at(x, y), colInk, 0.45)) // tucked under the coil above
 					break
 				}
 			}

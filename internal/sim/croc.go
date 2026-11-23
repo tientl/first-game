@@ -43,6 +43,7 @@ func (w *World) waterside(tx, ty int) bool {
 
 func (w *World) stepCroc(c *Creature) {
 	d := c.Kind.def()
+	ambush, bite, reach := crocTune(c.Kind) // see hellcreek.go: its cousins of the ponds
 	if c.biteCD > 0 {
 		c.biteCD--
 	}
@@ -57,8 +58,15 @@ func (w *World) stepCroc(c *Creature) {
 			c.timer--
 		}
 		switch {
-		case p != nil && dist < CrocAmbushDist && c.timer == 0:
+		case p != nil && dist < ambush && c.timer == 0:
 			c.State, c.timer = CreatureChase, CrocChaseTicks+CrocLungeTicks // out of the water in a burst
+		case c.timer == 0 && (p == nil || dist >= ambush) && w.drinkerNear(c, ambush) != nil:
+			// Something come down to drink: a snatch from the water. See needs.go.
+			q := w.drinkerNear(c, ambush) // the same one: the drinkers do not change mid-tick
+			c.faceToward(q.X)
+			c.State, c.timer, c.biteCD = CreatureStrike, CrocStrikeTicks, CrocBiteCooldown
+			w.maul(q, int(bite)/crocPreyBiteBits)
+			q.hunter, q.huntedT = c.ID, huntedTicks // it bolts from the water
 		case w.random().Float64() < CrocBaskChance && (p == nil || dist > CrocGiveUpDist):
 			c.State, c.timer = CreatureIdle, 0 // climbs out to bask
 		}
@@ -74,15 +82,15 @@ func (w *World) stepCroc(c *Creature) {
 		if dx := p.X - c.X; dx != 0 {
 			c.FaceLeft = dx < 0
 		}
-		if dist <= CrocBiteRange {
+		if dist <= reach {
 			if c.biteCD == 0 {
 				c.State, c.timer, c.biteCD = CreatureStrike, CrocStrikeTicks, CrocBiteCooldown
-				struck(p, CrocBiteDamage)
+				struck(p, bite)
 				p.notify(NoticeBitten, uint8(c.Kind))
 			}
 			return
 		}
-		step := min(speed, dist-CrocBiteRange*0.8)
+		step := min(speed, dist-reach*0.8)
 		if !w.moveCreature(c, (p.X-c.X)/dist*step, (p.Y-c.Y)/dist*step) {
 			w.crocRetreat(c) // something in the way: give up
 		}

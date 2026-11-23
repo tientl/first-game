@@ -108,8 +108,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	g.ground.draw(g.world, cam.ox, cam.oy, g.frame)
 	g.drawFish(g.world, cam, alpha)
+	g.drawUndergrowth(g.world, cam)
 	g.drawSprites(g.world, cam, alpha, target)
 	g.drawLines(g.world, cam, alpha)
+	g.drawSky(g.world, cam, alpha) // flying reptiles overhead
+	g.drawHearts(g.world, cam)     // beasts being fed; see ride.go
+	g.drawSnowfall(g.world, cam)   // over the frozen north; see iceart.go
 	g.drawClouds(g.world, cam)
 	g.drawLighting(g.world, cam)
 	g.drawEmbers(g.world, cam)
@@ -164,8 +168,8 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		list = append(list, drawable{y: wy, id: uint32(e.ID), idx: i, sx: sx, sy: sy})
 	}
 	for i, c := range g.curr.Creatures {
-		if c.Kind == sim.CreatureFish || c.State == sim.CreatureHidden {
-			continue // under water: drawn by drawFish; or down its burrow or den
+		if c.Kind == sim.CreatureFish || c.Kind == sim.CreaturePlesio || c.State == sim.CreatureHidden || inTheSky(c) {
+			continue // in the water: drawn by drawFish; down its burrow or den; or high up: drawSky
 		}
 		wx, wy, moving := g.lerpCreature(c, alpha)
 		if g.hiddenInCave(wx, wy) {
@@ -174,7 +178,12 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		sx, sy := cam.toScreen(wx, wy)
 		list = append(list, drawable{y: wy, id: uint32(c.ID), creature: true, idx: i, sx: sx, sy: sy, moving: moving})
 	}
+	riders := g.riders[:0] // players astride a beast: drawn on its back, see ride.go
 	for i, p := range g.curr.Players {
+		if p.Mount != 0 && !p.Dead {
+			riders = append(riders, i)
+			continue
+		}
 		wx, wy, moving := g.lerpPlayer(p, alpha)
 		if g.hiddenInCave(wx, wy) {
 			continue
@@ -225,7 +234,18 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 			continue
 		}
 		if d.creature {
-			g.drawCreature(dst, g.curr.Creatures[d.idx], d)
+			c := g.curr.Creatures[d.idx]
+			g.drawCreature(dst, c, d)
+			if c.Ridden {
+				for _, i := range riders {
+					if p := g.curr.Players[i]; p.Mount == c.ID {
+						g.drawRider(dst, p, c, d)
+					}
+				}
+			} else if c.Tamed {
+				s, bob := g.creatureSprite(c, d.moving)
+				g.drawPetMark(dst, c, d.sx, d.sy-bob-s.ay)
+			}
 			continue
 		}
 		e := g.curr.Entities[d.idx]
@@ -247,6 +267,8 @@ func shadowWidth(e protocol.EntityView) float64 {
 	case sim.EntityBoulder:
 		return 28 * boulderScale[size]
 	case sim.EntityBerryBush:
+		return 26
+	case sim.EntityFigTree, sim.EntityGinkgoTree, sim.EntityPalm:
 		return 26
 	case sim.EntityGrassTuft:
 		return 12
@@ -335,20 +357,45 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		}
 		// Skew moves the top more on a taller sprite: big trunks are stiffer.
 		stiff := 1 / treeScale[size]
-		forest := g.tileAt(int(e.TX), int(e.TY)) == sim.TileForest
-		if forest && h%5 < 2 {
+		if g.tileAt(int(e.TX), int(e.TY)) == sim.TileSnow { // frosted pines on the snow
+			pines := a.snowPines[size]
+			return pines[int(h/8)%len(pines)], 0.02 * stiff
+		}
+		tile := g.tileAt(int(e.TX), int(e.TY))
+		if tile == sim.TileMarsh { // bald cypresses and dead snags; see swampart.go
+			return swampTree(size, h), 0.02 * stiff
+		}
+		forest := tile == sim.TileForest
+		// Prehistoric trees, by terrain: giant redwoods and monkey-puzzles
+		// in the woods, cycads and ginkgos in the open, tree ferns in both.
+		anc, v := &a.ancient[size], int(h/8)
+		switch pick := (h >> 20) % 20; {
+		case forest && pick < 3:
+			return anc.redwoods[v%len(anc.redwoods)], 0.008 * stiff
+		case forest && pick < 5, tile == sim.TileGrass && pick < 1:
+			return anc.araucarias[v%len(anc.araucarias)], 0.015 * stiff
+		case forest && pick < 7, tile == sim.TileGrass && pick < 4:
+			return anc.ferns[v%len(anc.ferns)], 0.05 * stiff
+		case tile == sim.TileGrass && pick < 8:
+			return anc.cycads[v%len(anc.cycads)], 0.02 * stiff
+		case tile == sim.TileGrass && pick < 11:
+			return anc.ginkgos[v%len(anc.ginkgos)], 0.035 * stiff
+		}
+		if forest && h%5 < 1 {
 			pines := a.pines[size]
 			return pines[int(h/8)%len(pines)], 0.02 * stiff
 		}
 		// Vines hang in the woods; out in the open only now and then.
 		trees := a.trees[size]
-		if v := (h >> 12) % 10; forest && v < 4 || v == 0 {
+		if v := (h >> 12) % 10; forest && v < 6 || v == 0 {
 			trees = a.vineTrees[size]
 		}
 		return trees[int(h/8)%len(trees)], 0.035 * stiff
 	case sim.EntityBoulder:
 		boulders := a.boulders[size]
 		return boulders[int(h/8)%len(boulders)], 0
+	case sim.EntityFigTree, sim.EntityGinkgoTree, sim.EntityPalm:
+		return g.fruitTreeSprite(e)
 	case sim.EntityBerryBush:
 		if e.Ready {
 			return a.bushFull, 0.03
@@ -390,6 +437,9 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		}
 		return a.open.reedCut, 0
 	case sim.EntityMushroom:
+		if g.onLog(e) {
+			return mushroomLog(e.Ready), 0 // the log stays when they are picked
+		}
 		return a.open.mushroom, 0
 	case sim.EntityCoal:
 		return a.open.coal, 0
@@ -407,7 +457,7 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 
 func (g *Game) drawEntity(dst *ebiten.Image, e protocol.EntityView, d drawable) {
 	switch {
-	case (e.Kind == sim.EntityTwig || e.Kind == sim.EntityPebble || e.Kind == sim.EntityMushroom || e.Kind == sim.EntityClam) && !e.Ready:
+	case (e.Kind == sim.EntityTwig || e.Kind == sim.EntityPebble || e.Kind == sim.EntityMushroom && !g.onLog(e) || e.Kind == sim.EntityClam) && !e.Ready:
 		return // picked up; another will turn up here in time
 	case e.Kind == sim.EntityFarmland:
 		return // flat: drawn with the soil, under everything
@@ -443,7 +493,6 @@ func (g *Game) drawPlayer(dst *ebiten.Image, p protocol.PlayerView, d drawable) 
 		g.drawSleeper(dst, p, d)
 		return
 	}
-	t := float64(g.frame)
 	frame, bob := 0, 0.0
 	if d.moving {
 		frame = (g.frame / 7) % walkFrames
@@ -460,16 +509,15 @@ func (g *Game) drawPlayer(dst *ebiten.Image, p protocol.PlayerView, d drawable) 
 		step = walkStep(frame)
 	}
 
-	// The hand: the hoe or the axe swinging while working, else what is
-	// held. When facing away it is behind the body.
+	// The hand: while working, the tool the job takes, swung in time with the
+	// hit (see swing.go); else what is held. When facing away it is behind
+	// the body.
 	hand := func() {
 		switch {
 		case p.Acting && isSword(p.Held):
 			g.drawSlash(dst, p, d, bob)
-		case p.Acting && isHoe(p.Held):
-			g.drawTool(dst, g.art.ore.hoes[toolTier(p.Held)], p, d, t, bob)
-		case swingsTool(p):
-			g.drawTool(dst, g.art.ore.axes[min(p.AxeTier, sim.NumTiers-1)], p, d, t, bob)
+		case p.Acting && g.swingWhat[p.ID].kind != swingNone:
+			g.drawSwing(dst, p, d, bob, step)
 		default:
 			g.drawHeld(dst, p.Held, dir, d.sx, d.sy, bob, step)
 		}
@@ -507,14 +555,6 @@ func (g *Game) drawSleeper(dst *ebiten.Image, p protocol.PlayerView, d drawable)
 }
 
 // drawTool draws the tool s swinging in p's hand.
-func (g *Game) drawTool(dst *ebiten.Image, s sprite, p protocol.PlayerView, d drawable, t, bob float64) {
-	side := 1.0
-	if p.Dir == sim.DirLeft {
-		side = -1
-	}
-	swing := (0.9 + 0.8*math.Sin(t*0.5)) * side
-	drawAt(dst, s, d.sx+6*side, d.sy-7-bob, side, 1, swing, nil)
-}
 
 // drawClouds drifts soft cloud shadows over the land by day.
 func (g *Game) drawClouds(dst *ebiten.Image, cam camera) {
@@ -592,7 +632,7 @@ func (g *Game) target() targetView {
 		}
 		x, y := float64(p.X), float64(p.Y)
 		hasWood := g.curr.Self.Inv.HasFuel()
-		t, ok := sim.PickTarget(x, y, hasWood, g.candidateAt, creatureCandidates(g.curr.Creatures, x, y), sim.ReachBonusFor(p.Held))
+		t, ok := sim.PickTarget(x, y, hasWood, g.candidateAt, creatureCandidates(g.curr.Creatures, x, y), sim.ReachBonusFor(p.Held)+sim.RideReach(p.Mount != 0))
 		if !ok {
 			return targetView{}
 		}
@@ -692,6 +732,8 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				}
 			case e.Kind == sim.EntityCrop:
 				label += " — đào khoai"
+			case sim.IsFruitTree(e.Kind):
+				label += " — hái quả"
 			}
 		}
 		topArt := top - 9 + math.Round(1.5*math.Sin(float64(g.frame)*0.12))

@@ -34,6 +34,18 @@ func genCroc(pose int) sprite {
 	return mk(c, ax, ay)
 }
 
+// crocLook is a crocodile's colours, the width of its body along its length
+// (snout and all) and its size: the crocodile, or its pond cousins.
+type crocLook struct {
+	skin, belly ramp
+	width       func(s float64) float64
+	scale       float64
+}
+
+var crocStd = crocLook{crocRamp, crocBelly, crocWidth, 1}
+
+func crocCanvas(pose int) (*canvas, float64, float64) { return crocCanvasOf(pose, crocStd) }
+
 // crocWidth is the body's half-width at s, 0 the tail tip and 1 the snout.
 func crocWidth(s float64) float64 {
 	switch {
@@ -53,30 +65,39 @@ func crocWidth(s float64) float64 {
 // crocSkin colours one pixel of the body: a ridge of scutes along the back,
 // pale on the near flank, dull green elsewhere.
 func crocSkin(x, y int, p *spinePt, t float64) color.RGBA {
-	l := lum(p.nx*t*0.8, p.ny*t*0.8) + 0.05
-	scute := math.Mod(p.s*34, 1) < 0.5
-	switch {
-	case t > 0.68 && p.s > 0.12:
-		return crocBelly.pick(l, x, y)
-	case t > -0.55 && t < -0.15 && p.s < 0.84: // the armoured ridge down the back
-		if scute {
-			return crocRamp.pick(l+0.25, x, y)
-		}
-		return crocRamp.pick(l-0.15, x, y)
-	}
-	i := crocRamp.idx(l, x, y)
-	if (x+2*y)%5 == 0 {
-		i-- // scaly
-	}
-	return crocRamp.at(i)
+	return crocSkinOf(crocRamp, crocBelly)(x, y, p, t)
 }
 
-// crocCanvas draws crocodile pose on a canvas and returns its anchor.
-func crocCanvas(pose int) (*canvas, float64, float64) {
-	if pose == crocLurk {
-		return crocLurkCanvas()
+// crocSkinOf is crocSkin in the colours rp and belly.
+func crocSkinOf(crocRamp, crocBelly ramp) func(x, y int, p *spinePt, t float64) color.RGBA {
+	return func(x, y int, p *spinePt, t float64) color.RGBA {
+		l := lum(p.nx*t*0.8, p.ny*t*0.8) + 0.05
+		scute := math.Mod(p.s*34, 1) < 0.5
+		switch {
+		case t > 0.68 && p.s > 0.12:
+			return crocBelly.pick(l, x, y)
+		case t > -0.55 && t < -0.15 && p.s < 0.84: // the armoured ridge down the back
+			if scute {
+				return crocRamp.pick(l+0.25, x, y)
+			}
+			return crocRamp.pick(l-0.15, x, y)
+		}
+		i := crocRamp.idx(l, x, y)
+		if (x+2*y)%5 == 0 {
+			i-- // scaly
+		}
+		return crocRamp.at(i)
 	}
-	c := newCanvas(46, 20)
+}
+
+// crocCanvasOf draws crocodile pose, in the look lk, on a canvas and returns
+// its anchor.
+func crocCanvasOf(pose int, lk crocLook) (*canvas, float64, float64) {
+	if pose == crocLurk {
+		return crocLurkCanvasOf(lk)
+	}
+	crocRamp, crocWidth := lk.skin, lk.width
+	c := newScaledCanvas(46, 20, lk.scale)
 	const snoutX, baseY = 43.0, 12.0
 	ph := 0.0
 	if pose == crocWalkB {
@@ -118,7 +139,7 @@ func crocCanvas(pose int) (*canvas, float64, float64) {
 	if pose == crocBite {
 		body = pts[:int(0.84*float64(len(pts)-1))] // the jaws are drawn open below
 	}
-	drawTubeWith(c, body, crocSkin)
+	drawTubeWith(c, body, crocSkinOf(lk.skin, lk.belly))
 	leg(0.36, 1, swing)
 	leg(0.66, 1, -swing)
 
@@ -151,14 +172,17 @@ func crocCanvas(pose int) (*canvas, float64, float64) {
 		c.set(int(hinge.x+0.8), int(hinge.y-2.4), crocEye)
 		c.set(int(hinge.x+1.2), int(hinge.y-2.4), colInk)
 	}
-	c.outline(0.8)
+	finishBeast(c, 0.8)
 	return c, 22, baseY + 2
 }
 
 // crocLurkCanvas is a crocodile under water: two eyes on their knobs and the
 // nostrils at the end of the snout, just breaking the surface.
-func crocLurkCanvas() (*canvas, float64, float64) {
-	c := newCanvas(16, 7)
+func crocLurkCanvas() (*canvas, float64, float64) { return crocLurkCanvasOf(crocStd) }
+
+func crocLurkCanvasOf(lk crocLook) (*canvas, float64, float64) {
+	crocRamp := lk.skin
+	c := newScaledCanvas(16, 7, lk.scale)
 	for _, k := range []ell{{3.5, 3.5, 1.7, 1.3}, {7, 3.2, 1.7, 1.3}} {
 		roundShape(c, k, crocRamp, 0.1)
 		c.set(int(k.x), int(k.y-0.4), crocEye)
@@ -166,6 +190,6 @@ func crocLurkCanvas() (*canvas, float64, float64) {
 	}
 	roundShape(c, ell{13, 3.8, 1.3, 0.9}, crocRamp, 0)
 	c.set(13, 3, crocRamp[0])
-	c.outline(0.6)
+	finishBeast(c, 0.6)
 	return c, 8, 5
 }

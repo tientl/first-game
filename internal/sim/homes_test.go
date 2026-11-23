@@ -109,8 +109,16 @@ func TestNewAnimalsComeOutOfHomes(t *testing.T) {
 		t.Fatal(err)
 	}
 	w.fauna.creatures = nil
-	for range CreatureRespawnTicks { // up to the first refill, and look at once
-		if w.Step(); len(w.fauna.creatures) > 0 {
+	homed := func() bool { // a rabbit or snake is back
+		for _, c := range w.fauna.creatures {
+			if c.Kind.def().homeKind != EntityNone {
+				return true
+			}
+		}
+		return false
+	}
+	for range CreatureRabbit.def().respawn { // up to the first refill of rabbits, and look at once
+		if w.Step(); homed() {
 			break
 		}
 	}

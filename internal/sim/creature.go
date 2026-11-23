@@ -32,6 +32,29 @@ const (
 	CreatureFish
 	CreatureCrab // see crab.go
 	CreatureCroc // a crocodile in the marsh; see croc.go
+
+	// The great beasts of the open world: see dino.go.
+	CreatureTrike   // three-horned grazer, in herds on the meadows
+	CreatureStego   // plate-backed grazer of the woods, swings a spiked tail
+	CreatureBrachio // long-necked giant, harmless, flees
+	CreatureRaptor  // pack hunter of the woods
+	CreatureRex     // the tyrant, far from the spawn
+	CreaturePtero   // a flying reptile over the hills and beaches
+	CreaturePlesio  // a long-necked sea reptile off the coast
+
+	// The ice age: see iceage.go.
+	CreatureMammoth // woolly, in herds on the snow
+	CreatureSabre   // a sabre-toothed cat that stalks the snow
+
+	// More of the tyrant's neighbours: see hellcreek.go.
+	CreatureOrnitho // Ornithomimus: an ostrich of a dinosaur, the fastest runner
+	CreatureThesc   // Thescelosaurus: a gentle middling grazer
+	CreatureAnzu    // a giant crested bird of a dinosaur that kicks
+	CreatureToro    // Torosaurus: the three-horn's bigger cousin
+	CreatureAchero  // Acheroraptor: a smaller raptor in bigger packs
+	CreatureQuetzal // Quetzalcoatlus: a giant flying reptile that stalks the ground
+	CreatureBrachy  // Brachychampsa: a blunt-snouted crocodile of the ponds
+	CreatureChampso // Champsosaurus: a long-snouted crocodile of the ponds
 	NumCreatureKinds
 )
 
@@ -50,7 +73,23 @@ const (
 	CreatureHooked               // a fish under someone's float; see fishing.go
 	CreatureHidden               // down its burrow or den: out of sight and reach; see homes.go
 	CreatureLurk                 // a crocodile in the water, only its eyes showing; out of reach
+	CreatureSoar                 // a flying reptile high in the air; out of reach
+	CreatureRoar                 // a tyrant roaring before it charges
+	CreatureCower                // a hunter beaten down: it lies low, and can be tamed; see tame.go
+	CreatureEat                  // grazing, or eating a kill: head down, chewing; see needs.go
+	CreatureDrink                // drinking at the water's edge
 )
+
+// OutOfReach reports whether a creature in state s cannot be targeted: on
+// someone's fishing line, down a hole, under water or high in the air. The
+// server and the client both use it.
+func (s CreatureState) OutOfReach() bool {
+	switch s {
+	case CreatureHooked, CreatureHidden, CreatureLurk, CreatureSoar:
+		return true
+	}
+	return false
+}
 
 // Creature tuning. Speeds are in tiles per tick.
 const (
@@ -94,7 +133,33 @@ type creatureDef struct {
 	idle, roam [2]int     // min and max ticks of an idle spell and a walk
 	spawnOn    []Tile
 	tilesPer   int // one of this kind per this many spawn tiles
+
+	drops    []Ingredient // given besides yield when it is killed
+	fights   bool         // fights back: hits land even when the bag cannot take the kill
+	tough    bool         // big: a hit barely staggers it, and it goes on with what it was doing
+	flies    bool         // crosses anything; out of reach while soaring
+	deep     bool         // swims anywhere in the water, appearing a little off the coast
+	openOnly bool         // never on the old island maps
+	herd     int          // appears in groups of this many
+	away     float64      // never appears this close to where players start
+
+	// How a kind with a home lives; see homes.go.
+	homeOn      map[Tile]float64 // how well each tile suits a home (0: never); nil: every spawn tile alike
+	cover       Tile             // homes only within coverDist tiles of this tile, when coverDist > 0
+	coverDist   int
+	family      [2]int // animals to a home at first, fewest and most; perHome is the most it ever holds
+	homeSpacing int    // tiles kept between two homes of this kind
+	respawn     int    // ticks between top-ups of this kind; 0 means CreatureRespawnTicks
 }
+
+// loot is everything a creature of kind k gives when it is killed.
+func (k CreatureKind) loot() []Ingredient {
+	d := k.def()
+	return append([]Ingredient{{Item: d.yield, Count: d.yieldN}}, d.drops...)
+}
+
+// Loot is everything a creature of kind k gives when it is killed.
+func (k CreatureKind) Loot() []Ingredient { return k.loot() }
 
 var creatureDefs = [NumCreatureKinds]creatureDef{
 	CreatureNone: {name: "?"},
@@ -103,18 +168,27 @@ var creatureDefs = [NumCreatureKinds]creatureDef{
 		walk: 1.2 / TicksPerSecond, run: 5.2 / TicksPerSecond,
 		radius: 0.2, reach: 1.4,
 		yield: ItemMeat, yieldN: 2,
-		homeKind: EntityBurrow, perHome: 3,
+		// Small colonies, two or three to a burrow, dug in open meadow near the
+		// cover of a wood's edge; colonies keep apart, and the young come fast.
+		homeKind: EntityBurrow, perHome: 3, family: [2]int{2, 3},
+		homeOn: map[Tile]float64{TileGrass: 1}, cover: TileForest, coverDist: 4,
+		homeSpacing: 9, respawn: 30 * TicksPerSecond,
 		leash: 10, idle: [2]int{20, 80}, roam: [2]int{15, 50},
-		spawnOn: []Tile{TileGrass, TileForest}, tilesPer: 140,
+		spawnOn: []Tile{TileGrass, TileForest}, tilesPer: 300, // per meadow tile
 	},
 	CreatureSnake: {
 		name: "Rắn", hp: 3,
 		walk: 0.8 / TicksPerSecond, run: 2.6 / TicksPerSecond,
 		radius: 0.25, reach: 1.4,
 		yield: ItemMeat, yieldN: 1,
-		homeKind: EntityDen, perHome: 2,
+		// Solitary, one to a den and a wide range each; dens are crevices in
+		// rock first, sparse out on sand, desert and ash. Slow to come back.
+		homeKind: EntityDen, perHome: 1, family: [2]int{1, 1},
+		homeOn:      map[Tile]float64{TileRocky: 1, TileDesert: 0.12, TileSand: 0.1, TileAsh: 0.15},
+		homeSpacing: 14, respawn: 120 * TicksPerSecond,
 		leash: 7, idle: [2]int{30, 120}, roam: [2]int{20, 60},
-		spawnOn: []Tile{TileRocky, TileSand, TileDesert, TileAsh}, tilesPer: 160,
+		spawnOn: []Tile{TileRocky, TileSand, TileDesert, TileAsh}, tilesPer: 320, // per weighted den tile
+		fights: true,
 	},
 	CreatureWorm: {
 		name: "Giun", hp: 1,
@@ -150,7 +224,25 @@ var creatureDefs = [NumCreatureKinds]creatureDef{
 		amphibious: true, waterside: true,
 		leash: 5, idle: [2]int{60, 200}, roam: [2]int{20, 60},
 		spawnOn: []Tile{TileMarsh}, tilesPer: 220,
+		fights: true,
 	},
+	CreatureTrike:   trikeDef,
+	CreatureStego:   stegoDef,
+	CreatureBrachio: brachioDef,
+	CreatureRaptor:  raptorDef,
+	CreatureRex:     rexDef,
+	CreaturePtero:   pteroDef,
+	CreaturePlesio:  plesioDef,
+	CreatureMammoth: mammothDef,
+	CreatureSabre:   sabreDef,
+	CreatureOrnitho: ornithoDef,
+	CreatureThesc:   thescDef,
+	CreatureAnzu:    anzuDef,
+	CreatureToro:    toroDef,
+	CreatureAchero:  acheroDef,
+	CreatureQuetzal: quetzalDef,
+	CreatureBrachy:  brachyDef,
+	CreatureChampso: champsoDef,
 }
 
 func (k CreatureKind) def() *creatureDef {
@@ -183,6 +275,16 @@ type Creature struct {
 	HP       int
 	State    CreatureState
 
+	// Taming: see tame.go.
+	Owner PlayerID // the online player it belongs to; 0 if wild, or its owner is away
+	Tame  int      // meals towards taming it, while wild
+	Stay  bool     // a pet told to wait where it is
+
+	ownerName string   // who tamed it, kept across sessions; "" while wild
+	rider     PlayerID // who is riding it, 0 if nobody
+	fedCD     int      // ticks before it takes another meal
+	healT     int      // ticks to its next point of mending, as a pet
+
 	homeX, homeY float64
 	hx, hy       float64 // heading while walking or fleeing, a unit vector
 	timer        int     // ticks left in State
@@ -191,6 +293,21 @@ type Creature struct {
 	home         EntityID // its burrow or den; 0 if none
 	goalX, goalY float64  // where a fleeing crab is making for
 	gone         bool     // caught; removed at the end of the tick
+
+	foe    PlayerID      // who it is angry with, while rage lasts
+	rage   int           // ticks it stays angry with foe
+	cool   int           // ticks before a hunter notices players again
+	ang    float64       // a flying reptile's place on its circle
+	after  CreatureState // what a tough beast goes back to after a hit
+	afterT int           // and the timer it goes back to
+
+	// Hunger, thirst and the hunt: see needs.go.
+	hunger, thirst int        // ticks since its last meal and drink
+	fed            bool       // hunger and thirst have been set going
+	prey, hunter   CreatureID // what it hunts; what hunts it
+	huntedT        int        // ticks left of the hunter's attention
+	fleeT          int        // ticks it has run from a hunter: it tires
+	trip           int        // ticks left of a walk to water
 }
 
 // fauna is the world's animal life.
@@ -203,6 +320,7 @@ type fauna struct {
 	target    [NumCreatureKinds]int     // per kind: the population the world tops up to
 	homes     []homeRec                 // burrows and dens, in the order they were dug
 	seated    bool                      // homes checked after loading; see reseatHomes
+	drinkers  []*Creature               // those drinking at the start of this tick; see drinkerNear
 }
 
 func (w *World) random() *rand.Rand {
@@ -240,16 +358,33 @@ func (w *World) isShallow(tx, ty int) bool {
 func (w *World) creatureFits(k CreatureKind, x, y float64) bool {
 	d := k.def()
 	r := d.radius
-	for _, c := range [4][2]float64{{-r, -r}, {r, -r}, {-r, r}, {r, r}} {
-		tx, ty := int(math.Floor(x+c[0])), int(math.Floor(y+c[1]))
-		land := w.TileAt(tx, ty).Walkable() && !w.blocked(tx, ty)
-		switch {
-		case d.water && !w.isShallow(tx, ty):
-			return false
-		case d.amphibious && !land && !w.isShallow(tx, ty):
-			return false
-		case !d.water && !d.amphibious && !land:
-			return false
+	if x < r || y < r || x > float64(w.width)-r || y > float64(w.height)-r {
+		return false
+	}
+	if d.flies {
+		return true
+	}
+	// The corners of its box, and for a big beast points in between too, so
+	// no wall or rock slips between two corners.
+	n := max(1, int(math.Ceil(2*r/0.5)))
+	for i := 0; i <= n; i++ {
+		for j := 0; j <= n; j++ {
+			if n > 1 && i != 0 && i != n && j != 0 && j != n {
+				continue // the edge of the box is enough
+			}
+			tx := int(math.Floor(x - r + 2*r*float64(i)/float64(n)))
+			ty := int(math.Floor(y - r + 2*r*float64(j)/float64(n)))
+			land := w.TileAt(tx, ty).Walkable() && !w.blocked(tx, ty)
+			switch {
+			case d.deep && w.TileAt(tx, ty) != TileWater:
+				return false
+			case d.water && !w.isShallow(tx, ty):
+				return false
+			case d.amphibious && !land && !w.isShallow(tx, ty):
+				return false
+			case !d.water && !d.deep && !d.amphibious && !land:
+				return false
+			}
 		}
 	}
 	return true
@@ -271,13 +406,28 @@ func (w *World) addCreature(k CreatureKind, x, y float64) *Creature {
 func (w *World) spawnCreatures() {
 	f := &w.fauna
 	sx, sy := int(math.Floor(w.spawnX)), int(math.Floor(w.spawnY))
+	var offshore []uint8 // tiles from land, for sea creatures; see coastDistance
 	for k := CreatureKind(1); k < NumCreatureKinds; k++ {
 		d := k.def()
+		if d.openOnly && w.style == StyleIsland {
+			continue
+		}
+		if d.deep && offshore == nil {
+			offshore = w.coastDistance(plesioFar + 1)
+		}
 		var spots []int32
 		for ty := 0; ty < w.height; ty++ {
 			for tx := 0; tx < w.width; tx++ {
 				t := w.tiles[ty*w.width+tx]
 				if !slices.Contains(d.spawnOn, t) || (d.water && !w.isShallow(tx, ty)) || (d.seaside && !w.seaside(tx, ty)) || (d.waterside && !w.waterside(tx, ty)) {
+					continue
+				}
+				if d.deep {
+					if o := offshore[ty*w.width+tx]; o < plesioNear || o > plesioFar {
+						continue
+					}
+				}
+				if d.away > 0 && math.Hypot(float64(tx-sx), float64(ty-sy)) < d.away {
 					continue
 				}
 				if !w.creatureFits(k, float64(tx)+0.5, float64(ty)+0.5) {
@@ -291,6 +441,14 @@ func (w *World) spawnCreatures() {
 			continue
 		}
 		f.target[k] = max(creatureMinPerKind, len(spots)/d.tilesPer)
+		if d.herd > 1 {
+			for n := 0; n < f.target[k]; {
+				i := spots[w.random().IntN(len(spots))]
+				got := w.addHerd(k, float64(int(i)%w.width)+0.5, float64(int(i)/w.width)+0.5, min(d.herd, f.target[k]-n))
+				n += max(got, 1) // a spot with no room still counts, so this ends
+			}
+			continue
+		}
 		if d.homeKind != EntityNone {
 			// Families around homes, none too close to where players start.
 			ok := func(tx, ty int) bool {
@@ -300,9 +458,10 @@ func (w *World) spawnCreatures() {
 				}
 				return max(abs(tx-sx), abs(ty-sy)) >= away
 			}
-			homes := (f.target[k] + d.perHome - 1) / d.perHome
-			if dug := w.placeHomes(k, spots, homes, ok); dug > 0 {
-				f.target[k] = max(f.target[k], dug*d.perHome)
+			f.target[k] = max(creatureMinPerKind, int(w.homeWeight(k, spots)/float64(d.tilesPer)))
+			homes := max(creatureMinPerKind, int(math.Ceil(float64(f.target[k])/d.meanFamily())))
+			if placed := w.placeHomes(k, spots, homes, ok); placed > 0 {
+				f.target[k] = placed // what the world tops itself up to
 				continue
 			}
 		}
@@ -323,12 +482,17 @@ func (w *World) repopulate() {
 	f := &w.fauna
 	var count [NumCreatureKinds]int
 	for _, c := range f.creatures {
-		count[c.Kind]++
+		if !c.Tamed() { // pets do not count: the wild tops itself up
+			count[c.Kind]++
+		}
 	}
 	for k := CreatureKind(1); k < NumCreatureKinds; k++ {
 		spots := f.spawnAt[k]
 		if count[k] >= f.target[k] || len(spots) == 0 {
 			continue
+		}
+		if every := k.def().respawn; every > 0 && w.tick%uint64(every) != 0 {
+			continue // this kind comes back more slowly
 		}
 		if k.def().homeKind != EntityNone && w.repopulateAtHome(k) {
 			continue // out of a burrow or den
@@ -338,6 +502,10 @@ func (w *World) repopulate() {
 			x, y := float64(int(i)%w.width)+0.5, float64(int(i)/w.width)+0.5
 			if _, d := w.nearestPlayer(x, y); d < creatureSpawnAway {
 				continue
+			}
+			if h := k.def().herd; h > 1 {
+				w.addHerd(k, x, y, min(h, f.target[k]-count[k]))
+				break
 			}
 			w.addCreature(k, x, y)
 			break
@@ -396,6 +564,12 @@ func (w *World) stepCreatures() {
 		w.reseatHomes() // a loaded world may have lost its homes
 		f.seated = true
 	}
+	f.drinkers = f.drinkers[:0]
+	for _, c := range f.creatures {
+		if c.State == CreatureDrink {
+			f.drinkers = append(f.drinkers, c)
+		}
+	}
 	for _, c := range f.creatures {
 		if !c.gone {
 			w.stepCreature(c)
@@ -421,17 +595,48 @@ func (w *World) stepCreature(c *Creature) {
 	if c.State == CreatureHurt {
 		if c.timer--; c.timer <= 0 {
 			c.State, c.timer = CreatureIdle, 0
+			if c.Kind.def().tough && c.after != CreatureHurt {
+				c.State, c.timer = c.after, c.afterT // a big beast shrugs it off
+			}
 		}
 		return
 	}
+	if c.fedCD > 0 {
+		c.fedCD--
+	}
+	if !c.Tamed() && w.stepNeeds(c) {
+		return // eating, drinking, or running from a hunter: see needs.go
+	}
+	if c.Tamed() {
+		w.stepPet(c) // see tame.go
+		return
+	}
 	switch c.Kind {
+	case CreatureTrike, CreatureStego, CreatureBrachio, CreatureMammoth, CreatureToro, CreatureThesc:
+		w.stepGrazer(c)
+	case CreatureSabre:
+		w.stepSabre(c) // see iceage.go
+	case CreatureRaptor, CreatureAchero:
+		w.stepRaptor(c)
+	case CreatureOrnitho:
+		w.stepRunner(c) // see hellcreek.go
+	case CreatureAnzu:
+		w.stepAnzu(c)
+	case CreatureQuetzal:
+		w.stepQuetzal(c)
+	case CreatureRex:
+		w.stepRex(c)
+	case CreaturePtero:
+		w.stepPtero(c)
+	case CreaturePlesio:
+		w.stepPlesio(c)
 	case CreatureRabbit:
 		w.stepRabbit(c)
 	case CreatureSnake:
 		w.stepSnake(c)
 	case CreatureCrab:
 		w.stepCrab(c)
-	case CreatureCroc:
+	case CreatureCroc, CreatureBrachy, CreatureChampso:
 		w.stepCroc(c)
 	default:
 		w.wander(c)
@@ -625,6 +830,9 @@ func hurt(p *Player, dmg float64) {
 // anything was done (false: refused, the player does not swing).
 func (w *World) catch(p *Player, c *Creature) bool {
 	d := c.Kind.def()
+	if handled, acted := w.petAction(p, c); handled {
+		return acted // tamed, fed or told what to do: see tame.go
+	}
 	if d.tool.Valid() && p.Held() != d.tool {
 		p.notify(NoticeNeedTool, uint8(d.tool))
 		return false
@@ -633,25 +841,41 @@ func (w *World) catch(p *Player, c *Creature) bool {
 		p.notify(NoticeNeedBait, uint8(d.bait))
 		return false
 	}
-	if p.Inv.Room(d.yield) < d.yieldN {
-		p.notify(NoticeBagFull, uint8(d.yield))
+	// A full bag refuses the blow that would kill, so nothing is wasted; but
+	// an animal that fights back can always be hit, and what does not fit of
+	// its kill is lost.
+	dmg := damageWith(p)
+	fits := p.Inv
+	if missing := addAll(&fits, c.Kind.loot()); missing.Valid() && (d.onLine || (!d.fights && c.HP <= dmg)) {
+		p.notify(NoticeBagFull, uint8(missing))
 		return false
 	}
 	if d.onLine {
 		w.cast(p, c) // see fishing.go
 		return true
 	}
-	c.HP -= damageWith(p)
-	if c.HP > 0 {
-		c.State, c.timer = CreatureHurt, CreatureHurtTicks
+	if !w.wound(c, dmg, p) {
 		return true
 	}
 	if d.bait.Valid() {
 		p.Inv.Take(d.bait, 1)
 	}
-	p.Inv.Add(d.yield, d.yieldN)
-	c.gone = true
+	if missing := addAll(&p.Inv, c.Kind.loot()); missing.Valid() {
+		p.notify(NoticeBagFull, uint8(missing))
+	}
 	return true
+}
+
+// addAll puts every ingredient into inv, as much of each as fits, and
+// returns the first kind that did not all fit (ItemNone if everything did).
+func addAll(inv *Inventory, items []Ingredient) ItemKind {
+	missing := ItemNone
+	for _, in := range items {
+		if inv.Add(in.Item, in.Count) < in.Count && missing == ItemNone {
+			missing = in.Item
+		}
+	}
+	return missing
 }
 
 // CreatureCandidate is what targeting needs to know about a creature.
@@ -694,10 +918,10 @@ func PickTarget(x, y float64, hasWood bool, at func(tx, ty int) (TargetCandidate
 
 // creatureCandidates lists the creatures that could be in reach of (x, y).
 func (w *World) creatureCandidates(x, y float64) []CreatureCandidate {
-	const far = 3.0 // more than any creature's reach, spear included
+	const far = CandidateRange
 	var out []CreatureCandidate
 	w.EachCreatureIn(x-far, y-far, x+far, y+far, func(c Creature) {
-		if !c.gone && c.State != CreatureHooked && c.State != CreatureHidden && c.State != CreatureLurk { // someone else's fish; down a hole; under water
+		if !c.gone && !c.State.OutOfReach() && c.rider == 0 { // someone else's fish; down a hole; under water; up in the air; ridden
 			out = append(out, CreatureCandidate{ID: c.ID, Kind: c.Kind, X: c.X, Y: c.Y})
 		}
 	})

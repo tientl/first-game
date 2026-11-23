@@ -2,6 +2,7 @@ package sim
 
 import (
 	"math"
+	"slices"
 	"testing"
 )
 
@@ -71,7 +72,12 @@ func TestEveryTierHasItsSwordAndArmour(t *testing.T) {
 				t.Fatalf("%v (tier %d): reads as tier %d, ok %v", g.item, tier, got, ok)
 			}
 			r, ok := RecipeByID(g.id)
-			if !ok || r.Gives != g.item || len(r.Inputs) == 0 || r.Inputs[len(r.Inputs)-1].Item != TierMaterial(tier) {
+			// Knives are made of their tier's stone, armour of what the hunt gives.
+			want := TierMaterial(tier)
+			if _, armour := ArmorTier(g.item); armour {
+				want = ItemHide
+			}
+			if !ok || r.Gives != g.item || !slices.ContainsFunc(r.Inputs, func(in Ingredient) bool { return in.Item == want }) {
 				t.Errorf("recipe for %s: %+v", g.item.Def().Name, r)
 			}
 		}

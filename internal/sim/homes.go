@@ -23,7 +23,7 @@ const (
 
 	homeReach      = 0.45 // close enough to a home's mouth to go in
 	homeSpread     = 1.6  // animals start this close to their home
-	homeApart      = 4    // tiles kept between two homes
+	homeApart      = 4    // tiles kept between any two homes; see creatureDef.homeSpacing
 	homeSpawnTries = 12
 )
 
@@ -48,8 +48,15 @@ func (w *World) home(c *Creature) *Entity {
 	return e
 }
 
-func (w *World) nearHome(tx, ty, r int) bool {
+// nearHome reports whether a home of kind homeKind dug at (tx, ty) would be
+// too close to another: homes of the same kind keep spacing apart (their
+// animals' ranges), any two keep homeApart.
+func (w *World) nearHome(tx, ty int, homeKind EntityKind, spacing int) bool {
 	for _, h := range w.fauna.homes {
+		r := homeApart
+		if h.kind == homeKind {
+			r = max(r, spacing)
+		}
 		if max(abs(h.tx-tx), abs(h.ty-ty)) < r {
 			return true
 		}
@@ -57,28 +64,76 @@ func (w *World) nearHome(tx, ty, r int) bool {
 	return false
 }
 
+// homeTile is how well tile t suits a home of d's kind, 0 (never) to 1.
+func (d *creatureDef) homeTile(t Tile) float64 {
+	if d.homeOn == nil {
+		return 1
+	}
+	return d.homeOn[t]
+}
+
+// meanFamily is how many animals a home of d's kind starts with, on average.
+func (d *creatureDef) meanFamily() float64 {
+	if d.family[1] == 0 {
+		return float64(max(d.perHome, 1))
+	}
+	return float64(d.family[0]+d.family[1]) / 2
+}
+
+// homeWeight is how much room for homes of kind k the spawn tiles hold: each
+// tile counts as much as it suits a home.
+func (w *World) homeWeight(k CreatureKind, spots []int32) float64 {
+	d, sum := k.def(), 0.0
+	for _, i := range spots {
+		sum += d.homeTile(w.tiles[i])
+	}
+	return sum
+}
+
+// nearTile reports whether a tile of kind t lies within r tiles of (tx, ty).
+func (w *World) nearTile(tx, ty int, t Tile, r int) bool {
+	for y := ty - r; y <= ty+r; y++ {
+		for x := tx - r; x <= tx+r; x++ {
+			if w.inBounds(x, y) && w.tiles[y*w.width+x] == t {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // placeHomes digs up to n homes for kind k on the given spawn tiles, where
-// ok allows, and puts a family around each. It returns how many it dug.
+// ok allows and the kind's habits agree: the ground suits it (homeOn), cover
+// is near (cover, coverDist) and no other home of its kind is too close
+// (homeSpacing). Each gets a family of family[0] to family[1] animals. It
+// returns how many animals it placed.
 func (w *World) placeHomes(k CreatureKind, spots []int32, n int, ok func(tx, ty int) bool) int {
 	d := k.def()
-	dug := 0
+	r := w.random()
+	placed := 0
 	for range n {
-		for range homeSpawnTries {
-			i := spots[w.random().IntN(len(spots))]
+		for range homeSpawnTries * 10 { // habits make most tiles unfit: look hard
+			i := spots[r.IntN(len(spots))]
 			tx, ty := int(i)%w.width, int(i)/w.width
-			if !ok(tx, ty) || !w.canPlace(tx, ty) || w.nearHome(tx, ty, homeApart) {
+			if r.Float64() >= d.homeTile(w.tiles[i]) || !ok(tx, ty) || !w.canPlace(tx, ty) ||
+				w.nearHome(tx, ty, d.homeKind, d.homeSpacing) ||
+				(d.coverDist > 0 && !w.nearTile(tx, ty, d.cover, d.coverDist)) {
 				continue
 			}
 			e := w.addEntity(d.homeKind, tx, ty)
 			w.fauna.homes = append(w.fauna.homes, homeRec{kind: d.homeKind, tx: tx, ty: ty, id: e.ID})
-			for range d.perHome {
+			family := d.perHome
+			if d.family[1] > 0 {
+				family = d.family[0] + r.IntN(d.family[1]-d.family[0]+1)
+			}
+			for range family {
 				w.addAtHome(k, e, false)
 			}
-			dug++
+			placed += family
 			break
 		}
 	}
-	return dug
+	return placed
 }
 
 // addAtHome puts a new animal of kind k by home e, or right at its mouth
@@ -102,12 +157,20 @@ func (w *World) addAtHome(k CreatureKind, e *Entity, atMouth bool) *Creature {
 }
 
 // repopulateAtHome brings out one new animal of kind k from one of its
-// homes that no player is near, and reports whether it could.
+// homes that no player is near and that has room (fewer than perHome living
+// there), and reports whether it could.
 func (w *World) repopulateAtHome(k CreatureKind) bool {
+	d := k.def()
+	living := make(map[EntityID]int)
+	for _, c := range w.fauna.creatures {
+		if c.Kind == k && c.home != 0 && !c.gone {
+			living[c.home]++
+		}
+	}
 	var homes []*Entity
 	for _, h := range w.fauna.homes {
-		if e := w.entities[h.id]; e != nil && e.Kind == k.def().homeKind {
-			if _, d := w.nearestPlayer(homeCentre(e)); d >= creatureSpawnAway {
+		if e := w.entities[h.id]; e != nil && e.Kind == d.homeKind && living[e.ID] < max(d.perHome, 1) {
+			if _, dist := w.nearestPlayer(homeCentre(e)); dist >= creatureSpawnAway {
 				homes = append(homes, e)
 			}
 		}

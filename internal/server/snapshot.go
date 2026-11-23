@@ -65,6 +65,7 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Acting:  p.Acting(tick),
 			Asleep:  p.Asleep,
 			Look:    p.Look,
+			Mount:   p.Mount(),
 			HasAxe:  hasAxe,
 			AxeTier: axeTier,
 			Armor:   armor,
@@ -97,6 +98,11 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Y:        float32(c.Y),
 			State:    c.State,
 			FaceLeft: c.FaceLeft,
+			Owner:    c.Owner,
+			Tamed:    c.Tamed(),
+			Tame:     uint8(min(c.Tame, 255)),
+			Stay:     c.Stay,
+			Ridden:   c.Ridden(),
 		})
 	})
 	return snap, true

@@ -63,6 +63,24 @@ const (
 	ItemIronArmor
 	ItemPlatinumArmor
 	ItemDiamondArmor
+
+	// What the great beasts give: see dino.go.
+	ItemHide     // a hide, for clothes and saddles
+	ItemBone     // bones, for tools and armour
+	ItemRexTooth // a tyrant's tooth: the finest blade edge there is
+	ItemSaddle   // carried: lets a player ride a tamed beast; see tame.go
+
+	// The ice age: see iceage.go.
+	ItemFur        // thick fur, from mammoths and sabre-tooths
+	ItemIvory      // a mammoth's tusk
+	ItemFurCoat    // carried: keeps the cold of the snow out
+	ItemIvorySpear // held: a spear tipped with ivory, the best reach and a hard thrust
+
+	// The fruit of the fruit trees: see fruit.go.
+	ItemFig
+	ItemGinkgoNut
+	ItemRoastGinkgo
+	ItemCoconut
 	NumItems
 )
 
@@ -103,39 +121,54 @@ var itemDefs = [NumItems]ItemDef{
 	ItemMushroom:    {Name: "Nấm", Hunger: 6, Health: 1},
 	ItemCoal:        {Name: "Than"},
 
-	ItemCopperOre:   {Name: "Quặng đồng"},
-	ItemIronOre:     {Name: "Quặng sắt"},
-	ItemPlatinumOre: {Name: "Quặng bạch kim"},
-	ItemDiamond:     {Name: "Kim cương"},
-	ItemCopperBar:   {Name: "Thỏi đồng"},
-	ItemIronBar:     {Name: "Thỏi sắt"},
-	ItemPlatinumBar: {Name: "Thỏi bạch kim"},
+	ItemCopperOre:   {Name: "Đá lửa thô"},
+	ItemIronOre:     {Name: "Ngọc bích thô"},
+	ItemPlatinumOre: {Name: "Mã não thô"},
+	ItemDiamond:     {Name: "Hắc diện thạch"},
+	ItemCopperBar:   {Name: "Lưỡi đá lửa"},
+	ItemIronBar:     {Name: "Ngọc bích mài"},
+	ItemPlatinumBar: {Name: "Mã não mài"},
 
-	ItemCopperAxe:       {Name: "Rìu đồng", Stack: 1, Tool: true},
-	ItemIronAxe:         {Name: "Rìu sắt", Stack: 1, Tool: true},
-	ItemPlatinumAxe:     {Name: "Rìu bạch kim", Stack: 1, Tool: true},
-	ItemDiamondAxe:      {Name: "Rìu kim cương", Stack: 1, Tool: true},
-	ItemCopperPickaxe:   {Name: "Cúp đồng", Stack: 1, Tool: true},
-	ItemIronPickaxe:     {Name: "Cúp sắt", Stack: 1, Tool: true},
-	ItemPlatinumPickaxe: {Name: "Cúp bạch kim", Stack: 1, Tool: true},
-	ItemDiamondPickaxe:  {Name: "Cúp kim cương", Stack: 1, Tool: true},
-	ItemCopperHoe:       {Name: "Cuốc đồng", Stack: 1, Tool: true},
-	ItemIronHoe:         {Name: "Cuốc sắt", Stack: 1, Tool: true},
-	ItemPlatinumHoe:     {Name: "Cuốc bạch kim", Stack: 1, Tool: true},
-	ItemDiamondHoe:      {Name: "Cuốc kim cương", Stack: 1, Tool: true},
+	ItemCopperAxe:       {Name: "Rìu đá lửa", Stack: 1, Tool: true},
+	ItemIronAxe:         {Name: "Rìu ngọc bích", Stack: 1, Tool: true},
+	ItemPlatinumAxe:     {Name: "Rìu mã não", Stack: 1, Tool: true},
+	ItemDiamondAxe:      {Name: "Rìu hắc diện thạch", Stack: 1, Tool: true},
+	ItemCopperPickaxe:   {Name: "Cúp đá lửa", Stack: 1, Tool: true},
+	ItemIronPickaxe:     {Name: "Cúp ngọc bích", Stack: 1, Tool: true},
+	ItemPlatinumPickaxe: {Name: "Cúp mã não", Stack: 1, Tool: true},
+	ItemDiamondPickaxe:  {Name: "Cúp hắc diện thạch", Stack: 1, Tool: true},
+	ItemCopperHoe:       {Name: "Cuốc đá lửa", Stack: 1, Tool: true},
+	ItemIronHoe:         {Name: "Cuốc ngọc bích", Stack: 1, Tool: true},
+	ItemPlatinumHoe:     {Name: "Cuốc mã não", Stack: 1, Tool: true},
+	ItemDiamondHoe:      {Name: "Cuốc hắc diện thạch", Stack: 1, Tool: true},
 	ItemClam:            {Name: "Sò", Hunger: 6},
 	ItemRoastClam:       {Name: "Sò nướng", Hunger: 18, Health: 4},
 	ItemCrabMeat:        {Name: "Thịt cua", Hunger: 10, Health: -1},
 	ItemCookedCrab:      {Name: "Cua nướng", Hunger: 26, Health: 6},
 
-	ItemCopperSword:   {Name: "Kiếm đồng", Stack: 1, Tool: true},
-	ItemIronSword:     {Name: "Kiếm sắt", Stack: 1, Tool: true},
-	ItemPlatinumSword: {Name: "Kiếm bạch kim", Stack: 1, Tool: true},
-	ItemDiamondSword:  {Name: "Kiếm kim cương", Stack: 1, Tool: true},
-	ItemCopperArmor:   {Name: "Giáp đồng", Stack: 1, Tool: true},
-	ItemIronArmor:     {Name: "Giáp sắt", Stack: 1, Tool: true},
-	ItemPlatinumArmor: {Name: "Giáp bạch kim", Stack: 1, Tool: true},
-	ItemDiamondArmor:  {Name: "Giáp kim cương", Stack: 1, Tool: true},
+	ItemCopperSword:   {Name: "Dao đá lửa", Stack: 1, Tool: true},
+	ItemIronSword:     {Name: "Dao ngọc bích", Stack: 1, Tool: true},
+	ItemPlatinumSword: {Name: "Dao mã não", Stack: 1, Tool: true},
+	ItemDiamondSword:  {Name: "Dao hắc diện thạch", Stack: 1, Tool: true},
+	ItemCopperArmor:   {Name: "Áo da thú", Stack: 1, Tool: true},
+	ItemIronArmor:     {Name: "Giáp xương", Stack: 1, Tool: true},
+	ItemPlatinumArmor: {Name: "Giáp mã não", Stack: 1, Tool: true},
+	ItemDiamondArmor:  {Name: "Giáp răng bạo chúa", Stack: 1, Tool: true},
+
+	ItemHide:     {Name: "Da thú"},
+	ItemBone:     {Name: "Xương"},
+	ItemRexTooth: {Name: "Răng bạo chúa"},
+	ItemSaddle:   {Name: "Yên da", Stack: 1, Tool: true},
+
+	ItemFur:        {Name: "Lông thú"},
+	ItemIvory:      {Name: "Ngà voi"},
+	ItemFurCoat:    {Name: "Áo lông", Stack: 1, Tool: true},
+	ItemIvorySpear: {Name: "Giáo ngà", Stack: 1, Tool: true},
+
+	ItemFig:         {Name: "Quả sung", Hunger: 14, Health: 2},
+	ItemGinkgoNut:   {Name: "Hạt bạch quả", Hunger: 6, Health: -2},
+	ItemRoastGinkgo: {Name: "Hạt bạch quả rang", Hunger: 18, Health: 4},
+	ItemCoconut:     {Name: "Dừa", Hunger: 12, Health: 8},
 }
 
 // Valid reports whether k is a real item kind (not ItemNone, in range).

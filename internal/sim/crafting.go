@@ -118,17 +118,17 @@ func (w *World) AllAsleep() bool {
 
 // reachBonus is how much further p reaches creatures with what is held.
 func (p *Player) reachBonus() float64 {
-	if p.Held() == ItemSpear {
-		return SpearReachBonus
-	}
-	return 0
+	return RideReach(p.mount != 0) + ReachBonusFor(p.Held()) // see tame.go
 }
 
 // ReachBonusFor is reachBonus for a held item kind, for the client's
 // highlight, which must pick the same target as the server.
 func ReachBonusFor(held ItemKind) float64 {
-	if held == ItemSpear {
+	switch held {
+	case ItemSpear:
 		return SpearReachBonus
+	case ItemIvorySpear:
+		return IvorySpearReach // see iceage.go
 	}
 	return 0
 }
@@ -137,8 +137,11 @@ func damageWith(p *Player) int {
 	if t, ok := SwordTier(p.Held()); ok {
 		return swordDamage[t]
 	}
-	if p.Held() == ItemSpear {
+	switch p.Held() {
+	case ItemSpear:
 		return SpearDamage
+	case ItemIvorySpear:
+		return IvorySpearDamage
 	}
 	return 1
 }

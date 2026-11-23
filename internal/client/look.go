@@ -118,8 +118,60 @@ func padTop(c *canvas, n int) *canvas {
 	return p
 }
 
+// torsoSpan is the columns the torso covers on row y of the 18x26 frame
+// (before the headroom) facing d, the shape the tunic and the armour follow;
+// ok is false off the torso. A man is broad across the chest and shoulders
+// and narrows to the waist; a woman is slimmer, with a narrow waist. Row 19
+// is a man's tunic hem. d is never DirLeft: that is DirRight mirrored.
+func torsoSpan(female bool, d sim.Dir, y int) (x0, x1 int, ok bool) {
+	side := d == sim.DirRight || d == sim.DirLeft
+	switch {
+	case !female && !side:
+		switch {
+		case y == 12, y == 18, y == 19:
+			return 6, 11, true
+		case y >= 13 && y <= 15:
+			return 4, 13, true
+		case y == 16, y == 17:
+			return 5, 12, true
+		}
+	case !female:
+		switch {
+		case y == 12:
+			return 7, 10, true
+		case y >= 13 && y <= 15:
+			return 5, 12, true
+		case y >= 16 && y <= 18:
+			return 6, 11, true
+		case y == 19:
+			return 7, 11, true
+		}
+	case !side:
+		switch {
+		case y == 12, y == 16, y == 17:
+			return 6, 11, true
+		case y >= 13 && y <= 15, y == 18:
+			return 5, 12, true
+		}
+	default:
+		switch {
+		case y == 12, y == 16, y == 17:
+			return 7, 10, true
+		case y >= 13 && y <= 15, y == 18:
+			return 6, 11, true
+		}
+	}
+	return 0, 0, false
+}
+
 // genPlayer draws one direction and walk frame of look l as four layers.
 // Walk frames are 0 stand, 1 left step, 2 stand, 3 right step.
+//
+// The figure is a strong survivor: a man has broad, rounded shoulders that
+// stand out past his head, thick bare arms and a chest that narrows to the
+// waist; a woman is lean and toned. Coordinates are in the 18x26 frame
+// before the headroom, feet at (9, 24); armorart.go, held.go and ride.go
+// follow the same frame.
 func genPlayer(l sim.Look, d sim.Dir, frame int) (back, legs, shirt, top sprite) {
 	l = l.Sanitized()
 	sk := skinTones[l.Skin].ramp
@@ -137,24 +189,29 @@ func genPlayer(l sim.Look, d sim.Dir, frame int) (back, legs, shirt, top sprite)
 	case 3:
 		step = 1
 	}
+	male := !l.Female
 
-	// A man wears a shirt and trousers; a woman a dress (shirt and skirt in
-	// the player's colour) over bare legs.
-	legRamp := pantsRamp
-	if l.Female {
-		legRamp = sk
-	}
+	// Everyone dresses in hide: a man in a one-shouldered tunic, a woman in a
+	// hide dress, both in the player's colour, ragged at the hem, over bare
+	// legs with hide wraps round the shins and hide boots.
 	leg := func(x0, top, bottom int, lit float64) {
 		for y := top; y <= bottom; y++ {
 			for x := x0; x < x0+3; x++ {
 				t := lit - float64(x-x0)*0.25
-				if y >= bottom-1 {
-					L.set(x, y, shoeRamp.pick(t, x, y))
-				} else {
-					L.set(x, y, legRamp.pick(t, x, y))
+				switch {
+				case y >= bottom-1:
+					L.set(x, y, darkHideRamp.pick(t, x, y)) // boots
+				case y >= bottom-3:
+					L.set(x, y, hideRamp.pick(t+0.1*float64(y%2), x, y)) // shin wraps
+				default:
+					L.set(x, y, sk.pick(t, x, y))
 				}
 			}
 		}
+	}
+	// fur gives the tunic the nap of a hide.
+	fur := func(x, y int, t float64) color.RGBA {
+		return shirtRamp.pick(t+(hashf(x, y/2, 71)-0.5)*0.16, x, y)
 	}
 	// skirt hangs from the dress's waist, x0..x1, and flares one pixel each
 	// side at the hem.
@@ -162,14 +219,51 @@ func genPlayer(l sim.Look, d sim.Dir, frame int) (back, legs, shirt, top sprite)
 		for y := 19; y <= 20; y++ {
 			grow := y - 19
 			for x := x0 - grow; x <= x1+grow; x++ {
+				if y == 20 && (x+1)%3 == 0 {
+					continue // a ragged hem
+				}
 				t := 0.9 - float64(x-x0+grow)/float64(x1-x0+2*grow)*0.6 - float64(grow)*0.15
-				S.set(x, y, shirtRamp.pick(t, x, y))
+				S.set(x, y, fur(x, y, t))
 			}
 		}
 	}
-	// waist reports whether a torso pixel is cut away for a woman's waist.
-	waist := func(x, y, left, right int) bool {
-		return l.Female && (y == 16 || y == 17) && (x == left || x == right)
+	// limb paints bare skin from shade indexes into the skin ramp, rows top
+	// to bottom, starting at column x0. -1 leaves a pixel empty.
+	limb := func(c *canvas, x0, y0 int, rows ...[]int) {
+		for dy, row := range rows {
+			for dx, i := range row {
+				if i >= 0 {
+					c.set(x0+dx, y0+dy, sk.at(i))
+				}
+			}
+		}
+	}
+	// torso fills the tunic or dress down to row last, leaving bare the
+	// pixels bare() picks: those go on the legs layer, under the shirt.
+	torso := func(last int, bare func(x, y int) bool, shade func(x, y int) float64) {
+		for y := 12; y <= last; y++ {
+			x0, x1, ok := torsoSpan(l.Female, d, y)
+			for x := x0; ok && x <= x1; x++ {
+				switch {
+				case y == 19 && x%2 == 0:
+					continue // a ragged hem
+				case bare(x, y):
+					// Bare skin, darker along the tunic's edge: the
+					// underside of the chest muscle.
+					t := 0.85
+					if !bare(x, y+1) {
+						t -= 0.35
+					}
+					L.set(x, y, sk.pick(t, x, y))
+				default:
+					t := shade(x, y)
+					if y == 17 && male {
+						t -= 0.3 // a sash of the same hide
+					}
+					S.set(x, y, fur(x, y, t))
+				}
+			}
+		}
 	}
 
 	switch d {
@@ -185,28 +279,64 @@ func genPlayer(l sim.Look, d sim.Dir, frame int) (back, legs, shirt, top sprite)
 		if l.Female {
 			skirt(5, 12)
 		}
-		// Torso with rounded shoulders.
-		for y := 12; y <= 18; y++ {
-			for x := 5; x <= 12; x++ {
-				if y == 12 && (x == 5 || x == 12) || waist(x, y, 5, 12) {
-					continue
-				}
-				S.set(x, y, shirtRamp.pick(0.95-float64(x-5)/7*0.6-float64(y-12)*0.03, x, y))
-			}
+		// The tunic goes over one shoulder only. Facing the viewer the bare
+		// one is on the left of the screen; from behind, on the right. A
+		// man's is cut diagonally from it, so the muscle of the chest (or
+		// back) shows, and comes down past the hips to a ragged hem.
+		edge, dir := 4, 1 // the bare side's outer column, and inwards
+		if l.Female {
+			edge = 5
 		}
-		// Arms swing opposite to the legs.
+		if d == sim.DirUp {
+			edge, dir = 17-edge, -1
+		}
+		bare := func(x, y int) bool {
+			in := (x - edge) * dir // columns in from the bare side's edge
+			if male {
+				return in >= 0 && in+(y-12) <= 3
+			}
+			return in >= 0 && (y == 12 && in <= 1 || y == 13 && in == 0)
+		}
+		last := 18
+		if male {
+			last = 19
+		}
+		torso(last, bare, func(x, y int) float64 {
+			t := 0.95 - float64(x-4)/9*0.6 - float64(y-12)*0.03
+			if male && y == 15 && x >= 8 {
+				t -= 0.12 // the chest's lower edge under the tunic
+			}
+			return t
+		})
+		// Bare arms swing opposite to the legs: the shoulder stays, the
+		// forearm and fist move. A man's are two pixels thick: a round
+		// shoulder standing out past his head, a bulge of biceps with a
+		// darker line above it, and the fists in by his hips. Shade indexes
+		// into the skin ramp, lit from the top left.
 		la, ra := -step, step
-		for y := 13; y <= 17; y++ {
-			S.set(4, y+la, shirtRamp.pick(0.55, 4, y))
-			S.set(13, y+ra, shirtRamp.pick(0.3, 13, y))
-		}
-		T.set(4, 18+la, sk[2])
-		T.set(13, 18+ra, sk[1])
-		if !l.Female { // a woman's shirt runs straight into the skirt
-			T.rect(5, 19, 8, 1, func(x, y int) color.RGBA { return beltRamp[(x/2)%2] })
-			if d == sim.DirDown {
-				T.set(8, 19, hex(0xc9a44a))
+		if male {
+			limb(T, 2, 12, []int{-1, 3}, []int{3, 3}, []int{2, 1}, []int{3, 2})
+			limb(T, 14, 12, []int{2, -1}, []int{2, 1}, []int{1, 0}, []int{2, 1})
+			for y := 16 + min(la, 0); y <= 17+la; y++ {
+				limb(T, 2, y, []int{2, 1})
 			}
+			for y := 16 + min(ra, 0); y <= 17+ra; y++ {
+				limb(T, 14, y, []int{1, 0})
+			}
+			limb(T, 3, 18+la, []int{3, 2}) // fists
+			limb(T, 13, 18+ra, []int{2, 1})
+		} else {
+			// A woman's arms are lean: a toned upper arm, a slim forearm.
+			limb(T, 3, 12, []int{-1, 3}, []int{3, 2}, []int{3, 2})
+			limb(T, 13, 12, []int{2, -1}, []int{2, 1}, []int{2, 1})
+			for y := 15 + min(la, 0); y <= 17+la; y++ {
+				limb(T, 4, y, []int{2})
+			}
+			for y := 15 + min(ra, 0); y <= 17+ra; y++ {
+				limb(T, 13, y, []int{1})
+			}
+			T.set(4, 18+la, sk[2])
+			T.set(13, 18+ra, sk[1])
 		}
 	case sim.DirRight:
 		back, frontX := 7, 8
@@ -215,30 +345,22 @@ func genPlayer(l sim.Look, d sim.Dir, frame int) (back, legs, shirt, top sprite)
 		}
 		leg(back, 18, 23, 0.35)
 		leg(frontX, 18, 23, 0.8)
+		last := 18
 		if l.Female {
 			skirt(6, 11)
+		} else {
+			last = 19
 		}
+		torso(last, func(int, int) bool { return false }, func(x, y int) float64 {
+			return 0.95 - float64(x-5)/7*0.55
+		})
+		// The near arm is the bare one, swinging from a fixed shoulder.
 		for y := 12; y <= 18; y++ {
-			for x := 6; x <= 11; x++ {
-				if y == 12 && (x == 6 || x == 11) || waist(x, y, 6, 11) {
-					continue
+			for x := 5; x <= 12; x++ {
+				if i := sideArm(l.Female, step, x, y); i >= 0 {
+					T.set(x, y, sk.at(i))
 				}
-				S.set(x, y, shirtRamp.pick(0.9-float64(x-6)/5*0.5, x, y))
 			}
-		}
-		// One arm on the near side, swinging.
-		for y := 13; y <= 17; y++ {
-			off := 0
-			if y >= 16 {
-				off = -step
-			}
-			S.set(8+off, y, shirtRamp.pick(0.35, 8, y))
-			S.set(9+off, y, shirtRamp.pick(0.2, 9, y))
-		}
-		T.set(8-step, 18, sk[2])
-		T.set(9-step, 18, sk[1])
-		if !l.Female {
-			T.rect(6, 19, 6, 1, func(x, y int) color.RGBA { return beltRamp[(x/2)%2] })
 		}
 	}
 
@@ -261,21 +383,40 @@ func genHeadMark(l sim.Look) *ebiten.Image {
 	return back.image()
 }
 
-// drawHead draws a big round head (chibi proportions) centred on (cx, cy)
-// in c, with l's face and hair. Hair hanging behind the body goes in behind.
+// headRX and headRY are the head's radii in art pixels: a big head, but not
+// a chibi's.
+const headRX, headRY = 5.4, 5.2
+
+// drawHead draws a round head centred on (cx, cy) in c, with l's face and
+// hair. Hair hanging behind the body goes in behind.
 // d is never DirLeft: that is the mirror image of DirRight.
 func drawHead(c, behind *canvas, l sim.Look, d sim.Dir, cx, cy int) {
-	const rx, ry = 6.0, 5.8
+	const rx, ry = headRX, headRY
 	l = l.Sanitized()
 	hr, sk := hairColors[l.HairColor].ramp, skinTones[l.Skin].ramp
 	fx, fy := float64(cx), float64(cy)
-	c.ellipse(fx, fy, rx, ry, func(x, y int, nx, ny float64) color.RGBA {
-		l2 := lum(nx, ny)
-		if hairCap(l.Hair, d, x-cx+9, nx, ny) {
-			return hr.pick(l2+0.1, x, y)
+	// A round head; a man's has a squarer jaw, filling out the lower corners.
+	inHead := func(nx, ny float64) bool {
+		if nx*nx+ny*ny <= 1 {
+			return true
 		}
-		return sk.pick(l2+0.25, x, y)
-	})
+		ax, ay := math.Abs(nx), math.Abs(ny)
+		return !l.Female && ny > 0.3 && ax*ax*ax+ay*ay*ay <= 1
+	}
+	for y := cy - 7; y <= cy+7; y++ { // a box round the head (headRX, headRY < 7)
+		for x := cx - 7; x <= cx+7; x++ {
+			nx, ny := (float64(x)+0.5-fx)/rx, (float64(y)+0.5-fy)/ry
+			if !inHead(nx, ny) {
+				continue
+			}
+			l2 := lum(nx, ny)
+			if hairCap(l.Hair, d, x-cx+9, nx, ny) {
+				c.set(x, y, hr.pick(l2+0.1, x, y))
+			} else {
+				c.set(x, y, sk.pick(l2+0.25, x, y))
+			}
+		}
+	}
 	// isHair reports whether the head pixel at (x, y) is hair, so the face
 	// is not drawn over it.
 	isHair := func(x, y int) bool {
@@ -297,6 +438,10 @@ func drawHead(c, behind *canvas, l sim.Look, d sim.Dir, cx, cy int) {
 		if l.Female { // lashes
 			face(cx-4, cy, eye)
 			face(cx+3, cy, eye)
+		} else { // heavy brows
+			for _, bx := range []int{cx - 4, cx - 3, cx + 2, cx + 3} {
+				face(bx, cy, hr[1])
+			}
 		}
 		face(cx-4, cy+3, blush)
 		face(cx+3, cy+3, blush)
@@ -305,8 +450,11 @@ func drawHead(c, behind *canvas, l sim.Look, d sim.Dir, cx, cy int) {
 		face(cx+3, cy+2, eye)
 		if l.Female {
 			face(cx+4, cy, eye)
+		} else {
+			face(cx+3, cy, hr[1])
+			face(cx+4, cy, hr[1])
 		}
-		face(cx+5, cy+3, blush)
+		face(cx+2, cy+3, blush) // the cheek, below and behind the eye
 		face(cx-1, cy+1, sk[1]) // ear
 	case sim.DirUp:
 		c.set(cx, cy-4, hr[3])
@@ -414,7 +562,13 @@ func hairExtras(c, behind *canvas, s sim.HairStyle, d sim.Dir, cx, cy float64, h
 			return hr.pick(lum(nx, ny)+0.1, px, py)
 		})
 	}
-	ix, iy := int(cx), int(cy)
+	// The shapes below were laid out for a head six pixels in radius; k
+	// scales them to the head's size. at, col and row place an offset from
+	// the head's centre.
+	k := headRX / 6
+	at := func(dx, dy float64) [2]float64 { return [2]float64{cx + dx*k, cy + dy*k} }
+	col := func(o float64) int { return int(cx) + int(math.Round(o*k)) }
+	row := func(o float64) int { return int(cy) + int(math.Round(o*k)) }
 	switch s {
 	case sim.HairSpiky:
 		tips := [][2]float64{{-5.5, -6.5}, {-2.8, -8.5}, {0, -9.2}, {2.8, -8.5}, {5.5, -6.5}}
@@ -423,51 +577,78 @@ func hairExtras(c, behind *canvas, s sim.HairStyle, d sim.Dir, cx, cy float64, h
 			lean = 1.6 // swept back
 			tips = [][2]float64{{-7, -4}, {-5, -7.5}, {-2, -9}, {1.5, -8.5}, {4, -7}}
 		}
+		base, half := cy-3.6*k, 1.9*k
 		for _, tp := range tips {
-			x, y := cx+tp[0], cy+tp[1]
-			c.polygon([]float64{x + lean - 1.9, cy - 3.6, x, y, x + lean + 1.9, cy - 3.6}, func(px, py int) color.RGBA {
+			p := at(tp[0], tp[1])
+			x, y, sx := p[0], p[1], p[0]+lean*k
+			c.polygon([]float64{sx - half, base, x, y, sx + half, base}, func(px, py int) color.RGBA {
 				return hr.pick(0.85-(float64(px)+0.5-cx)/12-(float64(py)-y)*0.04, px, py)
 			})
 		}
 	case sim.HairBob:
 		switch d {
 		case sim.DirDown:
-			strands(c, ix-7, iy-2, ix-5, iy+5)
-			strands(c, ix+4, iy-2, ix+6, iy+5)
+			strands(c, col(-7), row(-2), col(-5), row(5))
+			strands(c, col(4), row(-2), col(6), row(5))
 		case sim.DirUp:
-			strands(c, ix-6, iy+2, ix+5, iy+5)
+			strands(c, col(-6), row(2), col(5), row(5))
 		case sim.DirRight:
-			strands(c, ix-7, iy, ix-3, iy+4)
+			strands(c, col(-7), row(0), col(-3), row(4))
 		}
 	case sim.HairLong:
 		switch d {
 		case sim.DirDown:
-			strands(c, ix-7, iy-1, ix-5, iy+8)
-			strands(c, ix+4, iy-1, ix+6, iy+8)
-			strands(behind, ix-6, iy+3, ix+5, iy+8)
+			strands(c, col(-7), row(-1), col(-5), row(8))
+			strands(c, col(4), row(-1), col(6), row(8))
+			strands(behind, col(-6), row(3), col(5), row(8))
 		case sim.DirUp:
-			strands(c, ix-6, iy+2, ix+5, iy+8)
+			strands(c, col(-6), row(2), col(5), row(8))
 		case sim.DirRight:
-			strands(c, ix-7, iy, ix-3, iy+8)
+			strands(c, col(-7), row(0), col(-3), row(8))
 		}
 	case sim.HairPonytail:
 		switch d {
 		case sim.DirDown: // the tail swings out from behind the head
-			tail(behind, [][2]float64{{cx + 3.5, cy - 3.5}, {cx + 6.2, cy - 1}, {cx + 7, cy + 2.5}, {cx + 6.2, cy + 6}}, 2.0, 0.8)
+			tail(behind, [][2]float64{at(3.5, -3.5), at(6.2, -1), at(7, 2.5), at(6.2, 6)}, 2.0*k, 0.8*k)
 		case sim.DirUp:
-			tail(c, [][2]float64{{cx, cy + 1}, {cx + 0.2, cy + 4}, {cx + 0.8, cy + 7}, {cx + 1.4, cy + 9.5}}, 1.9, 0.7)
-			c.set(ix-1, iy+2, hairTie)
-			c.set(ix, iy+2, hairTie)
+			tail(c, [][2]float64{at(0, 1), at(0.2, 4), at(0.8, 7), at(1.4, 9.5)}, 1.9*k, 0.7*k)
+			c.set(col(-1), row(2), hairTie)
+			c.set(col(0), row(2), hairTie)
 		case sim.DirRight:
-			tail(c, [][2]float64{{cx - 4.5, cy - 3}, {cx - 6.8, cy - 0.5}, {cx - 7.4, cy + 3}, {cx - 6.8, cy + 6.5}}, 1.9, 0.7)
-			c.set(ix-6, iy-2, hairTie)
-			c.set(ix-5, iy-3, hairTie)
+			tail(c, [][2]float64{at(-4.5, -3), at(-6.8, -0.5), at(-7.4, 3), at(-6.8, 6.5)}, 1.9*k, 0.7*k)
+			c.set(col(-6), row(-2), hairTie)
+			c.set(col(-5), row(-3), hairTie)
 		}
 	case sim.HairBun:
+		p := at(0, -6.4)
 		if d == sim.DirRight {
-			blob(c, cx-1.5, cy-6, 2.6)
-		} else {
-			blob(c, cx, cy-6.4, 2.6)
+			p = at(-1.5, -6)
 		}
+		blob(c, p[0], p[1], 2.6*k)
 	}
+}
+
+// sideArm is the shade index into the skin ramp of the near arm's pixel
+// (x, y) for a figure facing right on walk step step, or -1 off the arm.
+// The shoulder and upper arm stay; the forearm and fist swing. A man's arm
+// has a round shoulder and a bulging upper arm. armorart.go leaves the arm
+// out of the armour with it.
+func sideArm(female bool, step, x, y int) int {
+	if y >= 16 && y <= 18 { // the forearm and the fist
+		switch x {
+		case 8 - step:
+			return 2
+		case 9 - step:
+			return 1
+		}
+		return -1
+	}
+	upper, x0 := [4][]int{{-1, 3, 2, -1}, {3, 3, 2, 1}, {-1, 2, 1, 1}, {-1, 2, 3, 1}}, 7
+	if female {
+		upper, x0 = [4][]int{{3, 2}, {3, 2}, {2, 1}, {3, 1}}, 8
+	}
+	if y < 12 || y > 15 || x < x0 || x >= x0+len(upper[y-12]) {
+		return -1
+	}
+	return upper[y-12][x-x0]
 }

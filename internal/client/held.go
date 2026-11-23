@@ -5,7 +5,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
 
@@ -95,13 +94,17 @@ func (g *Game) drawHeld(dst *ebiten.Image, k sim.ItemKind, dir sim.Dir, sx, sy, 
 	}
 
 	switch k {
-	case sim.ItemSpear:
+	case sim.ItemSpear, sim.ItemIvorySpear:
 		// Upright beside the body; sideways it points ahead.
 		tilt := 0.15
 		if dir == sim.DirLeft || dir == sim.DirRight {
 			tilt = 1.25
 		}
-		drawAt(dst, g.art.heldSpear, math.Round(hx), math.Round(hy)+1, side, 1, tilt*side, nil)
+		s := g.art.heldSpear
+		if k == sim.ItemIvorySpear {
+			s = g.art.heldIvorySpear
+		}
+		drawAt(dst, s, math.Round(hx), math.Round(hy)+1, side, 1, tilt*side, nil)
 	case sim.ItemRod:
 		tilt := 0.5
 		if dir == sim.DirLeft || dir == sim.DirRight {
@@ -138,7 +141,3 @@ func (g *Game) drawHeld(dst *ebiten.Image, k sim.ItemKind, dir sim.Dir, sx, sy, 
 		dst.DrawImage(icon, op)
 	}
 }
-
-// swingsTool reports whether p is shown swinging a tool while working: the
-// axe comes out for every job if the player carries one.
-func swingsTool(p protocol.PlayerView) bool { return p.Acting && p.HasAxe }

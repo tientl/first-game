@@ -69,8 +69,11 @@ type Game struct {
 	curr          protocol.Snapshot
 	currAt        time.Time
 	prevPlayers   map[sim.PlayerID]protocol.PlayerView
-	swingAt       map[sim.PlayerID]int // frame each player's latest blow began; see slash.go
+	swingAt       map[sim.PlayerID]int       // frame each player's latest blow began; see slash.go
+	swingWhat     map[sim.PlayerID]swingInfo // what that blow was at, and with what; see swing.go
 	prevCreatures map[sim.CreatureID]protocol.CreatureView
+	hearts        []heartFX      // floating up from beasts being fed; see ride.go
+	riders        []int          // scratch: players drawn on their mounts this frame
 	entAt         map[[2]int]int // tile -> index into curr.Entities
 
 	sentInput sim.Input
@@ -113,6 +116,7 @@ type Game struct {
 	darkness *ebiten.Image
 	caveMask *ebiten.Image // one pixel per tile in view: where it is always dark
 	lavaMask *ebiten.Image // one pixel per tile in view: where lava glows
+	canopy   *ebiten.Image // one pixel per tile in view: where the woods shade the ground
 	drawList []drawable
 	frame    int
 }
@@ -334,6 +338,7 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 	}
 	g.curr, g.currAt, g.hasCurr = s, time.Now(), true
 	g.noteSwings(s)
+	g.classifySwings(old, s)
 	if !g.selKnown && sim.IsHotbar(int(s.Self.Selected)) {
 		g.hotSel, g.sentSel, g.selKnown = int(s.Self.Selected), int(s.Self.Selected), true
 	}
@@ -421,8 +426,12 @@ func (g *Game) handleInput() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
 		g.command(sim.Command{Kind: sim.CmdCraft, Recipe: g.cookRecipe()})
 	}
-	if g.curr.Self.Dead && inpututil.IsKeyJustPressed(ebiten.KeyR) {
-		g.command(sim.Command{Kind: sim.CmdRespawn})
+	if inpututil.IsKeyJustPressed(ebiten.KeyR) {
+		if g.curr.Self.Dead {
+			g.command(sim.Command{Kind: sim.CmdRespawn})
+		} else {
+			g.command(sim.Command{Kind: sim.CmdRide}) // see ride.go
+		}
 	}
 }
 
@@ -566,9 +575,11 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 			return "Cần Rìu đá — nhặt cành cây và đá cuội rồi nhấn Q"
 		case k == sim.ItemPickaxe:
 			return "Cần Cúp đá — nhặt cành cây và đá cuội, làm trong túi đồ (B)"
+		case k == sim.ItemSaddle:
+			return "Cần Yên da trong túi để cưỡi — làm từ 4 Da thú, 2 Cỏ khô, 1 Xương (B)"
 		case class == sim.ToolPickaxe:
 			// Ores: the pickaxe one tier below, or better.
-			return "Cần " + k.Def().Name + " trở lên — nung " + strings.ToLower(sim.TierMaterial(tier).Def().Name) + " ở lò rồi làm trong túi đồ (B)"
+			return "Cần " + k.Def().Name + " trở lên — làm từ " + strings.ToLower(sim.TierMaterial(tier).Def().Name) + " trong túi đồ (B)"
 		case k.Def().Tool && class != sim.ToolAxe:
 			return "Cầm " + k.Def().Name + " trên tay (chọn ở ô nhanh 1-0)"
 		}
@@ -587,6 +598,28 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		return "Rương đầy rồi — không cất thêm " + strings.ToLower(sim.ItemKind(arg).Def().Name) + " được"
 	case sim.NoticeChestNotEmpty:
 		return "Rương còn đồ — lấy hết ra rồi mới dỡ được"
+	case sim.NoticeFed:
+		return "Cho " + strings.ToLower(sim.CreatureKind(arg).Name()) + " ăn — nó bớt sợ bạn rồi"
+	case sim.NoticeTamed:
+		return "Đã thuần hóa " + strings.ToLower(sim.CreatureKind(arg).Name()) + "! Nó sẽ đi theo bạn"
+	case sim.NoticeTooWild:
+		return sim.CreatureKind(arg).Name() + " chưa chịu ăn — đánh cho nó gục đã rồi cho ăn"
+	case sim.NoticeAngry:
+		return sim.CreatureKind(arg).Name() + " đang nổi giận, không chịu ăn"
+	case sim.NoticeNotYours:
+		return "Đây là thú của người khác"
+	case sim.NoticePetStay:
+		return sim.CreatureKind(arg).Name() + " sẽ đứng chờ ở đây"
+	case sim.NoticePetCome:
+		return sim.CreatureKind(arg).Name() + " sẽ đi theo bạn"
+	case sim.NoticeNoMount:
+		return "Không có thú nào của bạn ở gần để cưỡi"
+	case sim.NoticeCantRide:
+		return sim.CreatureKind(arg).Name() + " không cưỡi được"
+	case sim.NoticeHealed:
+		return sim.CreatureKind(arg).Name() + " ăn xong, khỏe hơn rồi"
+	case sim.NoticeSkittish:
+		return sim.CreatureKind(arg).Name() + " chạy mất rồi — chờ nó dừng lại thở dốc mới cho ăn được"
 	case sim.NoticeNeedFurnace:
 		if r, ok := sim.RecipeByID(sim.RecipeID(arg)); ok {
 			return "Đứng cạnh Lò nung đang cháy để làm " + r.Name + " (thêm than hoặc củi vào lò)"
@@ -598,8 +631,19 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		return "Cần " + sim.ItemKind(arg).Def().Name + " làm mồi câu — bắt giun trên bãi cỏ"
 	case sim.NoticeBitten:
 		verb := " cắn!"
-		if sim.CreatureKind(arg) == sim.CreatureCrab {
+		switch sim.CreatureKind(arg) {
+		case sim.CreatureCrab:
 			verb = " kẹp!"
+		case sim.CreatureTrike, sim.CreatureToro, sim.CreatureMammoth:
+			verb = " húc!"
+		case sim.CreatureAnzu:
+			verb = " đá!"
+		case sim.CreatureQuetzal:
+			verb = " mổ!"
+		case sim.CreatureStego:
+			verb = " quất đuôi!"
+		case sim.CreaturePtero:
+			verb = " mổ!"
 		}
 		return "Bị " + strings.ToLower(sim.CreatureKind(arg).Name()) + verb
 	case sim.NoticeNeedFire:

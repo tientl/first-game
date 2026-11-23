@@ -53,6 +53,14 @@ var (
 		sim.ItemRoastClam:   "Đứng gần lửa trại đang cháy, nhấn F để nướng 2 con sò.",
 		sim.ItemCrabMeat:    "Bắt cua trên bãi cát sát mép nước: chặn đường ra biển kẻo nó lặn mất, coi chừng bị kẹp. Nướng ở lửa trại (F).",
 		sim.ItemCookedCrab:  "Đứng gần lửa trại đang cháy, nhấn F để nướng thịt cua.",
+		sim.ItemHide:        "Lột từ khủng long và thằn lằn bay khi săn được. Dùng may đồ da.",
+		sim.ItemBone:        "Lấy từ khủng long và thằn lằn cổ dài khi săn được. Dùng làm dụng cụ và giáp.",
+		sim.ItemRexTooth:    "Răng khủng long bạo chúa: lưỡi sắc nhất thời tiền sử. Chỉ có khi hạ được bạo chúa.",
+		sim.ItemSaddle:      "Có trong túi thì cưỡi được thú đã thuần (khủng long ba sừng, raptor, voi ma mút): đứng gần nó, nhấn R.",
+		sim.ItemFur:         "Lông dày của voi ma mút và hổ răng kiếm. Dùng may Áo lông.",
+		sim.ItemIvory:       "Ngà voi ma mút. Làm mũi Giáo ngà.",
+		sim.ItemFurCoat:     "Có trong túi thì không bị lạnh khi đi trên tuyết (ban đêm vẫn cần lửa).",
+		sim.ItemIvorySpear:  "Cầm trên tay: đánh mạnh gấp bốn tay không và với xa nhất.",
 	}
 	colBad = color.RGBA{236, 110, 110, 255}
 )

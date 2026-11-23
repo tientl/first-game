@@ -29,11 +29,20 @@ const (
 	forestLine = 0.54 // moisture above this is forest
 	rockLine   = 0.66 // rock noise above this is rocky ground
 
+	// jungleForestLine is forestLine in open worlds made since StyleJungle.
+	jungleForestLine = 0.42
+
+	// Share of tiles with a tree, by ground: the woods are thick, the
+	// meadows dotted, the swamps have a few.
+	forestTrees = 0.55
+	grassTrees  = 0.07
+	marshTrees  = 0.1
+
 	clearSpawnRadius = 2 // tiles kept free of entities around the spawn
 
 	// Share of trees and boulders that are big. Old forest grows the big trees;
 	// out in the open most trees are young.
-	bigForestTree = 0.35
+	bigForestTree = 0.45
 	bigGrassTree  = 0.15
 	bigBoulder    = 0.3
 )
@@ -57,6 +66,7 @@ func Generate(cfg GenConfig) (*World, error) {
 		w.scatterOpen(rng, rand.New(rand.NewPCG(cfg.Seed, 0xb16b16)))
 		w.scatterPebbles(rand.New(rand.NewPCG(cfg.Seed, 0x9ebb1e)))
 		w.scatterOres(rand.New(rand.NewPCG(cfg.Seed, 0x0de5)))
+		w.scatterFruit(rand.New(rand.NewPCG(cfg.Seed, 0xf1f)))
 		w.spawnX, w.spawnY = float64(sx)+0.5, float64(sy)+0.5
 		w.clearAround(sx, sy, clearSpawnRadius)
 		w.starterKit(rng)
@@ -69,6 +79,7 @@ func Generate(cfg GenConfig) (*World, error) {
 	w.scatterEntities(rng, rand.New(rand.NewPCG(cfg.Seed, 0xb16b16)))
 	w.scatterPebbles(rand.New(rand.NewPCG(cfg.Seed, 0x9ebb1e)))
 	w.scatterOres(rand.New(rand.NewPCG(cfg.Seed, 0x0de5)))
+	w.scatterFruit(rand.New(rand.NewPCG(cfg.Seed, 0xf1f)))
 	if err := w.pickSpawn(); err != nil {
 		return nil, err
 	}
@@ -114,9 +125,9 @@ func (w *World) scatterEntities(rng, sizeRng *rand.Rand) {
 			tile := w.tiles[ty*w.width+tx]
 			switch tile {
 			case TileForest:
-				kind = pick(r, chance{EntityTree, 0.38}, chance{EntityBerryBush, 0.03}, chance{EntityGrassTuft, 0.03}, chance{EntityTwig, 0.035})
+				kind = pick(r, chance{EntityTree, forestTrees}, chance{EntityBerryBush, 0.03}, chance{EntityGrassTuft, 0.03}, chance{EntityTwig, 0.035})
 			case TileGrass:
-				kind = pick(r, chance{EntityTree, 0.04}, chance{EntityGrassTuft, 0.08}, chance{EntityBerryBush, 0.03}, chance{EntityTwig, 0.015})
+				kind = pick(r, chance{EntityTree, grassTrees}, chance{EntityGrassTuft, 0.08}, chance{EntityBerryBush, 0.03}, chance{EntityTwig, 0.015})
 			case TileRocky:
 				kind = pick(r, chance{EntityBoulder, 0.12}, chance{EntityGrassTuft, 0.02})
 			case TileSand:

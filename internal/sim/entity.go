@@ -15,6 +15,7 @@ const (
 	TileCave     // open world: a tunnel floor inside a mountain, always dark
 	TileAsh      // open world: volcanic ash around the volcano
 	TileLava     // open world: impassable, glows, warms whoever stands near
+	TileSnow     // open world: the frozen north, freezing to stand on; see iceage.go
 	NumTiles
 )
 
@@ -62,6 +63,9 @@ const (
 	EntityClam      // open world: clams on the sand by the sea, picked by hand
 	EntityStoneWall // built: blocks the way; a pickaxe takes it down
 	EntityChest     // built: stores things; see chest.go
+	EntityFigTree   // fruit trees, picked by hand: see fruit.go
+	EntityGinkgoTree
+	EntityPalm
 	NumEntityKinds
 )
 
@@ -85,14 +89,17 @@ var entityNames = [NumEntityKinds]string{
 	EntityMushroom:  "Nấm",
 	EntityCoal:      "Mỏ than",
 
-	EntityCopperOre:   "Mỏ đồng",
-	EntityIronOre:     "Mỏ sắt",
-	EntityPlatinumOre: "Mỏ bạch kim",
-	EntityDiamondOre:  "Mỏ kim cương",
+	EntityCopperOre:   "Mạch đá lửa",
+	EntityIronOre:     "Mạch ngọc bích",
+	EntityPlatinumOre: "Mạch mã não",
+	EntityDiamondOre:  "Mạch hắc diện thạch",
 	EntityFurnace:     "Lò nung",
 	EntityClam:        "Bãi sò",
 	EntityStoneWall:   "Tường đá",
 	EntityChest:       "Rương",
+	EntityFigTree:     "Cây sung",
+	EntityGinkgoTree:  "Cây bạch quả",
+	EntityPalm:        "Cây dừa",
 }
 
 // Name is the display name of k.
@@ -126,7 +133,8 @@ func Interactable(kind EntityKind, ready, hasWood bool) bool {
 		return ready
 	case EntityCoal, EntityCopperOre, EntityIronOre, EntityPlatinumOre, EntityDiamondOre:
 		return true
-	case EntityTree, EntityBerryBush, EntityGrassTuft, EntityTwig, EntityPebble, EntityCrop:
+	case EntityTree, EntityBerryBush, EntityGrassTuft, EntityTwig, EntityPebble, EntityCrop,
+		EntityFigTree, EntityGinkgoTree, EntityPalm:
 		return ready
 	case EntityBoulder, EntityWall, EntityStoneWall, EntityBed, EntityFarmland, EntityChest:
 		return true

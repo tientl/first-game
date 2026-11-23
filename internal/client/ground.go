@@ -47,6 +47,7 @@ type terrain struct {
 	w, h  int
 	tiles []sim.Tile
 	sdf   []float32
+	pond  []float32 // 1 in and beside swamp ponds; see swampart.go
 }
 
 func newTerrain(w, h int, tiles []sim.Tile) *terrain {
@@ -109,6 +110,7 @@ func newTerrain(w, h int, tiles []sim.Tile) *terrain {
 			t.sdf[i] = v
 		}
 	}
+	t.pond = swampPonds(w, h, tiles)
 	return t
 }
 
@@ -154,6 +156,9 @@ func (t *terrain) landType(u, v float64) (best, second sim.Tile, margin float64)
 		k := t.tile(tx, ty)
 		if k == sim.TileWater {
 			k = sim.TileSand // the sea floor and beaches are sand
+			if t.pondTile(tx, ty) {
+				k = sim.TileMarsh // but a swamp pond's bed is mud
+			}
 		}
 		score[k] += w
 		present[k] = true
@@ -283,6 +288,12 @@ func (t *terrain) groundPixel(px, py int) (color.RGBA, float64, bool) {
 		if shadow > 0 {
 			c = mix(c, colInk, shadow) // at the foot of a mountain's face
 		}
+		if s < surfLand && t.pondAt(u, v) > 0.5 { // a swamp pond's bank: wet mud, and no surf
+			if s < 0.22 {
+				c = swampBank(c, px, py, s)
+			}
+			return c, s, false
+		}
 		if s < 0.22 { // wet sand at the water's edge
 			c = mix(c, hex(0x6b5a3e), 0.45*(1-s/0.22))
 			if s < 0.05 {
@@ -290,6 +301,10 @@ func (t *terrain) groundPixel(px, py int) (color.RGBA, float64, bool) {
 			}
 		}
 		return c, s, true
+	}
+
+	if t.pondAt(u, v) > 0.5 {
+		return t.swampWater(px, py, u, v, s), s, false // still, murky water: no surf
 	}
 
 	// Sea. A south-facing shore gets an earth wall hanging below it.

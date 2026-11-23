@@ -18,7 +18,9 @@ import (
 //   - 6: entity HP counts in HitPower units (tools of each tier hit harder);
 //     ores and furnaces exist.
 //   - 7: a day lasts twice as long (8 minutes); older ticks are doubled.
-const SaveVersion = 7
+//   - 8: tamed beasts are saved with their owners' names.
+//   - 9: fruit trees grow wild.
+const SaveVersion = 9
 
 // v6DayTicks is how long a day was in saves before version 7.
 const v6DayTicks = 240 * TicksPerSecond
@@ -35,6 +37,7 @@ type SaveData struct {
 	Players       []PlayerSave // online and offline, matched to joiners by name
 	Style         WorldStyle   `json:",omitempty"` // which generator made the terrain
 	Chests        []ChestSave  `json:",omitempty"` // what each chest holds
+	Pets          []PetSave    `json:",omitempty"` // tamed beasts; wild ones are not saved
 }
 
 // PlayerSave is the persistent part of a player.
@@ -119,6 +122,7 @@ func (w *World) Save() SaveData {
 	}
 	d.NextEntity = w.nextEnt
 	d.Chests = w.saveChests()
+	d.Pets = w.savePets() // see tame.go
 	for _, e := range w.entities {
 		d.Entities = append(d.Entities, *e)
 	}
@@ -174,7 +178,8 @@ func Load(d SaveData) (*World, error) {
 	// generated ones: version 1 had no twigs, versions before 5 no pebbles.
 	var fresh []Entity
 	for _, e := range w.entities {
-		if e.Kind == EntityTwig && d.Version < 2 || e.Kind == EntityPebble && d.Version < 5 {
+		if e.Kind == EntityTwig && d.Version < 2 || e.Kind == EntityPebble && d.Version < 5 ||
+			IsFruitTree(e.Kind) && d.Version < 9 {
 			fresh = append(fresh, *e)
 		}
 	}
@@ -251,6 +256,7 @@ func Load(d SaveData) (*World, error) {
 			w.offline[name] = ps
 		}
 	}
+	w.loadPets(d.Pets)
 	w.watchAll() // regrowing plants, fires and soil from the save keep going
 	return w, nil
 }

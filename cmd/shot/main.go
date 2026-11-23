@@ -46,19 +46,24 @@ func main() {
 	open := flag.Bool("open", false, "an open world instead of the 96x96 island")
 	sizes := flag.Bool("sizes", false, "with -menu: show the world-size picker")
 	size := flag.Int("size", 256, "open world size")
-	at := flag.String("at", "", "open world: stand at desert, marsh, cave, mountain, ash or lava")
+	at := flag.String("at", "", "open world: stand at desert, marsh, pond (a swamp with ponds), cave, mountain, ash or lava")
 	female := flag.Bool("female", false, "the player is a woman")
 	hair := flag.Int("hair", 0, "the player's hair style, 0 to 5")
 	hairColor := flag.Int("haircolor", 0, "the player's hair colour, 0 to 7")
 	skin := flag.Int("skin", 0, "the player's skin tone, 0 to 5")
 	create := flag.Bool("create", false, "show the character screen of a new game")
 	croc := flag.Bool("croc", false, "put a crocodile basking next to the player, and one lurking in the nearest pond")
+	dinos := flag.Bool("dinos", false, "put one of each dinosaur around the player, in different poses (sea reptiles with -coast)")
+	ice := flag.Bool("ice", false, "put a mammoth herd, a charging mammoth and a stalking sabre-tooth around the player")
+	hell := flag.Bool("hell", false, "put one of each of the tyrant's neighbours around the player (pond crocodiles with -croc)")
+	eat := flag.Bool("eat", false, "with -dinos, -hell or -ice: the idle beasts are eating instead")
+	ride := flag.Bool("ride", false, "the player rides a tamed three-horn, with a pet raptor, someone else's waiting plate-back and a beaten raptor nearby")
 	flag.Parse()
 
 	N := 96
 	style := sim.StyleIsland
 	if *open {
-		N, style = *size, sim.StyleOpen
+		N, style = *size, sim.StyleLatest
 	}
 	w, err := sim.Generate(sim.GenConfig{Seed: *seed, Width: N, Height: N, Style: style})
 	if err != nil {
@@ -139,10 +144,11 @@ func main() {
 	}
 	if *at != "" {
 		want := map[string]sim.Tile{"desert": sim.TileDesert, "marsh": sim.TileMarsh, "cave": sim.TileCave,
-			"mountain": sim.TileMountain, "ash": sim.TileAsh, "lava": sim.TileLava, "mouth": sim.TileCave}[*at]
+			"mountain": sim.TileMountain, "ash": sim.TileAsh, "lava": sim.TileLava, "mouth": sim.TileCave, "snow": sim.TileSnow,
+			"pond": sim.TileMarsh}[*at]
 		// Desert and marsh: stand well inside, where they fill the screen.
 		deep := 0.0
-		if *at == "desert" || *at == "marsh" {
+		if *at == "desert" || *at == "marsh" || *at == "snow" || *at == "pond" {
 			deep = 0.75
 		}
 		share := func(tx, ty int) float64 {
@@ -157,6 +163,21 @@ func main() {
 			}
 			return float64(in) / float64(n)
 		}
+		ponds := func(tx, ty int) float64 {
+			n, in := 0, 0
+			for y := ty - 8; y <= ty+8; y++ {
+				for x := tx - 12; x <= tx+12; x++ {
+					n++
+					switch w.TileAt(x, y) {
+					case sim.TileWater:
+						in++
+					case sim.TileSand:
+						return 0 // a beach: that is the sea
+					}
+				}
+			}
+			return float64(in) / float64(n)
+		}
 		best := math.Inf(1)
 		bx, by := sx, sy
 		for ty := 2; ty < N-4; ty++ {
@@ -166,6 +187,9 @@ func main() {
 				}
 				if deep > 0 && share(tx, ty) < deep {
 					continue
+				}
+				if *at == "pond" && ponds(tx, ty) < 0.12 {
+					continue // a swamp with ponds all around
 				}
 				// Stand on the tile, or for impassable ground a little south
 				// of it, where it can be seen from.
@@ -343,6 +367,80 @@ func main() {
 		}
 	}
 
+	if *ride {
+		m := sim.CreatureID(1<<27 + 1)
+		snap.Creatures = append(snap.Creatures,
+			protocol.CreatureView{ID: m, Kind: sim.CreatureTrike, X: float32(sx), Y: float32(sy), Owner: 1, Tamed: true, Ridden: true},
+			protocol.CreatureView{ID: m + 1, Kind: sim.CreatureRaptor, X: float32(sx - 3), Y: float32(sy + 0.6), Owner: 1, Tamed: true},
+			protocol.CreatureView{ID: m + 2, Kind: sim.CreatureStego, X: float32(sx + 4.5), Y: float32(sy - 2.5), Owner: 2, Tamed: true, Stay: true, FaceLeft: true},
+			protocol.CreatureView{ID: m + 3, Kind: sim.CreatureRaptor, X: float32(sx + 3), Y: float32(sy + 2.5), State: sim.CreatureCower, FaceLeft: true})
+		snap.Players[0].Mount = m
+		snap.Self.Inv.Add(sim.ItemSaddle, 1)
+	}
+	if *hell {
+		id := sim.CreatureID(1 << 25)
+		put := func(k sim.CreatureKind, dx, dy float64, st sim.CreatureState, left bool) {
+			id++
+			snap.Creatures = append(snap.Creatures, protocol.CreatureView{
+				ID: id, Kind: k, X: float32(sx + dx), Y: float32(sy + dy), State: st, FaceLeft: left,
+			})
+		}
+		put(sim.CreatureQuetzal, -7.5, -2.5, sim.CreatureIdle, false)
+		put(sim.CreatureToro, 4, -4.5, sim.CreatureIdle, true)
+		put(sim.CreatureThesc, -3, -5, sim.CreatureIdle, false)
+		put(sim.CreatureThesc, -1, -6, sim.CreatureIdle, true)
+		put(sim.CreatureAnzu, 6.5, 1.5, sim.CreatureRoar, true)
+		put(sim.CreatureOrnitho, -5.5, 3.2, sim.CreatureIdle, false)
+		put(sim.CreatureOrnitho, -3.8, 4.2, sim.CreatureRest, false)
+		put(sim.CreatureAchero, 2.5, 3.5, sim.CreatureChase, true)
+		put(sim.CreatureAchero, 3.6, 4.4, sim.CreatureStrike, true)
+		put(sim.CreatureAchero, 4.8, 3.2, sim.CreatureIdle, true)
+		put(sim.CreatureQuetzal, 1.5, -2.5, sim.CreatureSoar, false)
+	}
+	if *ice {
+		id := sim.CreatureID(1 << 26)
+		put := func(k sim.CreatureKind, dx, dy float64, st sim.CreatureState, left bool) {
+			id++
+			snap.Creatures = append(snap.Creatures, protocol.CreatureView{
+				ID: id, Kind: k, X: float32(sx + dx), Y: float32(sy + dy), State: st, FaceLeft: left,
+			})
+		}
+		put(sim.CreatureMammoth, -6, -3.5, sim.CreatureIdle, false)
+		put(sim.CreatureMammoth, -3, -5, sim.CreatureIdle, false)
+		put(sim.CreatureMammoth, 4.5, -2.5, sim.CreatureChase, true)
+		put(sim.CreatureSabre, -5, 3.2, sim.CreatureChase, false)
+		put(sim.CreatureSabre, 5, 3.5, sim.CreatureStrike, true)
+	}
+	if *dinos {
+		id := sim.CreatureID(1 << 28)
+		put := func(k sim.CreatureKind, dx, dy float64, st sim.CreatureState, left bool) {
+			id++
+			snap.Creatures = append(snap.Creatures, protocol.CreatureView{
+				ID: id, Kind: k, X: float32(sx + dx), Y: float32(sy + dy), State: st, FaceLeft: left,
+			})
+		}
+		put(sim.CreatureBrachio, -8, -3.5, sim.CreatureIdle, false)
+		put(sim.CreatureTrike, -3.5, -5.5, sim.CreatureIdle, false)
+		put(sim.CreatureTrike, -1, -6.8, sim.CreatureIdle, true)
+		put(sim.CreatureTrike, 1.5, -1.5, sim.CreatureChase, true) // charging, head down
+		put(sim.CreatureStego, 5.5, -5.5, sim.CreatureIdle, true)
+		put(sim.CreatureRex, 8, 1.5, sim.CreatureRoar, true)
+		put(sim.CreatureRaptor, -6.5, 3, sim.CreatureIdle, false)
+		put(sim.CreatureRaptor, -4.8, 4.2, sim.CreatureStrike, false)
+		put(sim.CreatureRaptor, -7.4, 4.8, sim.CreatureChase, false)
+		put(sim.CreaturePtero, 3.5, -3, sim.CreatureSoar, false)
+		put(sim.CreaturePtero, 3, 3.5, sim.CreatureIdle, true)
+		if *coast {
+			put(sim.CreaturePlesio, 1.5, 4.6, sim.CreatureStrike, true)
+		}
+	}
+	if *eat {
+		for i := range snap.Creatures {
+			if c := &snap.Creatures[i]; c.State == sim.CreatureIdle && c.Kind.Feeds() {
+				c.State = sim.CreatureEat
+			}
+		}
+	}
 	if *croc {
 		snap.Creatures = append(snap.Creatures, protocol.CreatureView{
 			ID: 1<<29 + 1, Kind: sim.CreatureCroc, X: float32(sx + 4.4), Y: float32(sy + 2.3), State: sim.CreatureIdle, FaceLeft: false,

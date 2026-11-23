@@ -15,7 +15,7 @@ const mtnFaceH = 30 // art pixels of rock face along a mountain's south side
 
 var (
 	desertRamp  = mkRamp(0xb9783d, 0xcf8f4b, 0xe0a65c, 0xecbb72, 0xf5d090)
-	marshRamp   = mkRamp(0x2b3121, 0x353d27, 0x43492d, 0x525836, 0x646a40)
+	marshRamp   = mkRamp(0x2f3a1c, 0x3e4b24, 0x4c5b2b, 0x5b6b32, 0x6b7b3a, 0x7d8c45)
 	ashRamp2    = mkRamp(0x1f1d20, 0x2a272a, 0x363236, 0x433e41, 0x524c4e)
 	lavaRamp    = mkRamp(0x5a120a, 0xa3240e, 0xe2481a, 0xff8a26, 0xffc85a, 0xfff2b0)
 	caveRamp    = mkRamp(0x1a171b, 0x241f24, 0x2e282c, 0x3a3236, 0x463c3f)
@@ -23,7 +23,6 @@ var (
 	mtnFace     = mkRamp(0x221e22, 0x2f2a2f, 0x3d373c, 0x4c454a, 0x5c545a, 0x6e666b)
 	caveWall    = mkRamp(0x0e1014, 0x161a20, 0x1f252c, 0x2a323a, 0x36404a)
 	crystalRamp = mkRamp(0x2b5a8a, 0x3f86c4, 0x62b8ea, 0x9ee2ff, 0xe8fbff)
-	colPuddle   = hex(0x4f6a5c)
 	colEmber    = hex(0xff7a2a)
 )
 
@@ -49,19 +48,7 @@ func openBiome(k sim.Tile, px, py int, u, v float64) (c color.RGBA, ok bool) {
 		}
 		return desertRamp.at(i), true
 	case sim.TileMarsh:
-		n := fbm2(u*0.35, v*0.45, 111, 3)
-		i := marshRamp.idx(0.45+(n-0.5)*1.2, px, py)
-		// Puddles of standing water glinting in the mud.
-		if fbm2(u*1.4+5, v*1.8+9, 112, 2) > 0.66 {
-			if hashf(px, py, 113) < 0.08 {
-				return mix(colPuddle, colWhite, 0.4), true
-			}
-			return colPuddle, true
-		}
-		if hashf(px, py-1, 114) < 0.05 {
-			i++ // a tuft of sedge
-		}
-		return marshRamp.at(i), true
+		return marshGround(px, py, u, v), true // see swampart.go
 	case sim.TileAsh:
 		n := fbm2(u*0.4, v*0.5, 121, 3)
 		i := ashRamp2.idx(0.45+(n-0.5)*1.1, px, py)
@@ -84,6 +71,8 @@ func openBiome(k sim.Tile, px, py int, u, v float64) (c color.RGBA, ok bool) {
 		return caveRamp.at(i), true
 	case sim.TileMountain:
 		return mountainTop(px, py, u, v), true
+	case sim.TileSnow:
+		return snowGround(px, py, u, v), true // see iceart.go
 	}
 	return color.RGBA{}, false
 }

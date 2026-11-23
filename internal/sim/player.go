@@ -40,13 +40,14 @@ type Player struct {
 	explored *Explored // the tiles this player has seen, for the map
 
 	input     Input
-	actionCD  int      // ticks until the next action is allowed
-	actedAt   uint64   // tick of the last action; 0 = never
-	torchFuel int      // ticks left on the torch being burnt; 0 = none lit
-	bed       EntityID // the bed slept in
-	line      line     // the fishing line, while it is out; see fishing.go
-	pressed   bool     // Action went down since the last tick, even if already released
-	chest     EntityID // the chest open, 0 when none; see chest.go
+	actionCD  int        // ticks until the next action is allowed
+	actedAt   uint64     // tick of the last action; 0 = never
+	torchFuel int        // ticks left on the torch being burnt; 0 = none lit
+	bed       EntityID   // the bed slept in
+	line      line       // the fishing line, while it is out; see fishing.go
+	pressed   bool       // Action went down since the last tick, even if already released
+	chest     EntityID   // the chest open, 0 when none; see chest.go
+	mount     CreatureID // the beast being ridden, 0 when on foot; see tame.go
 }
 
 // Acting reports whether the player did an action recently enough to show
@@ -134,6 +135,9 @@ func (w *World) RemovePlayer(id PlayerID) {
 	if !ok {
 		return
 	}
+	if p.mount != 0 {
+		w.dismount(p)
+	}
 	w.offline[p.Name] = savePlayer(p) // kept so the player resumes on rejoin
 	delete(w.players, id)
 	if i, found := slices.BinarySearch(w.playerOrder, id); found {
@@ -207,6 +211,10 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 		if p.Dead {
 			p.reset(w.spawnX, w.spawnY)
 		}
+	case CmdRide:
+		if !p.Dead && !p.Asleep {
+			w.ride(p) // see tame.go
+		}
 	}
 }
 
@@ -214,6 +222,9 @@ func (w *World) stepPlayer(p *Player) {
 	pressed := p.pressed
 	p.pressed = false
 	w.keepChest(p)
+	if p.mount != 0 && (p.Dead || p.Asleep) {
+		w.dismount(p)
+	}
 	if p.Dead {
 		return
 	}
@@ -223,7 +234,9 @@ func (w *World) stepPlayer(p *Player) {
 	}
 
 	moving := p.input.MoveX != 0 || p.input.MoveY != 0
-	if mx, my := float64(p.input.MoveX), float64(p.input.MoveY); moving {
+	if p.mount != 0 && w.rideStep(p, moving) {
+		// riding: the mount carries p; see tame.go
+	} else if mx, my := float64(p.input.MoveX), float64(p.input.MoveY); moving {
 		l := math.Hypot(mx, my)
 		sp := PlayerSpeed * w.speedAt(p.X, p.Y)
 		dx, dy := mx/l*sp, my/l*sp
@@ -267,7 +280,7 @@ func (w *World) stepPlayer(p *Player) {
 
 	w.burnTorch(p)
 	p.Hunger = max(0, p.Hunger-HungerPerTick)
-	p.Cold = Ambient(w.tick) < ColdAmbient && !w.warm(p.X, p.Y)
+	p.Cold = (Ambient(w.tick) < ColdAmbient || w.freezing(p)) && !w.warm(p.X, p.Y) // night, or the snow: see iceage.go
 	damage := 0.0
 	if p.Hunger == 0 {
 		damage += StarveDamagePerTick
@@ -428,6 +441,9 @@ func (w *World) interact(p *Player, e *Entity) bool {
 			e.Ready = false
 			e.RegrowAt = w.tick + CactusRegrowTicks
 		})
+	case EntityFigTree, EntityGinkgoTree, EntityPalm:
+		f, _ := fruitOf(e.Kind)
+		return w.pickFruit(p, e, f)
 	case EntityReed:
 		return w.harvest(p, e, ItemGrass, ReedYield, HitPower, func() {
 			e.Ready = false

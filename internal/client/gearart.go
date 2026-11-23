@@ -50,58 +50,92 @@ func genStoneWall() (*canvas, float64, float64) {
 	return c, 12, by
 }
 
-// iconSwordCanvas is a sword with its blade in rp.
+// iconSwordCanvas is a stone knife: a leaf-shaped blade knapped from rp,
+// lashed into a wooden handle with a hide binding.
 func iconSwordCanvas(rp ramp) *canvas {
 	c := newCanvas(16, 16)
-	// Blade from the guard up to the tip, lit on one edge.
-	for i := 0; i <= 9; i++ {
-		x, y := 5+i, 10-i
-		c.set(x, y, rp.pick(0.95, x, y))
-		c.set(x, y+1, rp.pick(0.55, x, y+1))
-		if i < 9 {
-			c.set(x+1, y+1, rp.pick(0.35, x+1, y+1))
+	c.polygon([]float64{5.5, 10.5, 7.5, 6, 11, 3, 14.5, 1.5, 13, 5, 10, 8.5}, func(x, y int) color.RGBA {
+		l := 0.8 - float64(x-y)/14*0.3
+		if hashf(x, y, 63) < 0.3 {
+			l -= 0.2 // flake scars
 		}
+		return rp.pick(l, x, y)
+	})
+	c.line(7, 9, 13.5, 2.5, func(x, y int, _ float64) color.RGBA { return rp[len(rp)-1] })
+	c.line(1, 15, 6, 10, func(x, y int, _ float64) color.RGBA { return woodRamp.pick(0.6, x, y) }) // the handle
+	c.line(2, 15, 6.5, 10.5, func(x, y int, _ float64) color.RGBA { return woodRamp.pick(0.35, x, y) })
+	for _, p := range [][2]int{{4, 11}, {5, 11}, {5, 12}, {6, 12}} { // the binding
+		c.set(p[0], p[1], hideRamp.pick(0.5, p[0], p[1]))
 	}
-	c.set(14, 1, rp[len(rp)-1])
-	// Guard across the blade, grip and pommel.
-	c.line(2, 9, 6, 13, func(x, y int, _ float64) color.RGBA { return trunkRamp.pick(0.5, x, y) })
-	c.line(3, 12, 1, 14, func(x, y int, _ float64) color.RGBA { return woodRamp.pick(0.6, x, y) })
-	c.set(0, 15, rp[2])
 	c.outline(0.85)
 	return c
 }
 
-// genHeldSwordOf is a sword with its blade in rp, as held: pivot at the grip.
+// genHeldSwordOf is a stone knife with its blade in rp, as held: pivot at
+// the grip.
 func genHeldSwordOf(rp ramp) (*canvas, float64, float64) {
-	c := newCanvas(7, 20)
-	for y := 1; y <= 13; y++ {
-		c.set(2, y, rp.pick(0.95, 2, y))
-		c.set(3, y, rp.pick(0.6, 3, y))
-		c.set(4, y, rp.pick(0.35, 4, y))
-	}
-	c.set(3, 0, rp[len(rp)-1])
-	c.rect(0, 14, 7, 1, func(x, y int) color.RGBA { return trunkRamp.pick(0.5, x, y) }) // guard
-	c.rect(3, 15, 1, 4, func(x, y int) color.RGBA { return woodRamp.pick(0.6, x, y) })  // grip
-	c.set(3, 19, rp[2])
-	c.outline(0.8)
-	return c, 3, 17
-}
-
-// iconArmorCanvas is a breastplate of rp.
-func iconArmorCanvas(rp ramp) *canvas {
-	c := newCanvas(16, 16)
-	c.polygon([]float64{2, 3, 5.5, 2, 8, 4, 10.5, 2, 14, 3, 13, 8, 12, 14, 4, 14, 3, 8}, func(x, y int) color.RGBA {
-		nx := (float64(x) + 0.5 - 8) / 6
-		l := 0.85 - nx*0.35 - float64(y)*0.02
-		if x == 7 || x == 8 {
-			l += 0.1 // the ridge down the middle
+	c := newCanvas(7, 16)
+	c.polygon([]float64{3.5, 0, 5.5, 4, 5, 9, 2, 9, 1.5, 4}, func(x, y int) color.RGBA {
+		l := 0.95 - float64(x-1)*0.13
+		if hashf(x, y, 64) < 0.25 {
+			l -= 0.2
 		}
 		return rp.pick(l, x, y)
 	})
-	// Shoulders and a belt line.
-	c.ellipse(3, 4, 2, 1.6, func(x, y int, nx, ny float64) color.RGBA { return rp.pick(lum(nx, ny), x, y) })
-	c.ellipse(13, 4, 2, 1.6, func(x, y int, nx, ny float64) color.RGBA { return rp.pick(lum(nx, ny)*0.8, x, y) })
-	c.line(4, 11, 12, 11, func(x, y int, _ float64) color.RGBA { return rp[1] })
+	c.rect(2, 9, 3, 2, func(x, y int) color.RGBA { return hideRamp.pick(0.5, x, y) })  // the binding
+	c.rect(3, 11, 1, 4, func(x, y int) color.RGBA { return woodRamp.pick(0.6, x, y) }) // the handle
+	c.outline(0.85)
+	return c, 3, 13
+}
+
+// iconArmorCanvas is tier t's armour: a hide tunic, then bones lashed
+// across it, agate scales, and a tyrant's teeth.
+func iconArmorCanvas(t sim.Tier) *canvas {
+	c := newCanvas(16, 16)
+	hide := hideRamp
+	if t == sim.TierDiamond {
+		hide = darkHideRamp
+	}
+	c.polygon([]float64{2, 3, 5.5, 2, 8, 4, 10.5, 2, 14, 3, 13, 8, 12.5, 14, 3.5, 14, 3, 8}, func(x, y int) color.RGBA {
+		nx := (float64(x) + 0.5 - 8) / 6
+		l := 0.8 - nx*0.3 - float64(y)*0.02
+		if hashf(x, y, 65) < 0.15 {
+			l -= 0.2
+		}
+		return hide.pick(l, x, y)
+	})
+	switch t {
+	case sim.TierCopper: // a fur trim at the neck and hem
+		c.line(4, 13, 12, 13, func(x, y int, _ float64) color.RGBA { return furTrim.pick(0.6+float64(x%2)*0.3, x, y) })
+		c.line(5, 4, 11, 4, func(x, y int, _ float64) color.RGBA { return furTrim.pick(0.7, x, y) })
+	case sim.TierIron: // ribs of bone lashed across
+		for _, by := range []float64{6, 8.5, 11} {
+			c.line(4, by, 12, by, func(x, y int, _ float64) color.RGBA { return hornRamp.pick(0.85-float64(x)*0.03, x, y) })
+		}
+	case sim.TierPlatinum: // scales of agate
+		for y := 5; y <= 12; y += 2 {
+			for x := 4 + (y/2)%2; x <= 11; x += 2 {
+				c.set(x, y, agateRamp.pick(0.85-float64(x)*0.03, x, y))
+				c.set(x, y+1, agateRamp.pick(0.45, x, y+1))
+			}
+		}
+	case sim.TierDiamond: // a row of teeth on a cord
+		c.line(4, 6, 12, 6, func(x, y int, _ float64) color.RGBA { return hide[0] })
+		for x := 4; x <= 12; x += 2 {
+			c.set(x, 7, toothArt[3])
+			c.set(x, 8, toothArt[2])
+		}
+	}
+	// Shoulders: hide, bone, agate.
+	shoulder := hide
+	switch t {
+	case sim.TierIron, sim.TierDiamond:
+		shoulder = hornRamp
+	case sim.TierPlatinum:
+		shoulder = agateRamp
+	}
+	c.ellipse(3, 4, 2, 1.6, func(x, y int, nx, ny float64) color.RGBA { return shoulder.pick(lum(nx, ny), x, y) })
+	c.ellipse(13, 4, 2, 1.6, func(x, y int, nx, ny float64) color.RGBA { return shoulder.pick(lum(nx, ny)*0.8, x, y) })
 	c.outline(0.85)
 	return c
 }
@@ -127,7 +161,7 @@ func genGearArt() gearArt {
 func genGearIcons(icons *[sim.NumItems]*ebiten.Image) {
 	for t := sim.TierCopper; t < sim.NumTiers; t++ {
 		icons[sim.SwordItem(t)] = iconSwordCanvas(tierRamps[t]).image()
-		icons[sim.ArmorItem(t)] = iconArmorCanvas(tierRamps[t]).image()
+		icons[sim.ArmorItem(t)] = iconArmorCanvas(t).image()
 	}
 }
 
@@ -140,8 +174,8 @@ func isSword(k sim.ItemKind) bool {
 // The bag's notes on swords and armour.
 func init() {
 	for t := sim.TierCopper; t < sim.NumTiers; t++ {
-		itemInfo[sim.SwordItem(t)] = "Cầm trên tay (ô nhanh) để đánh thú: mạnh hơn giáo và kiếm bậc dưới."
-		itemInfo[sim.ArmorItem(t)] = fmt.Sprintf("Mặc khi có trong túi: đỡ %d%% sức cắn của rắn, cua. Chỉ bộ tốt nhất có tác dụng.",
+		itemInfo[sim.SwordItem(t)] = "Cầm trên tay (ô nhanh) để đánh thú: mạnh hơn giáo và dao bậc dưới."
+		itemInfo[sim.ArmorItem(t)] = fmt.Sprintf("Mặc khi có trong túi: đỡ %d%% sức tấn công của thú dữ. Chỉ bộ tốt nhất có tác dụng.",
 			int(sim.ArmorBlock(t)*100+0.5))
 	}
 }

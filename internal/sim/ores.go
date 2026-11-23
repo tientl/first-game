@@ -5,11 +5,13 @@ import (
 	"math/rand/v2"
 )
 
-// Materials come in tiers: stone, then copper, iron, platinum and diamond.
-// Each ore lies in its own region, farther from the spawn and harder to
-// reach the better it is, and only a pickaxe of the tier below mines it.
-// Metal ores are smelted into bars at a lit furnace; bars and diamonds make
-// axes, pickaxes and hoes of their tier, which hit harder.
+// Materials come in tiers: stone, then flint, jade, agate and obsidian. (In
+// the code the tiers keep the names of the metals they replaced: copper,
+// iron, platinum and diamond, so saves stay readable.) Each lies in veins in
+// its own region, farther from the spawn and harder to reach the better it
+// is, and only a pickaxe of the tier below digs it. Raw flint, jade and
+// agate are worked at a lit kiln into blades and polished stone; those and
+// obsidian make axes, pickaxes and hoes of their tier, which hit harder.
 
 // Tier is a material grade.
 type Tier uint8
