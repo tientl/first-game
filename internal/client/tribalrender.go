@@ -252,7 +252,7 @@ func tribalShadow(e protocol.EntityView) (float64, bool) {
 	case sim.EntityTreasure:
 		return 22, true
 	case sim.EntityHut:
-		return 50, true
+		return 54, true
 	case sim.EntityTotem:
 		return 14, true
 	case sim.EntityBonfire:

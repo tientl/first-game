@@ -15,22 +15,27 @@ import (
 // side-on facing right and mirrored for left, like the other animals.
 
 var (
-	spiderRamp  = mkRamp(0x120c16, 0x21162a, 0x32223e, 0x483454, 0x624a6c)
-	spiderMark  = mkRamp(0x7a1010, 0xc0281c, 0xf05a30)
-	bearRamp    = mkRamp(0x24160f, 0x3a2418, 0x553522, 0x6f4a2f, 0x8a603e, 0xa77b52)
-	tribeSkin   = mkRamp(0x1e120d, 0x2f1c14, 0x45291c, 0x5c3926, 0x744a31)
-	paintRamp   = mkRamp(0xc8c0b0, 0xf2ece0)
-	loinRamp    = mkRamp(0x4a2e1a, 0x6c4428, 0x8f5d36, 0xb07a48)
-	thatchRamp  = mkRamp(0x5a4420, 0x7d602c, 0xa1803a, 0xc4a04e, 0xe0c46e)
-	plankRamp   = mkRamp(0x4a301c, 0x654126, 0x825633, 0x9e6c42, 0xb98552)
-	glowCyan    = mkRamp(0x0c3a4a, 0x146a7a, 0x22a8b4, 0x56e2e2, 0xc0fff8)
-	glowViolet  = mkRamp(0x2a1048, 0x4a1c7a, 0x7a34b4, 0xb066e8, 0xe8b8ff)
-	glowStem    = mkRamp(0x10202a, 0x18323a, 0x234a4a, 0x2e5e58)
-	maneatRamp  = mkRamp(0x1c3a14, 0x2a561c, 0x3c7424, 0x55922e, 0x74b03a)
-	maneatMouth = mkRamp(0x5a0a14, 0x8e1424, 0xc42a36, 0xe8586a)
-	bloodRamp   = mkRamp(0x3a0408, 0x5e0a10, 0x82141a, 0xa8202a)
-	goldRamp    = mkRamp(0x6a4a10, 0xa07a1c, 0xd4aa34, 0xf4d870, 0xfff4c0)
-	bandRamp    = mkRamp(0x24262c, 0x3a3e46, 0x565c66, 0x7a828c)
+	spiderRamp   = mkRamp(0x120c16, 0x21162a, 0x32223e, 0x483454, 0x624a6c)
+	spiderMark   = mkRamp(0x7a1010, 0xc0281c, 0xf05a30)
+	bearRamp     = mkRamp(0x1c110c, 0x2e1c13, 0x45291b, 0x5e3a25, 0x774d31, 0x936541, 0xb08658)
+	bearMuzzle   = mkRamp(0x4a2e1e, 0x6e4a30, 0x957048, 0xb8946a, 0xd4b48c)
+	bearClawRamp = mkRamp(0x6a5c50, 0xb0a492, 0xece4d2)
+	tribeSkin    = mkRamp(0x100909, 0x1f120f, 0x321e16, 0x48291c, 0x603a27, 0x7c4f36)
+	tribeHair    = mkRamp(0x08060a, 0x1c1620)
+	spearShaft   = mkRamp(0x4a3018, 0x8a6234, 0xb88a4e)
+	potRamp      = mkRamp(0x4a1e12, 0x74301a, 0xa04a26, 0xc46a38, 0xe09058)
+	paintRamp    = mkRamp(0xc8c0b0, 0xf2ece0)
+	loinRamp     = mkRamp(0x4a2e1a, 0x6c4428, 0x8f5d36, 0xb07a48)
+	thatchRamp   = mkRamp(0x5a4420, 0x7d602c, 0xa1803a, 0xc4a04e, 0xe0c46e)
+	plankRamp    = mkRamp(0x4a301c, 0x654126, 0x825633, 0x9e6c42, 0xb98552)
+	glowCyan     = mkRamp(0x0c3a4a, 0x146a7a, 0x22a8b4, 0x56e2e2, 0xc0fff8)
+	glowViolet   = mkRamp(0x2a1048, 0x4a1c7a, 0x7a34b4, 0xb066e8, 0xe8b8ff)
+	glowStem     = mkRamp(0x10202a, 0x18323a, 0x234a4a, 0x2e5e58)
+	maneatRamp   = mkRamp(0x1c3a14, 0x2a561c, 0x3c7424, 0x55922e, 0x74b03a)
+	maneatMouth  = mkRamp(0x5a0a14, 0x8e1424, 0xc42a36, 0xe8586a)
+	bloodRamp    = mkRamp(0x3a0408, 0x5e0a10, 0x82141a, 0xa8202a)
+	goldRamp     = mkRamp(0x6a4a10, 0xa07a1c, 0xd4aa34, 0xf4d870, 0xfff4c0)
+	bandRamp     = mkRamp(0x24262c, 0x3a3e46, 0x565c66, 0x7a828c)
 )
 
 // fishLooks are the colours of fish, by id: clownfish, blue tang, golden
@@ -211,153 +216,429 @@ func genSpider(pose int) sprite {
 	return mk(c, 12, 14)
 }
 
-func genBear(pose int) sprite {
-	c := newCanvas(40, 30)
-	rear := pose == bearClaw
-	legX := []float64{10, 14, 25, 29}
-	off := []float64{0, 0, 0, 0}
-	switch pose {
-	case bearWalkA:
-		off = []float64{1.5, -1.5, -1.5, 1.5}
-	case bearWalkB:
-		off = []float64{-1.5, 1.5, 1.5, -1.5}
+// bearCoat is the colour of a cave bear's shaggy coat at brightness l:
+// strands of darker and lighter hair over broad, soft mottling.
+func bearCoat(x, y int, l float64) color.RGBA {
+	n := hashf(x, (y+x%2)/2, 91)
+	if n < 0.2 {
+		l -= 0.17
+	} else if n > 0.88 {
+		l += 0.1
 	}
-	leg := func(x, dx float64, far bool) {
-		b := 0.0
-		if far {
-			b = -0.2
-		}
-		for y := 19; y <= 26; y++ {
-			for xx := int(x + dx); xx < int(x+dx)+4; xx++ {
-				c.set(xx, y, bearRamp.pick(0.45+b-float64(xx-int(x+dx))*0.08, xx, y))
-			}
-		}
-		c.rect(int(x+dx)-1, 26, 5, 1, func(x, y int) color.RGBA { return bearRamp.at(0) })
-	}
-	if rear {
-		// Up on its hind legs, one great paw raised.
-		leg(12, 0, true)
-		leg(16, 0, false)
-		roundShape(c, ell{16, 13, 8, 9.5}, bearRamp, 0.05)
-		roundShape(c, ell{20, 6, 4.6, 4}, bearRamp, 0.15) // head
-		roundShape(c, ell{24, 7, 2.4, 1.8}, bearRamp, 0.3)
-		c.set(25, 6, colInk)
-		c.set(21, 4, colInk)
-		roundShape(c, ell{18, 2.5, 1.4, 1.3}, bearRamp, 0)
-		c.line(20, 10, 28, 4, func(x, y int, t float64) color.RGBA { return bearRamp.pick(0.5, x, y) })
-		c.line(20, 11, 28, 5, func(x, y int, t float64) color.RGBA { return bearRamp.pick(0.4, x, y) })
-		for k := range 3 {
-			c.set(29, 2+k, hex(0xe8e0d0)) // claws
-		}
-		c.outline(0.8)
-		return mk(c, 15, 27)
-	}
-	leg(legX[0], off[0], true)
-	leg(legX[2], off[2], true)
-	// The body: a heavy barrel with a hump over the shoulders.
-	roundShape(c, ell{19, 15, 12.5, 6.8}, bearRamp, 0)
-	roundShape(c, ell{24, 11, 6, 4.4}, bearRamp, 0.08)
-	leg(legX[1], off[1], false)
-	leg(legX[3], off[3], false)
-	// The head, low and forward.
-	hx, hy := 32.0, 14.0
-	if pose == bearBite {
-		hx, hy = 33.5, 16.0
-	}
-	roundShape(c, ell{hx, hy, 4.8, 4.2}, bearRamp, 0.12)
-	roundShape(c, ell{hx + 3.6, hy + 1.2, 2.6, 2}, bearRamp, 0.3)
-	c.set(int(hx+5.6), int(hy+0.6), colInk) // nose
-	c.set(int(hx+1), int(hy-1.4), colInk)   // eye
-	roundShape(c, ell{hx - 2, hy - 4, 1.5, 1.4}, bearRamp, 0)
-	if pose == bearBite {
-		c.rect(int(hx+2), int(hy+3), 4, 2, func(x, y int) color.RGBA { return maneatMouth.at(1) })
-		c.set(int(hx+2), int(hy+3), hex(0xf0ece0))
-		c.set(int(hx+5), int(hy+3), hex(0xf0ece0))
-	}
-	c.outline(0.8)
-	return mk(c, 19, 27)
+	l += (vnoise(float64(x)/5, float64(y)/5, 92) - 0.5) * 0.16
+	return bearRamp.pick(l, x, y)
 }
 
-// genTribesman draws a warrior side-on, facing right: dark skin, bare chest
-// painted with white stripes, a hide loincloth, a bone necklace, a crest of
-// black hair with a feather, and a stone-tipped spear.
-func genTribesman(pose int) sprite {
-	c := newCanvas(30, 34)
-	const fx = 12.0 // the line of the body
-	step := 0.0
-	switch pose {
-	case tribeWalkA:
-		step = 1.6
-	case tribeWalkB:
-		step = -1.6
-	}
-	limb := func(x0, y0, x1, y1, lit float64) {
-		for o := -0.6; o <= 0.6; o += 0.6 {
-			c.line(x0+o, y0, x1+o, y1, func(x, y int, t float64) color.RGBA { return tribeSkin.pick(lit+o*0.2, x, y) })
-		}
-	}
-	// Legs.
-	limb(fx-0.5, 21, fx-0.5-step, 30, 0.3)
-	limb(fx+1, 21, fx+1+step, 30, 0.6)
-	c.rect(int(fx-1.5-step), 30, 3, 1, func(x, y int) color.RGBA { return tribeSkin.at(0) })
-	c.rect(int(fx+0+step), 30, 3, 1, func(x, y int) color.RGBA { return tribeSkin.at(1) })
-	// The torso: broad and bare.
-	c.ellipse(fx+0.5, 16, 3.6, 5.6, func(x, y int, nx, ny float64) color.RGBA {
-		return tribeSkin.pick(lum(nx, ny)+0.15, x, y)
+func bearFur(c *canvas, e ell, bias float64) {
+	c.ellipse(e.x, e.y, e.rx, e.ry, func(x, y int, nx, ny float64) color.RGBA {
+		return bearCoat(x, y, lum(nx, ny)*0.9+bias)
 	})
-	// War paint: white stripes across the chest.
-	for _, y := range []int{14, 16} {
-		for x := int(fx) - 1; x <= int(fx)+3; x++ {
-			if c.opaque(x, y) && (x+y)%3 != 0 {
-				c.set(x, y, paintRamp.at(1))
+}
+
+func bearTube(c *canvas, bias float64, ctrl ...[3]float64) {
+	drawTubeWith(c, spine(ctrl...), func(x, y int, p *spinePt, t float64) color.RGBA {
+		return bearCoat(x, y, lum(p.nx*t*0.85, p.ny*t*0.85)+bias)
+	})
+}
+
+// bearPaw is a broad paw at (x, y), its claws pointing along (dx, dy).
+func bearPaw(c *canvas, x, y, dx, dy, bias float64) {
+	bearFur(c, ell{x, y, 2.6 + math.Abs(dx)*0.6, 1.7 + math.Abs(dy)*0.9}, bias-0.08)
+	claw := bearClawRamp.at(2)
+	if bias < 0 {
+		claw = bearClawRamp.at(1)
+	}
+	px, py := -dy, dx
+	for k := -1.0; k <= 1; k++ {
+		bx, by := x+dx*2.6+px*k*1.5, y+dy*1.8+py*k*1.5
+		c.set(int(bx), int(by), claw)
+		c.set(int(bx+dx*1.1), int(by+dy*1.1+math.Abs(dx)*0.6), bearClawRamp.at(0))
+	}
+}
+
+// bearLeg is a thick leg from the hip to a paw flat on the ground at gy.
+func bearLeg(c *canvas, hx, hy, fx, gy, r, bias float64) {
+	bearTube(c, bias, [3]float64{hx, hy, r}, [3]float64{(hx+fx)/2 - 0.4, (hy + gy) / 2, r * 0.86}, [3]float64{fx, gy - 2.6, r * 0.72})
+	bearFur(c, ell{fx + 1, gy - 1.5, r + 0.3, 1.6}, bias-0.1)
+	claw := bearClawRamp.at(2)
+	if bias < 0 {
+		claw = bearClawRamp.at(1)
+	}
+	for k := 0; k < 3; k++ {
+		c.set(int(fx+r+0.8)-k*2, int(gy-0.5), claw)
+	}
+}
+
+// bearHead draws the head about (hx, hy), turned by a, the jaws open by gape.
+func bearHead(c *canvas, hx, hy, a, gape float64) {
+	p := func(x, y float64) (float64, float64) { return rot(hx+x, hy+y, hx, hy, a) }
+	set := func(x, y float64, col color.RGBA) {
+		px, py := p(x, y)
+		c.set(int(px), int(py), col)
+	}
+	ex, ey := p(1.6, -4.2)
+	bearFur(c, ell{ex, ey, 1.5, 1.5}, -0.28) // the far ear
+	// The lower jaw, hinged under the cheek.
+	jx, jy := p(0.5, 2.3)
+	qx, qy := rot(jx+6.2, jy+0.5, jx, jy, a+gape)
+	if gape > 0 {
+		ux, uy := p(7.5, 1.6)
+		c.polygon([]float64{jx, jy - 1, ux, uy, qx, qy}, func(x, y int) color.RGBA {
+			return maneatMouth.at(1 - (x+y)%2)
+		})
+	}
+	bearTube(c, -0.12, [3]float64{jx, jy, 1.9}, [3]float64{qx, qy, 1.1})
+	sx, sy := p(0, 0)
+	bearFur(c, ell{sx, sy, 4.7, 4.4}, 0.04) // the skull
+	// The muzzle: long, square and paler than the coat.
+	m0x, m0y := p(2.5, 0.9)
+	m1x, m1y := p(7, 0.7)
+	drawTubeWith(c, spine([3]float64{m0x, m0y, 2.5}, [3]float64{m1x, m1y, 1.9}), func(x, y int, sp *spinePt, t float64) color.RGBA {
+		return bearMuzzle.pick(lum(sp.nx*t*0.85, sp.ny*t*0.85)+0.05, x, y)
+	})
+	set(8.4, -0.6, colInk) // the nose
+	set(8.4, 0.4, colInk)
+	set(7.6, -0.9, colInk)
+	if gape > 0 { // fangs
+		set(6.6, 2.7, colTooth)
+		set(6.6, 3.6, colTooth)
+		set(4.6, 2.7, colTooth)
+		tx, ty := rot(jx+5.4, jy-1.1, jx, jy, a+gape)
+		c.set(int(tx), int(ty), colTooth)
+		tx, ty = rot(jx+3.6, jy-1.2, jx, jy, a+gape)
+		c.set(int(tx), int(ty), colBoneSh)
+	} else {
+		for k := 3.0; k <= 7; k++ {
+			set(k, 2.6, bearRamp.at(0)) // the line of the mouth
+		}
+		set(6.2, 3.2, colTooth)
+	}
+	// A small, mean eye under a heavy brow.
+	set(1.6, -2.1, bearRamp.at(0))
+	set(2.6, -1.7, bearRamp.at(0))
+	set(3.6, -1.2, bearRamp.at(0))
+	set(2.6, -0.7, hex(0xf0b030))
+	set(1.6, -0.9, colInk)
+	ex, ey = p(-1.9, -3.7)
+	bearFur(c, ell{ex, ey, 1.8, 1.7}, 0.06) // the near ear
+	c.set(int(ex), int(ey+0.3), bearRamp.at(0))
+}
+
+// bearShag roughens the silhouette between columns x0 and x1: tufts standing
+// off the top of the coat, and hair hanging below it.
+func bearShag(c *canvas, x0, x1 int, top, under bool) {
+	for x := x0; x <= x1; x++ {
+		ty, by := -1, -1
+		for y := 0; y < c.h; y++ {
+			if c.opaque(x, y) {
+				if ty < 0 {
+					ty = y
+				}
+				by = y
+			}
+		}
+		if ty < 0 {
+			continue
+		}
+		if top && hashf(x, 1, 93) < 0.42 {
+			c.put(x, ty-1, bearRamp.at(3+x%2))
+		}
+		if under {
+			for k := 1; k <= 1+int(hashf(x, 2, 93)*2.4); k++ {
+				c.put(x, by+k, bearRamp.at(1+(x+k)%2))
 			}
 		}
 	}
-	// A loincloth of hide.
-	c.polygon([]float64{fx - 3, 20, fx + 4, 20, fx + 3.4, 24, fx + 1, 23, fx - 2.6, 24.4}, func(x, y int) color.RGBA {
-		return loinRamp.pick(0.7-float64(y-20)*0.1+(hashf(x, y, 88)-0.5)*0.2, x, y)
-	})
-	c.rect(int(fx-3), 20, 8, 1, func(x, y int) color.RGBA { return loinRamp.at(0) })
-	// A necklace of bones.
-	for _, x := range []int{int(fx) - 1, int(fx) + 1, int(fx) + 3} {
-		c.set(x, 12, colBone)
-		c.set(x, 13, colBoneSh)
+}
+
+func genBear(pose int) sprite { c, ax, ay := bearCanvas(pose); return mk(c, ax, ay) }
+
+// bearCanvas draws a cave bear side-on, facing right: a huge, shaggy brown
+// beast with a hump over the shoulders, a long pale muzzle and great claws.
+func bearCanvas(pose int) (*canvas, float64, float64) {
+	c := newCanvas(52, 48)
+	c.ty = 4 // headroom for the raised paw
+	const gy = 41.0
+	if pose == bearClaw {
+		// Reared up on its hind legs, roaring, a forepaw high to swipe.
+		bearLeg(c, 15, 30, 13, gy, 3.6, -0.22)
+		bearTube(c, -0.24, [3]float64{24, 16, 3.2}, [3]float64{29.5, 21.5, 2.8}, [3]float64{33.5, 20.5, 2.4}) // the far arm
+		bearPaw(c, 35, 20.5, 0.95, 0.3, -0.24)
+		bearTube(c, 0, [3]float64{17, 30, 8.2}, [3]float64{18.5, 22, 8.4}, [3]float64{21, 14.5, 7.4})
+		bearFur(c, ell{19.5, 12.5, 6.8, 5.6}, 0.06) // the hump of the shoulders
+		// A paler chest and belly.
+		c.ellipse(24, 23, 3.4, 7.5, func(x, y int, nx, ny float64) color.RGBA {
+			if !c.opaque(x, y) || hashf(x, y, 94) < 0.3+0.5*(nx*nx+ny*ny) {
+				return color.RGBA{}
+			}
+			return bearRamp.at(4)
+		})
+		bearShag(c, 9, 20, true, false)
+		bearLeg(c, 21, 31, 22, gy, 3.8, 0.02)
+		bearHead(c, 27.5, 10.5, -0.28, 0.75)
+		bearTube(c, 0.06, [3]float64{20, 13, 3.6}, [3]float64{22, 5, 3.1}, [3]float64{27.5, 0.5, 2.6}) // the raised arm
+		bearPaw(c, 29.5, 0, 0.55, 0.85, 0.06)
+		c.outline(0.85)
+		return c, 18, gy
 	}
-	// The head: a fierce face, heavy brow, white paint across the eyes.
-	hx, hy := fx+1.5, 7.0
-	c.ellipse(hx, hy, 3.6, 3.8, func(x, y int, nx, ny float64) color.RGBA {
-		return tribeSkin.pick(lum(nx, ny)+0.2, x, y)
-	})
-	for x := int(hx); x <= int(hx)+3; x++ {
-		c.set(x, int(hy)-1, paintRamp.at(1)) // a band of paint
+	off := [4]float64{} // far hind, near hind, far fore, near fore
+	switch pose {
+	case bearWalkA:
+		off = [4]float64{2.4, -2.2, -2.4, 2.6}
+	case bearWalkB:
+		off = [4]float64{-2.4, 2.2, 2.6, -2.2}
+	case bearBite:
+		off = [4]float64{-1.5, 0.5, 1, 3}
 	}
-	c.set(int(hx)+2, int(hy)-1, hex(0xd02818)) // a red eye-glint in the paint: angry
-	c.set(int(hx)+1, int(hy)-2, tribeSkin.at(0))
-	c.set(int(hx)+2, int(hy)-2, tribeSkin.at(0)) // the scowling brow
-	c.set(int(hx)+3, int(hy)-2, tribeSkin.at(0))
-	c.set(int(hx)+3, int(hy)+2, hex(0x200c0a)) // a grim mouth
-	c.set(int(hx)+2, int(hy)+2, hex(0x200c0a))
-	// A crest of black hair, and a feather.
-	for x := int(hx) - 3; x <= int(hx)+1; x++ {
-		top := int(hy) - 4 - (x-int(hx)+3)%2
-		for y := top; y <= int(hy)-2; y++ {
-			c.set(x, y, hex(0x0e0a0c))
+	bearLeg(c, 12, 30, 11+off[0], gy, 3.3, -0.24)
+	bearLeg(c, 30, 30, 30+off[2], gy, 3.2, -0.24)
+	bearTube(c, -0.1, [3]float64{6.5, 24, 1.6}, [3]float64{4.5, 26, 1.1}) // a stub of a tail
+	// The body: heavy haunches, a deep barrel and a hump over the shoulders.
+	bearFur(c, ell{13, 26.5, 8, 7.4}, -0.02)
+	bearFur(c, ell{21.5, 26.5, 11.5, 7.8}, -0.04)
+	bearFur(c, ell{30, 23.5, 8.2, 8}, 0.05)
+	hx, hy, ha, gape := 40.5, 24.5, 0.12, 0.0
+	if pose == bearBite {
+		hx, hy, ha, gape = 42, 27.5, 0.2, 0.8
+	}
+	bearTube(c, 0.02, [3]float64{33, 23.5, 6.4}, [3]float64{hx - 2, hy, 4.8}) // the thick neck
+	bearShag(c, 8, 38, true, false)
+	bearShag(c, 14, 28, false, true)
+	bearLeg(c, 16, 31, 16+off[1], gy, 3.6, 0.02)
+	bearLeg(c, 33, 31, 33+off[3], gy, 3.5, 0.04)
+	bearHead(c, hx, hy, ha, gape)
+	c.outline(0.85)
+	return c, 23, gy
+}
+
+// --- tribesman ----------------------------------------------------------------
+
+// tribePose is where the parts of a warrior are: pelvis, chest and head, the
+// knee and ankle of each leg, the elbow and hand of each arm, and the two
+// ends of the spear.
+type tribePose struct {
+	pelvis, chest, head [2]float64
+	nearLeg, farLeg     [2][2]float64
+	nearArm, farArm     [2][2]float64
+	butt, tip           [2]float64
+}
+
+// tribeFace is the warrior's head in profile, facing right. H and h are hair;
+// K, D, d, S, L and l skin from darkest to lightest; W and w paint; E the
+// eye, R red paint, M the mouth, T teeth and B bone.
+var tribeFace = []string{
+	"..hH.hH..",
+	".HhHHhHh.",
+	"HHHHHHLL.",
+	"HHHhSLLLl",
+	"HHSSKKKKK",
+	"HHSLLKERL",
+	".HBWWWLLl",
+	".dSLLWSD.",
+	".DSLLMTT.",
+	"..DSSLLS.",
+	"...DdSS..",
+}
+
+func genTribesman(pose int) sprite { c, ax, ay := tribesmanCanvas(pose); return mk(c, ax, ay) }
+
+// tribesmanCanvas draws a warrior side-on, facing right: black-skinned and
+// bare-chested, scowling under white war paint, in a hide loincloth and a
+// necklace of bones, a crest of hair with a red feather, a stone-tipped
+// spear in his fist.
+func tribesmanCanvas(pose int) (*canvas, float64, float64) {
+	c := newCanvas(46, 44)
+	const fx, gy = 15.0, 41.0
+	q := tribePose{
+		pelvis:  [2]float64{fx + 0.5, 29},
+		chest:   [2]float64{fx + 1, 21.5},
+		head:    [2]float64{fx + 2, 14.5},
+		nearLeg: [2][2]float64{{fx + 1.8, 35}, {fx + 1.5, 40}},
+		farLeg:  [2][2]float64{{fx - 0.6, 35}, {fx - 1.2, 40}},
+		nearArm: [2][2]float64{{fx + 2.5, 26.5}, {fx + 8.5, 26.5}},
+		farArm:  [2][2]float64{{fx + 2.5, 25.5}, {fx + 4, 28}},
+		butt:    [2]float64{fx + 9.5, 40.5},
+		tip:     [2]float64{fx + 9.5, 5},
+	}
+	switch pose {
+	case tribeWalkA: // near leg forward, far leg pushing off
+		q.nearLeg = [2][2]float64{{fx + 4, 34.5}, {fx + 5, 40}}
+		q.farLeg = [2][2]float64{{fx - 1.6, 35}, {fx - 5, 39}}
+		q.nearArm = [2][2]float64{{fx + 0.5, 25.5}, {fx + 4.5, 27}}
+		q.farArm = [2][2]float64{{fx + 4, 25}, {fx + 6.5, 26.5}}
+		q.butt, q.tip = [2]float64{fx - 0.5, 36}, [2]float64{fx + 13.5, 9}
+	case tribeWalkB: // far leg forward
+		q.pelvis[1], q.chest[1], q.head[1] = 28, 20.5, 13.5
+		q.nearLeg = [2][2]float64{{fx + 0.2, 35}, {fx - 3.6, 39.2}}
+		q.farLeg = [2][2]float64{{fx + 3.4, 34.5}, {fx + 4.6, 40}}
+		q.nearArm = [2][2]float64{{fx + 1.5, 24.5}, {fx + 5.5, 25.5}}
+		q.farArm = [2][2]float64{{fx - 0.5, 24.5}, {fx - 1.5, 27.5}}
+		q.butt, q.tip = [2]float64{fx + 0.5, 35}, [2]float64{fx + 14.5, 8}
+	case tribeThrust: // a deep lunge, the spear driven level with both hands
+		q.pelvis = [2]float64{fx, 30}
+		q.chest = [2]float64{fx + 4, 23.5}
+		q.head = [2]float64{fx + 7.5, 17.5}
+		q.nearLeg = [2][2]float64{{fx + 5.5, 34}, {fx + 6.5, 40}}
+		q.farLeg = [2][2]float64{{fx - 4, 35.5}, {fx - 8.5, 39.6}}
+		q.nearArm = [2][2]float64{{fx + 7.5, 26.6}, {fx + 12, 24.6}}
+		q.farArm = [2][2]float64{{fx + 0.5, 26.5}, {fx + 1.5, 24.8}}
+		q.butt, q.tip = [2]float64{fx - 7, 25}, [2]float64{fx + 24, 24}
+	}
+	skin := func(bias float64, ctrl ...[3]float64) { tube(c, spine(ctrl...), tribeSkin, bias) }
+	leg := func(hipX float64, l [2][2]float64, bias float64) {
+		skin(bias, [3]float64{hipX, q.pelvis[1] + 1, 2.3}, [3]float64{l[0][0], l[0][1], 1.9}, [3]float64{l[1][0], l[1][1] - 1.6, 1.4})
+		ax, ay := int(l[1][0]), int(l[1][1])
+		for x := ax - 1; x <= ax+3; x++ { // the foot
+			c.set(x, ay, tribeSkin.pick(0.5+bias, x, ay))
+		}
+		c.set(ax+2, ay-1, tribeSkin.pick(0.6+bias, ax+2, ay-1))
+		if bias >= 0 {
+			for x := ax - 1; x <= ax+1; x++ { // an anklet of white paint
+				if c.opaque(x, ay-3) {
+					c.set(x, ay-3, paintRamp.at(0))
+				}
+			}
 		}
 	}
-	c.line(hx-3, hy-4, hx-6, hy-10, func(x, y int, t float64) color.RGBA { return mix(hex(0xd8381c), hex(0xf8e8c0), t) })
-	// The spear, and the arm that holds it.
-	if pose == tribeThrust {
-		limb(fx+1, 12, fx+7, 14, 0.7)
-		c.line(fx-6, 14.5, fx+16, 13.5, func(x, y int, t float64) color.RGBA { return trunkRamp.pick(0.7, x, y) })
-		c.polygon([]float64{fx + 16, 12, fx + 20, 13.5, fx + 16, 15}, solid(stoneRamp.at(4)))
-	} else {
-		limb(fx+1, 12, fx+4, 18, 0.7)
-		sx := fx + 4.5
-		c.line(sx, 30, sx+1, 2, func(x, y int, t float64) color.RGBA { return trunkRamp.pick(0.7, x, y) })
-		c.polygon([]float64{sx - 0.5, 3, sx + 1, -1.5, sx + 2.6, 3}, solid(stoneRamp.at(4)))
+	shoulder := [2]float64{q.chest[0] - 0.6, q.chest[1] - 1.4}
+	arm := func(a [2][2]float64, bias float64) {
+		skin(bias, [3]float64{shoulder[0], shoulder[1], 2.2}, [3]float64{a[0][0], a[0][1], 1.6}, [3]float64{a[1][0], a[1][1], 1.3})
+		roundShape(c, ell{a[1][0], a[1][1], 1.5, 1.5}, tribeSkin, bias+0.1) // the fist
 	}
-	c.outline(0.8)
-	return mk(c, fx, 31)
+	leg(q.pelvis[0]-1, q.farLeg, -0.3)
+	arm(q.farArm, -0.3)
+	leg(q.pelvis[0]+1, q.nearLeg, 0)
+
+	// The spear: an ash shaft, a leaf of knapped stone lashed on with sinew,
+	// and a red tassel under the head.
+	dx, dy := q.tip[0]-q.butt[0], q.tip[1]-q.butt[1]
+	n := math.Hypot(dx, dy)
+	dx, dy = dx/n, dy/n
+	c.line(q.butt[0], q.butt[1], q.tip[0], q.tip[1], func(x, y int, t float64) color.RGBA {
+		return spearShaft.at(1 + (x+y)%2)
+	})
+	bx, by := q.tip[0]-dx*0.5, q.tip[1]-dy*0.5
+	c.polygon([]float64{bx - dy*2.1, by + dx*2.1, bx + dx*2.5 - dy*1.9, by + dy*2.5 + dx*1.9, bx + dx*6.5, by + dy*6.5, bx + dx*2.5 + dy*1.9, by + dy*2.5 - dx*1.9, bx + dy*2.1, by - dx*2.1},
+		func(x, y int) color.RGBA { return stoneRamp.pick(0.72-(hashf(x, y, 95))*0.3, x, y) })
+	c.line(bx+dx*0.5, by+dy*0.5, bx+dx*5.5, by+dy*5.5, func(x, y int, t float64) color.RGBA { return stoneRamp.at(len(stoneRamp) - 1) })
+	for k := 0.5; k <= 2; k += 1.5 { // the lashing
+		c.set(int(bx-dx*k), int(by-dy*k), colBone)
+	}
+	tx, ty := bx-dx*3, by-dy*3
+	c.set(int(tx-dy*1.2+0.5), int(ty+math.Abs(dx)*1.2+0.5), hex(0xd8301c))
+	c.set(int(tx-dy*1.2-dx+0.5), int(ty+math.Abs(dx)*2.2+1), hex(0x9a1c12))
+
+	// The torso: a deep bare chest over a hard, narrow waist.
+	lean := (q.chest[0] - q.pelvis[0]) / (q.pelvis[1] - q.chest[1])
+	skin(0.02, [3]float64{q.pelvis[0], q.pelvis[1], 3.1}, [3]float64{lerpf(q.pelvis[0], q.chest[0], 0.5), lerpf(q.pelvis[1], q.chest[1], 0.5), 2.9},
+		[3]float64{q.chest[0], q.chest[1], 4.1}, [3]float64{q.chest[0] + lean*2, q.chest[1] - 2.4, 2.8})
+	body := func(u, v float64) (int, int) { // a point on the torso: u forward, v down from the chest
+		return int(math.Floor(q.chest[0] + u - lean*v)), int(math.Floor(q.chest[1] + v))
+	}
+	mark := func(u, v float64, col color.RGBA) {
+		if x, y := body(u, v); c.opaque(x, y) {
+			c.set(x, y, col)
+		}
+	}
+	mark(1, 1.6, tribeSkin.at(0)) // the shadow under the chest
+	mark(2, 1.6, tribeSkin.at(0))
+	mark(3, 1.2, tribeSkin.at(0))
+	mark(2, 4, tribeSkin.at(1)) // the belly's muscles
+	mark(1, 6, tribeSkin.at(1))
+	// War paint: slashes down the chest and dots on the belly.
+	for k := 0.0; k < 2; k++ {
+		mark(2+k, -0.6+k, paintRamp.at(1))
+		mark(1.6+k, 3+k, paintRamp.at(1))
+	}
+	// A necklace of bones and teeth.
+	for k := -1.0; k <= 4; k++ {
+		col := colBone
+		if int(k)%2 != 0 {
+			col = colBoneSh
+		}
+		mark(k, -3.2+math.Max(0, 2-math.Abs(k-2.5))*0.5, col)
+		if int(k)%2 == 0 {
+			mark(k+0.2, -2.2+math.Max(0, 2-math.Abs(k-2.5))*0.5, colBone)
+		}
+	}
+	// A loincloth of hide on a rope belt: a long flap before, a short behind.
+	px, py := q.pelvis[0], q.pelvis[1]
+	hide := func(x, y int) color.RGBA {
+		l := 0.75 - (float64(y)-py)*0.09 + (hashf(x, y, 88)-0.5)*0.25
+		return loinRamp.pick(l, x, y)
+	}
+	c.polygon([]float64{px - 3.6, py - 0.6, px + 0.5, py - 0.6, px - 0.4, py + 4.2, px - 2.2, py + 3.4, px - 4.2, py + 5}, hide)
+	c.polygon([]float64{px - 0.5, py - 0.6, px + 4.2, py - 0.6, px + 4.8, py + 5.6, px + 3.2, py + 4.8, px + 1.8, py + 6.4, px + 0.2, py + 5}, hide)
+	for x := int(px - 4); x <= int(px+4); x++ {
+		if hashf(x, 3, 88) < 0.6 {
+			c.set(x, int(py+4.6+hashf(x, 4, 88)*1.5), loinRamp.at(3)) // a trim of pale fur
+		}
+		c.set(x, int(py-1), thatchRamp.at(1+x%2*2)) // the belt
+	}
+	c.set(int(px+2), int(py), colBone) // a bone toggle
+	c.set(int(px+2), int(py+1), colBoneSh)
+
+	// The head, pixel by pixel: a crest of black hair, a heavy brow drawn
+	// down over a glaring eye, paint across the cheek, teeth bared.
+	ix, iy := int(math.Floor(q.head[0])), int(math.Floor(q.head[1]))
+	skin(0.02, [3]float64{q.chest[0] + lean*2, q.chest[1] - 2, 1.8}, [3]float64{q.head[0] - 0.4, q.head[1] + 3, 1.7}) // the neck
+	for r, row := range tribeFace {
+		for k, ch := range row {
+			var col color.RGBA
+			switch ch {
+			case 'H':
+				col = tribeHair.at(0)
+			case 'h':
+				col = tribeHair.at(1)
+			case 'D':
+				col = tribeSkin.at(1)
+			case 'd':
+				col = tribeSkin.at(2)
+			case 'S':
+				col = tribeSkin.at(3)
+			case 'L':
+				col = tribeSkin.at(4)
+			case 'l':
+				col = tribeSkin.at(5)
+			case 'K':
+				col = tribeSkin.at(0)
+			case 'W':
+				col = paintRamp.at(1)
+			case 'w':
+				col = paintRamp.at(0)
+			case 'E':
+				col = hex(0xfff6e4)
+			case 'R':
+				col = hex(0xc8281a)
+			case 'T':
+				col = colTooth
+			case 'M':
+				col = hex(0x1a080a)
+			case 'B':
+				col = colBone
+			default:
+				continue
+			}
+			c.set(ix-4+k, iy-5+r, col)
+		}
+	}
+	// A red feather, tied in at the back of the crest.
+	hx, hy := float64(ix), float64(iy)
+	c.line(hx-3, hy-4, hx-7, hy-10, func(x, y int, t float64) color.RGBA { return mix(hex(0xb81c14), hex(0xf86a30), t) })
+	c.line(hx-2, hy-5, hx-6, hy-10, func(x, y int, t float64) color.RGBA { return mix(hex(0xd8301c), hex(0xfce0a0), t*t) })
+	c.set(ix-3, iy-4, colBone)
+
+	// The near arm over it all, its fist round the shaft.
+	arm(q.nearArm, 0.06)
+	ex, ey := lerpf(shoulder[0], q.nearArm[0][0], 0.6), lerpf(shoulder[1], q.nearArm[0][1], 0.6)
+	for o := -1; o <= 1; o++ { // a band of paint round the upper arm
+		x, y := int(ex)+o, int(ey)
+		if a := c.at(x, y); a.A > 0 && (a == tribeSkin.at(2) || a == tribeSkin.at(3) || a == tribeSkin.at(4) || a == tribeSkin.at(5)) {
+			c.set(x, y, paintRamp.at(1))
+		}
+	}
+	c.outline(0.85)
+	return c, fx, gy
 }
 
 func genFishLook(v, frame int) sprite {
@@ -694,36 +975,218 @@ func genTreasure(open bool) sprite {
 	return mk(c, 12, 20)
 }
 
-func genHut() sprite {
-	c := newCanvas(52, 50)
-	// A round wall of upright poles.
-	for x := 8; x < 44; x++ {
-		for y := 26; y < 46; y++ {
-			t := 0.5 + float64((x-8)%3)*0.1 - math.Abs(float64(x)-26)/40
-			if (x-8)%3 == 0 {
-				t -= 0.2
+func genHut() sprite { c, ax, ay := hutCanvas(); return mk(c, ax, ay) }
+
+// hutCanvas draws a hut of the tribe: a round wall of lashed poles under a
+// shaggy cone of thatch, a skull over its hide-hung doorway.
+func hutCanvas() (*canvas, float64, float64) {
+	c := newCanvas(62, 62)
+	const (
+		cx, gy   = 31.0, 57.0
+		wallR    = 21.0
+		apexY    = 6.0
+		roofH    = 23.0
+		roofW    = 28.0
+		roofSag  = 4.5
+		wallTop  = 28
+		doorL    = 26
+		doorR    = 35
+		doorTop  = 39
+		lintelY  = 37
+		tiers    = 4.0
+		doorMidX = 30
+	)
+	eave := func(x int, s float64) float64 { // the front edge of the roof at scale s
+		d := (float64(x) + 0.5 - cx) / (roofW * s)
+		return apexY + s*roofH + s*roofSag*math.Sqrt(math.Max(0, 1-d*d))
+	}
+	foot := func(x int) float64 { // where the wall meets the ground
+		u := (float64(x) + 0.5 - cx) / wallR
+		return gy - 3.5 + 3.5*math.Sqrt(math.Max(0, 1-u*u))
+	}
+	// The wall: upright poles, each a little different, round the curve.
+	x0 := int(cx - wallR)
+	for x := x0; x < int(cx+wallR); x++ {
+		u := (float64(x) + 0.5 - cx) / wallR
+		pole, in := (x-x0)/3, (x-x0)%3
+		bot := int(foot(x) + hashf(pole, 0, 61)*1.4)
+		for y := wallTop; y < bot; y++ {
+			l := 0.42 - 0.3*u + 0.3*math.Sqrt(1-u*u) + (hashf(pole, 1, 61)-0.5)*0.16
+			switch in {
+			case 0:
+				l += 0.1
+			case 2:
+				l -= 0.24
 			}
-			c.set(x, y, plankRamp.pick(t, x, y))
+			if hashf(x, y/3, 62) < 0.1 {
+				l -= 0.12 // grain and knots
+			}
+			if d := float64(y) - eave(x, 1); d < 5 {
+				l -= 0.3 - d*0.05 // in the shade of the eaves
+			}
+			if float64(y) > float64(bot)-2.5 {
+				l -= 0.12 // damp at the foot
+			}
+			c.set(x, y, plankRamp.pick(l, x, y))
 		}
 	}
-	// A doorway hung with hide.
-	c.rect(22, 33, 8, 13, func(x, y int) color.RGBA { return hex(0x140c08) })
-	c.rect(22, 33, 8, 5, func(x, y int) color.RGBA { return loinRamp.pick(0.5, x, y) })
-	// A cone of thatch, ragged at the eaves, with a smoke hole.
-	c.polygon([]float64{26, 2, 50, 30, 46, 31, 42, 29, 38, 31, 34, 29, 30, 31, 26, 29, 22, 31, 18, 29, 14, 31, 10, 29, 6, 31, 2, 30}, func(x, y int) color.RGBA {
-		t := 0.7 - float64(x)/80 + (hashf(x/2, y, 61)-0.5)*0.3
-		if (x+y/3)%4 == 0 {
-			t -= 0.2
+	// Two bands of rope lash the poles together.
+	for _, h := range []float64{9, 17} {
+		for x := x0; x < int(cx+wallR); x++ {
+			y := int(foot(x) - h)
+			if c.opaque(x, y) {
+				u := (float64(x) + 0.5 - cx) / wallR
+				c.set(x, y, thatchRamp.pick(0.75-0.35*u-float64((x-x0)%3)*0.12, x, y))
+				c.set(x, y+1, plankRamp.at(0))
+			}
 		}
-		return thatchRamp.pick(t, x, y)
+	}
+	// The doorway: dark within, framed with stout posts and a lintel log, a
+	// hide curtain drawn half aside.
+	for x := doorL; x <= doorR; x++ {
+		for y := doorTop; y < int(foot(x)); y++ {
+			c.set(x, y, mix(hex(0x0c0708), hex(0x2a1a12), float64(y-doorTop)/26+hashf(x, y, 63)*0.1))
+		}
+	}
+	c.polygon([]float64{doorL, doorTop, doorMidX + 3, doorTop, doorMidX + 1, doorTop + 6, doorMidX - 1.5, doorTop + 11, doorL + 2, doorTop + 15, doorL, doorTop + 14},
+		func(x, y int) color.RGBA {
+			l := 0.62 - float64(x-doorL)*0.06 + (hashf(x/2, y/2, 64)-0.5)*0.22
+			if (x-doorL)%3 == 2 {
+				l -= 0.15 // folds
+			}
+			return loinRamp.pick(l, x, y)
+		})
+	for _, p := range [][2]int{{1, 3}, {2, 3}, {3, 3}, {2, 4}, {2, 5}, {1, 7}, {3, 7}, {2, 8}} { // a mark painted on the hide
+		c.set(doorL+p[0], doorTop+p[1], paintRamp.at(p[1]%2))
+	}
+	post := func(x int) {
+		for y := lintelY; y < int(foot(x))+1; y++ {
+			c.set(x, y, trunkRamp.pick(0.72, x, y))
+			c.set(x+1, y, trunkRamp.pick(0.38, x, y))
+		}
+	}
+	post(doorL - 2)
+	post(doorR + 1)
+	for x := doorL - 4; x <= doorR+4; x++ {
+		c.set(x, lintelY, trunkRamp.pick(0.8-float64(x-doorL)*0.02, x, lintelY))
+		c.set(x, lintelY+1, trunkRamp.pick(0.35, x, lintelY+1))
+	}
+	c.set(doorL-4, lintelY, trunkRamp.at(len(trunkRamp)-1)) // the cut ends of the lintel
+	c.set(doorR+4, lintelY+1, trunkRamp.at(len(trunkRamp)-2))
+	// Stones packed round the foot of the wall.
+	for i, sx := range []int{12, 16, 21, 39, 44, 49} {
+		roundShape(c, ell{float64(sx), foot(sx) - 0.6, 1.9 + float64(i%2)*0.6, 1.5}, stoneRamp, 0.05-float64(i)*0.03)
+	}
+	// A hide shield hung on the wall, and a spear leant by the door.
+	c.ellipse(17, 45, 4, 5.2, func(x, y int, nx, ny float64) color.RGBA {
+		if nx*nx+ny*ny > 0.72 {
+			return loinRamp.pick(0.3, x, y)
+		}
+		d := nx*nx + ny*ny
+		if d < 0.07 {
+			return colBone // the boss
+		}
+		if (x+y)%2 == 0 && d > 0.3 && d < 0.55 {
+			return paintRamp.at(1) // a ring of dots
+		}
+		if d < 0.3 {
+			return hex(0x9a2a18)
+		}
+		return loinRamp.pick(lum(nx, ny)+0.15, x, y)
 	})
-	c.rect(24, 2, 4, 3, func(x, y int) color.RGBA { return trunkRamp.at(1) })
-	// A skull over the door: these people do not want visitors.
-	roundShape(c, ell{26, 30, 2, 1.8}, ramp{colBoneSh, colBone}, 0.2)
-	c.set(25, 30, colInk)
-	c.set(27, 30, colInk)
-	c.outline(0.8)
-	return mk(c, 26, 45)
+	c.line(45.5, gy-1.5, 43.5, 33, func(x, y int, t float64) color.RGBA { return spearShaft.at(1 + y%2) })
+	// A clay pot by the door.
+	roundShape(c, ell{40.5, gy - 3.4, 2.7, 2.9}, potRamp, 0.05)
+	c.rect(39, int(gy-7), 4, 1, func(x, y int) color.RGBA { return potRamp.at(3) })
+	c.set(40, int(gy-4), paintRamp.at(1))
+	c.set(41, int(gy-3), paintRamp.at(1))
+
+	// The roof: a cone of thatch laid in ragged tiers, each casting a shadow
+	// on the one below.
+	for y := 0; y < c.h; y++ {
+		for x := 0; x < c.w; x++ {
+			d := math.Abs(float64(x)+0.5-cx) / roofW
+			a := (float64(x) + 0.5 - cx) / roofW
+			lo, hi := math.Max(d, 0.02), 1.0
+			fy := float64(y) + 0.5
+			if fy < eave(x, lo) {
+				continue
+			}
+			var s float64
+			if over := fy - eave(x, hi); over > 0 { // the ragged eaves
+				strand := int(math.Floor(a * 30))
+				if d >= 1 || over > 0.4+hashf(strand, 9, 65)*2.6 {
+					continue
+				}
+				s = 1
+			} else {
+				for range 14 {
+					mid := (lo + hi) / 2
+					if eave(x, mid) < fy {
+						lo = mid
+					} else {
+						hi = mid
+					}
+				}
+				s = (lo + hi) / 2
+			}
+			ang := a / s // -1 at the left edge of the cone, 1 at the right
+			tf := s*tiers + (hashf(int(math.Floor(ang*(5+s*14))), 7, 65)-0.5)*0.24
+			if s >= 1 {
+				tf = tiers - 0.02
+			}
+			tier := math.Floor(math.Max(0, tf))
+			f := tf - tier
+			strand := int(math.Floor(ang * (5 + (tier+1)*5)))
+			l := 0.6 - ang*0.3 + (hashf(strand, int(tier), 66)-0.5)*0.2 + (f-0.5)*0.34
+			if hashf(x, y, 67) < 0.08 {
+				l += 0.14 // stray bright straws
+			}
+			if tier > 0 {
+				if f < 0.14 {
+					l -= 0.45
+				} else if f < 0.3 {
+					l -= 0.18
+				}
+			}
+			c.set(x, y, thatchRamp.pick(l, x, y))
+		}
+	}
+	// The roof poles cross and stand out at the peak, bound with rope, the
+	// smoke hole dark between them.
+	for i, p := range [][2]float64{{-4, 0.5}, {4.5, 1}, {0.5, 0}} {
+		c.line(cx+p[0]*0.2, apexY+3, cx+p[0], p[1]+1, func(x, y int, t float64) color.RGBA { return trunkRamp.pick(0.45+float64(i)*0.15, x, y) })
+	}
+	c.set(int(cx)-1, int(apexY)+2, hex(0x140c0a))
+	c.set(int(cx), int(apexY)+2, hex(0x140c0a))
+	for x := int(cx) - 2; x <= int(cx)+2; x++ {
+		c.set(x, int(apexY)+3, thatchRamp.at(4-(x&1)*2))
+	}
+	// Teeth and bones strung along the eaves.
+	for i, x := range []int{9, 14, 19, 24, 38, 43, 48, 53} {
+		y := int(eave(x, 1)) + 1
+		c.set(x, y, colBone)
+		c.set(x, y+1, colBone)
+		if i%2 == 0 {
+			c.set(x, y+2, colBoneSh)
+		} else {
+			c.set(x, y+2, hex(0xc03020)) // a red feather
+			c.set(x, y+3, hex(0x8a1c14))
+		}
+	}
+	// A horned skull over the door: these people do not want visitors.
+	sy := float64(lintelY) - 3.2
+	c.line(cx-2.5, sy-0.5, cx-6, sy-3.5, func(x, y int, t float64) color.RGBA { return mix(colBoneSh, colBone, t) })
+	c.line(cx+1.5, sy-0.5, cx+5, sy-3.5, func(x, y int, t float64) color.RGBA { return mix(colBoneSh, colBone, t) })
+	roundShape(c, ell{cx - 0.5, sy, 3, 2.6}, ramp{colBoneSh, colBone, hex(0xfffaf0)}, 0.25)
+	c.rect(int(cx)-2, int(sy)+2, 3, 2, func(x, y int) color.RGBA { return colBone })
+	c.set(int(cx)-2, int(sy), colInk)
+	c.set(int(cx), int(sy), colInk)
+	c.set(int(cx)-1, int(sy)+2, colBoneSh)
+	c.set(int(cx)-2, int(sy)+3, colInk)
+	c.set(int(cx), int(sy)+3, colInk)
+	c.outline(0.85)
+	return c, cx, gy - 1
 }
 
 func genTotem() sprite {
