@@ -62,17 +62,7 @@ func (w *World) addUnderground(seed uint32) {
 	w.tiles, w.occ, w.height, w.surfaceH = tiles, occ, newH, H
 	w.fauna.shallow = nil // sized for the old map; rebuilt on demand
 	top := H + undergroundGap
-	for ty := top; ty < top+H; ty++ {
-		for tx := 3; tx < W-3; tx++ {
-			x, y := float64(tx)+0.5, float64(ty)+0.5
-			a := math.Abs(fbm(x/15+3, y/15+11, seed+501, 2)-0.5) < 0.06
-			b := math.Abs(fbm(x/10+40, y/10+17, seed+502, 2)-0.5) < 0.036
-			hall := fbm(x/9+9, y/9+3, seed+503, 2) > 0.66
-			if a || b || hall {
-				w.tiles[ty*W+tx] = TileCave
-			}
-		}
-	}
+	w.carveMaze(seed, top, H)
 	// Fill in the pockets too small to matter.
 	seen := make([]bool, len(w.tiles))
 	for start := W * top; start < W*(top+H); start++ {
@@ -276,4 +266,113 @@ func (w *World) travel(p *Player) {
 func (w *World) CaveLink(tx, ty int) (x, y float64, ok bool) {
 	l, ok := w.links[[2]int{tx, ty}]
 	return l.x, l.y, ok
+}
+
+// Maze tuning: the caves are a maze of winding passages on a grid of
+// cells, with a hall here and there and a few loops.
+const (
+	mazeCell  = 6    // tiles per maze cell
+	mazeHall  = 0.05 // share of cells opened out into a hall
+	mazeLoops = 0.08 // share of extra openings between cells, making loops
+	mazeRough = 0.12 // share of rock beside a passage worn away
+)
+
+// carveMaze digs the cave maze into rows top to top+rows.
+func (w *World) carveMaze(seed uint32, top, rows int) {
+	W := w.width
+	r := rand.New(rand.NewPCG(uint64(seed), 0x3a2e))
+	cw, ch := (W-6)/mazeCell, rows/mazeCell
+	if cw < 2 || ch < 2 {
+		return
+	}
+	// A cell's passage is the 2x2 tiles at its corner; links run east and
+	// south from there.
+	cellXY := func(i, j int) (int, int) { return 3 + i*mazeCell + 1, top + j*mazeCell + 1 }
+	dig := func(x, y int) {
+		if w.inBounds(x, y) && y >= top && y < top+rows && x > 1 && x < W-2 {
+			w.tiles[y*W+x] = TileCave
+		}
+	}
+	digBox := func(x0, y0, x1, y1 int) {
+		for y := min(y0, y1); y <= max(y0, y1); y++ {
+			for x := min(x0, x1); x <= max(x0, x1); x++ {
+				dig(x, y)
+			}
+		}
+	}
+	link := func(i, j, ni, nj int) {
+		x0, y0 := cellXY(i, j)
+		x1, y1 := cellXY(ni, nj)
+		digBox(x0, y0, x1+1, y1+1)
+	}
+	// The recursive backtracker: one long winding maze through every cell.
+	seen := make([]bool, cw*ch)
+	stack := [][2]int{{r.IntN(cw), r.IntN(ch)}}
+	seen[stack[0][1]*cw+stack[0][0]] = true
+	dirs := [4][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}
+	for len(stack) > 0 {
+		c := stack[len(stack)-1]
+		var next [][2]int
+		for _, d := range dirs {
+			ni, nj := c[0]+d[0], c[1]+d[1]
+			if ni >= 0 && nj >= 0 && ni < cw && nj < ch && !seen[nj*cw+ni] {
+				next = append(next, [2]int{ni, nj})
+			}
+		}
+		if len(next) == 0 {
+			stack = stack[:len(stack)-1]
+			continue
+		}
+		n := next[r.IntN(len(next))]
+		seen[n[1]*cw+n[0]] = true
+		link(c[0], c[1], n[0], n[1])
+		stack = append(stack, n)
+	}
+	// Loops, and halls.
+	for j := 0; j < ch; j++ {
+		for i := 0; i < cw; i++ {
+			x, y := cellXY(i, j)
+			digBox(x, y, x+1, y+1)
+			if i+1 < cw && r.Float64() < mazeLoops {
+				link(i, j, i+1, j)
+			}
+			if j+1 < ch && r.Float64() < mazeLoops {
+				link(i, j, i, j+1)
+			}
+			if r.Float64() < mazeHall {
+				hw, hh := 2+r.IntN(3), 2+r.IntN(2)
+				for yy := y - hh; yy <= y+1+hh; yy++ {
+					for xx := x - hw; xx <= x+1+hw; xx++ {
+						dx, dy := float64(xx)-float64(x)-0.5, float64(yy)-float64(y)-0.5
+						if (dx*dx)/float64((hw+1)*(hw+1))+(dy*dy)/float64((hh+1)*(hh+1)) <= 1 {
+							dig(xx, yy)
+						}
+					}
+				}
+			}
+		}
+	}
+	// Worn walls: rock beside a passage is eaten away here and there, so the
+	// passages wind and bulge instead of running ruler-straight.
+	var worn []int
+	for y := top + 1; y < top+rows-1; y++ {
+		for x := 2; x < W-2; x++ {
+			i := y*W + x
+			if w.tiles[i] != TileMountain {
+				continue
+			}
+			open := 0
+			for _, d := range dirs {
+				if w.tiles[(y+d[1])*W+x+d[0]] == TileCave {
+					open++
+				}
+			}
+			if open > 0 && unit(hash2(int32(x), int32(y), seed+0x3a2f)) < mazeRough*float64(open) {
+				worn = append(worn, i)
+			}
+		}
+	}
+	for _, i := range worn {
+		w.tiles[i] = TileCave
+	}
 }

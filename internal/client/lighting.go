@@ -62,6 +62,7 @@ func (g *Game) drawLighting(screen *ebiten.Image, cam camera) {
 			g.darkness.DrawImage(g.art.light, op)
 		}
 		g.glowLights(g.darkness, cam, true, dark) // see tribalrender.go
+		g.ownLight(g.darkness, cam)
 		screen.DrawImage(g.darkness, nil)
 	}
 	if lava {
@@ -149,4 +150,24 @@ func nightColor(amb float64) color.RGBA {
 	t := max(0, min(1, amb/0.6))
 	mix := func(night, dusk float64) uint8 { return uint8(night + (dusk-night)*t) }
 	return color.RGBA{mix(6, 84), mix(10, 40), mix(34, 44), 255}
+}
+
+// ownLight lets this player see a little way round themselves in the deep
+// caves: a faint ring of sight, so the passages can be felt out without a
+// torch. A torch lights far more.
+func (g *Game) ownLight(dark *ebiten.Image, cam camera) {
+	if !g.underground() {
+		return
+	}
+	for _, p := range g.curr.Players {
+		if p.ID != g.myID || p.Dead {
+			continue
+		}
+		x, y, _ := g.lerpPlayer(p, g.alpha())
+		sx, sy := cam.toScreen(x, y)
+		op := g.lightOpAt(sx, sy-6, ownLightRadius)
+		op.ColorScale.ScaleAlpha(0.8)
+		op.Blend = ebiten.BlendDestinationOut
+		dark.DrawImage(g.art.light, op)
+	}
 }

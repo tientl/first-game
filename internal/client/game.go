@@ -317,6 +317,7 @@ func (g *Game) onMessage(m protocol.ServerMsg) {
 		g.pondMask = sim.PondMask(w.Width, w.Height, w.Tiles)
 		g.surfaceH = w.SurfaceH
 		terr := newTerrain(w.Width, w.Height, w.Tiles)
+		terr.under = g.caveRow()
 		g.ground.reset(terr)
 		g.groundSeason = sim.Spring
 		if !g.demo {
@@ -360,7 +361,9 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 	if want := groundSeason(s.Season); want != g.groundSeason {
 		// Snow on the ground and ice on the ponds come and go with winter.
 		g.groundSeason = want
-		g.ground.reset(newTerrain(g.width, g.height, seasonTiles(g.width, g.height, g.tiles, want, g.pondMask)))
+		terr := newTerrain(g.width, g.height, seasonTiles(g.width, g.height, g.tiles, want, g.pondMask))
+		terr.under = g.caveRow()
+		g.ground.reset(terr)
 	}
 	g.noteSwings(s)
 	g.classifySwings(old, s)
@@ -800,3 +803,24 @@ func setZoom(z int) {
 // SetZoom sets the view's zoom, minZoom to maxZoom, without saving it: for
 // the screenshot tool.
 func SetZoom(z int) { viewZoom = max(minZoom, min(maxZoom, z)) }
+
+// caveRow is the first map row of the caves under the world, 0 if none.
+func (g *Game) caveRow() int {
+	if g.surfaceH <= 0 {
+		return 0
+	}
+	return g.surfaceH
+}
+
+// underground reports whether this player is down in the caves.
+func (g *Game) underground() bool {
+	if g.surfaceH <= 0 {
+		return false
+	}
+	for _, p := range g.curr.Players {
+		if p.ID == g.myID {
+			return int(p.Y) >= g.surfaceH
+		}
+	}
+	return false
+}

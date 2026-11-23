@@ -24,6 +24,7 @@ var (
 	caveWall    = mkRamp(0x0e1014, 0x161a20, 0x1f252c, 0x2a323a, 0x36404a)
 	crystalRamp = mkRamp(0x2b5a8a, 0x3f86c4, 0x62b8ea, 0x9ee2ff, 0xe8fbff)
 	colEmber    = hex(0xff7a2a)
+	caveDeep    = mkRamp(0x020203, 0x07070a, 0x0d0d12, 0x15151b)
 	pathRamp    = mkRamp(0x5a4128, 0x6e5233, 0x846440, 0x9a774e, 0xb08c60)
 	iceRamp     = mkRamp(0x5a86a8, 0x76a2c2, 0x94bcd6, 0xb4d4e6, 0xd2e8f2, 0xf0faff)
 )
@@ -219,7 +220,21 @@ func (t *terrain) mountainPixel(px, py int, u, v float64, roof bool) (c color.RG
 		wall := t.tile(int(math.Floor(bu)), int(math.Floor(bv))) == sim.TileCave
 		return faceColor(px, py, k, wall), 0, true
 	}
+	if t.under > 0 && int(v) >= t.under {
+		return caveRockTop(px, py, u, v), 0, true // underground: solid rock, nearly black
+	}
 	return mountainTop(px, py, u, v), 0, true
+}
+
+// caveRockTop is the rock between the passages of the caves underground:
+// black, with only a faint grain.
+func caveRockTop(px, py int, u, v float64) color.RGBA {
+	n := fbm2(u*0.8, v*1.0, 171, 2)
+	l := 0.05 + (n-0.5)*0.12
+	if hashf(px, py, 172) < 0.015 {
+		l += 0.08
+	}
+	return caveDeep.pick(l, px, py)
 }
 
 // faceColor is the rock face k pixels above its foot. Tunnel walls inside a
