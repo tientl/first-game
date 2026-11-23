@@ -25,7 +25,7 @@ func seat(k sim.CreatureKind) (back, height float64) {
 	case sim.CreatureRaptor:
 		return 1 * s, 14 * s
 	case sim.CreatureMammoth:
-		return 3 * s, 30 * s
+		return 3 * s, 32 * s
 	case sim.CreatureToro:
 		return 2 * s, 18 * s
 	case sim.CreatureOrnitho:
