@@ -9,7 +9,7 @@ import (
 // caves lie underground, a dark maze of tunnels and halls in the rock. On
 // the islands stand cave mouths, low arches of boulders over a hole going
 // down; walking into one goes down to the caves, onto a patch of rubble
-// under a shaft of daylight where a rope ladder hangs. Walking back onto it
+// at the foot of a slope up to the daylight of the mouth. Walking back onto it
 // climbs out of the same mouth.
 //
 // The caves are kept in the same tile map as the islands, in rows below

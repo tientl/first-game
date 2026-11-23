@@ -723,7 +723,7 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 	case sim.NoticeDrowning:
 		return "Kiệt sức, đang chết đuối! Bơi vào bờ"
 	case sim.NoticeIntoCave:
-		return "Xuống hang — đi vào chỗ có ánh sáng và thang dây để lên lại"
+		return "Vào hang — đi lên dốc chỗ có ánh nắng để ra lại"
 	case sim.NoticeOutOfCave:
 		return "Đã ra khỏi hang"
 	}
