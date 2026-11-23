@@ -14,29 +14,30 @@ func headUp(slope float64) float64 { return -slope }
 var dinoRigs = map[string]dinoRig{
 	"trike": {
 		file: "trike", stride: 2,
-		legs: []rigLimb{{19, 30, 42}, {43, 57, 42}},
-		head: rigPart{pivot: rigPt{47, 31}, dir: headUp(0.6), maxY: 44},
-		jaw:  [2]rigPt{{62, 31}, {72, 32}},
+		// the near hind leg, the far hind, the far fore, the near fore: each pair steps in turn
+		legs: []rigLimb{{15, 25, 43}, {26, 34, 43}, {35, 43, 43}, {44, 53, 43}},
+		head: rigPart{pivot: rigPt{44.6, 31.5}, dir: headUp(0.75), maxY: 56},
+		jaw:  [2]rigPt{{62, 39.5}, {71.5, 41.6}},
 	},
 	"toro": {
 		file: "toro", stride: 2,
-		legs: []rigLimb{{20, 32, 44}, {46, 63, 44}},
-		head: rigPart{pivot: rigPt{50, 34}, dir: headUp(0.6), maxY: 45},
-		jaw:  [2]rigPt{{66, 34}, {80, 33}},
+		legs: []rigLimb{{16, 27, 49}, {28, 37, 49}, {38, 47, 49}, {48, 58, 49}},
+		head: rigPart{pivot: rigPt{46.5, 35.5}, dir: headUp(0.75), maxY: 62},
+		jaw:  [2]rigPt{{67.6, 44.2}, {77.9, 46.5}},
 	},
 	"stego": {
 		file: "stego", stride: 2,
-		legs: []rigLimb{{26, 38, 43}, {48, 64, 43}},
-		head: rigPart{pivot: rigPt{60, 38}, dir: headUp(0.25), maxY: 45},
-		jaw:  [2]rigPt{{72, 41}, {80, 41}},
-		tail: rigPart{pivot: rigPt{16, 27}, dir: math.Pi, maxY: 34},
+		legs: []rigLimb{{35, 45, 46}, {46, 54, 46}, {55, 61, 46}, {62, 69, 46}},
+		head: rigPart{pivot: rigPt{73, 37.5}, dir: headUp(0.1), maxY: 56},
+		jaw:  [2]rigPt{{82, 42.5}, {89.5, 43}},
+		tail: rigPart{pivot: rigPt{17.5, 30}, dir: math.Pi, maxY: 44}, // the bare end of it, with the spikes
 	},
 	"brachio": {
-		file: "brachio", stride: 2,
-		legs: []rigLimb{{23, 44, 84}, {59, 80, 84}},
-		head: rigPart{pivot: rigPt{85, 30}, dir: headUp(1.1), maxY: 40},
-		neck: rigPart{pivot: rigPt{74, 56}, dir: headUp(1.0), maxY: 64},
-		jaw:  [2]rigPt{{100, 11}, {107, 12}},
+		file: "brachio", stride: 3,
+		legs: []rigLimb{{22, 35, 84}, {36, 45, 84}, {50, 59, 84}, {60, 71, 84}},
+		head: rigPart{pivot: rigPt{83.5, 25.5}, dir: headUp(0.98), maxY: 60},
+		neck: rigPart{pivot: rigPt{72, 44}, dir: headUp(0.98), maxY: 80},
+		jaw:  [2]rigPt{{99, 12.5}, {107, 13.5}},
 	},
 	"dakota": {
 		file: "dakota", stride: 2,
@@ -111,13 +112,13 @@ var dinoPoses = map[string]map[int]rigPose{
 	"stego": {
 		stegoWalkB: {step: 1},
 		stegoSwipe: {tail: 0.55},
-		stegoEatA:  {head: 0.35},
-		stegoEatB:  {head: 0.35, open: 0.2},
+		stegoEatA:  {head: 0.5},
+		stegoEatB:  {head: 0.5, open: 0.2},
 	},
 	"brachio": {
 		brachWalkB: {step: 1},
-		brachEatA:  {neck: 1.5, head: 0.6},
-		brachEatB:  {neck: 1.5, head: 0.6, open: 0.3},
+		brachEatA:  {neck: 0.8, head: 0.7},
+		brachEatB:  {neck: 0.8, head: 0.7, open: 0.3},
 	},
 	"raptor": {
 		raptorRunA:   {step: 1},
