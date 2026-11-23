@@ -79,7 +79,7 @@ var (
 		mkRamp(0x1d2418, 0x2f3a25, 0x445234, 0x5c6c46, 0x788a5c, 0x97a878),
 		mkRamp(0x8e9070, 0xb2b490, 0xd2d4b0), champsoWidth, champsoScale,
 	}
-	quetzalFlyLook = pteroLook{quetzalWing, quetzalBody, anzuCrest, quetzalFlyScale, false}
+	quetzalFlyLook = pteroLook{quetzalWing, quetzalBody, anzuCrest, quetzalFlyScale, "quetzalFly"}
 )
 
 // brachyWidth is a blunt, short-snouted crocodile, broad in the jaw.

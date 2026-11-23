@@ -47,16 +47,16 @@ func genPtero(pose int) sprite { c, ax, ay := pteroCanvas(pose); return mk(c, ax
 type pteroLook struct {
 	wing, body, crest ramp
 	scale             float64
-	drawn             bool // drawn from dinos/ (the pteranodon); see dinorigs.go
+	rig               string // its drawing in flight in dinos/; see dinorigs.go
 }
 
-var pteranodonLook = pteroLook{wingRamp, pteroRamp, crestRamp, pteroScale, true}
+var pteranodonLook = pteroLook{wingRamp, pteroRamp, crestRamp, pteroScale, "pteroFly"}
 
 func pteroCanvas(pose int) (*canvas, float64, float64) { return pteroCanvasOf(pose, pteranodonLook) }
 
 func pteroCanvasOf(pose int, lk pteroLook) (*canvas, float64, float64) {
-	if lk.drawn {
-		name := "pteroFly"
+	if lk.rig != "" {
+		name := lk.rig
 		if pose == pteroPerch {
 			name = "pteroPerch"
 		}

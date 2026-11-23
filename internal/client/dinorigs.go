@@ -74,29 +74,40 @@ var dinoRigs = map[string]dinoRig{
 		jaw:  [2]rigPt{{41, 11}, {47, 11.4}},
 	},
 	"anzu": {
-		file: "anzu", stride: 2,
-		legs: []rigLimb{{17, 27, 36}},
-		head: rigPart{pivot: rigPt{27, 20}, dir: headUp(1.2), maxY: 21},
-		jaw:  [2]rigPt{{37, 9}, {41, 11}},
+		file: "anzu", stride: 3,
+		legs: []rigLimb{{23, 36, 36}, {13, 22, 36}}, // the near leg, then the far one behind it
+		head: rigPart{pivot: rigPt{30.5, 24.5}, dir: headUp(1.1), maxY: 26},
+		jaw:  [2]rigPt{{39.5, 11.5}, {46, 11.8}},
 	},
 	"quetzal": {
-		file: "quetzal", stride: 2,
-		legs: []rigLimb{{19, 30, 79}, {38, 50, 79}},
-		head: rigPart{pivot: rigPt{44, 34}, dir: headUp(1.26), maxY: 40},
-		neck: rigPart{pivot: rigPt{40, 53}, dir: headUp(1.2), maxY: 56},
-		jaw:  [2]rigPt{{55, 20}, {80, 33}},
+		file: "quetzal", stride: 3,
+		// The near hind leg, the near wing it walks on, the far wing, the far hind leg.
+		legs: []rigLimb{{30, 40, 86}, {49, 61, 86}, {62, 71, 86}, {22, 29, 86}},
+		head: rigPart{pivot: rigPt{63, 16}, dir: headUp(math.Pi / 4), maxY: 40},
+		neck: rigPart{pivot: rigPt{50, 55}, dir: headUp(1.0), maxY: 60},
+		jaw:  [2]rigPt{{71.4, 19.6}, {100.5, 24.7}},
 	},
 	"plesio": {
-		file: "plesio", ax: 21, ay: 42,
-		head: rigPart{pivot: rigPt{31, 37}, dir: headUp(0.9), maxY: 42},
-		jaw:  [2]rigPt{{50, 9}, {57, 9}},
+		file: "plesio", ax: 23, ay: 45,
+		head:  rigPart{pivot: rigPt{34, 40}, dir: headUp(0.9), maxY: 45},
+		jaw:   [2]rigPt{{51.5, 9.5}, {60.5, 9.6}},
+		teeth: true,
 	},
-	"pteroPerch": {file: "ptero_perch", ax: 14, ay: 28},
+	"pteroPerch": {file: "ptero_perch", ax: 28, ay: 38},
+	// The fliers are seen from above, heading right: the far wing up the
+	// screen, the near one down it, each swinging about its shoulder.
 	"pteroFly": {
-		file: "ptero_fly", ax: 23, ay: 12,
+		file: "ptero_fly", ax: 18, ay: 28,
 		wings: [2]rigPart{
-			{pivot: rigPt{21, 9}, dir: math.Pi, maxY: 99}, // the left wing
-			{pivot: rigPt{27, 8}, dir: 0, maxY: 99},       // the right
+			{pivot: rigPt{18.5, 22.2}, dir: -math.Pi / 2, maxY: 999}, // the far wing
+			{pivot: rigPt{18.5, 33.8}, dir: math.Pi / 2, maxY: 999},  // the near one
+		},
+	},
+	"quetzalFly": {
+		file: "quetzal_fly", ax: 29, ay: 46,
+		wings: [2]rigPart{
+			{pivot: rigPt{30.2, 36.1}, dir: -math.Pi / 2, maxY: 999},
+			{pivot: rigPt{30.2, 55.9}, dir: math.Pi / 2, maxY: 999},
 		},
 	},
 }
@@ -154,22 +165,24 @@ var dinoPoses = map[string]map[int]rigPose{
 		anzuWalkB:   {step: -1},
 		anzuDisplay: {head: -0.3, open: 0.4}, // also its call
 		anzuKick:    {step: 2},
-		anzuEatA:    {head: 1.2},
-		anzuEatB:    {head: 1.2, open: 0.3},
+		anzuEatA:    {head: 1.45},
+		anzuEatB:    {head: 1.45, open: 0.3},
 	},
 	"quetzal": {
 		quetzalWalkB: {step: 1},
 		quetzalStab:  {neck: 0.4, head: 0.3, open: 0.2},
-		quetzalEatA:  {neck: 0.8, head: 0.5},
-		quetzalEatB:  {neck: 0.8, head: 0.5, open: 0.3},
+		quetzalEatA:  {neck: 1.35, head: 0.1},
+		quetzalEatB:  {neck: 1.35, head: 0.1, open: 0.25},
 	},
 	"plesio": {
 		plesioStrike: {head: 0.7, open: 0.4},
 	},
+	// A wingbeat seen from above: the wings shorten as they rise and fall,
+	// and sweep back on the way down; + wings is forward.
 	"pteroFly": {
-		pteroUp:   {wings: 0.35},
-		pteroDown: {wings: -0.35},
-		pteroDive: {tilt: 0.45, wings: -0.2},
+		pteroUp:   {squash: 0.7, wings: 0.1},
+		pteroDown: {squash: 0.86, wings: -0.2},
+		pteroDive: {tilt: 0.45, wings: -0.5},
 	},
 }
 
@@ -183,6 +196,9 @@ func drawnDino(species string, pose int) (*canvas, float64, float64, bool) {
 	poses := dinoPoses[species]
 	if species == "toro" {
 		poses = dinoPoses["trike"]
+	}
+	if species == "quetzalFly" {
+		poses = dinoPoses["pteroFly"]
 	}
 	if species == "dakota" || species == "achero" {
 		poses = dinoPoses["raptor"]
