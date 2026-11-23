@@ -84,12 +84,16 @@ func Generate(cfg GenConfig) (*World, error) {
 			w.scatterPlants(prng, seed)
 			w.buildVillages(prng)
 			w.placeTreasure(prng)
+			if cfg.Style >= StyleSeas {
+				w.raisePyramid(prng)
+			}
 		}
 		w.clearAround(sx, sy, clearSpawnRadius)
 		w.starterKit(rng)
 		w.spawnCreatures()
 		if tribal {
 			w.spawnTribes()
+			w.guardPyramid()
 		}
 		return w, nil
 	}

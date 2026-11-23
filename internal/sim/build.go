@@ -40,7 +40,7 @@ const (
 // blocksPlayers reports whether a structure of kind k stops a player.
 func blocksPlayers(k EntityKind) bool {
 	switch k {
-	case EntityWall, EntityStoneWall, EntitySpikes, EntityHut, EntityTotem:
+	case EntityWall, EntityStoneWall, EntitySpikes, EntityHut, EntityTotem, EntityPyramid, EntityPyramidStone:
 		return true
 	}
 	return false

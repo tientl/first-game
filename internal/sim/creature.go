@@ -682,6 +682,8 @@ func (w *World) stepCreature(c *Creature) {
 		w.stepMosa(c) // see seamonsters.go
 	case CreatureKraken:
 		w.stepKraken(c)
+	case CreatureScorpion:
+		w.stepScorpion(c) // see pyramid.go
 	default:
 		w.wander(c)
 	}

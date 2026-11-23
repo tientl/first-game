@@ -40,6 +40,9 @@ type World struct {
 
 	boats    []*Boat // see boats.go
 	nextBoat BoatID
+
+	pyramidAt  [2]int // see pyramid.go
+	hasPyramid bool
 }
 
 func newWorld(width, height int) *World {

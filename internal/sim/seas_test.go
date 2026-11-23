@@ -189,3 +189,45 @@ func TestSeaWorldRuns(t *testing.T) {
 		t.Fatal("no sea monsters")
 	}
 }
+
+func TestPyramidStandsOnAFarDesertIsland(t *testing.T) {
+	for _, seed := range []uint64{1, 2, 3} {
+		w := genSeas(t, seed, SizeMedium)
+		tx, ty, ok := w.Pyramid()
+		if !ok {
+			t.Fatalf("seed %d: no pyramid", seed)
+		}
+		if w.TileAt(tx, ty) != TileDesert && w.TileAt(tx, ty) != TileSand {
+			t.Errorf("seed %d: pyramid on tile %d", seed, w.TileAt(tx, ty))
+		}
+		if d := math.Hypot(float64(tx)-w.spawnX, float64(ty)-w.spawnY); d < SizeMedium/5 {
+			t.Errorf("seed %d: pyramid %.0f tiles from the spawn", seed, d)
+		}
+		if e, ok := w.EntityAt(tx, ty+1); !ok || e.Kind != EntityTreasure {
+			t.Errorf("seed %d: no chest in the doorway", seed)
+		}
+		if !w.blocked(tx-2, ty-2) {
+			t.Errorf("seed %d: the pyramid does not block the way", seed)
+		}
+		scorpions := 0
+		for _, c := range w.fauna.creatures {
+			if c.Kind == CreatureScorpion {
+				scorpions++
+			}
+		}
+		if scorpions < pyramidGuards {
+			t.Errorf("seed %d: %d scorpions", seed, scorpions)
+		}
+	}
+}
+
+func TestScorpionPinchesThenStings(t *testing.T) {
+	w := flatWorld()
+	id := w.AddPlayer("a")
+	w.addCreature(CreatureScorpion, 17.6, 16.5)
+	stepN(w, 4*TicksPerSecond)
+	p := w.players[id]
+	if p.Health > MaxHealth-ScorpionPinch-ScorpionSting+1 || !p.Poisoned() {
+		t.Fatalf("health %.0f poisoned %v: want pinched and stung", p.Health, p.Poisoned())
+	}
+}
