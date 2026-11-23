@@ -124,6 +124,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			cx, cy, _ = g.lerpPlayer(p, alpha)
 		}
 	}
+	if !g.demo {
+		sx, sy := shake(g.frame) // a tyrant roaring close by; see rexroar.go
+		cx, cy = cx+sx, cy+sy
+	}
 	cam := newCamera(cx, cy, cw, ch)
 	g.updateCave() // before anything hides under, or shows from, a cave roof
 	target := g.target()
