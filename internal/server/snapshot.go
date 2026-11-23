@@ -144,6 +144,8 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Tame:     uint8(min(c.Tame, 255)),
 			Stay:     c.Stay,
 			Ridden:   c.Ridden(),
+			HP:       int16(min(c.HP, 32767)),
+			MaxHP:    int16(min(c.Kind.MaxHP(), 32767)),
 		})
 	})
 	return snap, true

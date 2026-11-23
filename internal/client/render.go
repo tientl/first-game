@@ -162,6 +162,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if g.demo {
 		return
 	}
+	g.drawCombat(screen, cam, float64(scale), alpha) // see combatui.go
 	g.drawWorldLabels(screen, cam, float64(scale), target)
 	g.drawDigLabel(screen, cam, float64(scale))
 	g.drawFishingLabels(screen, cam, float64(scale), sw, sh)

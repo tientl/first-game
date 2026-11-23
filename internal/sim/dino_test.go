@@ -103,7 +103,7 @@ func TestATrikeHerdTurnsOnWhoeverHurtsOne(t *testing.T) {
 	}
 	a.X, a.Y = 18.2, 16.5
 	hitUntil(w, id, 1, func() bool { return false })
-	if a.HP == trikeDef.hp || b.rage == 0 || b.foe != id {
+	if a.HP == trikeDef.hp*HealthScale || b.rage == 0 || b.foe != id {
 		t.Fatalf("hp %d, herd mate rage %d foe %d: the hit should anger the herd", a.HP, b.rage, b.foe)
 	}
 	stepN(w, 5*TicksPerSecond)

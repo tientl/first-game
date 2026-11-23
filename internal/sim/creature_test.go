@@ -160,7 +160,7 @@ func TestKillingASnake(t *testing.T) {
 	id := w.AddPlayer("a")
 	w.addCreature(CreatureSnake, 17.5, 16.5)
 	w.SetInput(id, Input{Action: true})
-	stepN(w, 1+creatureDefs[CreatureSnake].hp*ActionCooldownTicks)
+	stepN(w, 1+2*creatureDefs[CreatureSnake].hp*ActionCooldownTicks)
 	reap(w, id)
 	p := mustPlayer(t, w, id)
 	if len(creatureByKind(w, CreatureSnake)) != 0 || p.Inv.Count(ItemMeat) != creatureDefs[CreatureSnake].yieldN {

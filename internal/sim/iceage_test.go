@@ -84,7 +84,7 @@ func TestMammothsGoreWhoeverHurtsThem(t *testing.T) {
 	a := w.addCreature(CreatureMammoth, 18.4, 16.5)
 	id := w.AddPlayer("a")
 	hitUntil(w, id, 1, func() bool { return false })
-	if a.HP == mammothDef.hp {
+	if a.HP == mammothDef.hp*HealthScale {
 		t.Fatal("the hit missed")
 	}
 	stepN(w, 6*TicksPerSecond)

@@ -300,7 +300,7 @@ func (w *World) lightning() {
 	}
 	for _, c := range w.fauna.creatures {
 		if !c.gone && !c.State.OutOfReach() && math.Hypot(c.X-x, c.Y-y) <= LightningRadius+c.Kind.def().radius {
-			if c.HP -= LightningBeast; c.HP <= 0 {
+			if c.HP -= LightningBeast * HealthScale; c.HP <= 0 {
 				w.fell(c)
 			}
 		}

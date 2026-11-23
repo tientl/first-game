@@ -14,6 +14,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -62,6 +63,7 @@ func main() {
 	weather := flag.String("weather", "", "the weather: rain, wind, storm, tornado, snow")
 	season := flag.String("season", "", "the season: spring, summer, autumn, winter")
 	zoom := flag.Int("zoom", 0, "the view's zoom, -3 to 3")
+	fight := flag.Bool("fight", false, "show the beasts' health: a few just hurt, with the damage floating up (use with -dinos)")
 	woodsFlag := flag.Bool("woods", false, "put the woods round the player: a giant tree and a tree with beehives, banana trees, a troop of monkeys, and bees after the player")
 	dung := flag.Bool("dung", false, "with -farm: a fed bed, heaps of dung by a grazing three-horn, and dung in hand")
 	sea := flag.Bool("sea", false, "out at sea: the player sailing, a raft, a swimmer, a mosasaur and a giant squid")
@@ -601,6 +603,27 @@ func main() {
 		PlayerID: 1, Width: N, Height: mapH, Tiles: w.Tiles(),
 		Explored: shotExplored(N, mapH, sx, sy), SurfaceH: surfH,
 	}}
+	if *fight {
+		for i := range snap.Creatures {
+			m := int16(snap.Creatures[i].Kind.MaxHP())
+			snap.Creatures[i].HP, snap.Creatures[i].MaxHP = m, m
+		}
+		conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}
+		hurt := snap
+		hurt.Creatures = slices.Clone(snap.Creatures)
+		for i := range hurt.Creatures {
+			c := &hurt.Creatures[i]
+			switch i % 3 {
+			case 0:
+				c.HP -= int16(float64(c.MaxHP) * 0.22)
+			case 1:
+				c.HP -= int16(float64(c.MaxHP) * 0.71)
+			}
+		}
+		hurt.Self.Notice, hurt.Self.NoticeSeq = sim.NoticeCrit, snap.Self.NoticeSeq+1
+		hurt.Tick++
+		snap = hurt
+	}
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}
 
 	if *audioSettings != "" {

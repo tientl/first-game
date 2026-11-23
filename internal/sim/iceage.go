@@ -38,7 +38,7 @@ const (
 	SabreCowerBelow  = 3 // hit points at which it gives up
 	SabreCowerTicks  = 8 * TicksPerSecond
 
-	IvorySpearDamage = 4
+	IvorySpearDamage = 40
 	IvorySpearReach  = 0.8 // extra reach on creatures, held
 )
 
@@ -128,7 +128,7 @@ func (w *World) stepSabre(c *Creature) {
 		}
 		return
 	}
-	if p != nil && c.HP <= SabreCowerBelow && dist < SabreGiveUp {
+	if p != nil && c.HP <= SabreCowerBelow*HealthScale && dist < SabreGiveUp {
 		c.State, c.timer, c.rage = CreatureCower, SabreCowerTicks, 0 // beaten
 		return
 	}

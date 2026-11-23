@@ -191,7 +191,7 @@ func (w *World) manEaterBitesBeast(c *Creature) {
 			return
 		}
 		e.RegrowAt = w.tick + ManEaterCooldown
-		if c.HP -= ManEaterBeastBite; c.HP <= 0 {
+		if c.HP -= ManEaterBeastBite * HealthScale; c.HP <= 0 {
 			w.fell(c)
 		} else if !c.Kind.def().tough {
 			c.State, c.timer = CreatureHurt, CreatureHurtTicks
@@ -211,7 +211,7 @@ func ManEaterSnapping(readyAt, tick uint64) bool {
 // cutManEater lands a blow on a man-eating plant; it needs a weapon or an
 // axe, and the last blow leaves its seeds on the ground.
 func (w *World) cutManEater(p *Player, e *Entity) bool {
-	dmg := damageWith(p) * HitPower
+	dmg := max(HitPower, damageWith(p)*HitPower/HealthScale)
 	if t, ok := p.Inv.BestTool(ToolAxe); ok {
 		dmg = max(dmg, ToolPower(t))
 	}

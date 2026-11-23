@@ -21,7 +21,8 @@ import (
 //   - 8: tamed beasts are saved with their owners' names.
 //   - 9: fruit trees grow wild.
 //   - 10: things lie on the ground; players come back by their last bed.
-const SaveVersion = 10
+//   - 11: a beast's health counts in HealthScale units (weapons do damage, not hits).
+const SaveVersion = 11
 
 // v6DayTicks is how long a day was in saves before version 7.
 const v6DayTicks = 240 * TicksPerSecond
@@ -275,6 +276,11 @@ func Load(d SaveData) (*World, error) {
 		if name := cleanName(ps.Name); name != "" {
 			ps.Name = name
 			w.offline[name] = ps
+		}
+	}
+	if d.Version < 11 {
+		for i := range d.Pets {
+			d.Pets[i].HP *= HealthScale
 		}
 	}
 	w.loadPets(d.Pets)

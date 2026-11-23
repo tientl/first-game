@@ -84,7 +84,7 @@ func TestTorosaurusGoresHarderThanTheThreeHorn(t *testing.T) {
 	id := w.AddPlayer("a")
 	hitUntil(w, id, 1, func() bool { return false })
 	stepN(w, 5*TicksPerSecond)
-	if p := mustPlayer(t, w, id); p.Health > MaxHealth-ToroGoreDamage+1 || c.HP == toroDef.hp {
+	if p := mustPlayer(t, w, id); p.Health > MaxHealth-ToroGoreDamage+1 || c.HP == toroDef.hp*HealthScale {
 		t.Fatalf("health %.0f hp %d: an angry torosaurus should gore", p.Health, c.HP)
 	}
 }
@@ -92,7 +92,7 @@ func TestTorosaurusGoresHarderThanTheThreeHorn(t *testing.T) {
 func TestAcheroraptorsBiteLess(t *testing.T) {
 	bite, _, _, _, _ := raptorTune(CreatureAchero)
 	big, _, _, _, _ := raptorTune(CreatureRaptor)
-	if bite >= big || acheroDef.herd <= raptorDef.herd || acheroDef.hp >= raptorDef.hp {
+	if bite >= big || acheroDef.herd <= raptorDef.herd || acheroDef.hp*HealthScale >= raptorDef.hp*HealthScale {
 		t.Fatal("acheroraptors should be smaller, weaker and in bigger packs")
 	}
 	w := flatWorld()
@@ -113,7 +113,7 @@ func TestQuetzalcoatlusStabsThenFliesOffWhenHurt(t *testing.T) {
 	if p := mustPlayer(t, w, id); p.Health > MaxHealth-QuetzalStabDamage+1 {
 		t.Fatalf("health %.0f: it should stalk up and stab", p.Health)
 	}
-	q.HP = int(float64(quetzalDef.hp) * QuetzalFlyBelow)
+	q.HP = int(float64(quetzalDef.hp*HealthScale) * QuetzalFlyBelow)
 	w.Step()
 	if q.State != CreatureSoar || !q.State.OutOfReach() {
 		t.Fatalf("state %d: badly hurt, it should take to the air out of reach", q.State)

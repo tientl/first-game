@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 28
+const Version = 29
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -206,4 +206,6 @@ type CreatureView struct {
 	Tame   uint8        // meals towards taming it, while wild
 	Stay   bool         // a pet told to wait
 	Ridden bool         // someone is riding it: not a target
+
+	HP, MaxHP int16 // its health now and at full; see sim/combat.go
 }

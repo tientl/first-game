@@ -216,7 +216,7 @@ func (w *World) stepTribesman(c *Creature) {
 	if p == nil {
 		p, dist = w.nearestPlayer(c.X, c.Y)
 	}
-	if p != nil && c.HP <= TribeFleeBelow && dist < TribeGiveUp {
+	if p != nil && c.HP <= TribeFleeBelow*HealthScale && dist < TribeGiveUp {
 		c.State, c.timer, c.rage = CreatureFlee, 10*TicksPerSecond, 0
 		return
 	}

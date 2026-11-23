@@ -147,7 +147,7 @@ func (w *World) stepKraken(c *Creature) {
 	}
 	if c.State == CreatureGrab {
 		p := w.players[c.foe]
-		lost := c.HP <= c.grabHP-KrakenLetGo
+		lost := c.HP <= c.grabHP-KrakenLetGo*HealthScale
 		if c.timer--; c.timer <= 0 || p == nil || p.Dead || lost {
 			c.State, c.timer, c.cool = CreatureLurk, 0, KrakenRestTicks
 			if b := w.boatByID(p.boatOrZero()); b != nil {

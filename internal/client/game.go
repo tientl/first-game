@@ -357,6 +357,7 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 	for _, b := range g.curr.Boats {
 		g.prevBoats[b.ID] = b
 	}
+	g.noteHits(s) // see combatui.go: before prevCreatures is lost to the next snapshot
 	g.curr, g.currAt, g.hasCurr = s, time.Now(), true
 	if want := groundSeason(s.Season); want != g.groundSeason {
 		// Snow on the ground and ice on the ponds come and go with winter.

@@ -501,7 +501,7 @@ func (g *Game) creatureLabel(c protocol.CreatureView) (string, color.RGBA) {
 	if name := c.Kind.Name(); busy != "" && strings.HasPrefix(label, name) {
 		label = name + busy + label[len(name):]
 	}
-	return label, col
+	return label + healthText(c, g.myHeld()), col
 }
 
 func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {

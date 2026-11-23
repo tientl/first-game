@@ -308,7 +308,7 @@ func (w *World) stepQuetzal(c *Creature) {
 	if p == nil {
 		p, dist = w.nearestPlayer(c.X, c.Y)
 	}
-	if float64(c.HP) <= float64(d.hp)*QuetzalFlyBelow && c.cool == 0 {
+	if float64(c.HP) <= float64(c.Kind.MaxHP())*QuetzalFlyBelow && c.cool == 0 {
 		c.State, c.timer = CreatureSoar, QuetzalFlyTicks // up and away
 		c.hx, c.hy = 1, 0
 		if p != nil && dist > 1e-9 {

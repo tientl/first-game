@@ -418,7 +418,7 @@ func (w *World) creatureFits(k CreatureKind, x, y float64) bool {
 func (w *World) addCreature(k CreatureKind, x, y float64) *Creature {
 	f := &w.fauna
 	f.nextID++
-	c := &Creature{ID: f.nextID, Kind: k, X: x, Y: y, HP: k.def().hp, homeX: x, homeY: y}
+	c := &Creature{ID: f.nextID, Kind: k, X: x, Y: y, HP: k.MaxHP(), homeX: x, homeY: y}
 	c.FaceLeft = w.random().IntN(2) == 0
 	f.creatures = append(f.creatures, c) // ids only grow, so this stays sorted
 	return c
@@ -893,7 +893,7 @@ func (w *World) catch(p *Player, c *Creature) bool {
 	}
 	// What a kill gives falls on the ground (see drops.go), so a full bag
 	// never stops a blow; only a fish comes straight off the line into it.
-	dmg := damageWith(p)
+	dmg := w.blow(p) // see combat.go
 	fits := p.Inv
 	if missing := addAll(&fits, c.Kind.loot()); missing.Valid() && d.onLine {
 		p.notify(NoticeBagFull, uint8(missing))

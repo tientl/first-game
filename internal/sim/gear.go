@@ -20,7 +20,7 @@ var (
 	armors = [NumTiers]ItemKind{ItemNone, ItemCopperArmor, ItemIronArmor, ItemPlatinumArmor, ItemDiamondArmor}
 
 	// swordDamage is the damage of one blow with each tier's sword.
-	swordDamage = [NumTiers]int{0, 3, 4, 5, 7}
+	swordDamage = [NumTiers]int{0, 30, 42, 55, 75}
 	// armorBlock is the share of an animal's attack each tier's armour stops.
 	armorBlock = [NumTiers]float64{0, 0.25, 0.4, 0.55, 0.7}
 )

@@ -366,6 +366,7 @@ const (
 	NoticeNothingToFeed // nothing growing in front to feed dung to
 	NoticeBees          // a swarm of bees is after you
 	NoticeBeesCalm      // the torch smoke calms the bees
+	NoticeCrit          // your blow was a critical one
 )
 
 // CommandKind is a discrete player request, as opposed to held input.

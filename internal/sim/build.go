@@ -75,7 +75,7 @@ func (w *World) stepTrapsAndSpikes(c *Creature) {
 			hold = TrapHoldTough
 		}
 		c.State, c.timer = CreatureTrapped, hold
-		if c.HP -= TrapDamage; c.HP <= 0 {
+		if c.HP -= TrapDamage * HealthScale; c.HP <= 0 {
 			w.fell(c)
 		}
 		return
@@ -97,7 +97,7 @@ func (w *World) stepTrapsAndSpikes(c *Creature) {
 			nx := math.Max(float64(tx), math.Min(c.X, float64(tx)+1))
 			ny := math.Max(float64(ty), math.Min(c.Y, float64(ty)+1))
 			if math.Hypot(nx-c.X, ny-c.Y) <= r {
-				if c.HP -= SpikeDamage; c.HP <= 0 {
+				if c.HP -= SpikeDamage * HealthScale; c.HP <= 0 {
 					w.fell(c)
 				} else if !d.tough && c.State != CreatureFlee {
 					c.State, c.timer = CreatureHurt, CreatureHurtTicks

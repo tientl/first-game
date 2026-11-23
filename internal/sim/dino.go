@@ -381,7 +381,7 @@ func (w *World) stepRaptor(c *Creature) {
 		}
 		return
 	}
-	if p != nil && c.HP <= cowerAt && dist < RaptorGiveUp {
+	if p != nil && c.HP <= cowerAt*HealthScale && dist < RaptorGiveUp {
 		c.State, c.timer = CreatureCower, RaptorCowerTicks // badly hurt: it gives up the fight
 		c.rage = 0
 		return

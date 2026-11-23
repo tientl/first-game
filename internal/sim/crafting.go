@@ -5,7 +5,7 @@ package sim
 
 // Tool and building tuning.
 const (
-	SpearDamage     = 2   // damage per thrust with a held spear
+	SpearDamage     = 20  // damage per thrust with a held spear; see combat.go
 	SpearReachBonus = 0.5 // extra reach on creatures with a held spear, in tiles
 
 	TorchBurnTicks = 90 * TicksPerSecond // one torch burns this long while held
@@ -135,17 +135,4 @@ func ReachBonusFor(held ItemKind) float64 {
 		return IvorySpearReach // see iceage.go
 	}
 	return 0
-}
-
-func damageWith(p *Player) int {
-	if t, ok := SwordTier(p.Held()); ok {
-		return swordDamage[t]
-	}
-	switch p.Held() {
-	case ItemSpear:
-		return SpearDamage
-	case ItemIvorySpear:
-		return IvorySpearDamage
-	}
-	return 1
 }

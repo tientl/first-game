@@ -23,7 +23,7 @@ func TestTamingAThreeHornWithBerries(t *testing.T) {
 	if got := p.Inv.Count(ItemBerry); got != 10-CreatureTrike.TameMeals() {
 		t.Errorf("%d berries left, want %d", got, 10-CreatureTrike.TameMeals())
 	}
-	if c.HP != trikeDef.hp || p.Health != MaxHealth {
+	if c.HP != trikeDef.hp*HealthScale || p.Health != MaxHealth {
 		t.Errorf("hp %d, player health %.0f: taming hurts nobody", c.HP, p.Health)
 	}
 }
@@ -41,7 +41,7 @@ func TestHittingABeastUndoesItsTaming(t *testing.T) {
 	stepN(w, ActionCooldownTicks)
 	c.X, c.Y = 18.2, 16.5
 	hitUntil(w, id, 1, func() bool { return false }) // bare hands now: a hit
-	if c.Tame != 0 || c.HP == trikeDef.hp {
+	if c.Tame != 0 || c.HP == trikeDef.hp*HealthScale {
 		t.Fatalf("tame %d hp %d: a hit should hurt it and undo the taming", c.Tame, c.HP)
 	}
 }
@@ -113,7 +113,7 @@ func TestPetsDefendTheirOwner(t *testing.T) {
 		}
 		w.Step()
 	}
-	if !raptor.gone && raptor.HP == raptorDef.hp {
+	if !raptor.gone && raptor.HP == raptorDef.hp*HealthScale {
 		t.Fatal("the pet never fought the raptor going for its owner")
 	}
 	if raptor.gone && p.Inv.Count(ItemHide) == 0 {
@@ -162,7 +162,7 @@ func TestOthersCannotHitOrRideYourPet(t *testing.T) {
 	w.players[a].X = 2.5
 	w.players[b].Inv.Add(ItemSaddle, 1)
 	hitUntil(w, b, 1, func() bool { return false })
-	if pet.HP != trikeDef.hp || w.players[b].Notice != NoticeNotYours {
+	if pet.HP != trikeDef.hp*HealthScale || w.players[b].Notice != NoticeNotYours {
 		t.Fatalf("hp %d notice %d: someone else's pet is not theirs to hit", pet.HP, w.players[b].Notice)
 	}
 	w.Apply(b, Command{Kind: CmdRide})
