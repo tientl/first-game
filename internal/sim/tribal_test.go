@@ -415,9 +415,11 @@ func TestManEaterSwallowsSmallDinosaurs(t *testing.T) {
 	if !ManEaterChewing(e.RegrowAt, w.tick) {
 		t.Fatal("not chewing after a meal")
 	}
+	e.RegrowAt = 0 // done chewing
 	big := w.addCreature(CreatureTrike, 11.9, 10.5)
+	big.State, big.timer = CreatureIdle, 1000
 	hp := big.HP
-	stepN(w, ManEaterDigest+2*TicksPerSecond)
+	stepN(w, 2*TicksPerSecond)
 	if big.gone || big.HP >= hp {
 		t.Fatalf("trike gone %v hp %d: want bitten, not swallowed", big.gone, big.HP)
 	}
