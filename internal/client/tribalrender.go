@@ -22,6 +22,7 @@ import (
 func (a *art) addTribalArt() {
 	a.tribal = genTribalArt()
 	genTribalIcons(&a.icons)
+	genDungIcon(&a.icons) // see dungart.go
 	a.heads = make(map[sim.CreatureKind]sprite)
 	for k := sim.CreatureKind(1); k < sim.NumCreatureKinds; k++ {
 		h := sim.HeadItem(k)
@@ -389,7 +390,11 @@ func (g *Game) drawDrop(dst *ebiten.Image, d protocol.DropView, sx, sy, lift flo
 		return
 	}
 	bob := 0.0
-	if lift == 0 {
+	if d.Item == sim.ItemDung {
+		if lift == 0 {
+			g.drawFlies(dst, sx, sy, uint32(d.ID))
+		}
+	} else if lift == 0 {
 		bob = math.Round(math.Sin(float64(g.frame)*0.07+float64(d.ID)) * 1)
 	}
 	op := &ebiten.DrawImageOptions{}

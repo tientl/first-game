@@ -597,6 +597,7 @@ func (w *World) stepCreatures() {
 	for _, c := range f.creatures {
 		if !c.gone {
 			w.stepCreature(c)
+			w.maybeDung(c) // see dung.go
 		}
 	}
 	f.creatures = slices.DeleteFunc(f.creatures, func(c *Creature) bool { return c.gone })

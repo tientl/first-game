@@ -361,6 +361,9 @@ const (
 
 	NoticeIntoCave  // down into the caves
 	NoticeOutOfCave // back up into daylight
+
+	NoticeFertilized    // dung spread; Arg: the EntityKind fed
+	NoticeNothingToFeed // nothing growing in front to feed dung to
 )
 
 // CommandKind is a discrete player request, as opposed to held input.

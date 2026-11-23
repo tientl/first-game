@@ -194,6 +194,8 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 			} else {
 				snd.play("craft", 0.6, 0, 1)
 			}
+		case sim.NoticeFertilized:
+			snd.playVar("pick_grass", 0.6, 0, 0.08)
 		case sim.NoticeNotEnough, sim.NoticeNoSpace, sim.NoticeNotEdible, sim.NoticeNoneLeft, sim.NoticeBagFull,
 			sim.NoticeNeedTool, sim.NoticeHaveOne, sim.NoticeNeedBait, sim.NoticeNeedFire, sim.NoticeNotTired:
 			// Holding Space at a tree with no axe repeats the notice twice

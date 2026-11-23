@@ -101,7 +101,7 @@ func (w *World) stepDrops() {
 		return
 	}
 	for _, d := range w.drops {
-		if w.tick-d.Born > DropLifeTicks {
+		if w.tick-d.Born > dropLife(d.Item) {
 			d.gone = true
 			continue
 		}
@@ -347,6 +347,10 @@ func (w *World) placeHeld(p *Player) {
 	}
 	if k := boatOf(held); k != BoatNone {
 		w.launch(p, k) // see boats.go
+		return
+	}
+	if held == ItemDung {
+		w.fertilize(p) // see dung.go
 		return
 	}
 	switch held {

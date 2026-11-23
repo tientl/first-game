@@ -829,6 +829,9 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				need, _ := orePick(e.Kind)
 				label, col = label+" — cần "+sim.ToolItem(sim.ToolPickaxe, need).Def().Name, colBad
 			case e.Kind == sim.EntityFarmland:
+				if e.Big {
+					label += " (đã bón phân)"
+				}
 				if g.curr.Self.Inv.Count(sim.ItemPotato) > 0 {
 					label += " — trồng khoai"
 				} else {

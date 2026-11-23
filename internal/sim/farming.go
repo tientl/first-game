@@ -76,7 +76,11 @@ func (w *World) plant(p *Player, e *Entity) bool {
 		p.notify(NoticeNeedSeed, uint8(ItemPotato))
 		return false
 	}
-	e.Kind, e.Ready, e.HP = EntityCrop, false, maxHP(EntityCrop, false)
+	fed := e.Big // dung in the bed: see dung.go
+	e.Kind, e.Ready, e.Big, e.HP = EntityCrop, false, false, maxHP(EntityCrop, false)
 	e.RegrowAt = w.tick + CropGrowTicks
+	if fed {
+		e.RegrowAt = w.tick + CropGrowTicks/DungBoost
+	}
 	return true
 }

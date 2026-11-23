@@ -303,6 +303,8 @@ func (g *Game) drawHelp(screen *ebiten.Image, sh int) {
 		lines = append(lines, line{"V", "thả thuyền xuống nước trước mặt", colGood})
 	} else if held == sim.ItemTorch || sim.IsSeed(held) {
 		lines = append(lines, line{"V", "cắm đuốc / gieo hạt trước mặt", colGood})
+	} else if held == sim.ItemDung {
+		lines = append(lines, line{"V", "bón phân cho cây non, luống đất, cây đang mọc lại", colGood})
 	} else if _, ok := sim.HeadOf(g.myHeld()); ok {
 		lines = append(lines, line{"V", "dựng đầu thú làm vật trang trí", colGood})
 	}

@@ -699,7 +699,7 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 	case sim.NoticePickedUp:
 		return "" // the pick-up sound says it
 	case sim.NoticeCantPlace:
-		return "Cầm đầu thú, đuốc hoặc hạt giống trên tay rồi nhấn V để đặt xuống"
+		return "Cầm đầu thú, đuốc, hạt giống hoặc phân trên tay rồi nhấn V"
 	case sim.NoticePlantBite:
 		return "Bị cây ăn thịt người đớp!"
 	case sim.NoticeLightning:
@@ -710,6 +710,13 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		return "Dính tơ nhện — đi chậm lại!"
 	case sim.NoticeTreasure:
 		return "Mở được rương cổ!"
+	case sim.NoticeFertilized:
+		if sim.EntityKind(arg) == sim.EntityFarmland {
+			return "Đã bón phân cho luống — khoai trồng ở đây lớn nhanh gấp đôi"
+		}
+		return "Đã bón phân — cây lớn nhanh gấp đôi"
+	case sim.NoticeNothingToFeed:
+		return "Đứng sát cây non, luống đất hoặc cây đang mọc lại rồi nhấn V để bón phân"
 	case sim.NoticeHomeSet:
 		return "Đây là nơi bạn sẽ hồi sinh"
 	case sim.NoticeLaunched:

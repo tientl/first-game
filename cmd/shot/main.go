@@ -62,6 +62,7 @@ func main() {
 	weather := flag.String("weather", "", "the weather: rain, wind, storm, tornado, snow")
 	season := flag.String("season", "", "the season: spring, summer, autumn, winter")
 	zoom := flag.Int("zoom", 0, "the view's zoom, -3 to 3")
+	dung := flag.Bool("dung", false, "with -farm: a fed bed, heaps of dung by a grazing three-horn, and dung in hand")
 	sea := flag.Bool("sea", false, "out at sea: the player sailing, a raft, a swimmer, a mosasaur and a giant squid")
 	flag.Parse()
 	client.SetZoom(*zoom)
@@ -416,6 +417,18 @@ func main() {
 		snap.Self.Inv.Add(sim.ItemHoe, 1)
 		snap.Self.Inv.Add(sim.ItemPebble, 3)
 		snap.Self.Inv.Add(sim.ItemRoastPotato, 1)
+		if *dung {
+			snap.Entities[len(snap.Entities)-sim.CropStages-2].Big = true // the empty bed, fed
+			snap.Creatures = append(snap.Creatures, protocol.CreatureView{
+				ID: 1 << 29, Kind: sim.CreatureTrike, X: float32(sx + 3.2), Y: float32(sy + 2.4), State: sim.CreatureEat, FaceLeft: true,
+			})
+			for i, o := range [][2]float64{{4.6, 2.7}, {2.2, 3.5}, {1.2, 1.4}} {
+				snap.Drops = append(snap.Drops, protocol.DropView{ID: sim.DropID(900 + i), Item: sim.ItemDung, Count: 2,
+					X: float32(sx + o[0]), Y: float32(sy + o[1]), Age: 999})
+			}
+			snap.Players[0].Held = sim.ItemDung
+			snap.Self.Inv.Add(sim.ItemDung, 4)
+		}
 	}
 	if *animals {
 		id := sim.CreatureID(1 << 30)

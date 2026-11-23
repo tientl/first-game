@@ -105,6 +105,8 @@ const (
 	// The open sea: see boats.go.
 	ItemRaft     // a raft, set on the water with V
 	ItemSailboat // a sailing boat, set on the water with V
+
+	ItemDung // left by grazing beasts; fed to what grows with V: see dung.go
 	itemsEnd     // new items go above this line
 
 	// The head of each kind of beast, a trophy: HeadItem(k). They sit at a
@@ -222,6 +224,7 @@ var itemDefs = [NumItems]ItemDef{
 	ItemManEaterSeed: {Name: "Hạt cây ăn thịt"},
 	ItemRaft:         {Name: "Bè gỗ", Stack: 1},
 	ItemSailboat:     {Name: "Thuyền buồm", Stack: 1},
+	ItemDung:         {Name: "Phân thú"},
 }
 
 // Valid reports whether k is a real item kind (not ItemNone, in range).
