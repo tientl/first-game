@@ -192,6 +192,7 @@ Từ bản này, trò chơi mới tạo một **quần đảo**: đảo nhà ở
   - **Thương long** (Mosasaurus) bơi ngầm, chỉ thấy bóng đen và sống lưng, nhanh hơn bè nhưng chậm hơn thuyền buồm xuôi gió. Tới gần thì ngoi lên đớp: thuyền mất 30 độ bền, người trên thuyền mất 8 máu, người đang bơi mất 34 máu. Sau cú đớp nó ở trên mặt nước vài giây: lúc đó mới đánh được, rồi lặn xuống.
   - **Mực khổng lồ** nằm sâu hơn nữa. Thuyền đi ngang qua là bị xúc tu giữ chặt 7 giây, mỗi giây thuyền mất 8 độ bền. Đánh nó mất 12 máu thì nó buông ra.
   - Hạ quái vật biển ngoài khơi thì đồ nổi trên mặt nước, chèo lại nhặt.
+- **Kim tự tháp** đứng giữa đảo sa mạc lớn nhất (không bao giờ là đảo nhà): khối đá 7×5 ô, trong cửa có rương cổ giữ kho báu quý nhất. **Bọ cạp khổng lồ** sống trên cát sa mạc, vài con canh quanh kim tự tháp: chậm hơn bạn, kẹp bằng càng (10 máu) rồi chích đuôi (14 máu, trúng độc 8 giây). Xem nhanh: `go run ./cmd/shot -open -at pyramid -zoom -1`.
 - Thuyền đậu lại được lưu cùng bản lưu; lưu game khi đang ở trên thuyền thì lúc vào lại vẫn ở trên thuyền.
 
 Xem nhanh: `go run ./cmd/shot -open -sea`; bản đồ toàn thế giới: `OPEN_DUMP=<thư mục> go test ./internal/sim -run DumpOpen`.
