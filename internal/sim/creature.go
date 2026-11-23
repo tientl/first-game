@@ -64,6 +64,9 @@ const (
 	// Monsters of the open sea: see seamonsters.go.
 	CreatureMosa   // Mosasaurus: a giant sea lizard that hunts boats in deep water
 	CreatureKraken // a giant squid that seizes boats with its arms
+
+	// The desert island: see pyramid.go.
+	CreatureScorpion // a giant scorpion: pinches, and stings with venom
 	NumCreatureKinds
 )
 

@@ -85,6 +85,10 @@ const (
 	EntityHut        // a tribal hut of wood and thatch
 	EntityTotem      // the carved post at a village's heart
 	EntityBonfire    // a village fire that never goes out
+
+	// The desert island's pyramid: see pyramid.go.
+	EntityPyramid      // the pyramid itself, standing on the middle of its south face
+	EntityPyramidStone // the rest of its foot: blocks the way, drawn as part of the pyramid
 	NumEntityKinds
 )
 
@@ -135,6 +139,9 @@ var entityNames = [NumEntityKinds]string{
 	EntityHut:        "Lều thổ dân",
 	EntityTotem:      "Cột vật tổ",
 	EntityBonfire:    "Lửa làng",
+
+	EntityPyramid:      "Kim tự tháp",
+	EntityPyramidStone: "Kim tự tháp",
 }
 
 // Name is the display name of k.
