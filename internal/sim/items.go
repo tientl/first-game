@@ -107,7 +107,7 @@ const (
 	ItemSailboat // a sailing boat, set on the water with V
 
 	ItemDung // left by grazing beasts; fed to what grows with V: see dung.go
-	itemsEnd     // new items go above this line
+	itemsEnd // new items go above this line
 
 	// The head of each kind of beast, a trophy: HeadItem(k). They sit at a
 	// fixed place so new items above never move them.
