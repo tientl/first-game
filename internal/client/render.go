@@ -62,6 +62,7 @@ type drawable struct {
 	isPlayer bool
 	creature bool
 	drop     bool    // a pile on the ground
+	boat     bool    // a boat, with its rider
 	lift     float64 // how high a falling pile is
 	idx      int     // index into curr.Players, curr.Creatures, curr.Drops or curr.Entities
 	sx, sy   float64
@@ -191,6 +192,11 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		sx, sy := cam.toScreen(wx, wy)
 		list = append(list, drawable{y: wy, id: uint32(e.ID), idx: i, sx: sx, sy: sy})
 	}
+	for i, b := range g.curr.Boats {
+		wx, wy := g.lerpBoat(b, alpha)
+		sx, sy := cam.toScreen(wx, wy)
+		list = append(list, drawable{y: wy, id: uint32(b.ID), boat: true, idx: i, sx: sx, sy: sy})
+	}
 	for i, d := range g.curr.Drops {
 		wx, wy, lift := g.dropPos(d)
 		if g.hiddenInCave(wx, wy) {
@@ -215,6 +221,9 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		if p.Mount != 0 && !p.Dead {
 			riders = append(riders, i)
 			continue
+		}
+		if p.Boat != 0 && !p.Dead && g.boatInView(p.Boat) {
+			continue // drawn in its boat
 		}
 		wx, wy, moving := g.lerpPlayer(p, alpha)
 		if g.hiddenInCave(wx, wy) {
@@ -242,6 +251,10 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		switch {
 		case d.drop:
 			w = 7
+		case d.boat:
+			w = 0
+		case d.isPlayer && g.curr.Players[d.idx].Swimming:
+			w = 0
 		case d.isPlayer:
 			w = 13
 		case d.creature:
@@ -266,6 +279,10 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 	for _, d := range list {
 		if d.drop {
 			g.drawDrop(dst, g.curr.Drops[d.idx], d.sx, d.sy, d.lift)
+			continue
+		}
+		if d.boat {
+			g.drawBoat(dst, g.curr.Boats[d.idx], d.sx, d.sy)
 			continue
 		}
 		if d.isPlayer {
@@ -548,6 +565,10 @@ func (g *Game) drawPlayer(dst *ebiten.Image, p protocol.PlayerView, d drawable) 
 	}
 	if p.Asleep {
 		g.drawSleeper(dst, p, d)
+		return
+	}
+	if p.Swimming {
+		g.drawSwimmer(dst, p, d) // see searender.go
 		return
 	}
 	frame, bob := 0, 0.0

@@ -36,6 +36,10 @@ type World struct {
 	nextWeb  uint32
 	wx       weather   // lightning, tornadoes and ice; see weather.go
 	villages []Village // see tribe.go
+	islands  []Island  // see archipelago.go
+
+	boats    []*Boat // see boats.go
+	nextBoat BoatID
 }
 
 func newWorld(width, height int) *World {
@@ -170,6 +174,7 @@ func (w *World) Step() {
 	w.stepEntities()
 	w.stepCreatures()
 	w.stepWebs()
+	w.stepBoats()
 	w.stepDrops()
 	w.stepWeather()
 	w.repopulateTribes()

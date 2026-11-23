@@ -62,7 +62,12 @@ func Generate(cfg GenConfig) (*World, error) {
 	rng := rand.New(rand.NewPCG(cfg.Seed, 0x5eed5eed))
 
 	if cfg.Style != StyleIsland {
-		sx, sy := w.openTerrain(seed)
+		var sx, sy int
+		if cfg.Style >= StyleSeas {
+			sx, sy = w.archipelagoTerrain(seed)
+		} else {
+			sx, sy = w.openTerrain(seed)
+		}
 		tribal := cfg.Style >= StyleTribal
 		if tribal {
 			trng := rand.New(rand.NewPCG(cfg.Seed, 0x7e1b))

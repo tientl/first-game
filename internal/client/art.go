@@ -73,6 +73,7 @@ type art struct {
 	beasts creatureArt                 // animals; see creatures.go
 	tribal tribalArt                   // the tribal age; see tribalart.go
 	heads  map[sim.CreatureKind]sprite // trophy heads cut from the beasts; see tribalrender.go
+	sea    seaArt                      // boats and sea monsters; see seaart.go
 
 	shadow   *ebiten.Image // soft black disc, drawn squashed
 	light    *ebiten.Image // radial white gradient, alpha-premultiplied
@@ -162,6 +163,8 @@ func newArt() *art {
 	genGearIcons(&a.icons)
 	genFruitIcons(&a.icons)
 	a.heart, a.food = genHeart(), genFood()
+	a.sea = genSeaArt()
+	genSeaIcons(&a.icons)
 	a.addTribalArt()
 	return a
 }

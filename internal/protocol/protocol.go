@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 24
+const Version = 25
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -90,6 +90,21 @@ type Snapshot struct {
 	Webs      []WebView     // spider webs in the air
 	Strikes   []StrikeView  // lightning in the last second
 	Tornadoes []TornadoView // whirlwinds nearby
+	Boats     []BoatView    // boats nearby
+	WindDir   float32       // where the wind blows towards, radians (0 east)
+	Wind      float32       // how hard, 0 to 1
+}
+
+// BoatView is a boat on the water.
+type BoatView struct {
+	ID      sim.BoatID
+	Kind    sim.BoatKind
+	X, Y    float32
+	Heading float32 // radians, 0 east
+	Speed   float32 // tiles per tick
+	HP      int16
+	Rider   sim.PlayerID // 0 if nobody is aboard
+	Held    bool         // in a giant squid's arms
 }
 
 // DropView is a pile on the ground.
@@ -130,6 +145,8 @@ type SelfState struct {
 	Poisoned       bool          // spider venom eats health
 	Webbed         bool          // tangled in web: slowed
 	HomeBed        bool          // a bed is where this player comes back
+	Boat           sim.BoatID    // the boat this player is aboard, 0 if none
+	Breath         float32       // a swimmer's strength left, 1 to 0
 	TorchFuel      int32         // ticks left on the torch burning in the hand; 0 if none
 	Chest          sim.EntityID  // the chest open, 0 when none
 	ChestSlots     sim.Inventory // what that chest holds
@@ -155,6 +172,8 @@ type PlayerView struct {
 	Look      sim.Look       // body and hair
 	Mount     sim.CreatureID // the beast being ridden, 0 when on foot: drawn on its back
 	DinoArmor bool           // wears dinosaur-hide armour
+	Boat      sim.BoatID     // the boat they are aboard, 0 if none: drawn in it
+	Swimming  bool           // in the water: drawn swimming
 
 	Cast       sim.CastState // fishing: whether the line is out, and whether the fish bites
 	BobX, BobY float32       // where the float sits while the line is out

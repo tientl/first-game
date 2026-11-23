@@ -62,6 +62,7 @@ func main() {
 	weather := flag.String("weather", "", "the weather: rain, wind, storm, tornado, snow")
 	season := flag.String("season", "", "the season: spring, summer, autumn, winter")
 	zoom := flag.Int("zoom", 0, "the view's zoom, -3 to 3")
+	sea := flag.Bool("sea", false, "out at sea: the player sailing, a raft, a swimmer, a mosasaur and a giant squid")
 	flag.Parse()
 	client.SetZoom(*zoom)
 
@@ -144,6 +145,28 @@ func main() {
 			}
 			if n > most {
 				most, sx, sy = n, float64(b.TX)+0.5, float64(b.TY)+1.5
+			}
+		}
+	}
+	if *sea {
+		// Open water a few tiles off the home island.
+		best := math.Inf(1)
+		tiles := w.Tiles()
+		for ty := 8; ty < N-8; ty++ {
+			for tx := 8; tx < N-8; tx++ {
+				open := true
+				for y := ty - 5; y <= ty+5 && open; y++ {
+					for x := tx - 9; x <= tx+9; x++ {
+						if tiles[y*N+x] != sim.TileWater {
+							open = false
+							break
+						}
+					}
+				}
+				if d := math.Hypot(float64(tx)-sx, float64(ty)-sy); open && d < best {
+					best, *at = d, ""
+					sx, sy = float64(tx)+0.5, float64(ty)+0.5
+				}
 			}
 		}
 	}
@@ -493,6 +516,21 @@ func main() {
 
 	if *tribal {
 		addTribal(&snap, sx, sy)
+	}
+	if *sea {
+		snap.Boats = []protocol.BoatView{
+			{ID: 1, Kind: sim.BoatSail, X: float32(sx), Y: float32(sy), Heading: 0.2, Speed: 0.25, HP: 110, Rider: 1},
+			{ID: 2, Kind: sim.BoatRaft, X: float32(sx - 6), Y: float32(sy + 2.5), Heading: math.Pi, Speed: 0, HP: 40, Held: true},
+		}
+		snap.Players[0].Boat, snap.Self.Boat = 1, 1
+		snap.Players[1].X, snap.Players[1].Y, snap.Players[1].Swimming = float32(sx-3), float32(sy-2), true
+		snap.Self.Breath = 1
+		snap.WindDir, snap.Wind = 0.3, 0.9
+		snap.Creatures = append(snap.Creatures,
+			protocol.CreatureView{ID: 1<<28 + 1, Kind: sim.CreatureMosa, X: float32(sx + 4.5), Y: float32(sy + 1), State: sim.CreatureStrike, FaceLeft: true},
+			protocol.CreatureView{ID: 1<<28 + 2, Kind: sim.CreatureMosa, X: float32(sx + 2), Y: float32(sy - 4), State: sim.CreatureLurk},
+			protocol.CreatureView{ID: 1<<28 + 3, Kind: sim.CreatureKraken, X: float32(sx - 6), Y: float32(sy + 2.6), State: sim.CreatureGrab, FaceLeft: false},
+		)
 	}
 	snap.Season = map[string]sim.Season{"summer": sim.Summer, "autumn": sim.Autumn, "winter": sim.Winter}[*season]
 	snap.Weather = map[string]sim.Weather{"rain": sim.WeatherRain, "wind": sim.WeatherWind, "storm": sim.WeatherStorm,

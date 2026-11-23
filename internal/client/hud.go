@@ -138,6 +138,7 @@ func (g *Game) drawHUD(screen *ebiten.Image, sw, sh int) {
 		g.text(screen, warn, 24, 93, c, text.AlignStart, 1)
 	}
 
+	g.drawSeaHUD(screen) // see searender.go
 	g.drawClock(screen, sw)
 	if g.overlay == overlayNone { // the map and bag cover the bottom of the screen
 		g.drawMinimap(screen, sw)
@@ -289,16 +290,20 @@ func (g *Game) drawHelp(screen *ebiten.Image, sh int) {
 		}
 		lines = append(lines, line{"F", "nướng thịt / cá (đứng gần lửa trại)", c})
 	}
-	if verb, can, ok := g.mountHint(); ok { // see ride.go
+	if verb, ok := g.boatHint(); ok { // see searender.go
+		lines = append(lines, line{"R", verb, colGood})
+	} else if verb, can, ok := g.mountHint(); ok { // see ride.go
 		c := color.Color(colMuted)
 		if can {
 			c = colGood
 		}
 		lines = append(lines, line{"R", verb, c})
 	}
-	if held := g.myHeld(); held == sim.ItemTorch || sim.IsSeed(held) {
+	if held := g.myHeld(); held == sim.ItemRaft || held == sim.ItemSailboat {
+		lines = append(lines, line{"V", "thả thuyền xuống nước trước mặt", colGood})
+	} else if held == sim.ItemTorch || sim.IsSeed(held) {
 		lines = append(lines, line{"V", "cắm đuốc / gieo hạt trước mặt", colGood})
-	} else if _, ok := sim.HeadOf(held); ok {
+	} else if _, ok := sim.HeadOf(g.myHeld()); ok {
 		lines = append(lines, line{"V", "dựng đầu thú làm vật trang trí", colGood})
 	}
 	lines = append(lines,

@@ -38,6 +38,8 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Poisoned:  self.Poisoned(),
 			Webbed:    self.Webbed(),
 			HomeBed:   self.HomeBed() != 0,
+			Boat:      self.BoatID(),
+			Breath:    float32(self.Breath()),
 			Notice:    self.Notice,
 			NoticeArg: self.NoticeArg,
 			NoticeSeq: self.NoticeSeq,
@@ -70,6 +72,8 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Look:      p.Look,
 			Mount:     p.Mount(),
 			DinoArmor: p.Inv.Count(sim.ItemDinoArmor) > 0,
+			Boat:      p.BoatID(),
+			Swimming:  s.world.Swimming(p),
 			HasAxe:    hasAxe,
 			AxeTier:   axeTier,
 			Armor:     armor,
@@ -113,6 +117,14 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			snap.Strikes = append(snap.Strikes, protocol.StrikeView{X: float32(st.X), Y: float32(st.Y), Age: uint8(min(tick-st.Tick, 255))})
 		}
 	}
+	for _, b := range s.world.Boats() {
+		if math.Abs(b.X-self.X) <= r && math.Abs(b.Y-self.Y) <= r {
+			snap.Boats = append(snap.Boats, protocol.BoatView{ID: b.ID, Kind: b.Kind, X: float32(b.X), Y: float32(b.Y),
+				Heading: float32(b.Heading), Speed: float32(b.Speed), HP: int16(b.HP), Rider: b.Rider, Held: b.Held > 0})
+		}
+	}
+	wd, ws := s.world.Wind()
+	snap.WindDir, snap.Wind = float32(wd), float32(ws)
 	for _, t := range s.world.Tornadoes() {
 		if math.Abs(t.X-self.X) <= 2*r && math.Abs(t.Y-self.Y) <= 2*r {
 			snap.Tornadoes = append(snap.Tornadoes, protocol.TornadoView{ID: t.ID, X: float32(t.X), Y: float32(t.Y)})

@@ -345,6 +345,10 @@ func (w *World) placeHeld(p *Player) {
 		}
 		return
 	}
+	if k := boatOf(held); k != BoatNone {
+		w.launch(p, k) // see boats.go
+		return
+	}
 	switch held {
 	case ItemTorch:
 		if e := place(EntityTorchStand); e != nil {

@@ -155,6 +155,7 @@ type creatureDef struct {
 	openOnly bool         // never on the old island maps
 	herd     int          // appears in groups of this many
 	away     float64      // never appears this close to where players start
+	offshore [2]int       // a deep swimmer lives this many tiles off the coast, least and most; zero: the sea reptiles' range
 
 	// How a kind with a home lives; see homes.go.
 	homeOn      map[Tile]float64 // how well each tile suits a home (0: never); nil: every spawn tile alike
@@ -299,6 +300,7 @@ type Creature struct {
 	healT     int      // ticks to its next point of mending, as a pet
 
 	village int // the village a warrior belongs to, 1-based; 0 for everyone else
+	grabHP  int // a giant squid's health when it seized its boat
 
 	homeX, homeY float64
 	hx, hy       float64 // heading while walking or fleeing, a unit vector
@@ -428,7 +430,7 @@ func (w *World) spawnCreatures() {
 			continue
 		}
 		if d.deep && offshore == nil {
-			offshore = w.coastDistance(plesioFar + 1)
+			offshore = w.coastDistance(250)
 		}
 		var spots []int32
 		for ty := 0; ty < w.height; ty++ {
@@ -438,7 +440,11 @@ func (w *World) spawnCreatures() {
 					continue
 				}
 				if d.deep {
-					if o := offshore[ty*w.width+tx]; o < plesioNear || o > plesioFar {
+					lo, hi := plesioNear, plesioFar
+					if d.offshore[1] > 0 {
+						lo, hi = d.offshore[0], d.offshore[1]
+					}
+					if o := int(offshore[ty*w.width+tx]); o < lo || o > hi {
 						continue
 					}
 				}
@@ -669,6 +675,10 @@ func (w *World) stepCreature(c *Creature) {
 		w.stepBear(c)
 	case CreatureTribesman:
 		w.stepTribesman(c) // see tribe.go
+	case CreatureMosa:
+		w.stepMosa(c) // see seamonsters.go
+	case CreatureKraken:
+		w.stepKraken(c)
 	default:
 		w.wander(c)
 	}

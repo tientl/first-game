@@ -51,6 +51,8 @@ type Player struct {
 	home      EntityID   // the last bed slept in: where p comes back after dying; see build.go
 	poison    int        // ticks of spider venom left; see cavelife.go
 	webbed    int        // ticks left tangled in web
+	boat      BoatID     // the boat p is aboard, 0 if none; see boats.go
+	swim      int        // ticks spent swimming without rest
 }
 
 // Acting reports whether the player did an action recently enough to show
@@ -86,6 +88,7 @@ func (p *Player) reset(x, y float64) {
 	p.actedAt = 0
 	p.line = line{}
 	p.poison, p.webbed = 0, 0
+	p.boat, p.swim = 0, 0
 	// input and Selected are kept: they mirror what the client is holding
 	// right now, and the client only resends them when they change.
 }
@@ -142,6 +145,7 @@ func (w *World) RemovePlayer(id PlayerID) {
 	if p.mount != 0 {
 		w.dismount(p)
 	}
+	w.leaveBoat(p)
 	w.offline[p.Name] = savePlayer(p) // kept so the player resumes on rejoin
 	delete(w.players, id)
 	if i, found := slices.BinarySearch(w.playerOrder, id); found {
@@ -220,7 +224,7 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 			w.placeHeld(p) // see drops.go
 		}
 	case CmdRide:
-		if !p.Dead && !p.Asleep {
+		if !p.Dead && !p.Asleep && !w.board(p) { // a boat first; see boats.go
 			w.ride(p) // see tame.go
 		}
 	}
@@ -242,7 +246,10 @@ func (w *World) stepPlayer(p *Player) {
 	}
 
 	moving := p.input.MoveX != 0 || p.input.MoveY != 0
-	if p.mount != 0 && w.rideStep(p, moving) {
+	swims := w.style >= StyleSeas // in an archipelago anyone can swim
+	if p.boat != 0 && w.sailStep(p) {
+		// aboard: the boat carries p; see boats.go
+	} else if p.mount != 0 && w.rideStep(p, moving) {
 		// riding: the mount carries p; see tame.go
 	} else if mx, my := float64(p.input.MoveX), float64(p.input.MoveY); moving {
 		l := math.Hypot(mx, my)
@@ -250,12 +257,19 @@ func (w *World) stepPlayer(p *Player) {
 		if p.webbed > 0 {
 			sp *= WebSlow
 		}
+		if swims && w.inWater(p.X, p.Y) {
+			sp = PlayerSpeed * SwimSpeed
+		}
 		dx, dy := mx/l*sp, my/l*sp
+		can := w.standable
+		if swims {
+			can = w.swimmable
+		}
 		// Resolve each axis on its own so the player slides along coasts.
-		if w.standable(p.X+dx, p.Y) {
+		if can(p.X+dx, p.Y) {
 			p.X += dx
 		}
-		if w.standable(p.X, p.Y+dy) {
+		if can(p.X, p.Y+dy) {
 			p.Y += dy
 		}
 		p.Dir = dirToward(mx, my)
@@ -267,7 +281,7 @@ func (w *World) stepPlayer(p *Player) {
 	}
 	if p.line.state != CastNone {
 		w.stepLine(p, pressed, moving) // fishing: Action strikes instead
-	} else if (p.input.Action || pressed) && p.actionCD == 0 {
+	} else if (p.input.Action || pressed) && p.actionCD == 0 && !w.Swimming(p) { // a swimmer's hands are busy
 		acted, found := false, true
 		cd := ActionCooldownTicks
 		if a, ok := w.pickNearest(p); ok { // a pile on the ground comes first; see drops.go
@@ -298,6 +312,7 @@ func (w *World) stepPlayer(p *Player) {
 	w.burnTorch(p)
 	p.Hunger = max(0, p.Hunger-HungerPerTick)
 	w.stepPoison(p) // see cavelife.go
+	w.stepSwim(p)   // see boats.go
 	w.manEaterBites(p)
 	p.Cold = (Ambient(w.tick) < ColdAmbient || w.freezing(p) || w.wintry(p)) && !w.warm(p.X, p.Y) // night, the snow, winter: see iceage.go, weather.go
 	damage := 0.0

@@ -22,9 +22,10 @@ const (
 	StyleIce                      // as StyleOpen, with a frozen north; see iceage.go
 	StyleJungle                   // as StyleIce, with the woods spread over far more of the lowland
 	StyleTribal                   // as StyleJungle, with thinner woods, trails, villages, deep caves; see tribe.go
+	StyleSeas                     // as StyleTribal, but an archipelago: one land to an island; see archipelago.go
 
 	// StyleLatest is what a new game is made with.
-	StyleLatest = StyleTribal
+	StyleLatest = StyleSeas
 )
 
 // biomeShares is how much of the lowland each biome takes, and how wide the
@@ -351,12 +352,18 @@ func (w *World) volcano(seed uint32, sx, sy int) {
 	if w.style >= StyleTribal {
 		minAway = math.Max(float64(n)/2.6, 3.5*R) // well away: it is a long journey
 	}
+	if w.style >= StyleSeas {
+		minAway = float64(n) / 5 // the ash island is far already
+	}
 	best, bestScore := -1, math.Inf(-1)
 	for ty := int(R); ty < w.height-int(R); ty += 4 {
 		for tx := int(R); tx < w.width-int(R); tx += 4 {
 			d := math.Hypot(float64(tx-sx), float64(ty-sy))
 			if d < minAway || w.tiles[ty*w.width+tx] == TileWater {
 				continue
+			}
+			if w.style >= StyleSeas && w.tiles[ty*w.width+tx] != TileAsh {
+				continue // in an archipelago the volcano stands on the ash island
 			}
 			// Prefer solid land under the whole cone, then distance.
 			landN, all := 0, 0

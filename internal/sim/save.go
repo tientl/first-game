@@ -40,6 +40,7 @@ type SaveData struct {
 	Chests        []ChestSave  `json:",omitempty"` // what each chest holds
 	Pets          []PetSave    `json:",omitempty"` // tamed beasts; wild ones are not saved
 	Drops         []Drop       `json:",omitempty"` // piles on the ground
+	Boats         []BoatSave   `json:",omitempty"` // boats on the water
 }
 
 // PlayerSave is the persistent part of a player.
@@ -85,6 +86,14 @@ func (w *World) restorePlayer(p *Player, ps PlayerSave) {
 	p.Look = ps.Look.Sanitized()
 	if finite(ps.X, ps.Y) && w.standable(ps.X, ps.Y) {
 		p.X, p.Y = ps.X, ps.Y
+	} else if finite(ps.X, ps.Y) {
+		// Saved at sea: back aboard the boat that is still there.
+		for _, b := range w.boats {
+			if b.Rider == 0 && math.Hypot(b.X-ps.X, b.Y-ps.Y) < 0.5 {
+				p.X, p.Y, p.boat, b.Rider = b.X, b.Y, b.ID, p.ID
+				break
+			}
+		}
 	}
 	if ps.Dir <= DirRight {
 		p.Dir = ps.Dir
@@ -129,6 +138,7 @@ func (w *World) Save() SaveData {
 	d.NextEntity = w.nextEnt
 	d.Chests = w.saveChests()
 	d.Pets = w.savePets() // see tame.go
+	d.Boats = w.saveBoats()
 	for _, dr := range w.drops {
 		if !dr.gone {
 			d.Drops = append(d.Drops, *dr)
@@ -268,6 +278,7 @@ func Load(d SaveData) (*World, error) {
 		}
 	}
 	w.loadPets(d.Pets)
+	w.loadBoats(d.Boats)
 	for _, dr := range d.Drops {
 		if !dr.Item.Valid() || dr.Count <= 0 || !finite(dr.X, dr.Y, dr.FromX, dr.FromY) {
 			continue

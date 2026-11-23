@@ -127,6 +127,8 @@ type Game struct {
 	mapZoom     int // the world map's zoom, 1 = the whole map
 	zoomNoticed int // the zoom last shown in a notice
 	strikesSeen map[[2]float32]bool
+	prevBoats   map[sim.BoatID]protocol.BoatView
+	swimBuf     *ebiten.Image // scratch for drawing a swimmer cut off at the water
 }
 
 // New returns a game that plays over conn under the given player name.
@@ -135,6 +137,7 @@ func New(conn Conn, name string) *Game {
 		conn:          conn,
 		name:          name,
 		zoomNoticed:   viewZoom,
+		prevBoats:     make(map[sim.BoatID]protocol.BoatView),
 		prevPlayers:   make(map[sim.PlayerID]protocol.PlayerView),
 		prevCreatures: make(map[sim.CreatureID]protocol.CreatureView),
 		entAt:         make(map[[2]int]int),
@@ -346,6 +349,10 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 	clear(g.prevCreatures)
 	for _, c := range g.curr.Creatures {
 		g.prevCreatures[c.ID] = c
+	}
+	clear(g.prevBoats)
+	for _, b := range g.curr.Boats {
+		g.prevBoats[b.ID] = b
 	}
 	g.curr, g.currAt, g.hasCurr = s, time.Now(), true
 	if want := groundSeason(s.Season); want != g.groundSeason {
@@ -671,6 +678,10 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 			verb = " vồ!"
 		case sim.CreatureTribesman:
 			verb = " đâm giáo!"
+		case sim.CreatureMosa:
+			verb = " đớp!"
+		case sim.CreatureKraken:
+			verb = " siết!"
 		}
 		return "Bị " + strings.ToLower(sim.CreatureKind(arg).Name()) + verb
 	case sim.NoticeNeedFire:
@@ -694,6 +705,16 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		return "Mở được rương cổ!"
 	case sim.NoticeHomeSet:
 		return "Đây là nơi bạn sẽ hồi sinh"
+	case sim.NoticeLaunched:
+		return "Đã thả " + sim.BoatKind(arg).Name() + " xuống nước — R để lên thuyền"
+	case sim.NoticeNeedWater:
+		return "Đứng sát mép nước, quay mặt ra nước rồi nhấn V để thả thuyền"
+	case sim.NoticeNoShore:
+		return "Không có bờ gần đây để lên — chèo vào sát bờ"
+	case sim.NoticeSunk:
+		return sim.BoatKind(arg).Name() + " bị phá chìm! Bơi vào bờ ngay"
+	case sim.NoticeDrowning:
+		return "Kiệt sức, đang chết đuối! Bơi vào bờ"
 	}
 	return ""
 }

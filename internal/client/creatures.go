@@ -535,6 +535,9 @@ func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {
 	if c.State == sim.CreatureCower {
 		return name + " (đã gục) — cầm " + strings.ToLower(c.Kind.TameFood().Def().Name) + " để thuần", colGood
 	}
+	if l, col, ok := seaLabel(c); ok {
+		return l, col // see searender.go
+	}
 	if l, col, ok := tribalLabel(c); ok {
 		return l, col // see tribalrender.go
 	}
@@ -626,6 +629,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 		side = 1
 	}
 	t := g.frame + int(c.ID)*7 // so a group does not move in lockstep
+	if s, bob, ok := g.seaSprite(c); ok {
+		return s, bob // see searender.go
+	}
 	if s, bob, ok := g.tribalSprite(c, moving); ok {
 		return s, bob // see tribalrender.go
 	}
@@ -911,6 +917,9 @@ func (g *Game) drawCreature(dst *ebiten.Image, c protocol.CreatureView, d drawab
 	if c.State == sim.CreatureSleep {
 		g.drawZzz(dst, d.sx+2, d.sy-10, float64(c.ID))
 	}
+	if c.Kind == sim.CreatureKraken {
+		g.drawKrakenArms(dst, c, d)
+	}
 }
 
 // drawZzz floats two little z's up from a sleeper.
@@ -998,6 +1007,12 @@ func (g *Game) drawFish(dst *ebiten.Image, cam camera, alpha float64) {
 		}
 		if c.Kind == sim.CreaturePlesio {
 			g.drawSeaReptile(dst, cam, c, alpha)
+			continue
+		}
+		if seaMonster(c.Kind) {
+			if c.State == sim.CreatureLurk {
+				g.drawSeaShadow(dst, cam, c, alpha)
+			}
 			continue
 		}
 		if c.State == sim.CreatureLurk {

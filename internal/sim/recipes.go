@@ -48,7 +48,11 @@ const (
 	RecipeBandage   = RecipeBigPotion + 1
 	RecipeDinoArmor = RecipeBandage + 1
 
-	NumRecipes = RecipeDinoArmor + 1
+	// The open sea: see boats.go.
+	RecipeRaft     = RecipeDinoArmor + 1
+	RecipeSailboat = RecipeRaft + 1
+
+	NumRecipes = RecipeSailboat + 1
 )
 
 // Recipe turns ingredients into either a structure placed in front of the
@@ -275,6 +279,16 @@ var recipes = [NumRecipes]Recipe{
 		Inputs: []Ingredient{{Item: ItemDinoHide, Count: 4}, {Item: ItemBone, Count: 2}, {Item: ItemSilk, Count: 1}},
 		Gives:  ItemDinoArmor,
 	},
+	RecipeRaft: {
+		ID: RecipeRaft, Name: "Bè gỗ",
+		Inputs: []Ingredient{{Item: ItemWood, Count: 8}, {Item: ItemGrass, Count: 4}},
+		Gives:  ItemRaft,
+	},
+	RecipeSailboat: {
+		ID: RecipeSailboat, Name: "Thuyền buồm",
+		Inputs: []Ingredient{{Item: ItemWood, Count: 20}, {Item: ItemHide, Count: 4}, {Item: ItemGrass, Count: 8}},
+		Gives:  ItemSailboat,
+	},
 	// The metal tools are filled in by fillTierTools, swords and armour by fillGear.
 }
 
@@ -337,6 +351,13 @@ const (
 	NoticeWebbed    // tangled in a spider's web
 	NoticeTreasure  // an old chest opened
 	NoticeHomeSet   // this bed is where you will come back
+
+	// The open sea: see boats.go. Arg: BoatKind unless noted.
+	NoticeLaunched  // a boat set on the water
+	NoticeNeedWater // no open water in front to set the boat on
+	NoticeNoShore   // no ground near enough to step ashore
+	NoticeSunk      // your boat sank under you
+	NoticeDrowning  // out of strength in the water; Arg unused
 )
 
 // CommandKind is a discrete player request, as opposed to held input.
