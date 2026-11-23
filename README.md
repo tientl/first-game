@@ -211,7 +211,7 @@ Thế giới mới (kiểu `StyleTribal`) có thêm những thứ dưới đây;
 - **Hang sâu**: núi nhiều hơn, hang có nhiều nhánh và hầm rộng, ăn sâu vào lòng núi. Trong hang có **nhện độc** (nhả tơ làm bạn đi chậm, cắn có độc mất máu dần) và **gấu hang** (cào rồi cắn). Chỗ sâu nhất có **rương cổ**: Space để mở, càng sâu đồ càng quý (bình máu, quặng, hắc diện thạch, răng bạo chúa, hạt giống...).
 - **Hoa và hạt**: 6 loại hoa (anh túc đỏ, cúc vàng, hoa lam, oải hương, cúc trắng, hồng dại), hái được hoa và hay được Hạt hoa. Hạt quả mọng (hái bụi quả), Hạt cây (chặt cây), Hạt phát sáng, Hạt cây ăn thịt: cầm hạt nhấn V để gieo trước mặt.
 - **Cây phát sáng**: nấm, dương xỉ và cây cao phát sáng xanh lam, tím vào ban đêm, trong rừng sâu, đầm lầy và hang. Hái được Bào tử phát sáng.
-- **Cây ăn thịt người**: ở đầm lầy và rừng xa, đớp người và thú lại gần (12 máu). Chặt bằng vũ khí hoặc rìu, rơi hạt; cây trồng từ hạt thì chỉ đớp thú, canh nhà cho bạn.
+- **Cây ăn thịt người**: cây khổng lồ đầu đỏ ở đầm lầy và rừng xa, với tới khoảng 2 ô. Thú nhỏ và khủng long nhỏ (thỏ, rắn, cua, Thescelosaurus, Ornithomimus, raptor, Anzu, nhện, bọ cạp) lại gần là bị nuốt chửng, rồi cây ngậm miệng nhai khoảng 8 giây. Thú to bị cắn, người bị đớp mất 16 máu. Chặt bằng vũ khí hoặc rìu (10 nhát tay), rơi hạt; cây trồng từ hạt thì chỉ đớp thú, canh nhà cho bạn.
 - **Tuyết và núi lửa** luôn ở rất xa chỗ xuất phát.
 - **Hồi sinh**: chết thì hồi sinh cạnh giường ngủ lần cuối (nếu giường còn), không thì ở chỗ xuất phát.
 - **Nhân vật** đầu tròn, thân tròn hơn. **Cá** nhiều màu: cá hề, cá đuôi gai xanh, cá chép vàng, cá koi, cá hồi cầu vồng, cá rô.
