@@ -53,10 +53,10 @@ var dinoRigs = map[string]dinoRig{
 		teeth: true,
 	},
 	"rex": {
-		file: "rex", stride: 3,
-		legs:  []rigLimb{{44, 66, 62}},
-		head:  rigPart{pivot: rigPt{67, 42}, dir: headUp(math.Pi / 4), maxY: 53},
-		jaw:   [2]rigPt{{84, 35}, {107, 33}},
+		file: "rex", stride: 4,
+		legs:  []rigLimb{{45, 64, 62}, {27, 44, 60}}, // the near leg, then the far one behind it
+		head:  rigPart{pivot: rigPt{70, 39}, dir: headUp(math.Pi / 4), maxY: 56},
+		jaw:   [2]rigPt{{84, 33}, {103, 33}},
 		teeth: true,
 	},
 	"ornitho": {
@@ -129,7 +129,7 @@ var dinoPoses = map[string]map[int]rigPose{
 	},
 	"rex": {
 		rexWalkB: {step: 1},
-		rexRoar:  {head: -0.45, open: 0.45},
+		rexRoar:  {head: -0.5, open: 0.45},
 		rexBite:  {head: 0.25, open: 0.4},
 		rexEatA:  {head: 0.6, open: 0.1},
 		rexEatB:  {head: 0.6, open: 0.4},
