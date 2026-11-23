@@ -193,6 +193,7 @@ Từ bản này, trò chơi mới tạo một **quần đảo**: đảo nhà ở
   - **Mực khổng lồ** nằm sâu hơn nữa. Thuyền đi ngang qua là bị xúc tu giữ chặt 7 giây, mỗi giây thuyền mất 8 độ bền. Đánh nó mất 12 máu thì nó buông ra.
   - Hạ quái vật biển ngoài khơi thì đồ nổi trên mặt nước, chèo lại nhặt.
 - **Kim tự tháp** đứng giữa đảo sa mạc lớn nhất (không bao giờ là đảo nhà): khối đá 7×5 ô, trong cửa có rương cổ giữ kho báu quý nhất. **Bọ cạp khổng lồ** sống trên cát sa mạc, vài con canh quanh kim tự tháp: chậm hơn bạn, kẹp bằng càng (10 máu) rồi chích đuôi (14 máu, trúng độc 8 giây). Xem nhanh: `go run ./cmd/shot -open -at pyramid -zoom -1`.
+- **Hang ngầm**: quần đảo không có núi. Trên các đảo (trừ đảo nhà) có **cửa hang** là một vòm đá nằm trên mặt đất; đi vào là xuống ngay mạng hang tối dưới lòng đất (nhện, gấu, than, quặng, nấm phát sáng, rương cổ). Chỗ xuống có khe sáng và thang dây: đi vào đó là lên lại đúng cửa hang. Đang giữ phím đi thì không bị kéo ngược lại; thả phím ra rồi mới đi qua được lần nữa. Bản đồ (M) hiện tầng bạn đang ở: mặt đất hoặc hang. Xem nhanh: `go run ./cmd/shot -open -at cavemouth` và `-at cavein -frames 90`.
 - Thuyền đậu lại được lưu cùng bản lưu; lưu game khi đang ở trên thuyền thì lúc vào lại vẫn ở trên thuyền.
 
 Xem nhanh: `go run ./cmd/shot -open -sea`; bản đồ toàn thế giới: `OPEN_DUMP=<thư mục> go test ./internal/sim -run DumpOpen`.

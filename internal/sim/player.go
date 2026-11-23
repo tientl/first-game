@@ -53,6 +53,7 @@ type Player struct {
 	webbed    int        // ticks left tangled in web
 	boat      BoatID     // the boat p is aboard, 0 if none; see boats.go
 	swim      int        // ticks spent swimming without rest
+	travelCD  int        // ticks before a cave mouth takes p again
 }
 
 // Acting reports whether the player did an action recently enough to show
@@ -274,6 +275,7 @@ func (w *World) stepPlayer(p *Player) {
 		}
 		p.Dir = dirToward(mx, my)
 	}
+	w.travel(p) // through a cave mouth; see underground.go
 	p.explored.Reveal(p.X, p.Y)
 
 	if p.actionCD > 0 {

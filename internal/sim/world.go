@@ -43,6 +43,10 @@ type World struct {
 
 	pyramidAt  [2]int // see pyramid.go
 	hasPyramid bool
+
+	genH     int                 // the height the generator was asked for: what a save keeps
+	surfaceH int                 // rows above ground, when the caves lie below; see underground.go
+	links    map[[2]int]caveLink // cave mouths and ways up: where each leads
 }
 
 func newWorld(width, height int) *World {
@@ -137,8 +141,8 @@ func (w *World) addEntity(kind EntityKind, tx, ty int) *Entity {
 		e.Fuel = FireStartFuel
 	case EntityChest:
 		w.chests[e.ID] = &Inventory{}
-	case EntityBonfire:
-		e.Fuel = FireMaxFuel // a village fire: it never goes out
+	case EntityBonfire, EntityCaveExit:
+		e.Fuel = FireMaxFuel // a village fire never goes out; daylight never fails
 	case EntityTrap:
 		e.Ready = true
 	}

@@ -358,6 +358,9 @@ const (
 	NoticeNoShore   // no ground near enough to step ashore
 	NoticeSunk      // your boat sank under you
 	NoticeDrowning  // out of strength in the water; Arg unused
+
+	NoticeIntoCave  // down into the caves
+	NoticeOutOfCave // back up into daylight
 )
 
 // CommandKind is a discrete player request, as opposed to held input.

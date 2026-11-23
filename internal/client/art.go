@@ -75,6 +75,7 @@ type art struct {
 	heads  map[sim.CreatureKind]sprite // trophy heads cut from the beasts; see tribalrender.go
 	sea    seaArt                      // boats and sea monsters; see seaart.go
 	desert desertArt                   // the pyramid and the giant scorpion; see desertart.go
+	cave   caveArt    // cave mouths and the way up; see caveart.go
 
 	shadow   *ebiten.Image // soft black disc, drawn squashed
 	light    *ebiten.Image // radial white gradient, alpha-premultiplied
@@ -166,6 +167,7 @@ func newArt() *art {
 	a.heart, a.food = genHeart(), genFood()
 	a.sea = genSeaArt()
 	a.desert = genDesertArt()
+	a.cave = genCaveArt()
 	genSeaIcons(&a.icons)
 	a.addTribalArt()
 	return a

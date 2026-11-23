@@ -286,7 +286,10 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 
 	// Fit the map between the title and the legend, keeping its shape.
 	const top, bottom, side = 60.0, 74.0, 28.0
-	mw, mh := float64(g.width*TileW), float64(g.height*TileH)
+	// With caves under the islands, the map shows the layer the player is
+	// in: the islands, or the caves.
+	r0, rh := g.mapRows()
+	mw, mh := float64(g.width*TileW), rh*TileH
 	k := min((float64(sw)-2*side)/mw, (float64(sh)-top-bottom)/mh)
 	dw, dh := mw*k, mh*k
 	x0, y0 := math.Round((float64(sw)-dw)/2), math.Round(top+(float64(sh)-top-bottom-dh)/2)
@@ -297,21 +300,21 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 	// centred on the player; everything is drawn clipped to the frame.
 	z := float64(max(1, g.mapZoom))
 	if z > 1 {
-		px, py := float64(g.width)/2, float64(g.height)/2
+		px, py := float64(g.width)/2, rh/2
 		for _, p := range g.curr.Players {
 			if p.ID == g.myID {
-				px, py = float64(p.X), float64(p.Y)
+				px, py = float64(p.X), float64(p.Y)-r0
 			}
 		}
 		fw, fh := dw, dh
 		dw, dh = fw*z, fh*z
 		vx0, vy0 := x0, y0
 		x0 = math.Round(min(vx0, max(vx0+fw-dw, vx0+fw/2-px/float64(g.width)*dw)))
-		y0 = math.Round(min(vy0, max(vy0+fh-dh, vy0+fh/2-py/float64(g.height)*dh)))
+		y0 = math.Round(min(vy0, max(vy0+fh-dh, vy0+fh/2-py/rh*dh)))
 		screen = screen.SubImage(image.Rect(int(vx0), int(vy0), int(vx0+fw), int(vy0+fh))).(*ebiten.Image)
 	}
 
-	if img := g.wmap.img; img != nil {
+	if img := g.mapLayer(g.wmap.img, r0, rh); img != nil {
 		b := img.Bounds()
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(dw/float64(b.Dx()), dh/float64(b.Dy()))
@@ -325,7 +328,7 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 		g.text(screen, "Đang vẽ bản đồ…", float64(sw)/2, y0+dh/2-8, colWhite, text.AlignCenter, 1)
 	}
 	// Only what the player has seen shows; the rest is under fog.
-	if fog := g.wmap.fogImage(); fog != nil {
+	if fog := g.mapLayer(g.wmap.fogImage(), r0, rh); fog != nil {
 		b := fog.Bounds()
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(dw/float64(b.Dx()), dh/float64(b.Dy()))
@@ -335,7 +338,7 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 	}
 
 	at := func(x, y float64) (float32, float32) {
-		return float32(x0 + x/float64(g.width)*dw), float32(y0 + y/float64(g.height)*dh)
+		return float32(x0 + x/float64(g.width)*dw), float32(y0 + (y-r0)/rh*dh)
 	}
 	pulse := float32(g.frame%60) / 60
 
@@ -441,4 +444,32 @@ func (g *Game) drawMapLegend(screen *ebiten.Image, cx, y float64) {
 			x += width(e)
 		}
 	}
+}
+
+// mapRows is the band of map rows the map shows: the islands, or with the
+// player underground, the caves.
+func (g *Game) mapRows() (r0, rows float64) {
+	if g.surfaceH <= 0 {
+		return 0, float64(g.height)
+	}
+	for _, p := range g.curr.Players {
+		if p.ID == g.myID && int(p.Y) >= g.surfaceH {
+			top := g.surfaceH + sim.UndergroundGap
+			return float64(top), float64(min(g.surfaceH, g.height-top))
+		}
+	}
+	return 0, float64(g.surfaceH)
+}
+
+// mapLayer cuts rows r0 to r0+rows of a whole-map image.
+func (g *Game) mapLayer(img *ebiten.Image, r0, rows float64) *ebiten.Image {
+	if img == nil {
+		return nil
+	}
+	if r0 == 0 && int(rows) == g.height {
+		return img
+	}
+	b := img.Bounds()
+	k := float64(b.Dy()) / float64(g.height)
+	return img.SubImage(image.Rect(b.Min.X, b.Min.Y+int(r0*k), b.Max.X, b.Min.Y+int((r0+rows)*k))).(*ebiten.Image)
 }

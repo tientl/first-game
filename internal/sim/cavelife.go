@@ -232,6 +232,13 @@ func (w *World) caveDepth() []int32 {
 			continue
 		}
 		x, y := i%w.width, i/w.width
+		if w.surfaceH > 0 { // underground caves: deep is far from the ways up
+			if e := w.entityAt(x, y); e != nil && e.Kind == EntityCaveExit {
+				depth[i] = 0
+				queue = append(queue, int32(i))
+			}
+			continue
+		}
 		if w.caveOutside(x, y+1) || w.caveOutside(x, y-1) || w.caveOutside(x+1, y) || w.caveOutside(x-1, y) {
 			depth[i] = 0
 			queue = append(queue, int32(i))

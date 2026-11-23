@@ -65,6 +65,7 @@ type Game struct {
 	width, height int
 	tiles         []sim.Tile
 	pondMask      []bool     // lakes and ponds, which freeze in winter
+	surfaceH      int        // rows above ground; the caves lie below; 0 if none
 	groundSeason  sim.Season // the season the ground is drawn for
 
 	// The two latest snapshots; players are drawn interpolated between them.
@@ -314,6 +315,7 @@ func (g *Game) onMessage(m protocol.ServerMsg) {
 		}
 		g.myID, g.width, g.height, g.tiles = w.PlayerID, w.Width, w.Height, w.Tiles
 		g.pondMask = sim.PondMask(w.Width, w.Height, w.Tiles)
+		g.surfaceH = w.SurfaceH
 		terr := newTerrain(w.Width, w.Height, w.Tiles)
 		g.ground.reset(terr)
 		g.groundSeason = sim.Spring
@@ -717,6 +719,10 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		return sim.BoatKind(arg).Name() + " bị phá chìm! Bơi vào bờ ngay"
 	case sim.NoticeDrowning:
 		return "Kiệt sức, đang chết đuối! Bơi vào bờ"
+	case sim.NoticeIntoCave:
+		return "Xuống hang — đi vào chỗ có ánh sáng và thang dây để lên lại"
+	case sim.NoticeOutOfCave:
+		return "Đã ra khỏi hang"
 	}
 	return ""
 }

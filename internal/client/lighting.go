@@ -77,7 +77,12 @@ func (g *Game) drawLighting(screen *ebiten.Image, cam camera) {
 		}
 		k := float32(0.34 * (0.25 + dark) * g.flicker(uint32(e.ID)))
 		op := g.lightOp(cam, e.TX, e.TY, r*0.75)
-		op.ColorScale.Scale(k, k*0.36, k*0.06, k)
+		if e.Kind == sim.EntityCaveExit { // daylight down the shaft: pale, steady
+			k = float32(0.3 * dark)
+			op.ColorScale.Scale(k, k*0.95, k*0.8, k)
+		} else {
+			op.ColorScale.Scale(k, k*0.36, k*0.06, k)
+		}
 		op.Blend = ebiten.BlendLighter
 		screen.DrawImage(g.art.light, op)
 	}

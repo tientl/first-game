@@ -36,16 +36,27 @@ func TestArchipelagoHasIslandsOfEveryKind(t *testing.T) {
 		if tl := w.TileAt(int(w.spawnX), int(w.spawnY)); tl != TileGrass && tl != TileForest {
 			t.Errorf("seed %d: spawn on tile %d", c.seed, tl)
 		}
-		var count [NumTiles]int
-		for _, tl := range w.tiles {
-			count[tl]++
+		var count, below [NumTiles]int
+		surface := w.SurfaceHeight() * w.width
+		for i, tl := range w.tiles {
+			if i < surface {
+				count[tl]++
+			} else {
+				below[tl]++
+			}
 		}
-		for _, k := range []Tile{TileSnow, TileDesert, TileMarsh, TileAsh, TileLava, TileCave, TileMountain} {
+		for _, k := range []Tile{TileSnow, TileDesert, TileMarsh, TileAsh, TileLava} {
 			if count[k] == 0 {
 				t.Errorf("seed %d size %d: no tile %d", c.seed, c.size, k)
 			}
 		}
-		if frac := float64(count[TileWater]) / float64(len(w.tiles)); frac < 0.5 {
+		if count[TileCave] != 0 {
+			t.Errorf("seed %d: caves above ground", c.seed)
+		}
+		if below[TileCave] < 500 {
+			t.Errorf("seed %d: only %d cave tiles underground", c.seed, below[TileCave])
+		}
+		if frac := float64(count[TileWater]) / float64(surface); frac < 0.5 {
 			t.Errorf("seed %d: only %.0f%% sea", c.seed, 100*frac)
 		}
 	}
@@ -229,5 +240,72 @@ func TestScorpionPinchesThenStings(t *testing.T) {
 	p := w.players[id]
 	if p.Health > MaxHealth-ScorpionPinch-ScorpionSting+1 || !p.Poisoned() {
 		t.Fatalf("health %.0f poisoned %v: want pinched and stung", p.Health, p.Poisoned())
+	}
+}
+
+func TestCaveMouthsLeadDownAndBack(t *testing.T) {
+	w := genSeas(t, 2, SizeMedium)
+	var mouths, exits []Entity
+	for _, e := range w.entities {
+		switch e.Kind {
+		case EntityCaveMouth:
+			mouths = append(mouths, *e)
+		case EntityCaveExit:
+			exits = append(exits, *e)
+		}
+	}
+	if len(mouths) < 3 || len(mouths) != len(exits) {
+		t.Fatalf("%d mouths, %d ways up", len(mouths), len(exits))
+	}
+	for _, m := range mouths {
+		if w.Underground(m.TY) {
+			t.Fatal("a cave mouth underground")
+		}
+	}
+	m := mouths[0]
+	id := w.AddPlayer("a")
+	p := w.players[id]
+	p.X, p.Y = float64(m.TX)+0.5, float64(m.TY)+1.6 // just in front
+	w.SetInput(id, Input{MoveY: -1})
+	stepN(w, TicksPerSecond/2)
+	if !w.Underground(int(p.Y)) {
+		t.Fatalf("at (%.1f,%.1f): walking into the mouth did not go down", p.X, p.Y)
+	}
+	if !w.standable(p.X, p.Y) {
+		t.Fatal("arrived inside rock")
+	}
+	if !w.Underground(int(p.Y)) {
+		t.Fatal("holding the key took the player straight back up")
+	}
+	w.SetInput(id, Input{})
+	stepN(w, TravelCooldown+1)
+	w.SetInput(id, Input{MoveY: -1})
+	stepN(w, TicksPerSecond/2)
+	if w.Underground(int(p.Y)) || math.Abs(p.X-float64(m.TX)-0.5) > 1 {
+		t.Fatalf("at (%.1f,%.1f): walking onto the way up did not climb out of the mouth", p.X, p.Y)
+	}
+	// Saved and loaded, the world and its caves are the same.
+	d := w.Save()
+	l, err := Load(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l.height != w.height || l.SurfaceHeight() != w.SurfaceHeight() || len(l.links) != len(w.links) {
+		t.Fatalf("loaded %dx%d (surface %d, %d links), saved %dx%d (surface %d, %d links)",
+			l.width, l.height, l.SurfaceHeight(), len(l.links), w.width, w.height, w.SurfaceHeight(), len(w.links))
+	}
+	spiders, treasure := 0, 0
+	for _, c := range w.fauna.creatures {
+		if c.Kind == CreatureSpider && w.Underground(int(c.Y)) {
+			spiders++
+		}
+	}
+	for _, e := range w.entities {
+		if e.Kind == EntityTreasure && w.Underground(e.TY) {
+			treasure++
+		}
+	}
+	if spiders == 0 || treasure == 0 {
+		t.Fatalf("%d spiders, %d chests underground", spiders, treasure)
 	}
 }

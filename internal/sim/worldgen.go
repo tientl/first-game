@@ -57,6 +57,7 @@ func Generate(cfg GenConfig) (*World, error) {
 	}
 	w := newWorld(cfg.Width, cfg.Height)
 	w.seed = cfg.Seed
+	w.genH = cfg.Height
 	w.style = cfg.Style
 	seed := uint32(cfg.Seed) ^ uint32(cfg.Seed>>32)
 	rng := rand.New(rand.NewPCG(cfg.Seed, 0x5eed5eed))
@@ -74,6 +75,9 @@ func Generate(cfg GenConfig) (*World, error) {
 			w.pickVillages(trng, sx, sy)
 			w.carvePaths(trng, sx, sy)
 		}
+		if cfg.Style >= StyleSeas {
+			w.addUnderground(seed) // see underground.go
+		}
 		w.scatterOpen(rng, rand.New(rand.NewPCG(cfg.Seed, 0xb16b16)))
 		w.scatterPebbles(rand.New(rand.NewPCG(cfg.Seed, 0x9ebb1e)))
 		w.scatterOres(rand.New(rand.NewPCG(cfg.Seed, 0x0de5)))
@@ -83,10 +87,11 @@ func Generate(cfg GenConfig) (*World, error) {
 			prng := rand.New(rand.NewPCG(cfg.Seed, 0x91a47))
 			w.scatterPlants(prng, seed)
 			w.buildVillages(prng)
-			w.placeTreasure(prng)
 			if cfg.Style >= StyleSeas {
 				w.raisePyramid(prng)
+				w.digCaveMouths(prng) // after the pyramid, which clears its ground
 			}
+			w.placeTreasure(prng)
 		}
 		w.clearAround(sx, sy, clearSpawnRadius)
 		w.starterKit(rng)

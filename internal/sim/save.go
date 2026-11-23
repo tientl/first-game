@@ -131,7 +131,7 @@ func (w *World) Save() SaveData {
 		Version: SaveVersion,
 		Seed:    w.seed,
 		Width:   w.width,
-		Height:  w.height,
+		Height:  w.genH,
 		Tick:    w.tick,
 		Style:   w.style,
 	}

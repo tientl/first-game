@@ -254,7 +254,7 @@ func (s *Server) handle(p *peer, m protocol.ClientMsg) bool {
 		// Nothing was sent to p before, so the buffered channel has room.
 		return s.send(p, protocol.ServerMsg{
 			Kind:    protocol.ServerWelcome,
-			Welcome: protocol.Welcome{PlayerID: p.player, Width: w, Height: h, Tiles: s.world.Tiles(), Explored: s.world.Explored(p.player)},
+			Welcome: protocol.Welcome{PlayerID: p.player, Width: w, Height: h, Tiles: s.world.Tiles(), Explored: s.world.Explored(p.player), SurfaceH: surfaceH(s.world)},
 		})
 	case protocol.ClientInput:
 		if !p.joined {
@@ -329,4 +329,12 @@ func (s *Server) shutdown() {
 		s.drop(p)
 	}
 	s.peers = nil
+}
+
+// surfaceH is the Welcome's SurfaceH for w: 0 when the whole map is above ground.
+func surfaceH(w *sim.World) int {
+	if _, h := w.Size(); w.SurfaceHeight() < h {
+		return w.SurfaceHeight()
+	}
+	return 0
 }

@@ -97,7 +97,6 @@ func (w *World) archipelagoTerrain(seed uint32) (sx, sy int) {
 
 	sx, sy = w.openSpawn()
 	w.volcano(seed, sx, sy)
-	w.cutCaveMouths()
 	return sx, sy
 }
 
@@ -177,16 +176,9 @@ func (w *World) islandTile(k IslandKind, h, x, y float64, seed uint32, small boo
 	if small {
 		return TileGrass
 	}
-	mountain := func(rocky float64) Tile {
-		t := TileMountain
-		if math.Abs(fbm(x/16, y/16, seed+31, 2)-0.5) < openCaveWidth || tribalCave(x, y, seed) {
-			t = TileCave
-		}
-		if h < rocky {
-			t = TileRocky
-		}
-		return t
-	}
+	// No mountains: the high ground is bare rock, and the caves are
+	// underground (see underground.go).
+	mountain := func(float64) Tile { return TileRocky }
 	switch k {
 	case IslandMeadow:
 		if h > 0.88 && fbm(x/10, y/10, seed+312, 2) > 0.62 {

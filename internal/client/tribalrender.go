@@ -243,6 +243,10 @@ func (g *Game) tribalEntitySprite(e protocol.EntityView) (sprite, float64, bool)
 		return a.bonfire, 0, true
 	case sim.EntityPyramid, sim.EntityPyramidStone:
 		return g.art.desert.pyramid, 0, true
+	case sim.EntityCaveMouth, sim.EntityCaveRock:
+		return g.art.cave.mouth, 0, true
+	case sim.EntityCaveExit:
+		return g.art.cave.exit, 0, true
 	}
 	return sprite{}, 0, false
 }
@@ -277,7 +281,7 @@ func tribalShadow(e protocol.EntityView) (float64, bool) {
 		return 54, true
 	case sim.EntityTotem:
 		return 14, true
-	case sim.EntityBonfire, sim.EntityPyramid, sim.EntityPyramidStone:
+	case sim.EntityBonfire, sim.EntityPyramid, sim.EntityPyramidStone, sim.EntityCaveMouth, sim.EntityCaveRock, sim.EntityCaveExit:
 		return 0, true
 	}
 	return 0, false
@@ -288,7 +292,7 @@ func tribalShadow(e protocol.EntityView) (float64, bool) {
 func (g *Game) drawTribalEntity(dst *ebiten.Image, e protocol.EntityView, d drawable) bool {
 	a := &g.art.tribal
 	switch e.Kind {
-	case sim.EntityFloor, sim.EntityPyramidStone:
+	case sim.EntityFloor, sim.EntityPyramidStone, sim.EntityCaveRock:
 		return true // flat, or part of the pyramid drawn whole from its doorway
 	case sim.EntityCorpse:
 		g.drawBody(dst, e, d)

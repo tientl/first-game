@@ -75,6 +75,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	_, mapH := w.Size() // taller than N when caves lie under the islands
+	surfH := 0
+	if w.SurfaceHeight() < mapH {
+		surfH = w.SurfaceHeight()
+	}
 	sx, sy := w.Spawn()
 	if *coast {
 		tiles := w.Tiles()
@@ -169,6 +174,24 @@ func main() {
 				}
 			}
 		}
+	}
+	if *at == "cavemouth" || *at == "cavein" {
+		k := sim.EntityCaveMouth
+		if *at == "cavein" {
+			k = sim.EntityCaveExit
+		}
+		best := math.Inf(1)
+		px, py := sx, sy
+		w.EachEntityIn(0, 0, 1<<14, 1<<14, func(e sim.Entity) {
+			if d := math.Hypot(float64(e.TX)-px, float64(e.TY)-py); e.Kind == k && d < best {
+				best = d
+				sx, sy = float64(e.TX)+0.5, float64(e.TY)+2.5
+				if k == sim.EntityCaveExit {
+					sy = float64(e.TY) + 1.5 // where the way down arrives
+				}
+			}
+		})
+		*at = ""
 	}
 	if *at == "pyramid" {
 		if tx, ty, ok := w.Pyramid(); ok {
@@ -558,8 +581,8 @@ func main() {
 
 	conn := &fakeConn{ch: make(chan protocol.ServerMsg, 4)}
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerWelcome, Welcome: protocol.Welcome{
-		PlayerID: 1, Width: N, Height: N, Tiles: w.Tiles(),
-		Explored: shotExplored(N, sx, sy),
+		PlayerID: 1, Width: N, Height: mapH, Tiles: w.Tiles(),
+		Explored: shotExplored(N, mapH, sx, sy), SurfaceH: surfH,
 	}}
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}
 
@@ -594,8 +617,8 @@ func main() {
 }
 
 // shotExplored is a wander out from (x, y), so the map shows some fog.
-func shotExplored(n int, x, y float64) []byte {
-	seen := sim.NewExplored(n, n)
+func shotExplored(n, h int, x, y float64) []byte {
+	seen := sim.NewExplored(n, h)
 	for i := range 70 {
 		a := float64(i) * 0.19
 		seen.Reveal(x+math.Sin(a)*float64(i)*0.32, y+math.Cos(a*0.8)*float64(i)*0.22)
