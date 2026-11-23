@@ -40,17 +40,17 @@ var dinoRigs = map[string]dinoRig{
 		jaw:  [2]rigPt{{99, 12.5}, {107, 13.5}},
 	},
 	"dakota": {
-		file: "dakota", stride: 2,
-		legs:  []rigLimb{{16, 27, 22}},
-		head:  rigPart{pivot: rigPt{25, 12}, dir: headUp(0.4), maxY: 16},
-		jaw:   [2]rigPt{{33, 12}, {40, 12}},
+		file: "dakota", stride: 3,
+		legs:  []rigLimb{{22, 31, 23}, {12, 21, 23}}, // the near leg, then the far one behind it
+		head:  rigPart{pivot: rigPt{31, 10}, dir: headUp(0.5), maxY: 14},
+		jaw:   [2]rigPt{{40.5, 8}, {48, 8.4}},
 		teeth: true,
 	},
 	"achero": {
-		file: "achero", stride: 1.5,
-		legs:  []rigLimb{{12, 22, 16}},
-		head:  rigPart{pivot: rigPt{19, 9}, dir: headUp(0.4), maxY: 11},
-		jaw:   [2]rigPt{{25, 9}, {31, 8}},
+		file: "achero", stride: 2.5,
+		legs:  []rigLimb{{17, 24, 17}, {10, 16, 17}},
+		head:  rigPart{pivot: rigPt{23.6, 6.8}, dir: headUp(0.5), maxY: 10},
+		jaw:   [2]rigPt{{31, 5}, {36.5, 5.2}},
 		teeth: true,
 	},
 	"rex": {
@@ -61,16 +61,17 @@ var dinoRigs = map[string]dinoRig{
 		teeth: true,
 	},
 	"ornitho": {
-		file: "ornitho", stride: 2,
-		legs: []rigLimb{{19, 29, 33}},
-		head: rigPart{pivot: rigPt{31, 17}, dir: headUp(1.3), maxY: 20},
-		jaw:  [2]rigPt{{38, 7}, {46, 7}},
+		file: "ornitho", stride: 3,
+		legs: []rigLimb{{23, 31, 31}, {14, 22, 31}},
+		head: rigPart{pivot: rigPt{35.2, 3.6}, dir: headUp(0.3), maxY: 13},
+		neck: rigPart{pivot: rigPt{31, 18}, dir: headUp(0.9), maxY: 20},
+		jaw:  [2]rigPt{{41, 7}, {46.5, 7.2}},
 	},
 	"thesc": {
-		file: "thesc", stride: 2,
-		legs: []rigLimb{{14, 29, 24}},
-		head: rigPart{pivot: rigPt{33, 13}, dir: headUp(0.3), maxY: 17},
-		jaw:  [2]rigPt{{40, 13}, {46, 13}},
+		file: "thesc", stride: 2.5,
+		legs: []rigLimb{{23, 31, 25}, {13, 22, 25}},
+		head: rigPart{pivot: rigPt{33, 10.5}, dir: headUp(0.6), maxY: 15},
+		jaw:  [2]rigPt{{41, 11}, {47, 11.4}},
 	},
 	"anzu": {
 		file: "anzu", stride: 2,
@@ -138,15 +139,15 @@ var dinoPoses = map[string]map[int]rigPose{
 	"ornitho": {
 		ornithoRunA: {step: 1},
 		ornithoRunB: {step: -1},
-		ornithoRest: {squash: 0.85, head: 0.2},
-		ornithoEatA: {head: 1.1},
-		ornithoEatB: {head: 1.1, open: 0.3},
+		ornithoRest: {squash: 0.85, neck: 0.25},
+		ornithoEatA: {neck: 1.5, head: -0.7}, // the neck swings down, the head levels out again
+		ornithoEatB: {neck: 1.5, head: -0.7, open: 0.3},
 	},
 	"thesc": {
 		thescWalkA: {step: 1},
 		thescWalkB: {step: -1},
-		thescEatA:  {head: 0.7},
-		thescEatB:  {head: 0.7, open: 0.3},
+		thescEatA:  {head: 0.35, tilt: 0.25}, // short-necked: it leans its whole body down
+		thescEatB:  {head: 0.35, tilt: 0.25, open: 0.3},
 	},
 	"anzu": {
 		anzuWalkA:   {step: 1},
