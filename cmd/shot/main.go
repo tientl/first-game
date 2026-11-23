@@ -543,10 +543,12 @@ func main() {
 	}
 
 	// A campfire next to the spawn, so lighting is visible at night.
-	snap.Entities = append(snap.Entities, protocol.EntityView{
-		ID: 1 << 30, Kind: sim.EntityCampfire, TX: int16(cx + 2), TY: int16(cy), Ready: true,
-		Fuel: sim.FireStartFuel,
-	})
+	if !*sea {
+		snap.Entities = append(snap.Entities, protocol.EntityView{
+			ID: 1 << 30, Kind: sim.EntityCampfire, TX: int16(cx + 2), TY: int16(cy), Ready: true,
+			Fuel: sim.FireStartFuel,
+		})
+	}
 
 	conn := &fakeConn{ch: make(chan protocol.ServerMsg, 4)}
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerWelcome, Welcome: protocol.Welcome{
