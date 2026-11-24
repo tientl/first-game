@@ -63,6 +63,7 @@ func main() {
 	weather := flag.String("weather", "", "the weather: rain, wind, storm, tornado, snow")
 	season := flag.String("season", "", "the season: spring, summer, autumn, winter")
 	zoom := flag.Int("zoom", 0, "the view's zoom, -3 to 3")
+	warm := flag.Bool("warm", false, "the trial warm ground: ochre earth with patches of grass")
 	fx := flag.Bool("fx", false, "turn on the post-processing shaders: glow and colour grading")
 	fight := flag.Bool("fight", false, "show the beasts' health: a few just hurt, with the damage floating up (use with -dinos)")
 	troodon := flag.Bool("troodon", false, "put a pack of night hunters round the player: one stalking, one leaping in, one biting, and two more watching from the dark (use with -time 0.9 for their eyes)")
@@ -87,6 +88,7 @@ func main() {
 	client.SetRex3D(*rex3d)
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
+	client.SetWarmGround(*warm)
 	if *bossesFlag {
 		*coast = true
 	}

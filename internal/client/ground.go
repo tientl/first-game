@@ -253,6 +253,9 @@ func biomeIdx(k sim.Tile, px, py int, u, v float64) (ramp, int, color.RGBA) {
 }
 
 func biomeColor(k sim.Tile, px, py int, u, v float64) color.RGBA {
+	if c, ok := warmBiome(k, px, py, u, v); ok {
+		return c // see warmground.go
+	}
 	if c, ok := openBiome(k, px, py, u, v); ok {
 		return c
 	}
