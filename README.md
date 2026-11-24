@@ -62,8 +62,10 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 Mới vào bạn chỉ có hai bàn tay: nhặt cành cây rơi dưới đất, đập một tảng đá (quanh chỗ xuất phát luôn có sẵn vài cành và một tảng đá), rồi nhấn Q làm Rìu. Có rìu mới chặt được cây lấy gỗ.
 
 Một ngày trong game dài 8 phút: khoảng 4 phút rưỡi ban ngày, hơn 1 phút chạng vạng và gần 2 phút rưỡi
-ban đêm. Ban đêm, đứng ngoài vùng sáng của lửa trại sẽ bị lạnh và mất máu. Từ cuối chạng vạng, đom đóm
+ban đêm. Chỉ đêm **mùa đông** mới lạnh: đứng ngoài vùng sáng của lửa (lửa trại, lò nung, đuốc, dung nham) thì mất máu; đêm các mùa khác chỉ tối, không mất máu. Đứng trên tuyết không có áo lông, hoặc ra ngoài lúc mùa đông có tuyết hay gió mà không mặc ấm thì vẫn lạnh như trước. Từ cuối chạng vạng, đom đóm
 bay lập lòe trên đồng cỏ, trong rừng và đầm lầy.
+
+**Thú săn đêm: Troodon** (`internal/sim/nightstalker.go`). Khi trời tối hẳn, từng bầy 3 con Troodon (khủng long nhỏ, mắt rất to, săn đêm) mò ra từ bóng tối, cách người chơi 16–24 ô, mỗi người tối đa 2 bầy quanh mình. Chúng lặng lẽ áp sát từ nhiều phía, lao vào cắn (7 máu) rồi lùi ra, chạy chậm hơn bạn một chút. Chúng **sợ ánh sáng**: không bao giờ bước vào vùng sáng của lửa trại, lò nung, dung nham hay đuốc đang cháy, chỉ đứng ở rìa nhìn vào; bị ánh sáng chiếu tới thì chạy ra. Mắt chúng phát sáng trong đêm. Chúng không đụng tới người đang ngủ trên giường, đang bơi hay ngồi thuyền, và không xuống hang. Trời rạng sáng là bỏ đi mất. 50 máu (đấm tay gần như vô ích), cho 2 Thịt sống, 1 Da thú, 1 Xương. Nghe: tiếng gọi nhau lanh lảnh trong đêm, tiếng rít khi phát hiện bạn, tiếng lách cách trong cổ khi bầy tới gần.
 
 ### Động vật
 
