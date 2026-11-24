@@ -295,6 +295,7 @@ func (w *World) lightning() {
 		q := w.players[id]
 		if !q.Dead && math.Hypot(q.X-x, q.Y-y) <= LightningRadius {
 			hurt(q, LightningDamage)
+			q.flinch()
 			q.notify(NoticeLightning, 0)
 		}
 	}

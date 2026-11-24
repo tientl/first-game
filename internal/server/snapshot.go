@@ -75,6 +75,7 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Boat:      p.BoatID(),
 			Swimming:  s.world.Swimming(p),
 			Bees:      p.Swarmed(),
+			HurtSeq:   p.HurtSeq(),
 			HasAxe:    hasAxe,
 			AxeTier:   axeTier,
 			Armor:     armor,

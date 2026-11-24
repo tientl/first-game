@@ -199,6 +199,7 @@ func (w *World) stepBees(p *Player) {
 	p.bees--
 	if p.bees%BeeStingCD == 0 {
 		hurt(p, BeeSting)
+		p.flinch()
 	}
 }
 

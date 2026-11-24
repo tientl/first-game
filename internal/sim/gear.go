@@ -68,7 +68,16 @@ func (inv *Inventory) BestArmor() (Tier, bool) {
 func struck(p *Player, dmg float64) {
 	dmg *= 1 - ArmorShare(&p.Inv)
 	hurt(p, dmg)
+	p.flinch()
 }
+
+// flinch counts a blow that makes p jolt: an animal's attack, a sting,
+// lightning. Wear and tear (hunger, cold, poison, drowning) does not.
+func (p *Player) flinch() { p.hurtSeq++ }
+
+// HurtSeq goes up by one with every blow that makes p jolt; the client
+// starts the jolt when it changes.
+func (p *Player) HurtSeq() uint8 { return p.hurtSeq }
 
 // DinoArmorBlock is the share of an attack dinosaur-hide armour stops.
 const DinoArmorBlock = 0.5

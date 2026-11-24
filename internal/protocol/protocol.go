@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 29
+const Version = 30
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -176,6 +176,7 @@ type PlayerView struct {
 	Boat      sim.BoatID     // the boat they are aboard, 0 if none: drawn in it
 	Swimming  bool           // in the water: drawn swimming
 	Bees      bool           // a swarm of bees is after them: drawn round them
+	HurtSeq   uint8          // goes up with every blow that makes them jolt; the client starts the jolt when it changes
 
 	Cast       sim.CastState // fishing: whether the line is out, and whether the fish bites
 	BobX, BobY float32       // where the float sits while the line is out

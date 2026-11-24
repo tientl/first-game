@@ -52,6 +52,7 @@ type Player struct {
 	poison    int        // ticks of spider venom left; see cavelife.go
 	webbed    int        // ticks left tangled in web
 	bees      int        // ticks a swarm keeps after them; see jungle.go
+	hurtSeq   uint8      // blows taken that make them jolt; see flinch in gear.go
 	beeHive   [2]float64 // where the angry bees came from
 	boat      BoatID     // the boat p is aboard, 0 if none; see boats.go
 	swim      int        // ticks spent swimming without rest
