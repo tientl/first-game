@@ -84,7 +84,10 @@ func main() {
 	aimAt := flag.String("aim", "", "dx,dy: hold the mouse pointer this many tiles from the player (the hover brackets, a held torch's ghost)")
 	buildID := flag.Int("build", -1, "recipe id of a structure to place (0 campfire, 8 wall, 9 bed…): build mode with its ghost under -aim, the ingredients given")
 	rex3d := flag.Bool("rex3d", false, "show the tyrant as the 3D model baked to pixel art (a trial; see internal/dino3d)")
+	herohd := flag.Bool("herohd", false, "draw the players as the trial hero: bigger, with a run, a sword blow and firelight (a trial; see internal/client/herohd.go)")
+	running := flag.Bool("run", false, "the player is on the move (with -herohd: mid-stride)")
 	flag.Parse()
+	client.SetHeroHD(*herohd)
 	client.SetRex3D(*rex3d)
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
@@ -710,6 +713,15 @@ func main() {
 			conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: first}
 			conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: rest}
 		}
+	}
+	if *running {
+		before := snap
+		before.Players = slices.Clone(snap.Players)
+		before.Tick = snap.Tick - 1
+		dx, dy := snap.Players[0].Dir.Delta()
+		before.Players[0].X -= 0.04 * float32(dx)
+		before.Players[0].Y -= 0.04 * float32(dy)
+		conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: before}
 	}
 	if *hurtFlag {
 		before := snap

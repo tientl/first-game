@@ -264,6 +264,9 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 	})
 	g.drawList = list
 
+	if heroHD {
+		g.noteHeroLights(cam) // see herohddraw.go
+	}
 	g.drawSoil(dst, list)
 	g.drawFloors(dst, cam) // see tribalrender.go
 	g.drawDigSpot(dst, cam)
@@ -282,6 +285,10 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 			w = creatureShadow(g.curr.Creatures[d.idx].Kind)
 		default:
 			w = shadowWidth(g.curr.Entities[d.idx])
+		}
+		if heroHD && d.isPlayer && w > 0 && g.heroStands(g.curr.Players[d.idx]) {
+			g.drawHeroShadow(dst, d.sx, d.sy)
+			continue
 		}
 		if w > 0 {
 			g.drawShadow(dst, d.sx, d.sy, w)
@@ -637,6 +644,10 @@ func (g *Game) backpedalling(p protocol.PlayerView) bool {
 func (g *Game) drawStanding(dst *ebiten.Image, p protocol.PlayerView, d drawable) {
 	if p.Swimming {
 		g.drawSwimmer(dst, p, d) // see searender.go
+		return
+	}
+	if heroHD {
+		g.drawHeroHD(dst, p, d) // the trial hero; see herohddraw.go
 		return
 	}
 	frame, bob := 0, 0.0

@@ -128,6 +128,7 @@ type Game struct {
 	ground   *groundCache
 	world    *ebiten.Image // the scene in art pixels, scaled up to the screen
 	darkness *ebiten.Image
+	hd       *heroHDState  // the trial hero's frames and lights; see herohddraw.go
 	caveMask *ebiten.Image // one pixel per tile in view: where it is always dark
 	lavaMask *ebiten.Image // one pixel per tile in view: where lava glows
 	canopy   *ebiten.Image // one pixel per tile in view: where the woods shade the ground
