@@ -66,6 +66,9 @@ func (inv *Inventory) BestArmor() (Tier, bool) {
 // struck hurts p with an animal's attack, less what p's armour stops.
 // Every creature that harms a player goes through here.
 func struck(p *Player, dmg float64) {
+	if p.harm > 0 {
+		dmg *= p.harm // the difficulty; see difficulty.go
+	}
 	dmg *= 1 - ArmorShare(&p.Inv)
 	hurt(p, dmg)
 	p.flinch()

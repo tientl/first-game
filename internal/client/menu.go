@@ -33,6 +33,8 @@ type SaveInfo struct {
 	Name    string
 	SavedAt time.Time
 	Size    int // the world's width in tiles, if known
+	// Difficulty is the saved world's difficulty.
+	Difficulty sim.Difficulty
 }
 
 const (
@@ -49,13 +51,13 @@ type Menu struct {
 	list     buttonList
 	confirm  bool // asking before a new game overwrites the save
 	yesNo    buttonList
-	picking  bool // choosing the size of the new world
-	sizes    buttonList
-	size     int          // the size chosen for the new world
-	creating bool         // on the character screen, after the size
-	create   *charCreator // kept, so going back and forth keeps the choices
-	look     sim.Look     // the look made for the new game
-	busy     string       // shown over everything while a world is being made
+	picking  bool // choosing the difficulty of the new world
+	diffs    buttonList
+	diff     sim.Difficulty // the difficulty chosen for the new world
+	creating bool           // on the character screen, after the difficulty
+	create   *charCreator   // kept, so going back and forth keeps the choices
+	look     sim.Look       // the look made for the new game
+	busy     string         // shown over everything while a world is being made
 	status   string
 	bg       *Game
 }
@@ -66,10 +68,10 @@ func NewMenu(info SaveInfo) *Menu {
 		info:   info,
 		create: newCharCreator(),
 		yesNo:  buttonList{items: []button{{label: "Bắt đầu mới"}, {label: "Quay lại"}}},
-		sizes: buttonList{sel: 1, items: []button{
-			{label: "Vừa — 256 × 256", sub: "đi ngang hết khoảng 1 phút"},
-			{label: "Lớn — 512 × 512", sub: "khoảng 2 phút · nên chọn"},
-			{label: "Rất lớn — 1024 × 1024", sub: "khoảng 4 phút · tạo và lưu lâu hơn"},
+		diffs: buttonList{sel: 1, items: []button{
+			{label: "Dễ", sub: "thú đánh nhẹ, đói chậm, đêm đông bớt lạnh, ít thú săn đêm"},
+			{label: "Thường", sub: "như thiết kế · nên chọn"},
+			{label: "Khó", sub: "thú đánh đau, đói nhanh, đêm đông rét buốt, nhiều thú săn đêm"},
 			{label: "Quay lại"},
 		}},
 	}
@@ -80,7 +82,7 @@ func NewMenu(info SaveInfo) *Menu {
 	case info.Exists:
 		cont.sub = fmt.Sprintf("Ngày %d · %s · lưu lúc %s", info.Day, info.Name, info.SavedAt.Local().Format("15:04 02/01/2006"))
 		if info.Size > 0 {
-			cont.sub = fmt.Sprintf("Ngày %d · %s · thế giới %d × %d · lưu lúc %s", info.Day, info.Name, info.Size, info.Size, info.SavedAt.Local().Format("15:04 02/01"))
+			cont.sub = fmt.Sprintf("Ngày %d · %s · %s · lưu lúc %s", info.Day, info.Name, info.Difficulty.Name(), info.SavedAt.Local().Format("15:04 02/01"))
 		}
 	default:
 		cont.sub = "Chưa có bản lưu"
@@ -99,22 +101,23 @@ func NewMenu(info SaveInfo) *Menu {
 	return m
 }
 
-// worldSizes are the sizes the picker offers, in its order.
-var worldSizes = []int{sim.SizeMedium, sim.SizeLarge, sim.SizeHuge}
+// difficulties are the levels the picker offers, in its order.
+var difficulties = []sim.Difficulty{sim.DiffEasy, sim.DiffNormal, sim.DiffHard}
 
-// NewWorldSize is the size picked for the new world, after MenuNew.
-func (m *Menu) NewWorldSize() int { return m.size }
+// NewDifficulty is the difficulty picked for the new world, after MenuNew.
+// Every new world is the largest size.
+func (m *Menu) NewDifficulty() sim.Difficulty { return m.diff }
 
 // NewLook is the look made on the character screen, after MenuNew.
 func (m *Menu) NewLook() sim.Look { return m.look }
 
-// ShowCharacterScreen opens the character screen as picking a size would.
-// It is for dev tools that capture frames.
+// ShowCharacterScreen opens the character screen as picking a difficulty
+// would. It is for dev tools that capture frames.
 func (m *Menu) ShowCharacterScreen() { m.creating = true }
 
-// ShowSizePicker opens the world-size choice as "Trò chơi mới" would. It is
-// for dev tools that capture frames.
-func (m *Menu) ShowSizePicker() { m.picking = true }
+// ShowDifficultyPicker opens the difficulty choice as "Trò chơi mới" would.
+// It is for dev tools that capture frames.
+func (m *Menu) ShowDifficultyPicker() { m.picking = true }
 
 // SetBusy shows msg over the menu and ignores input until it is cleared
 // with an empty msg; used while a world is being made or loaded.
@@ -143,7 +146,7 @@ func (m *Menu) Update() MenuChoice {
 			m.creating, m.look = false, m.create.look
 			return MenuNew
 		case createCancel:
-			m.creating, m.picking = false, true // back to the size
+			m.creating, m.picking = false, true // back to the difficulty
 		}
 		return MenuNone
 	}
@@ -152,11 +155,11 @@ func (m *Menu) Update() MenuChoice {
 			m.picking = false
 			return MenuNone
 		}
-		switch i := m.sizes.update(); {
-		case i >= 0 && i < len(worldSizes):
-			m.picking, m.size, m.creating = false, worldSizes[i], true
+		switch i := m.diffs.update(); {
+		case i >= 0 && i < len(difficulties):
+			m.picking, m.diff, m.creating = false, difficulties[i], true
 			return MenuNone
-		case i == len(worldSizes):
+		case i == len(difficulties):
 			m.picking = false
 		}
 		return MenuNone
@@ -239,9 +242,9 @@ func (m *Menu) Draw(screen *ebiten.Image) {
 		px, py := float32(cx)-pw/2, float32(sh)/2-ph/2
 		fillRoundRect(screen, px-2, py-2, pw+4, ph+4, 12, color.RGBA{0, 0, 0, 120})
 		fillRoundRect(screen, px, py, pw, ph, 10, color.RGBA{18, 20, 32, 245})
-		drawText(screen, "Thế giới rộng cỡ nào?", cx, float64(py)+18, colWhite, text.AlignCenter, 2)
-		drawText(screen, "Đảo lớn, đảo nhỏ, hoang mạc, đầm lầy, núi có hang, núi lửa", cx, float64(py)+50, colMuted, text.AlignCenter, 1)
-		m.sizes.draw(screen, cx, float64(py)+76, 400)
+		drawText(screen, "Chọn độ khó", cx, float64(py)+18, colWhite, text.AlignCenter, 2)
+		drawText(screen, "Thế giới luôn rộng nhất: 1024 × 1024 ô", cx, float64(py)+50, colMuted, text.AlignCenter, 1)
+		m.diffs.draw(screen, cx, float64(py)+76, 400)
 	}
 
 	if m.busy != "" {

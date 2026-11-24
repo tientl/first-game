@@ -42,6 +42,7 @@ type SaveData struct {
 	Pets          []PetSave    `json:",omitempty"` // tamed beasts; wild ones are not saved
 	Drops         []Drop       `json:",omitempty"` // piles on the ground
 	Boats         []BoatSave   `json:",omitempty"` // boats on the water
+	Difficulty    Difficulty   `json:",omitempty"` // absent: normal; see difficulty.go
 }
 
 // PlayerSave is the persistent part of a player.
@@ -129,12 +130,13 @@ func finite(vs ...float64) bool {
 // they are now; players who left earlier keep the state they left with.
 func (w *World) Save() SaveData {
 	d := SaveData{
-		Version: SaveVersion,
-		Seed:    w.seed,
-		Width:   w.width,
-		Height:  w.genH,
-		Tick:    w.tick,
-		Style:   w.style,
+		Version:    SaveVersion,
+		Seed:       w.seed,
+		Width:      w.width,
+		Height:     w.genH,
+		Tick:       w.tick,
+		Style:      w.style,
+		Difficulty: w.difficulty,
 	}
 	d.NextEntity = w.nextEnt
 	d.Chests = w.saveChests()
@@ -183,7 +185,7 @@ func Load(d SaveData) (*World, error) {
 	if d.Version < 1 || d.Version > SaveVersion {
 		return nil, fmt.Errorf("%w: version %d, this game reads 1 to %d", ErrBadSave, d.Version, SaveVersion)
 	}
-	w, err := Generate(GenConfig{Seed: d.Seed, Width: d.Width, Height: d.Height, Style: d.Style})
+	w, err := Generate(GenConfig{Seed: d.Seed, Width: d.Width, Height: d.Height, Style: d.Style, Difficulty: d.Difficulty})
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrBadSave, err)
 	}

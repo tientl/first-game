@@ -68,7 +68,7 @@ func (w *World) stepNightHunters() {
 				near++
 			}
 		}
-		if near >= TroodonPack*TroodonPacksNear {
+		if near >= TroodonPack*w.difficulty.tune().packs {
 			continue
 		}
 		for range 12 {
