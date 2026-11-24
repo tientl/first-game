@@ -89,6 +89,9 @@ Mỗi sinh vật có máu riêng (cột Máu trong các bảng; thỏ 10, rắn 
 | Giáo | 20 | 0,6 giây |
 | Giáo ngà | 40 | 0,7 giây |
 | Kiếm (đá lửa → hắc diện thạch) | 30, 42, 55, 75 | 0,5 giây |
+| Rìu chiến | 70 | 0,9 giây |
+
+**Rìu chiến** (2 Gỗ, 2 Ngọc bích mài, 1 Da thú; `battleaxe.go`): lưỡi kép bằng ngọc bích buộc dây da vào cán gỗ dài. Nhát chém nặng nhất trước dao hắc diện thạch, nhưng vung chậm nhất: giơ rìu ra sau đầu, bổ xuống, lưỡi cắm xuống đất một nhịp rồi mới kéo về. Chỉ để đánh, không chặt cây được. Mỗi người giữ một cái.
 
 **Da dày**: cú đấm tay không chỉ có tác dụng với thỏ, rắn, cua, nhện, khỉ và thổ dân. Với mọi loài khủng long, cá sấu, bò sát biển, hổ răng kiếm, gấu, voi ma mút và bọ cạp, mỗi cú đấm chỉ trừ 1 máu, nên đấm tay gần như vô ích và con thú sẽ đánh trả. Muốn săn chúng thì cần ít nhất giáo hoặc rìu. Trỏ vào con thú khi tay không sẽ thấy ghi "da dày: đấm tay gần như vô ích". Cầm đồ không phải vũ khí (quả mọng, đá…) cũng tính là tay không.
 

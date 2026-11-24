@@ -52,7 +52,9 @@ const (
 	RecipeRaft     = RecipeDinoArmor + 1
 	RecipeSailboat = RecipeRaft + 1
 
-	NumRecipes = RecipeSailboat + 1
+	RecipeBattleAxe = RecipeSailboat + 1
+
+	NumRecipes = RecipeBattleAxe + 1
 )
 
 // Recipe turns ingredients into either a structure placed in front of the
@@ -288,6 +290,11 @@ var recipes = [NumRecipes]Recipe{
 		ID: RecipeSailboat, Name: "Thuyền buồm",
 		Inputs: []Ingredient{{Item: ItemWood, Count: 20}, {Item: ItemHide, Count: 4}, {Item: ItemGrass, Count: 8}},
 		Gives:  ItemSailboat,
+	},
+	RecipeBattleAxe: {
+		ID: RecipeBattleAxe, Name: "Rìu chiến",
+		Inputs: []Ingredient{{Item: ItemWood, Count: 2}, {Item: ItemIronBar, Count: 2}, {Item: ItemHide, Count: 1}},
+		Gives:  ItemBattleAxe,
 	},
 	// The metal tools are filled in by fillTierTools, swords and armour by fillGear.
 }

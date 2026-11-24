@@ -17,6 +17,13 @@ const (
 	CritBonus    = 1.6 // ...and does this much more
 )
 
+// The battle axe hits harder than any knife but the obsidian one, and swings
+// slower than any other weapon: one big blow, then a breath.
+const (
+	BattleAxeDamage = 70
+	BattleAxeSwing  = 9 * TicksPerSecond / 10
+)
+
 // FlinchEvery is how often, at most, a blow makes a small beast flinch: a
 // flurry of blows does not keep it from fighting back.
 const FlinchEvery = TicksPerSecond
@@ -32,6 +39,8 @@ func SwingTicks(held ItemKind) int {
 		return 3 * TicksPerSecond / 5
 	case ItemIvorySpear:
 		return 7 * TicksPerSecond / 10
+	case ItemBattleAxe:
+		return BattleAxeSwing
 	}
 	if class, _ := held.ToolKind(); class != NoTool {
 		return 7 * TicksPerSecond / 10
@@ -59,6 +68,8 @@ func WeaponDamage(held ItemKind) int {
 		return SpearDamage
 	case ItemIvorySpear:
 		return IvorySpearDamage
+	case ItemBattleAxe:
+		return BattleAxeDamage
 	}
 	if class, tier := held.ToolKind(); class != NoTool {
 		return toolDamage[class][tier]

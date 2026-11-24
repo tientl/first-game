@@ -68,6 +68,8 @@ func main() {
 	dung := flag.Bool("dung", false, "with -farm: a fed bed, heaps of dung by a grazing three-horn, and dung in hand")
 	sea := flag.Bool("sea", false, "out at sea: the player sailing, a raft, a swimmer, a mosasaur and a giant squid")
 	armor := flag.Int("armor", 0, "the armour tier the player wears, 0 (none) to 4")
+	bagFrom := flag.Int("bagfrom", 0, "fill every slot with one item kind each, counting up from this one (to review the icons with -overlay bag)")
+	prey := flag.Bool("prey", false, "put a raptor right in front of the player, so -acting shows a blow at a beast (-frames picks the moment)")
 	punch := flag.String("punch", "", "a blow by hand at a rabbit put in front of the player: jab, or cross for the other hand; nothing is held unless -held says so")
 	hurtFlag := flag.Bool("hurt", false, "the player has just been struck")
 	villageIdx := flag.Int("village", 0, "with -at village: which village to stand in, from 0")
@@ -319,6 +321,15 @@ func main() {
 	snap.Self.Inv.Add(sim.ItemStick, 2)
 	snap.Self.Inv[sim.HotbarSlots] = sim.Slot{Item: sim.ItemGrass, Count: 1} // something in the bag
 	snap.Self.Inv[sim.HotbarSlots+3] = sim.Slot{Item: sim.ItemMeat, Count: 3}
+	if *bagFrom > 0 {
+		for i := range snap.Self.Inv {
+			if k := sim.ItemKind(*bagFrom + i); k.Valid() && k < sim.ItemHeadBase {
+				snap.Self.Inv[i] = sim.Slot{Item: k, Count: min(k.MaxCount(), 1+i%7)}
+			} else {
+				snap.Self.Inv[i] = sim.Slot{}
+			}
+		}
+	}
 	snap.Self.Selected = 1
 	snap.Players[0].Held = snap.Self.Inv[snap.Self.Selected].Item
 	if *held >= 0 {
@@ -571,6 +582,12 @@ func main() {
 
 	if *tribal {
 		addTribal(&snap, sx, sy)
+	}
+	if *prey {
+		dx, dy := sim.Dir(*dir).Delta()
+		snap.Creatures = append(snap.Creatures, protocol.CreatureView{
+			ID: 1<<27 + 1, Kind: sim.CreatureRaptor, X: float32(sx + 1.3*float64(dx)), Y: float32(sy + 1.3*float64(dy)), State: sim.CreatureIdle, FaceLeft: dx > 0,
+		})
 	}
 	if *sea {
 		snap.Boats = []protocol.BoatView{

@@ -622,6 +622,8 @@ func (g *Game) drawStanding(dst *ebiten.Image, p protocol.PlayerView, d drawable
 	// the body.
 	hand := func() {
 		switch {
+		case g.cleaving(p): // outlasts the working pose; see battleaxe.go
+			g.drawCleave(dst, p, d, bob)
 		case p.Acting && isSword(p.Held):
 			g.drawSlash(dst, p, d, bob)
 		case p.Acting && g.swingWhat[p.ID].kind != swingNone:

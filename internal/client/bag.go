@@ -61,6 +61,7 @@ var (
 		sim.ItemIvory:       "Ngà voi ma mút. Làm mũi Giáo ngà.",
 		sim.ItemFurCoat:     "Có trong túi thì không bị lạnh khi đi trên tuyết (ban đêm vẫn cần lửa).",
 		sim.ItemIvorySpear:  "Cầm trên tay: đánh mạnh gấp bốn tay không và với xa nhất.",
+		sim.ItemBattleAxe:   "Cầm trên tay: nhát chém nặng nhất (70), gấp bảy tay không, nhưng vung chậm. Không dùng chặt cây.",
 	}
 	colBad = color.RGBA{236, 110, 110, 255}
 )

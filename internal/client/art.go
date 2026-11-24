@@ -170,6 +170,7 @@ func newArt() *art {
 	a.cave = genCaveArt()
 	genSeaIcons(&a.icons)
 	a.addTribalArt()
+	redrawItemIcons(&a.icons) // see itemicons.go
 	return a
 }
 

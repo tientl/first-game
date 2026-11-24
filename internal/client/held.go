@@ -99,6 +99,8 @@ func (g *Game) drawHeldAt(dst *ebiten.Image, k sim.ItemKind, dir sim.Dir, hx, hy
 	}
 
 	switch k {
+	case sim.ItemBattleAxe:
+		drawBattleAxeHeld(dst, dir, hx, hy, side)
 	case sim.ItemSpear, sim.ItemIvorySpear:
 		// Upright beside the body; sideways it points ahead.
 		tilt := 0.15

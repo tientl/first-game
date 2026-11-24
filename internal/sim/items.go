@@ -110,7 +110,8 @@ const (
 
 	ItemBanana // the woods: see jungle.go
 	ItemHoney
-	itemsEnd // new items go above this line
+	ItemBattleAxe // held: a heavy axe for fighting, the hardest single blow; see combat.go
+	itemsEnd      // new items go above this line
 
 	// The head of each kind of beast, a trophy: HeadItem(k). They sit at a
 	// fixed place so new items above never move them.
@@ -230,6 +231,7 @@ var itemDefs = [NumItems]ItemDef{
 	ItemDung:         {Name: "Phân thú"},
 	ItemBanana:       {Name: "Chuối", Hunger: 14, Health: 3},
 	ItemHoney:        {Name: "Mật ong", Hunger: 10, Health: 15, Stack: 20},
+	ItemBattleAxe:    {Name: "Rìu chiến", Stack: 1, Tool: true},
 }
 
 // Valid reports whether k is a real item kind (not ItemNone, in range).

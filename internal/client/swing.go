@@ -26,6 +26,7 @@ const (
 	swingPick                    // mining
 	swingHoe                     // hoeing
 	swingThrust                  // a spear driven at an animal
+	swingCleave                  // the war axe brought down on an animal; see battleaxe.go
 )
 
 // swingInfo is what a player's latest blow was.
@@ -123,6 +124,9 @@ func (g *Game) whatSwing(old protocol.Snapshot, oldAt map[[2]int]protocol.Entity
 		if p.Held == sim.ItemSpear || p.Held == sim.ItemIvorySpear {
 			return swingInfo{kind: swingThrust}
 		}
+		if p.Held == sim.ItemBattleAxe {
+			return swingInfo{kind: swingCleave}
+		}
 		return swingInfo{kind: swingHand, beast: true}
 	}
 	// The best tool of the class carried: known for me, guessed for others
@@ -168,6 +172,8 @@ func (g *Game) drawSwing(dst *ebiten.Image, p protocol.PlayerView, d drawable, b
 		tool(g.art.ore.picks[tier(w.tier)])
 	case swingHoe:
 		tool(g.art.ore.hoes[tier(w.tier)])
+	case swingCleave:
+		g.drawCleave(dst, p, d, bob)
 	default: // a hand or a spear pushed out towards the target, and back
 		dx, dy := p.Dir.Delta()
 		out := reach(age)
