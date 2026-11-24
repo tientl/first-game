@@ -370,10 +370,11 @@ func (g *Game) creatureSounds(old, cur protocol.Snapshot) {
 		}
 	}
 	g.beastSteps(cur)
-	g.tameEffects(old, cur) // see ride.go
-	g.chewSounds(cur)       // see hellwire.go
-	g.beastCalls(cur)       // see roar.go
-	g.predatorGrowls(cur)   // see predsound.go
+	g.tameEffects(old, cur)   // see ride.go
+	g.chewSounds(cur)         // see hellwire.go
+	g.beastCalls(cur)         // see roar.go
+	g.predatorGrowls(cur)     // see predsound.go
+	g.troodonSounds(old, cur) // see troodonsound.go
 }
 
 // swingAtCreatureSound is the sound of an Action landing on c.
@@ -386,7 +387,8 @@ func swingAtCreatureSound(c protocol.CreatureView) {
 		snd.playAt("rustle", x, y, 0.25, 0.15)
 	case sim.CreatureTrike, sim.CreatureStego, sim.CreatureBrachio, sim.CreatureRex,
 		sim.CreatureRaptor, sim.CreaturePtero, sim.CreaturePlesio, sim.CreatureMammoth, sim.CreatureSabre,
-		sim.CreatureToro, sim.CreatureAchero, sim.CreatureQuetzal, sim.CreatureBrachy, sim.CreatureChampso, sim.CreatureAnzu, sim.CreatureThesc:
+		sim.CreatureToro, sim.CreatureAchero, sim.CreatureQuetzal, sim.CreatureBrachy, sim.CreatureChampso, sim.CreatureAnzu, sim.CreatureThesc,
+		sim.CreatureTroodon:
 		snd.playAt("whack", x, y, 0.6, 0.1)
 	default:
 		snd.playAt("rustle", x, y, 0.45, 0.1)

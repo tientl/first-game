@@ -166,6 +166,8 @@ func (g *Game) predatorGrowls(cur protocol.Snapshot) {
 			name, gap, vol, rate = "raptor_click", 2200*time.Millisecond, 0.45, 1.2
 		case sim.CreatureSabre:
 			name, gap, vol = "sabre_growl", 2800*time.Millisecond, 0.7
+		case sim.CreatureTroodon: // see troodonsound.go
+			name, gap, vol = "troodon_click", 1800*time.Millisecond, 0.5
 		default:
 			continue
 		}
