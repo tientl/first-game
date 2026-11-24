@@ -1,7 +1,7 @@
-# Dino Isles
+# Dino Isles: Survival
 
 Game sinh tồn thời tiền sử 2D góc nhìn 3/4: săn và thuần hóa khủng long, làm đồ đá, mặc đồ da. Viết bằng Go + [Ebitengine](https://ebitengine.org).
-Tên và art đều là tạm; mọi hình vẽ là pixel art dựng bằng code trong `internal/client` (`art.go` cho sprite, `ground.go` cho mặt đất và nước, `pix.go` là bộ vẽ pixel). Riêng khủng long, thằn lằn bay và thằn lằn cổ dài vẽ từ hình trong `internal/client/dinos/`; các tư thế (bước, cúi ăn, gầm, vồ, vỗ cánh) suy ra từ hình đó trong `dinorig.go` và `dinorigs.go`.
+Art là tạm; mọi hình vẽ là pixel art dựng bằng code trong `internal/client` (`art.go` cho sprite, `ground.go` cho mặt đất và nước, `pix.go` là bộ vẽ pixel). Riêng khủng long, thằn lằn bay và thằn lằn cổ dài vẽ từ hình trong `internal/client/dinos/`; các tư thế (bước, cúi ăn, gầm, vồ, vỗ cánh) suy ra từ hình đó trong `dinorig.go` và `dinorigs.go`.
 
 ## Chạy
 
@@ -22,6 +22,8 @@ Bản lưu nằm ở `%AppData%\SinhTon\save.json`. Game tự lưu mỗi phút, 
 Build `.exe` cho Windows từ Linux:
 
     make build-windows      # ra dist/survival-game.exe
+
+Icon của game (khủng long cổ dài trên đảo dừa, cỡ 16 đến 256) vẽ bằng code trong `internal/client/gameicon.go`; game đặt nó cho cửa sổ và thanh tác vụ. Icon của file `.exe` trong Explorer nằm trong `cmd/game/rsrc_windows_amd64.syso`. Sửa icon xong thì chạy `go run ./cmd/icon -o <thư mục> -syso cmd/game/rsrc_windows_amd64.syso` để tạo lại file đó (kèm PNG từng cỡ, file `.ico` và ảnh xem trước trong thư mục).
 
 Chạy client trên Linux cần cgo và các gói X11/GL dev (xem tài liệu cài đặt của Ebitengine).
 

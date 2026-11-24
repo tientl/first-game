@@ -207,8 +207,8 @@ func (m *Menu) Draw(screen *ebiten.Image) {
 
 	ty := float64(sh)*0.2 - 30
 	drawTitle(screen, "Dino Isles", cx, ty, 6, color.RGBA{250, 214, 110, 255}, color.RGBA{60, 30, 10, 255})
-	drawText(screen, "Thời Khủng Long", cx+3, ty+81, color.RGBA{60, 30, 10, 255}, text.AlignCenter, 3)
-	drawText(screen, "Thời Khủng Long", cx, ty+78, color.RGBA{214, 120, 72, 255}, text.AlignCenter, 3)
+	drawText(screen, "Survival", cx+3, ty+81, color.RGBA{60, 30, 10, 255}, text.AlignCenter, 3)
+	drawText(screen, "Survival", cx, ty+78, color.RGBA{214, 120, 72, 255}, text.AlignCenter, 3)
 	drawText(screen, "Một thế giới tiền sử đang chờ bạn", cx, ty+128, color.RGBA{236, 226, 200, 255}, text.AlignCenter, 1)
 
 	m.list.draw(screen, cx, float64(sh)*0.2+124, 420)

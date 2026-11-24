@@ -40,7 +40,8 @@ func main() {
 	a := &app{seed: *seed, name: *name, size: *size, savePath: *savePath}
 	a.openMenu()
 
-	ebiten.SetWindowTitle("Dino Isles")
+	ebiten.SetWindowTitle("Dino Isles: Survival")
+	ebiten.SetWindowIcon(client.GameIcons())
 	ebiten.SetWindowSize(1280, 720)
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowClosingHandled(true)
