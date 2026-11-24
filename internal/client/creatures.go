@@ -415,6 +415,7 @@ type targetView struct {
 	ok       bool
 	creature bool // c is the target, else e
 	drop     bool // a pile on the ground, d
+	aimed    bool // it is under the pointer: bracketed, see mouse.go
 	e        protocol.EntityView
 	c        protocol.CreatureView
 	d        protocol.DropView
@@ -463,16 +464,16 @@ func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {
 			return name + " — thú của " + g.playerName(c.Owner), colWhite
 		}
 		if food := c.Kind.TameFood(); g.myHeld() == food {
-			return name + " của bạn — cho ăn để hồi máu", colGood
+			return name + " của bạn — chuột phải: cho ăn để hồi máu", colGood
 		}
 		verb := "bảo đứng chờ"
 		if c.Stay {
 			verb = "gọi đi theo"
 		}
 		if c.Kind.Rideable() {
-			return name + " của bạn — Space: " + verb + ", R: cưỡi", colGood
+			return name + " của bạn — nhấp: " + verb + ", E: cưỡi", colGood
 		}
-		return name + " của bạn — Space: " + verb, colGood
+		return name + " của bạn — nhấp: " + verb, colGood
 	}
 	if food := c.Kind.TameFood(); food.Valid() && g.myHeld() == food {
 		progress := fmt.Sprintf(" (%d/%d)", c.Tame, c.Kind.TameMeals())
@@ -482,7 +483,7 @@ func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {
 		case c.State == sim.CreatureChase || c.State == sim.CreatureStrike:
 			return name + " — đang nổi giận, không chịu ăn", colBad
 		}
-		return name + " — cho " + strings.ToLower(food.Def().Name) + " để thuần" + progress, colGood
+		return name + " — chuột phải: cho " + strings.ToLower(food.Def().Name) + " để thuần" + progress, colGood
 	}
 	if c.State == sim.CreatureCower {
 		return name + " (đã gục) — cầm " + strings.ToLower(c.Kind.TameFood().Def().Name) + " để thuần", colGood
@@ -557,7 +558,7 @@ func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {
 		if g.curr.Self.Inv.Count(bait) == 0 {
 			return name + " — cần " + bait.Def().Name + " làm mồi", colBad
 		}
-		return name + " — quăng câu (cá cắn thì nhấn Space)", colWhite
+		return name + " — quăng câu (cá cắn thì nhấp chuột)", colWhite
 	}
 	return name, colWhite
 }

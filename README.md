@@ -55,26 +55,34 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 
 ## Điều khiển
 
-| Phím | Tác dụng |
+Điều khiển chính bằng chuột, như các game sinh tồn trên PC: bàn phím để đi, chuột để nhắm và làm.
+
+| Phím / chuột | Tác dụng |
 | --- | --- |
-| WASD / mũi tên | Di chuyển |
-| Giữ Space | Nhặt cành cây, hái quả, cắt cỏ, đập đá, chặt cây (cần rìu), thêm củi vào lửa; bắt thỏ, đánh rắn, bắt giun, câu cá |
+| WASD / mũi tên | Di chuyển. Nhân vật luôn quay mặt theo con trỏ chuột (đi lùi thì bước chân chạy ngược); để yên chuột vài giây thì quay theo hướng đi như cũ. Lúc cưỡi thú hay đi thuyền thì vẫn lái như trước |
+| Chuột trái (nhấp hoặc giữ) | Làm việc với thứ **dưới con trỏ**: chặt cây (cần rìu), đập đá, hái quả, cắt cỏ, nhặt cành, đánh hay bắt thú, thêm củi vào lửa, mổ xác, quăng câu và giật cần. Thứ sẽ bị tác động có khung trắng bao quanh; xa quá tầm với thì khung đỏ và chữ "Xa quá". Dưới con trỏ không có gì trong tầm thì làm thứ gần nhất (ưu tiên phía con trỏ). Nhấp vào ô trên hàng ô nhanh để chọn ô đó |
+| Giữ Space | Như chuột trái, vào thứ gần nhất (chơi bằng bàn phím vẫn được) |
+| Chuột phải | Dùng món đang cầm: đồ ăn, thuốc thì ăn; thịt sống, cá sống… khi đứng cạnh lửa trại đang cháy thì nướng; đuốc, đầu thú, hạt giống thì cắm, dựng, gieo vào ô dưới con trỏ (ô đó không được thì đặt trước mặt, về phía con trỏ); phân thì bón cho cây dưới con trỏ; thuyền thì thả xuống nước về phía con trỏ; cầm thức ăn của thú và trỏ vào nó thì cho nó ăn (thuần hóa). Món khác: không làm gì, có dòng nhắc |
+| E | Tương tác: nhặt đống đồ dưới con trỏ (hoặc gần nhất), mở rương, lục xác, cưỡi thú đã thuần / xuống thú, lên thuyền / xuống thuyền. Lúc mở rương thì E đóng rương |
+| C | Mở/đóng bảng chế tạo: mọi công thức, chia theo thẻ (Tất cả, Dụng cụ & vũ khí, Xây dựng, Nấu & nung, Đồ dùng; A/D hoặc mũi tên đổi thẻ, lăn chuột để cuộn). Món làm được ngay có viền xanh, món còn thiếu bị làm mờ, nguyên liệu thiếu hiện màu đỏ. Nhấp để làm; món xây dựng (lửa trại, tường, giường, rương, cửa…) thì nhấp rồi chọn chỗ đặt bằng chuột (xem "Xây dựng bằng chuột" bên dưới) |
 | 1–9, 0 / lăn chuột | Chọn ô 1–10 trên hàng ô nhanh; món ở ô đó là món đang cầm (người khác cũng thấy) |
-| E | Ăn món đang chọn trên thanh đồ (mở túi thì ăn món đang trỏ); món đó không ăn được thì không ăn gì cả |
-| F | Nướng 1 miếng Thịt sống hoặc Cá sống (phải đứng trong vùng sáng của lửa trại đang cháy) |
-| Q | Làm Rìu (2 Cành cây, 1 Đá) |
-| C | Dựng lửa trại (2 Gỗ, 2 Cỏ khô, 3 Đá) |
-| B | Mở/đóng túi đồ: 20 ngăn túi + 10 ô nhanh, mỗi ô chứa một loại (tối đa 40, rìu 1). Nhấp một ô để nhấc lên, nhấp ô khác để đặt, gộp hoặc đổi chỗ (chuột phải để bỏ). Shift+nhấp chuyển nhanh giữa túi và ô nhanh; 1–0 đưa món đang trỏ vào ô nhanh đó; mũi tên/WASD + Enter cũng dùng được. Nhấp vào công thức để chế tạo. Vứt đồ: kéo một chồng ra ngoài khung túi rồi thả là vứt cả chồng xuống đất; chuột phải vào một ô (lúc không nhấc gì) hoặc G vứt 1 món ở ô đang trỏ, Shift+G cả chồng |
+| Tab / I (hoặc B) | Mở/đóng túi đồ: 20 ngăn túi + 10 ô nhanh, mỗi ô chứa một loại (tối đa 40, rìu 1). Nhấp một ô để nhấc lên, nhấp ô khác để đặt, gộp hoặc đổi chỗ (chuột phải để bỏ). Shift+nhấp chuyển nhanh giữa túi và ô nhanh; 1–0 đưa món đang trỏ vào ô nhanh đó; mũi tên/WASD + Enter cũng dùng được; E ăn món đang trỏ. Nhấp vào một món để xem công thức liên quan, nhấp công thức để chế tạo. Vứt đồ: kéo một chồng ra ngoài khung túi rồi thả là vứt cả chồng xuống đất; chuột phải vào một ô (lúc không nhấc gì) hoặc G vứt 1 món ở ô đang trỏ, Shift+G cả chồng |
 | M | Mở/đóng bản đồ: chỉ hiện những nơi bạn đã đi qua (trong vòng khoảng 10 ô quanh nhân vật), phần còn lại phủ sương; bản đồ đã khám phá được lưu theo từng người chơi. Có vị trí của bạn (icon đầu nhân vật), người chơi gần đó, lửa trại đã thấy. Góc trên bên phải màn hình luôn có minimap: vùng quanh bạn, chỉ hiện chỗ đã đi qua |
-| R | Cưỡi thú đã thuần đứng gần (cần Yên da trong túi), nhấn lần nữa để xuống. Khi đã chết: hồi sinh |
-| Chuột trái (giữ) | Như giữ Space |
-| V | Đặt món đang cầm xuống trước mặt: đầu thú lên cọc, cắm đuốc xuống đất, gieo hạt |
-| G | Vứt 1 món đang cầm xuống đất ngay trước mặt; Shift+G (hoặc Ctrl+G) vứt cả chồng. (Q đã dùng để làm Rìu nên vứt đồ là G.) Xem "Vứt đồ ra khỏi túi" bên dưới |
+| R | Như E với thú cưỡi và thuyền (cưỡi / xuống, lên / xuống thuyền) |
+| R, E hoặc Enter (khi đã chết) | Hồi sinh |
+| V | Như chuột phải với đuốc, đầu thú, hạt giống, phân, thuyền (đặt vào ô dưới con trỏ hoặc trước mặt) — cho người quen dùng bàn phím |
+| G | Vứt 1 món đang cầm xuống đất ngay trước mặt; Shift+G (hoặc Ctrl+G) vứt cả chồng. Xem "Vứt đồ ra khỏi túi" bên dưới |
 | = / − (hoặc Ctrl + lăn chuột) | Thu phóng: nhìn gần hơn hoặc xa hơn; lưu trong settings.json. Khi mở bản đồ (M): lăn chuột hoặc = / − để phóng to bản đồ quanh chỗ bạn |
-| Esc | Tạm dừng: tiếp tục, lưu game, chỉnh âm lượng, về menu, thoát |
+| Esc | Đang xây thì thôi xây; đang mở bảng nào thì đóng bảng đó; không thì tạm dừng: tiếp tục, lưu game, chỉnh âm lượng, về menu, thoát |
 | F11 | Toàn màn hình |
 
-Mới vào bạn chỉ có hai bàn tay: nhặt cành cây rơi dưới đất, đập một tảng đá (quanh chỗ xuất phát luôn có sẵn vài cành và một tảng đá), rồi nhấn Q làm Rìu. Có rìu mới chặt được cây lấy gỗ.
+Bảng nhỏ góc dưới bên trái màn hình luôn nhắc các phím, và dòng "Chuột phải" đổi theo món đang cầm (ví dụ "ăn quả mọng", "nướng thịt sống", "cắm đuốc xuống chỗ con trỏ").
+
+**Xây dựng bằng chuột** (`internal/client/mouse.go`, `internal/sim/aim.go`): nhấp một món xây dựng trong bảng chế tạo (C) hoặc trong túi đồ thì bảng đóng lại và một **bóng mờ** của món đó đi theo con trỏ, nằm gọn trên ô dưới con trỏ: **xanh** là đặt được, **đỏ** là không (xa quá tầm với khoảng 2,5 ô, ô đã có thứ khác, nước, ô mình đang đứng, hay tường, hàng rào chắn chỗ người khác đang đứng). Nhấp chuột trái để dựng ở đó; còn nguyên liệu thì vẫn ở chế độ xây để dựng tiếp (tiện xây tường), hết nguyên liệu thì tự thôi. Chuột phải hoặc Esc để thôi xây. Cầm đuốc, đầu thú hay hạt giống thì bóng mờ cũng hiện khi con trỏ ở chỗ đất trống gần bạn (không trỏ vào thứ gì làm được): nhấp chuột trái hay chuột phải là cắm, dựng, gieo ở đó. Máy chủ luôn kiểm tra lại ô được chọn (tầm với, đất trống, không chắn người).
+
+Nhắm bằng chuột cũng do máy chủ quyết: máy khách gửi chỗ con trỏ (tọa độ ô trong thế giới) kèm phím đang giữ, máy chủ chọn đúng thứ dưới con trỏ nếu trong tầm với của bạn (cùng luật tầm với như trước: giáo, cưỡi thú thì với xa hơn), không thì thứ gần nhất; người khác cũng thấy bạn vung đúng dụng cụ vào đúng thứ. Xem nhanh: `go run ./cmd/shot -overlay craft` (bảng chế tạo), `-build 0 -aim 1.5,1.2` (bóng mờ lửa trại; `-build 8` là tường gỗ), `-prey -aim 1.1,-0.4` (khung quanh con thú dưới con trỏ), `-aim 2,-0.2` (khung đỏ "Xa quá").
+
+Mới vào bạn chỉ có hai bàn tay: nhặt cành cây rơi dưới đất, đập một tảng đá (quanh chỗ xuất phát luôn có sẵn vài cành và một tảng đá), rồi mở bảng chế tạo (C) làm Rìu. Có rìu mới chặt được cây lấy gỗ.
 
 Một ngày trong game dài 8 phút: khoảng 4 phút rưỡi ban ngày, hơn 1 phút chạng vạng và gần 2 phút rưỡi
 ban đêm. Chỉ đêm **mùa đông** mới lạnh: đứng ngoài vùng sáng của lửa (lửa trại, lò nung, đuốc, dung nham) thì mất máu; đêm các mùa khác chỉ tối, không mất máu. Đứng trên tuyết không có áo lông, hoặc ra ngoài lúc mùa đông có tuyết hay gió mà không mặc ấm thì vẫn lạnh như trước. Từ cuối chạng vạng, đom đóm
@@ -86,11 +94,11 @@ bay lập lòe trên đồng cỏ, trong rừng và đầm lầy.
 
 | Con | Ở đâu | Cách bắt | Được gì |
 | --- | --- | --- | --- |
-| Thỏ | Đồng cỏ, rừng, quanh hang thỏ | Chạy vụt đi khi bạn tới gần (nhanh hơn bạn) nhưng chỉ chạy được một đoạn rồi phải dừng thở: đuổi theo và nhấn Space lúc đó. Nếu hang ở gần và bạn không đứng chắn đường, thỏ chui tọt vào hang. Ban đêm thỏ ngủ ngoài hang, bắt dễ. | 2 Thịt sống |
+| Thỏ | Đồng cỏ, rừng, quanh hang thỏ | Chạy vụt đi khi bạn tới gần (nhanh hơn bạn) nhưng chỉ chạy được một đoạn rồi phải dừng thở: đuổi theo và nhấp chuột vào nó (hoặc Space) lúc đó. Nếu hang ở gần và bạn không đứng chắn đường, thỏ chui tọt vào hang. Ban đêm thỏ ngủ ngoài hang, bắt dễ. | 2 Thịt sống |
 | Rắn | Bãi đá, bãi cát, quanh hang rắn | Lao tới cắn khi bạn lại gần (mất 10 máu mỗi lần cắn). Chậm hơn bạn, nên cứ đi xa là thoát. Có 30 máu: tay không khoảng 3 đấm. Lúc nghỉ thì cuộn tròn; tối đến chui vào hang. | 1 Thịt sống |
 | Giun | Đồng cỏ, rừng | Bò chậm, nhặt là được. | 1 Giun (mồi câu) |
-| Cá | Vùng nước sát bờ | Cầm Cần câu, có Giun, đứng trên bờ và nhấn Space gần con cá để quăng câu; xem cách câu bên dưới. | 1 Cá sống |
-| Cua | Bãi cát sát mép nước (cả hồ) | Thấy bạn trong vòng khoảng 2,5 ô là bò ra nước và lặn mất (chỉ còn bọt nước), chờ không ai ở gần mới bò lên. Chặn đường ra nước rồi nhấn Space để bắt; cua bị dồn vào chỗ không có nước sẽ giơ càng và kẹp (mất 4 máu) nếu bạn sát quá. | 1 Thịt cua |
+| Cá | Vùng nước sát bờ | Cầm Cần câu, có Giun, đứng trên bờ và nhấp chuột vào con cá để quăng câu; xem cách câu bên dưới. | 1 Cá sống |
+| Cua | Bãi cát sát mép nước (cả hồ) | Thấy bạn trong vòng khoảng 2,5 ô là bò ra nước và lặn mất (chỉ còn bọt nước), chờ không ai ở gần mới bò lên. Chặn đường ra nước rồi nhấp chuột vào nó để bắt; cua bị dồn vào chỗ không có nước sẽ giơ càng và kẹp (mất 4 máu) nếu bạn sát quá. | 1 Thịt cua |
 | Cá sấu | Ao trong đầm lầy (chỉ có ở thế giới mở) | Thường rình dưới nước, chỉ lộ đôi mắt: lúc đó không đánh được. Ai lại gần mép nước trong khoảng 3 ô thì nó lao lên nhanh hơn bạn chạy và cắn rất đau (18 máu, giáp giảm bớt), rồi lặn lại và phải chờ vài giây mới phục kích tiếp. Trên cạn nó chậm hơn bạn (trong bùn thì chỉ hơi chậm hơn) và chỉ đuổi khoảng 3 giây. Thỉnh thoảng nó lên bờ phơi nắng: lúc đó mới đánh được, cần 6 nhát tay không (3 nhát giáo); bị thương thì nó bò về nước. | 3 Thịt sống |
 
 ### Máu và sát thương
@@ -156,8 +164,8 @@ Chỉ có ở thế giới mở, không bao giờ ở gần chỗ xuất phát (
 
 ### Câu cá
 
-1. Cầm Cần câu trên tay (chọn ở ô nhanh), có Giun trong túi, đứng trên bờ và nhấn Space gần con cá: phao rơi xuống chỗ con cá.
-2. Đợi khoảng 1,5–4,5 giây. Khi cá cắn câu, phao chìm, có tiếng "tõm" và dấu **!**: nhấn Space trong khoảng 0,7 giây.
+1. Cầm Cần câu trên tay (chọn ở ô nhanh), có Giun trong túi, đứng trên bờ và nhấp chuột vào con cá (hoặc Space khi đứng gần nó): phao rơi xuống chỗ con cá.
+2. Đợi khoảng 1,5–4,5 giây. Khi cá cắn câu, phao chìm, có tiếng "tõm" và dấu **!**: nhấp chuột (hoặc Space) trong khoảng 0,7 giây.
 
 | Khi nào nhấn | Kết quả |
 | --- | --- |
@@ -165,11 +173,11 @@ Chỉ có ở thế giới mở, không bao giờ ở gần chỗ xuất phát (
 | Trước khi cá cắn | Cá sợ bơi đi, giữ được Giun |
 | Không nhấn kịp | Cá ăn mất mồi: mất 1 Giun |
 
-Giữ Space không tự giật được: phải nhấn lại đúng lúc. Đi chỗ khác hoặc cất cần câu thì thu dây (không mất Giun). Con cá đang mắc câu của người này thì người khác không câu được.
+Giữ chuột hay Space không tự giật được: phải nhấn lại đúng lúc. Đi chỗ khác hoặc cất cần câu thì thu dây (không mất Giun). Con cá đang mắc câu của người này thì người khác không câu được.
 
 ### Nướng thịt và cá
 
-Đứng trong vùng sáng của lửa trại đang cháy rồi nhấn F (hoặc nhấp công thức trong túi đồ): mỗi lần nướng 1 miếng, thịt trước rồi đến cá.
+Đứng trong vùng sáng của lửa trại đang cháy , cầm món sống trên tay (thịt, cá, cua, sò, khoai…) rồi nhấp chuột phải; hoặc nhấp công thức trong bảng chế tạo (C) hay trong túi đồ. Mỗi lần nướng 1 miếng.
 
 | Món | No bụng | Máu |
 | --- | --- | --- |
@@ -199,13 +207,13 @@ Trò chơi mới tạo một thế giới mở (`sim/openworld.go`): một lục
 
 Than đào ở mỏ than (cần cúp đá); bỏ vào lửa trại cháy lâu gấp đôi gỗ. Bản lưu cũ vẫn giữ nguyên hòn đảo của nó.
 
-**Cây ăn quả** (`sim/fruit.go`) mọc ở mọi thế giới: cây sung (rừng, đồng cỏ), cây bạch quả (đồng cỏ, ít hơn trong rừng), cây dừa (bãi cát), cây chuối (rừng, đầm lầy). Space vào cây đang có quả để hái bằng tay (3 Quả sung, 4 Hạt bạch quả, 2 Dừa, 3 Chuối); quả ra lại sau 1 ngày (bạch quả 1,5 ngày, dừa 2 ngày). Cây đã hết quả thì chặt được bằng rìu như cây thường (không có rìu thì báo cần rìu): cây sung, cây bạch quả 4 nhát rìu đá, đổ cho 4 Gỗ; cây dừa 3 nhát, 3 Gỗ; cây chuối 2 nhát, 2 Gỗ; hay rơi thêm Cành cây. Cây đang có quả thì Space luôn hái quả trước. Giữ Space để hái thì không chặt luôn: muốn chặt, thả Space ra rồi nhấn lại. Cây đổ để lại gốc, 3 ngày sau gốc mọc lại đúng loại cây đó, lúc đầu chưa có quả, rồi ra quả như thường.
+**Cây ăn quả** (`sim/fruit.go`) mọc ở mọi thế giới: cây sung (rừng, đồng cỏ), cây bạch quả (đồng cỏ, ít hơn trong rừng), cây dừa (bãi cát), cây chuối (rừng, đầm lầy). Nhấp chuột vào cây đang có quả để hái bằng tay (3 Quả sung, 4 Hạt bạch quả, 2 Dừa, 3 Chuối); quả ra lại sau 1 ngày (bạch quả 1,5 ngày, dừa 2 ngày). Cây đã hết quả thì chặt được bằng rìu như cây thường (không có rìu thì báo cần rìu): cây sung, cây bạch quả 4 nhát rìu đá, đổ cho 4 Gỗ; cây dừa 3 nhát, 3 Gỗ; cây chuối 2 nhát, 2 Gỗ; hay rơi thêm Cành cây. Cây đang có quả thì Space luôn hái quả trước. Giữ Space để hái thì không chặt luôn: muốn chặt, thả Space ra rồi nhấn lại. Cây đổ để lại gốc, 3 ngày sau gốc mọc lại đúng loại cây đó, lúc đầu chưa có quả, rồi ra quả như thường.
 
 Xem nhanh: `go run ./cmd/shot -open -size 512 -at cave` (hoặc desert, marsh, mountain, ash, lava); bản đồ toàn thế giới ra PNG: `OPEN_DUMP=<thư mục> go test ./internal/sim -run DumpOpen`.
 
 ### Thuần hóa và cưỡi
 
-Cầm thức ăn nó thích trên tay rồi nhấn Space vào con thú (mỗi giây một lần). Đánh nó thì công thuần hóa mất hết. Thú đã thuần là của bạn mãi, được lưu cùng bản lưu, có trái tim đỏ trên đầu (thú của người khác có tim trắng, không đánh và không cưỡi được).
+Cầm thức ăn nó thích trên tay (ô nhanh đang chọn), trỏ chuột vào con thú rồi nhấp **chuột phải** (mỗi giây một lần); nhấp chuột trái hay Space vào nó lúc cầm thức ăn của nó cũng là cho ăn, không phải đánh. Nhãn trên đầu con thú ghi số bữa đã ăn. Đánh nó thì công thuần hóa mất hết. Thú đã thuần là của bạn mãi, được lưu cùng bản lưu, có trái tim đỏ trên đầu (thú của người khác có tim trắng, không đánh và không cưỡi được).
 
 | Con | Cho ăn | Cưỡi được | Ghi chú |
 | --- | --- | --- | --- |
@@ -220,7 +228,7 @@ Cầm thức ăn nó thích trên tay rồi nhấn Space vào con thú (mỗi gi
 | Thescelosaurus | 4 Quả mọng | Không | Không đánh |
 | Acheroraptor | 2 Thịt sống, khi nó đã bị đánh gục | Không | Cắn thú dữ quanh bạn |
 
-Thú cưng đi theo bạn (bỏ xa quá 24 ô thì nó tự tìm tới), tự hồi máu dần, và lao vào bất kỳ thú dữ nào đang đuổi hay cắn bạn trong vòng 6 ô; con nó hạ được thì bạn nhận chiến lợi phẩm. Nhấn Space vào thú của mình để bảo nó đứng chờ hoặc gọi đi theo; cầm thức ăn của nó thì Space là cho ăn hồi máu. Khi cưỡi, bạn với xa hơn nửa ô; chết, ngủ hoặc thoát game thì tự xuống thú. **Yên da**: 4 Da thú, 2 Cỏ khô, 1 Xương. **Áo lông**: 4 Lông thú, 2 Da thú, giữ ấm trên tuyết. **Giáo ngà**: 2 Cành cây, 1 Ngà voi, 1 Cỏ khô; đánh mạnh gấp bốn tay không, với xa nhất.
+Thú cưng đi theo bạn (bỏ xa quá 24 ô thì nó tự tìm tới), tự hồi máu dần, và lao vào bất kỳ thú dữ nào đang đuổi hay cắn bạn trong vòng 6 ô; con nó hạ được thì bạn nhận chiến lợi phẩm. Nhấp chuột trái (hoặc Space) vào thú của mình để bảo nó đứng chờ hoặc gọi đi theo; cầm thức ăn của nó thì chuột phải là cho ăn hồi máu. Có Yên da trong túi, đứng gần thú cưỡi được của mình rồi nhấn **E** để cưỡi, nhấn **E** lần nữa để xuống. Khi cưỡi, bạn với xa hơn nửa ô; chết, ngủ hoặc thoát game thì tự xuống thú. **Yên da**: 4 Da thú, 2 Cỏ khô, 1 Xương. **Áo lông**: 4 Lông thú, 2 Da thú, giữ ấm trên tuyết. **Giáo ngà**: 2 Cành cây, 1 Ngà voi, 1 Cỏ khô; đánh mạnh gấp bốn tay không, với xa nhất.
 
 ## Quần đảo và biển khơi (thế giới tạo mới)
 
@@ -231,7 +239,7 @@ Từ bản này, trò chơi mới tạo một **quần đảo**: đảo nhà ở
 | Bè gỗ | 8 Gỗ, 4 Cỏ khô | Chèo đi mọi hướng như nhau, chậm (3 ô/giây), chịu 60 sát thương |
 | Thuyền buồm | 20 Gỗ, 4 Da thú, 8 Cỏ khô | Xuôi gió rất nhanh (tới 7 ô/giây), ngược gió thì bò; chịu 140 sát thương |
 
-- Cầm thuyền trên tay, đứng sát mép nước quay mặt ra biển, nhấn **V** để thả. **R** để lên thuyền, chèo vào sát bờ rồi nhấn **R** để lên bờ. WASD để lái. Khi ở trên thuyền, góc trái có thanh độ bền thuyền và mũi tên chỉ hướng gió; gió đổi theo thời tiết.
+- Cầm thuyền trên tay, đứng sát mép nước quay mặt ra biển, trỏ chuột ra nước rồi nhấp **chuột phải** để thả. **E** để lên thuyền, chèo vào sát bờ rồi nhấn **E** để lên bờ. WASD để lái. Khi ở trên thuyền, góc trái có thanh độ bền thuyền và mũi tên chỉ hướng gió; gió đổi theo thời tiết.
 - **Bơi**: ở thế giới quần đảo ai cũng bơi được, nhưng chậm và chỉ được khoảng 8 giây, sau đó kiệt sức và chết đuối dần. Khi bơi không làm gì được bằng tay.
 - **Quái vật biển** sống ở biển sâu, cách bờ xa (gần bờ thì an toàn, chỉ có thằn lằn cổ dài):
   - **Thương long** (Mosasaurus) bơi ngầm, chỉ thấy bóng đen và sống lưng, nhanh hơn bè nhưng chậm hơn thuyền buồm xuôi gió. Tới gần thì ngoi lên đớp: thuyền mất 30 độ bền, người trên thuyền mất 8 máu, người đang bơi mất 34 máu. Sau cú đớp nó ở trên mặt nước vài giây: lúc đó mới đánh được, rồi lặn xuống.
@@ -247,19 +255,19 @@ Xem nhanh: `go run ./cmd/shot -open -sea`; bản đồ toàn thế giới: `OPEN
 
 Thế giới mới (kiểu `StyleTribal`) có thêm những thứ dưới đây; bản lưu cũ giữ nguyên địa hình cũ nhưng vẫn có mùa, thời tiết, đồ rơi, xác thú, đồ xây mới.
 
-- **Đồ rơi dưới đất**: chặt cây, đập đá, mổ xác, mở rương cổ thì đồ văng ra đất. Nhấn Space (đống gần nhất trong tầm với trước tiên) hoặc đi ngang qua để nhặt. Chặt cây hay rơi thêm Cành cây, đôi khi Hạt cây; đập đá đôi khi rơi Đá cuội. Đồ nằm đất 5 phút thì mục mất.
-- **Vứt đồ ra khỏi túi** (mọi thế giới; `internal/sim/toss.go`, `internal/client/toss.go`): G vứt 1 món đang cầm, Shift+G (hoặc Ctrl+G) cả chồng; trong túi đồ (B) thì kéo một chồng ra ngoài khung túi rồi thả, chuột phải vào một ô, hoặc G / Shift+G với ô đang trỏ. Đồ rơi thành một đống ngay trước mặt (cách chừng 1 ô, theo hướng đang nhìn); phía trước là tường hay nước thì rơi ngay dưới chân. Vứt tiếp cùng loại vào chỗ đó thì dồn vào đống cũ (tối đa một ô túi mỗi đống). Đống vứt ra là đồ rơi như mọi đồ rơi khác: ai cũng nhặt được bằng Space hoặc đi ngang qua, được lưu cùng thế giới, 5 phút thì mục (trừ đồ huyền thoại). Riêng người vứt, đang đứng trên đống đó thì không tự nhặt lại khi đứng yên; bước ra rồi đi vào lại mới nhặt (Space thì nhặt ngay). Đang bơi hay ngồi thuyền thì chỉ vứt được lên bờ trước mặt; ngoài biển thì không vứt được (hiện thông báo, đồ vẫn trong túi) để khỏi mất đồ. Đã chết, đang ngủ hay đang mở rương thì không vứt được. Vứt cây đuốc đang cháy trên tay thì đuốc tắt. Có tiếng "bịch" nhẹ khi vứt.
-- **Xác thú**: hạ thú thì xác nằm lại trên vũng máu (thú bốn chân lật ngửa). Space vào xác để mổ (cầm dao thì nhanh gấp đôi): ra thịt, da, xương, **đầu thú**, và **Da khủng long** nếu là khủng long. Xác để 4 phút thì rữa mất. Xác thổ dân thì lục soát (có khi được giáo).
-- **Đầu thú**: cầm đầu trên tay, nhấn V để cắm lên cọc làm vật trang trí; Space để gỡ xuống.
+- **Đồ rơi dưới đất**: chặt cây, đập đá, mổ xác, mở rương cổ thì đồ văng ra đất. Nhấn E (đống dưới con trỏ, không thì đống gần nhất), nhấp chuột vào đống, giữ Space (đống gần nhất trước tiên) hoặc đi ngang qua để nhặt. Chặt cây hay rơi thêm Cành cây, đôi khi Hạt cây; đập đá đôi khi rơi Đá cuội. Đồ nằm đất 5 phút thì mục mất.
+- **Vứt đồ ra khỏi túi** (mọi thế giới; `internal/sim/toss.go`, `internal/client/toss.go`): G vứt 1 món đang cầm, Shift+G (hoặc Ctrl+G) cả chồng; trong túi đồ (Tab) thì kéo một chồng ra ngoài khung túi rồi thả, chuột phải vào một ô, hoặc G / Shift+G với ô đang trỏ. Đồ rơi thành một đống ngay trước mặt (cách chừng 1 ô, theo hướng đang nhìn); phía trước là tường hay nước thì rơi ngay dưới chân. Vứt tiếp cùng loại vào chỗ đó thì dồn vào đống cũ (tối đa một ô túi mỗi đống). Đống vứt ra là đồ rơi như mọi đồ rơi khác: ai cũng nhặt được bằng Space hoặc đi ngang qua, được lưu cùng thế giới, 5 phút thì mục (trừ đồ huyền thoại). Riêng người vứt, đang đứng trên đống đó thì không tự nhặt lại khi đứng yên; bước ra rồi đi vào lại mới nhặt (Space thì nhặt ngay). Đang bơi hay ngồi thuyền thì chỉ vứt được lên bờ trước mặt; ngoài biển thì không vứt được (hiện thông báo, đồ vẫn trong túi) để khỏi mất đồ. Đã chết, đang ngủ hay đang mở rương thì không vứt được. Vứt cây đuốc đang cháy trên tay thì đuốc tắt. Có tiếng "bịch" nhẹ khi vứt.
+- **Xác thú**: hạ thú thì xác nằm lại trên vũng máu (thú bốn chân lật ngửa). Nhấp chuột vào xác để mổ (cầm dao thì nhanh gấp đôi): ra thịt, da, xương, **đầu thú**, và **Da khủng long** nếu là khủng long. Xác để 4 phút thì rữa mất. Xác thổ dân thì lục soát (có khi được giáo).
+- **Đầu thú**: cầm đầu trên tay, nhấp chuột phải (hoặc chuột trái vào chỗ đất trống) để cắm lên cọc ở ô dưới con trỏ làm vật trang trí; nhấp chuột trái vào nó để gỡ xuống.
 - **Mùa và thời tiết**: mỗi mùa 3 ngày (xuân, hạ, thu, đông). Thời tiết đổi vài phút một lần: mưa (lửa cháy nhanh gấp đôi), gió, giông bão (sét đánh gần người: 35 máu, cây bị sét thì đổ), lốc xoáy (cuốn người quay vòng, mất máu, quật đổ cây), tuyết. Mùa đông khi có tuyết hay gió thì ở ngoài trời rất lạnh kể cả ban ngày (mặc Áo lông, Áo da thú hoặc Giáp da khủng long, hoặc đứng gần lửa, đuốc); mặt đất phủ tuyết; ao hồ (không phải biển) đóng băng, đi lên được, cá trốn dưới băng. Mùa thu lá cây ngả vàng.
 - **Làng thổ dân**: lều gỗ mái tranh quanh cột vật tổ và đống lửa không bao giờ tắt. Ở quần đảo, đảo nào cũng có làng, trên mọi loại đất (rừng, đồng cỏ, sa mạc, tuyết, đầm lầy, tro núi lửa). Đảo lớn có 2 đến 3 làng mỗi làng 5 thổ dân; đảo nhỏ dưới 600 ô có làng 3 thổ dân; đảo nhỏ hoặc hẹp quá thì chỉ có xóm nhỏ 3 lều, 2 thổ dân; bãi cát dưới 90 ô thì không có. Trên đảo nhà, làng cách chỗ xuất phát ít nhất 22 ô. Làng luôn tránh chỗ dựng kim tự tháp. (Thế giới kiểu lục địa cũ vẫn như trước: vài làng xa chỗ xuất phát.) Thổ dân da đen, mặt vẽ sơn trắng, không mặc áo, cầm giáo: thấy bạn trong 7 ô (đêm 5 ô) là xông tới đâm (12 máu), bị thương nặng thì chạy về làng. Họ cũng đi săn thỏ, Thescelosaurus, Ornithomimus. Làng còn lều thì cứ một phút gửi thêm người.
 - **Đường mòn**: nối chỗ xuất phát với các làng và cửa hang, giữa các làng với nhau; đi trên đường nhanh hơn. Rừng thưa hơn trước.
-- **Hang sâu**: núi nhiều hơn, hang có nhiều nhánh và hầm rộng, ăn sâu vào lòng núi. Trong hang có **nhện độc** (nhả tơ làm bạn đi chậm, cắn có độc mất máu dần) và **gấu hang** (cào rồi cắn). Chỗ sâu nhất có **rương cổ**: Space để mở, càng sâu đồ càng quý (bình máu, quặng, hắc diện thạch, răng bạo chúa, hạt giống...).
-- **Hoa và hạt**: 6 loại hoa (anh túc đỏ, cúc vàng, hoa lam, oải hương, cúc trắng, hồng dại), hái được hoa và hay được Hạt hoa. Hạt quả mọng (hái bụi quả), Hạt cây (chặt cây), Hạt phát sáng, Hạt cây ăn thịt: cầm hạt nhấn V để gieo trước mặt.
+- **Hang sâu**: núi nhiều hơn, hang có nhiều nhánh và hầm rộng, ăn sâu vào lòng núi. Trong hang có **nhện độc** (nhả tơ làm bạn đi chậm, cắn có độc mất máu dần) và **gấu hang** (cào rồi cắn). Chỗ sâu nhất có **rương cổ**: nhấp chuột hoặc E để mở, càng sâu đồ càng quý (bình máu, quặng, hắc diện thạch, răng bạo chúa, hạt giống...).
+- **Hoa và hạt**: 6 loại hoa (anh túc đỏ, cúc vàng, hoa lam, oải hương, cúc trắng, hồng dại), hái được hoa và hay được Hạt hoa. Hạt quả mọng (hái bụi quả), Hạt cây (chặt cây), Hạt phát sáng, Hạt cây ăn thịt: cầm hạt, nhấp chuột phải để gieo ở ô dưới con trỏ (đất mềm).
 - **Cây phát sáng**: nấm, dương xỉ và cây cao phát sáng xanh lam, tím vào ban đêm, trong rừng sâu, đầm lầy và hang. Hái được Bào tử phát sáng.
 - **Cây ăn thịt người**: cây khổng lồ đầu đỏ ở đầm lầy và rừng xa, với tới khoảng 2 ô. Thú nhỏ và khủng long nhỏ (thỏ, rắn, cua, Thescelosaurus, Ornithomimus, raptor, Anzu, nhện, bọ cạp) lại gần là bị nuốt chửng, rồi cây ngậm miệng nhai khoảng 8 giây. Thú to bị cắn, người bị đớp mất 16 máu. Chặt bằng vũ khí hoặc rìu (10 nhát tay), rơi hạt; cây trồng từ hạt thì chỉ đớp thú, canh nhà cho bạn.
 - **Rừng** (thế giới tạo mới): **cây cổ thụ khổng lồ** thỉnh thoảng mọc giữa rừng, gốc rộng 3×2 ô không đi xuyên qua được. Phải chặt rất lâu (24 nhát rìu đá), đổ xuống cho 30 Gỗ, 8 Cành cây, 3 Hạt cây; gốc để lại mãi. **Cây chuối** ở rừng và đầm lầy, hái buồng bằng tay (3 Chuối: +14 no, +3 máu), mọc lại sau 1 ngày; hết buồng thì chặt được như mọi cây ăn quả. **Tổ ong** treo trên một số cây, cây cổ thụ hay có nhất. Space vào cây có tổ để lấy 3 Mật ong (+10 no, +15 máu), tổ đầy lại sau 1 ngày. Ong bay ra đốt (3 máu mỗi giây trong 8 giây) trừ khi bạn **cầm đuốc** (khói làm ong hiền). Chạy xa 10 ô hoặc nhảy xuống nước thì ong thôi đuổi; chặt cây có tổ cũng bị ong đốt. **Khỉ** sống theo đàn 4 con trong rừng, thấy người là chạy, chạy mệt thì ngồi thở. Lúc đó cầm Chuối cho ăn 3 lần là thuần, khỉ sẽ đi theo bạn. Xem nhanh: `go run ./cmd/shot -woods`.
-- **Phân thú** (mọi thế giới, cả bản lưu cũ): thú ăn cỏ thỉnh thoảng thải phân sau lưng. Cổ dài để 3 cục; ba sừng, Torosaurus, gai lưng, voi ma mút và bạo chúa để 2; Thescelosaurus và Ornithomimus để 1. Trung bình mỗi con 1/3 ngày một lần, thú đã thuần thì nhanh gấp đôi. Đống phân có ruồi bay quanh, nằm được 1 ngày, cả thế giới có tối đa 160 đống. Nhặt như đồ rơi khác. Cầm phân và nhấn **V** trước cây non, khoai đang lớn hoặc bụi, cây, hoa vừa bị hái: thời gian còn lại giảm một nửa. Bón cho luống đất trống thì luống sẫm lại, khoai trồng ở đó chín nhanh gấp đôi. Xem nhanh: `go run ./cmd/shot -farm -dung`.
+- **Phân thú** (mọi thế giới, cả bản lưu cũ): thú ăn cỏ thỉnh thoảng thải phân sau lưng. Cổ dài để 3 cục; ba sừng, Torosaurus, gai lưng, voi ma mút và bạo chúa để 2; Thescelosaurus và Ornithomimus để 1. Trung bình mỗi con 1/3 ngày một lần, thú đã thuần thì nhanh gấp đôi. Đống phân có ruồi bay quanh, nằm được 1 ngày, cả thế giới có tối đa 160 đống. Nhặt như đồ rơi khác. Cầm phân, trỏ chuột vào cây non, khoai đang lớn hoặc bụi, cây, hoa vừa bị hái: thời gian còn lại giảm một nửa. Bón cho luống đất trống thì luống sẫm lại, khoai trồng ở đó chín nhanh gấp đôi. Xem nhanh: `go run ./cmd/shot -farm -dung`.
 - **Tuyết và núi lửa** luôn ở rất xa chỗ xuất phát.
 - **Hồi sinh**: chết thì hồi sinh cạnh giường ngủ lần cuối (nếu giường còn), không thì ở chỗ xuất phát.
 - **Nhân vật** đầu tròn, thân tròn hơn. **Cá** nhiều màu: cá hề, cá đuôi gai xanh, cá chép vàng, cá koi, cá hồi cầu vồng, cá rô.
@@ -269,8 +277,8 @@ Thế giới mới (kiểu `StyleTribal`) có thêm những thứ dưới đây;
 | Cửa gỗ | 3 Gỗ | Người đi qua được, thú và thổ dân thì không |
 | Sàn gỗ | 1 Gỗ | Lát nền nhà |
 | Hàng rào chông | 2 Gỗ, 3 Cành cây | Chặn đường, đâm thú áp sát |
-| Bẫy thú | 3 Cành cây, 2 Cỏ khô, 1 Đá | Giữ thú đầu tiên giẫm phải 15 giây (thú to 4 giây); Space để đặt lại |
-| Đuốc cắm | 1 Đuốc (cầm, nhấn V) | Cháy 4 phút, sáng và ấm; Space để nhổ lên |
+| Bẫy thú | 3 Cành cây, 2 Cỏ khô, 1 Đá | Giữ thú đầu tiên giẫm phải 15 giây (thú to 4 giây); nhấp chuột vào bẫy để đặt lại |
+| Đuốc cắm | 1 Đuốc (cầm, nhấp chuột phải vào chỗ muốn cắm) | Cháy 4 phút, sáng và ấm; nhấp chuột vào nó để nhổ lên |
 | Bình máu | 2 Hoa anh túc đỏ, 1 Quả mọng, 1 Nấm (gần lửa) | +45 máu |
 | Bình máu lớn | 1 Bình máu, 2 Bào tử phát sáng, 1 Hoa lam (gần lửa) | +100 máu, giải độc |
 | Băng tơ nhện | 2 Tơ nhện, 1 Cỏ khô | +20 máu, giải độc |
@@ -310,19 +318,19 @@ Xem nhanh: `go run ./cmd/shot -open -bosses` (thêm `-bosspose 1`, `2`… để 
 
 ## Chế tạo
 
-Mở túi đồ (B) để xem mọi công thức và nhấp vào để làm. Món "cầm trên tay" phải nằm ở ô nhanh đang chọn (1–0).
+Mở bảng chế tạo (C) để xem mọi công thức và nhấp vào để làm (món xây dựng thì chọn chỗ đặt bằng chuột); túi đồ (Tab) cũng liệt kê công thức của món đang nhấp. Món "cầm trên tay" phải nằm ở ô nhanh đang chọn (1–0).
 
 | Món | Công thức | Tác dụng |
 | --- | --- | --- |
-| Rìu | 2 Cành cây, 1 Đá | Có trong túi thì chặt được cây, dỡ được tường (Q) |
+| Rìu | 2 Cành cây, 1 Đá | Có trong túi thì chặt được cây, dỡ được tường |
 | Cuốc chim | 2 Cành cây, 3 Đá | Có trong túi thì đập đá nhanh gấp đôi |
 | Đuốc | 1 Cành cây, 1 Cỏ khô | Cầm trên tay: sáng và ấm quanh mình (cả người đứng gần), cháy 90 giây |
 | Giáo | 2 Cành cây, 1 Đá | Cầm trên tay: đánh thú mạnh gấp đôi, với xa hơn nửa ô |
 | Cần câu | 3 Cành cây, 2 Cỏ khô | Cầm trên tay mới câu được cá (vẫn tốn 1 Giun) |
 | Lửa trại | 2 Gỗ, 2 Cỏ khô, 3 Đá | Ánh sáng và sưởi ấm ban đêm (C) |
 | Tường gỗ | 2 Gỗ | Chặn đường người và thú; dỡ bằng rìu, trả lại 1 Gỗ |
-| Giường cỏ | 6 Cỏ khô, 2 Gỗ | Nhấn Space lúc trời tối để ngủ: không bị lạnh, hồi máu nhanh; ai cũng ngủ thì đêm trôi nhanh gấp 8 |
-| Thịt / Cá / Quả mọng nướng | 1 món sống | Đứng gần lửa trại, nhấn F |
+| Giường cỏ | 6 Cỏ khô, 2 Gỗ | Nhấp chuột vào giường (hoặc trỏ vào rồi nhấn E) lúc trời tối để ngủ: không bị lạnh, hồi máu nhanh; ai cũng ngủ thì đêm trôi nhanh gấp 8 |
+| Thịt / Cá / Quả mọng nướng | 1 món sống | Cầm món sống, đứng gần lửa trại, nhấp chuột phải |
 
 ### Thời đồ đá: vật liệu theo bậc
 

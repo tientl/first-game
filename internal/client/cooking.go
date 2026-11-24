@@ -3,11 +3,12 @@ package client
 import "survivalgame/internal/sim"
 
 // Cooking: raw meat and fish become better food at a burning campfire. It is
-// ordinary crafting with recipes marked NearFire; F cooks whatever raw food
-// the player has, and the recipe cards in the bag work too. The icons of the
+// ordinary crafting with recipes marked NearFire; a right click with raw
+// food in hand cooks it by the fire (see rightClickUse in mouse.go), and the
+// crafting window and the recipe cards in the bag work too. The icons of the
 // cooked food and the sizzle are in craftart.go.
 
-// cookRecipes are the recipes made at a fire, in the order F tries them.
+// cookRecipes are the recipes made at a fire.
 var cookRecipes = func() []sim.Recipe {
 	var rs []sim.Recipe
 	for id := sim.RecipeID(0); id < sim.NumRecipes; id++ {
@@ -18,21 +19,7 @@ var cookRecipes = func() []sim.Recipe {
 	return rs
 }()
 
-// cookRecipe is what F cooks: the first fire recipe the player has the food
-// for, else the first one, so the server says what is missing.
-func (g *Game) cookRecipe() sim.RecipeID {
-	for _, r := range cookRecipes {
-		if g.curr.Self.Inv.HasAll(r.Inputs) {
-			return r.ID
-		}
-	}
-	if len(cookRecipes) == 0 {
-		return sim.NumRecipes // nothing to cook: the server ignores it
-	}
-	return cookRecipes[0].ID
-}
-
-// hasRawFood reports whether the player carries anything F could cook.
+// hasRawFood reports whether the player carries anything to cook at a fire.
 func (g *Game) hasRawFood() bool {
 	for _, r := range cookRecipes {
 		if g.curr.Self.Inv.HasAll(r.Inputs) {

@@ -104,10 +104,27 @@ func (e *Entity) Feedable(tick uint64) bool {
 
 // fertilize spreads one dung from p's hand on the growing thing in front of
 // p, or failing that on one beside them.
-func (w *World) fertilize(p *Player) {
+func (w *World) fertilize(p *Player) { w.fertilizeOn(p, nil) }
+
+// fertilizeAt spreads dung on the growing thing on tile (tx, ty) if p
+// reaches it, else as fertilize does.
+func (w *World) fertilizeAt(p *Player, tx, ty int) {
+	e := w.entityAt(tx, ty)
+	if e != nil && (!e.Feedable(w.tick) ||
+		math.Hypot(float64(tx)+0.5-p.X, float64(ty)+0.5-p.Y) > PlaceReach) {
+		e = nil
+	}
+	w.fertilizeOn(p, e)
+}
+
+// fertilizeOn spreads dung on e, or when e is nil on the growing thing in
+// front of p, or beside them.
+func (w *World) fertilizeOn(p *Player, e *Entity) {
 	px, py := int(math.Floor(p.X)), int(math.Floor(p.Y))
-	var e *Entity
 	for _, d := range []Dir{p.Dir, DirDown, DirRight, DirUp, DirLeft} {
+		if e != nil {
+			break
+		}
 		dx, dy := d.Delta()
 		if f := w.entityAt(px+dx, py+dy); f != nil && f.Feedable(w.tick) {
 			e = f

@@ -37,7 +37,7 @@ func main() {
 	menu := flag.Bool("menu", false, "show the main menu instead of the game")
 	audioSettings := flag.String("audio", "", "start the sound system with this settings file")
 	crop := flag.String("crop", "", "x,y,w,h region to keep, enlarged 4x")
-	overlay := flag.String("overlay", "", "open the map or bag: map, bag")
+	overlay := flag.String("overlay", "", "open the map, the bag or the crafting window: map, bag, craft")
 	animals := flag.Bool("animals", false, "put one of each animal (fish with -coast) next to the player")
 	held := flag.Int("held", -1, "item kind the player holds (default: the selected slot's)")
 	fishing := flag.String("fishing", "", "show the player fishing: wait or bite (use with -coast)")
@@ -79,6 +79,8 @@ func main() {
 	bossesFlag := flag.Bool("bosses", false, "put the six bosses round the player on a beach (the Megalodon and a lurking Spinosaurus in the sea), the boss bar up and the lairs on the map; see -bosspose")
 	bossPose := flag.Int("bosspose", 0, "with -bosses: shift which pose each boss shows")
 	victory := flag.Bool("victory", false, "show the game-beaten (Phá đảo!) screen")
+	aimAt := flag.String("aim", "", "dx,dy: hold the mouse pointer this many tiles from the player (the hover brackets, a held torch's ghost)")
+	buildID := flag.Int("build", -1, "recipe id of a structure to place (0 campfire, 8 wall, 9 bed…): build mode with its ghost under -aim, the ingredients given")
 	flag.Parse()
 	client.SetZoom(*zoom)
 	if *bossesFlag {
@@ -359,6 +361,11 @@ func main() {
 		snap.Self.TorchFuel = sim.TorchBurnTicks * 2 / 3
 	}
 	snap.Self.Inv.Add(sim.ItemTorch, 2)
+	if r, ok := sim.RecipeByID(sim.RecipeID(*buildID)); ok && *buildID >= 0 {
+		for _, in := range r.Inputs {
+			snap.Self.Inv.Add(in.Item, in.Count) // build mode lasts while they are there
+		}
+	}
 	snap.Self.Inv.Add(sim.ItemSpear, 1)
 
 	cx, cy := int(math.Floor(sx)), int(math.Floor(sy))
@@ -714,6 +721,13 @@ func main() {
 	ebiten.SetWindowTitle("shot")
 	game := client.New(conn, "Tien")
 	game.ShowOverlay(*overlay)
+	var adx, ady float64
+	if n, _ := fmt.Sscanf(*aimAt, "%g,%g", &adx, &ady); n == 2 {
+		game.SetAim(adx, ady)
+	}
+	if *buildID >= 0 {
+		game.StartBuild(sim.RecipeID(*buildID))
+	}
 	game.HoldBlows(*blowAge)
 	if *troodon {
 		game.HoldLeap(troodonLeaper)

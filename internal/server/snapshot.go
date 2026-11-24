@@ -60,6 +60,7 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 		}
 		axeTier, hasAxe := p.Inv.BestTool(sim.ToolAxe)
 		armor, _ := p.Inv.BestArmor() // stone (0) when none
+		ax, ay, aim := p.Aim()
 		snap.Players = append(snap.Players, protocol.PlayerView{
 			ID:        p.ID,
 			Name:      p.Name,
@@ -83,6 +84,9 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Cast:      cast,
 			BobX:      float32(bobX),
 			BobY:      float32(bobY),
+			Aim:       aim,
+			AimX:      float32(ax),
+			AimY:      float32(ay),
 		})
 	}
 

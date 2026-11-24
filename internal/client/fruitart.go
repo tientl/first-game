@@ -182,7 +182,7 @@ func genFruitIcons(icons *[sim.NumItems]*ebiten.Image) {
 // The bag's notes on the fruit.
 func init() {
 	itemInfo[sim.ItemFig] = "Hái ở cây sung trong rừng và trên đồng cỏ. Ăn sống ngọt, mỗi cây cho 3 quả, 1 ngày sau lại ra quả."
-	itemInfo[sim.ItemGinkgoNut] = "Hái ở cây bạch quả trên đồng cỏ. Ăn sống thì hơi hại; rang ở lửa trại (F) thì no và bổ."
-	itemInfo[sim.ItemRoastGinkgo] = "Đứng gần lửa trại đang cháy, nhấn F để rang hạt bạch quả."
+	itemInfo[sim.ItemGinkgoNut] = "Hái ở cây bạch quả trên đồng cỏ. Ăn sống thì hơi hại; rang ở lửa trại (chuột phải) thì no và bổ."
+	itemInfo[sim.ItemRoastGinkgo] = "Cầm hạt bạch quả, đứng gần lửa trại đang cháy, nhấp chuột phải để rang."
 	itemInfo[sim.ItemCoconut] = "Hái ở cây dừa trên bãi cát ven biển. Nước dừa hồi máu tốt."
 }

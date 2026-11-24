@@ -331,9 +331,26 @@ func lowerFirst(s string) string {
 }
 
 // placeTrophy puts the head held in slot i on a post in front of p.
-func (w *World) placeHeld(p *Player) {
+func (w *World) placeHeld(p *Player) { w.placeHeldAt(p, false, 0, 0) }
+
+// placeHeldAt is placeHeld; with at set, a torch, head or seed goes on tile
+// (atX, atY) if it passes BuildSpot, and dung on the growing thing there;
+// a boat is still launched in front. See aim.go.
+func (w *World) placeHeldAt(p *Player, at bool, atX, atY int) {
 	held := p.Held()
+	if at {
+		if k, soft, ok := PlacedBy(held); ok && !w.buildSpot(p, atX, atY, k, soft) {
+			return
+		}
+		if held == ItemDung {
+			w.fertilizeAt(p, atX, atY)
+			return
+		}
+	}
 	tx, ty, ok := w.placeSpot(p)
+	if _, _, placed := PlacedBy(held); at && placed {
+		tx, ty, ok = atX, atY, true // checked above
+	}
 	place := func(kind EntityKind) *Entity {
 		if !ok {
 			p.notify(NoticeNoSpace, 0)

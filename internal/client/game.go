@@ -48,6 +48,7 @@ const (
 	overlayMap
 	overlayBag
 	overlayChest // a chest the server has opened for me; see chestui.go
+	overlayCraft // the crafting window; see craftui.go
 )
 
 // Game implements ebiten.Game.
@@ -107,11 +108,15 @@ type Game struct {
 	onPause func(bool)
 	exit    Exit
 
-	// A full-screen view over the game: the map (M) or the bag (B). The
-	// world keeps running while one is open, but the player stands still.
+	// A full-screen view over the game: the map (M), the bag (Tab, I, B),
+	// the crafting window (C) or a chest. The world keeps running while one
+	// is open, but the player stands still.
 	overlay overlay
 	bag     bagView
 	chest   chestView
+	craft   craftView
+	ptr     pointer   // the mouse in play; see mouse.go
+	build   buildMode // a structure chosen to build, waiting for a tile
 	wmap    worldMap
 	fires   map[sim.EntityID]knownFire
 
@@ -130,6 +135,7 @@ type Game struct {
 	frame    int
 
 	lastScreenH int // the screen height last drawn, for mouse hit-testing
+	lastScreenW int
 	mapZoom     int // the world map's zoom, 1 = the whole map
 	zoomNoticed int // the zoom last shown in a notice
 	strikesSeen map[[2]float32]bool
@@ -163,15 +169,17 @@ func New(conn Conn, name string) *Game {
 // so a single-player host can stop the clock.
 func (g *Game) SetPauseHook(f func(paused bool)) { g.onPause = f }
 
-// ShowOverlay opens "map" or "bag" as if its key were pressed, or "recipes":
-// the bag with sticks clicked, which have the most recipes. It is for dev
-// tools that capture frames; players use M and B.
+// ShowOverlay opens "map", "bag" or "craft" as if its key were pressed, or
+// "recipes": the bag with sticks clicked, which have the most recipes. It is
+// for dev tools that capture frames; players use M, Tab and C.
 func (g *Game) ShowOverlay(name string) {
 	switch name {
 	case "map":
 		g.overlay = overlayMap
 	case "bag":
 		g.overlay = overlayBag
+	case "craft":
+		g.overlay = overlayCraft
 	case "recipes":
 		g.overlay = overlayBag
 		g.bag.setFocus(sim.ItemStick)
@@ -205,7 +213,10 @@ func (g *Game) Update() error {
 		g.setOverlay(overlayNone)
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-		if g.overlay != overlayNone && !g.paused {
+		if g.build.on && g.overlay == overlayNone && !g.paused {
+			g.build.on = false // Esc stops building first; see mouse.go
+			g.showNotice("Đã thôi xây")
+		} else if g.overlay != overlayNone && !g.paused {
 			g.setOverlay(overlayNone) // Esc closes the map or bag first
 		} else {
 			g.setPaused(!g.paused)
@@ -400,13 +411,18 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 }
 
 func (g *Game) handleInput() {
+	g.notePointer()
+	g.keepBuild()
+	dead := g.curr.Self.Dead
 	switch {
-	case g.curr.Self.Dead:
+	case dead:
 		g.setOverlay(overlayNone) // the death screen needs to be seen
 	case inpututil.IsKeyJustPressed(ebiten.KeyM):
 		g.toggleOverlay(overlayMap)
-	case inpututil.IsKeyJustPressed(ebiten.KeyB):
+	case justPressed(ebiten.KeyTab, ebiten.KeyI, ebiten.KeyB):
 		g.toggleOverlay(overlayBag)
+	case inpututil.IsKeyJustPressed(ebiten.KeyC):
+		g.toggleOverlay(overlayCraft)
 	}
 
 	// With the map or bag open the player stands still; the keys belong to it.
@@ -424,7 +440,13 @@ func (g *Game) handleInput() {
 		if ebiten.IsKeyPressed(ebiten.KeyD) || ebiten.IsKeyPressed(ebiten.KeyArrowRight) {
 			in.MoveX++
 		}
-		in.Action = ebiten.IsKeyPressed(ebiten.KeySpace) || g.mouseAction()
+		in.Action = g.leftButton() || ebiten.IsKeyPressed(ebiten.KeySpace) // see mouse.go
+		if g.build.on {
+			in.Action = false // building: the left button places, it does not strike
+		}
+		if ax, ay, ok := g.aim(); ok {
+			in.Aim, in.AimX, in.AimY = true, quantAim(ax), quantAim(ay)
+		}
 	}
 
 	// Held input is sent only when it changes; if the send fails it is
@@ -435,11 +457,14 @@ func (g *Game) handleInput() {
 		}
 	}
 
-	if g.overlay == overlayBag {
+	switch g.overlay {
+	case overlayBag:
 		g.updateBag() // in the bag the number keys move stacks instead
-	} else if g.overlay == overlayChest {
+	case overlayChest:
 		g.updateChest()
-	} else {
+	case overlayCraft:
+		g.updateCraft() // see craftui.go
+	default:
 		g.updateHotbar()
 	}
 	if g.hotSel != g.sentSel {
@@ -448,33 +473,54 @@ func (g *Game) handleInput() {
 			g.sentSel = g.hotSel
 		}
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
-		if slot, ok := g.slotToEat(); ok {
-			g.command(sim.Command{Kind: sim.CmdEat, Slot: uint8(slot)})
-		} else {
-			g.showNotice("Món đang chọn không ăn được: chọn đồ ăn rồi nhấn E")
-		}
-	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyC) {
-		g.command(sim.Command{Kind: sim.CmdCraft, Recipe: sim.RecipeCampfire})
-	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyV) && g.overlay == overlayNone {
-		g.command(sim.Command{Kind: sim.CmdPlace}) // a head on a post, a torch in the ground, a seed
-	}
+	g.updateKeys(dead)
 	g.updateZoom()
 	g.updateToss() // G throws things on the ground; see toss.go
-	if inpututil.IsKeyJustPressed(ebiten.KeyQ) {
-		g.command(sim.Command{Kind: sim.CmdCraft, Recipe: sim.RecipeAxe})
+}
+
+// updateKeys handles the keys that do one thing per press: E, R, V and the
+// right button.
+func (g *Game) updateKeys(dead bool) {
+	switch {
+	case dead:
+		// The death screen: R, E or Enter comes back.
+		if justPressed(ebiten.KeyR, ebiten.KeyE, ebiten.KeyEnter, ebiten.KeyNumpadEnter) {
+			g.command(sim.Command{Kind: sim.CmdRespawn})
+		}
+		return
+	case g.overlay == overlayBag:
+		if inpututil.IsKeyJustPressed(ebiten.KeyE) { // in the bag, E eats what is pointed at
+			if slot, ok := g.slotToEat(); ok {
+				g.command(sim.Command{Kind: sim.CmdEat, Slot: uint8(slot)})
+			} else {
+				g.showNotice("Món đang trỏ không ăn được")
+			}
+		}
+		return
+	case g.overlay == overlayChest:
+		if inpututil.IsKeyJustPressed(ebiten.KeyE) {
+			g.setOverlay(overlayNone) // E closes the chest it opened
+		}
+		return
+	case g.overlay != overlayNone:
+		return
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyF) {
-		g.command(sim.Command{Kind: sim.CmdCraft, Recipe: g.cookRecipe()})
+	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
+		g.command(sim.Command{Kind: sim.CmdInteract}) // pick up, open, get on or off; see sim/aim.go
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyR) {
-		if g.curr.Self.Dead {
-			g.command(sim.Command{Kind: sim.CmdRespawn})
-		} else {
-			g.command(sim.Command{Kind: sim.CmdRide}) // see ride.go
+		g.command(sim.Command{Kind: sim.CmdRide}) // as E for beasts and boats; see ride.go
+	}
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
+		g.rightClick() // use what is held; see mouse.go
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyV) { // the keyboard's way to set down what is held
+		ctx := g.useContextNow()
+		c := sim.Command{Kind: sim.CmdPlace}
+		if ctx.spot.ok && ctx.spot.valid {
+			c.At, c.TX, c.TY = true, int16(ctx.spot.tx), int16(ctx.spot.ty)
 		}
+		g.command(c)
 	}
 }
 
@@ -609,14 +655,14 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		k := sim.ItemKind(arg)
 		switch class, tier := k.ToolKind(); {
 		case k == sim.ItemAxe:
-			return "Cần Rìu đá — nhặt cành cây và đá cuội rồi nhấn Q"
+			return "Cần Rìu đá — nhặt cành cây và đá cuội rồi làm ở bảng chế tạo (C)"
 		case k == sim.ItemPickaxe:
-			return "Cần Cúp đá — nhặt cành cây và đá cuội, làm trong túi đồ (B)"
+			return "Cần Cúp đá — nhặt cành cây và đá cuội, làm ở bảng chế tạo (C)"
 		case k == sim.ItemSaddle:
-			return "Cần Yên da trong túi để cưỡi — làm từ 4 Da thú, 2 Cỏ khô, 1 Xương (B)"
+			return "Cần Yên da trong túi để cưỡi — làm từ 4 Da thú, 2 Cỏ khô, 1 Xương (C)"
 		case class == sim.ToolPickaxe:
 			// Ores: the pickaxe one tier below, or better.
-			return "Cần " + k.Def().Name + " trở lên — làm từ " + strings.ToLower(sim.TierMaterial(tier).Def().Name) + " trong túi đồ (B)"
+			return "Cần " + k.Def().Name + " trở lên — làm từ " + strings.ToLower(sim.TierMaterial(tier).Def().Name) + " ở bảng chế tạo (C)"
 		case k.Def().Tool && class != sim.ToolAxe:
 			return "Cầm " + k.Def().Name + " trên tay (chọn ở ô nhanh 1-0)"
 		}
@@ -624,7 +670,7 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 	case sim.NoticeNotTired:
 		return "Chưa buồn ngủ — giường chỉ dùng được lúc chạng vạng và ban đêm"
 	case sim.NoticeTooEarly:
-		return "Giật sớm quá — cá sợ bỏ đi (đợi phao chìm rồi mới nhấn)"
+		return "Giật sớm quá — cá sợ bỏ đi (đợi phao chìm rồi mới nhấp chuột)"
 	case sim.NoticeBaitStolen:
 		return "Chậm tay rồi — cá ăn mất " + strings.ToLower(sim.ItemKind(arg).Def().Name)
 	case sim.NoticeCaught:
@@ -705,7 +751,7 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 	case sim.NoticeCantToss:
 		return "Đồ vứt xuống nước sẽ mất — quay mặt vào bờ rồi hẵng vứt"
 	case sim.NoticeCantPlace:
-		return "Cầm đầu thú, đuốc, hạt giống hoặc phân trên tay rồi nhấn V"
+		return "Cầm đầu thú, đuốc, hạt giống hoặc phân trên tay rồi nhấp chuột phải"
 	case sim.NoticePlantBite:
 		return "Bị cây ăn thịt người đớp!"
 	case sim.NoticeLightning:
@@ -730,19 +776,23 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 	case sim.NoticeBodyLooted:
 		return "Đã lấy lại hết đồ"
 	case sim.NoticeNothingToFeed:
-		return "Đứng sát cây non, luống đất hoặc cây đang mọc lại rồi nhấn V để bón phân"
+		return "Trỏ vào cây non, luống đất hoặc cây đang mọc lại ở gần rồi nhấp chuột phải để bón phân"
 	case sim.NoticeHomeSet:
 		return "Đây là nơi bạn sẽ hồi sinh"
 	case sim.NoticeLaunched:
-		return "Đã thả " + sim.BoatKind(arg).Name() + " xuống nước — R để lên thuyền"
+		return "Đã thả " + sim.BoatKind(arg).Name() + " xuống nước — E để lên thuyền"
 	case sim.NoticeNeedWater:
-		return "Đứng sát mép nước, quay mặt ra nước rồi nhấn V để thả thuyền"
+		return "Đứng sát mép nước, trỏ chuột ra nước rồi nhấp chuột phải để thả thuyền"
 	case sim.NoticeNoShore:
 		return "Không có bờ gần đây để lên — chèo vào sát bờ"
 	case sim.NoticeSunk:
 		return sim.BoatKind(arg).Name() + " bị phá chìm! Bơi vào bờ ngay"
 	case sim.NoticeDrowning:
 		return "Kiệt sức, đang chết đuối! Bơi vào bờ"
+	case sim.NoticeTooFar:
+		return buildRefusal(sim.NoticeTooFar)
+	case sim.NoticeNothingNear:
+		return "Không có gì ở gần để nhặt, mở hay cưỡi"
 	case sim.NoticeIntoCave:
 		return "Vào hang — đi lên dốc chỗ có ánh nắng để ra lại"
 	case sim.NoticeOutOfCave:
@@ -765,16 +815,6 @@ func groundSeason(s sim.Season) sim.Season {
 		return sim.Winter
 	}
 	return sim.Spring
-}
-
-// mouseAction reports whether the left mouse button works like Space: held
-// down over the world, not over the hotbar or the help.
-func (g *Game) mouseAction() bool {
-	if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) || g.lastScreenH == 0 {
-		return false
-	}
-	_, my := ebiten.CursorPosition()
-	return my < g.lastScreenH-slotPx-32 // not on the hotbar
 }
 
 func ctrlHeld() bool {

@@ -16,7 +16,7 @@ import (
 	"survivalgame/internal/sim"
 )
 
-// The bag (B) shows every inventory slot: the bag's rows, with the hotbar
+// The bag (Tab, I or B) shows every inventory slot: the bag's rows, with the hotbar
 // under them. Stacks are moved by picking one up and putting it down. Below
 // that is what the pointed-at item is, and the recipes related to the item
 // last clicked, with what is missing.
@@ -30,33 +30,33 @@ var (
 		sim.ItemBerry: "Hái từ bụi quả mọng.",
 		sim.ItemStick: "Nhặt dưới đất, quanh các bụi cây và trong rừng.",
 		sim.ItemAxe:   "Dụng cụ. Có rìu trong túi thì chặt được cây; rìu bậc cao hơn chặt nhanh hơn.",
-		sim.ItemMeat:  "Bắt thỏ (rình lúc nó chạy mệt, hoặc lúc ngủ ban đêm) hay đánh rắn mà có. Nướng ở lửa trại (F).",
+		sim.ItemMeat:  "Bắt thỏ (rình lúc nó chạy mệt, hoặc lúc ngủ ban đêm) hay đánh rắn mà có. Đứng gần lửa trại, nhấp chuột phải để nướng.",
 		sim.ItemWorm:  "Bắt trên bãi cỏ và trong rừng. Làm mồi câu cá.",
-		sim.ItemFish:  "Đứng ở bờ, nhấn Space gần con cá dưới nước; mỗi lần câu tốn 1 Giun. Nướng ở lửa trại (F).",
+		sim.ItemFish:  "Cầm Cần câu, đứng ở bờ, nhấp chuột vào con cá dưới nước; mỗi lần câu tốn 1 Giun. Đứng gần lửa trại, nhấp chuột phải để nướng.",
 
-		sim.ItemCookedMeat: "Đứng gần lửa trại đang cháy, nhấn F để nướng thịt sống.",
-		sim.ItemCookedFish: "Đứng gần lửa trại đang cháy, nhấn F để nướng cá sống.",
+		sim.ItemCookedMeat: "Cầm thịt sống, đứng gần lửa trại đang cháy, nhấp chuột phải để nướng.",
+		sim.ItemCookedFish: "Cầm cá sống, đứng gần lửa trại đang cháy, nhấp chuột phải để nướng.",
 		sim.ItemPickaxe:    "Dụng cụ. Có cúp trong túi thì đập được tảng đá, mỏ than và mỏ đồng.",
 		sim.ItemTorch:      "Cầm trên tay (ô nhanh) để có ánh sáng và sưởi ấm cả người đứng gần. Mỗi cây cháy 90 giây khi cầm.",
 		sim.ItemSpear:      "Cầm trên tay: đánh thú mạnh gấp đôi (rắn chỉ còn 2 nhát) và với xa hơn nửa ô.",
 		sim.ItemRod:        "Cầm trên tay để câu cá ở bờ nước; mỗi lần câu vẫn tốn 1 Giun làm mồi.",
-		sim.ItemRoastBerry: "Đứng gần lửa trại đang cháy, nhấn F để nướng quả mọng.",
+		sim.ItemRoastBerry: "Cầm quả mọng, đứng gần lửa trại đang cháy, nhấp chuột phải để nướng.",
 
 		sim.ItemPebble:      "Nhặt dưới đất, nhiều ở bãi đá và bãi cát. Làm rìu, cúp và cuốc.",
-		sim.ItemHoe:         "Cầm trên tay (ô nhanh), nhấn Space để xới ô đất trước mặt thành luống; đôi khi đào được giun hay khoai.",
-		sim.ItemPotato:      "Ăn sống được, nướng thì no hơn (F). Đứng cạnh luống đất nhấn Space để trồng: 1 ngày sau đào được 3 củ.",
-		sim.ItemRoastPotato: "Đứng gần lửa trại đang cháy, nhấn F để nướng khoai lang.",
+		sim.ItemHoe:         "Cầm trên tay (ô nhanh), nhấp chuột (hoặc Space) để xới ô đất trước mặt thành luống; đôi khi đào được giun hay khoai.",
+		sim.ItemPotato:      "Ăn sống được, nướng thì no hơn (chuột phải cạnh lửa trại). Nhấp chuột vào luống đất để trồng: 1 ngày sau đào được 3 củ.",
+		sim.ItemRoastPotato: "Cầm khoai lang, đứng gần lửa trại đang cháy, nhấp chuột phải để nướng.",
 		sim.ItemCactus:      "Chặt xương rồng ở hoang mạc (cần rìu). Ăn được, đỡ đói lúc đi xa.",
 		sim.ItemMushroom:    "Hái trong đầm lầy và trong hang. Ăn được.",
 		sim.ItemCoal:        "Đào ở mỏ than trong hang và quanh núi lửa (cần cúp đá). Thêm vào lửa trại: cháy lâu gấp đôi gỗ.",
-		sim.ItemClam:        "Nhặt ở bãi sò trên cát sát mép nước; thủy triều mang sò mới tới mỗi ngày. Ăn sống được, nướng thì ngon hơn (F).",
-		sim.ItemRoastClam:   "Đứng gần lửa trại đang cháy, nhấn F để nướng 2 con sò.",
-		sim.ItemCrabMeat:    "Bắt cua trên bãi cát sát mép nước: chặn đường ra biển kẻo nó lặn mất, coi chừng bị kẹp. Nướng ở lửa trại (F).",
-		sim.ItemCookedCrab:  "Đứng gần lửa trại đang cháy, nhấn F để nướng thịt cua.",
+		sim.ItemClam:        "Nhặt ở bãi sò trên cát sát mép nước; thủy triều mang sò mới tới mỗi ngày. Ăn sống được, nướng thì ngon hơn (chuột phải cạnh lửa trại).",
+		sim.ItemRoastClam:   "Cầm sò, đứng gần lửa trại đang cháy, nhấp chuột phải để nướng 2 con.",
+		sim.ItemCrabMeat:    "Bắt cua trên bãi cát sát mép nước: chặn đường ra biển kẻo nó lặn mất, coi chừng bị kẹp. Đứng gần lửa trại, nhấp chuột phải để nướng.",
+		sim.ItemCookedCrab:  "Cầm thịt cua, đứng gần lửa trại đang cháy, nhấp chuột phải để nướng.",
 		sim.ItemHide:        "Lột từ khủng long và thằn lằn bay khi săn được. Dùng may đồ da.",
 		sim.ItemBone:        "Lấy từ khủng long và thằn lằn cổ dài khi săn được. Dùng làm dụng cụ và giáp.",
 		sim.ItemRexTooth:    "Răng khủng long bạo chúa: lưỡi sắc nhất thời tiền sử. Chỉ có khi hạ được bạo chúa.",
-		sim.ItemSaddle:      "Có trong túi thì cưỡi được thú đã thuần (khủng long ba sừng, raptor, voi ma mút): đứng gần nó, nhấn R.",
+		sim.ItemSaddle:      "Có trong túi thì cưỡi được thú đã thuần (khủng long ba sừng, raptor, voi ma mút): đứng gần nó, nhấn E.",
 		sim.ItemFur:         "Lông dày của voi ma mút và hổ răng kiếm. Dùng may Áo lông.",
 		sim.ItemIvory:       "Ngà voi ma mút. Làm mũi Giáo ngà.",
 		sim.ItemFurCoat:     "Có trong túi thì không bị lạnh khi đi trên tuyết (ban đêm vẫn cần lửa).",
@@ -65,20 +65,6 @@ var (
 	}
 	colBad = color.RGBA{236, 110, 110, 255}
 )
-
-// recipeKey is the hotkey that crafts r outside the bag, if any.
-func recipeKey(r sim.RecipeID) string {
-	switch r {
-	case sim.RecipeCampfire:
-		return "C"
-	case sim.RecipeAxe:
-		return "Q"
-	}
-	if rec, ok := sim.RecipeByID(r); ok && rec.NearFire {
-		return "F" // cooking
-	}
-	return ""
-}
 
 const (
 	slotPx  = 56 // one inventory slot on screen, in the bag and on the hotbar
@@ -398,7 +384,7 @@ func (g *Game) bagMouse(x, y float64, moved, press, release, shift bool) {
 		if x >= cx && x <= cx+b.cardW && y >= cy && y <= cy+cardH {
 			b.hoverCard = i
 			if press {
-				g.command(sim.Command{Kind: sim.CmdCraft, Recipe: r.ID})
+				g.craftRecipe(r)  // a structure is then placed with the mouse; see mouse.go
 				b.lifting = false // clicking the item to see its recipes lifted it: put it back
 			}
 		}
@@ -532,7 +518,7 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 		g.drawRecipeCard(screen, r, x, y, b.cardW, i == b.hoverCard)
 	}
 
-	g.text(screen, "Kéo thả (hoặc nhấp, nhấp): di chuyển  ·  Shift+nhấp: chuyển túi ↔ ô nhanh  ·  1-0: đưa vào ô nhanh  ·  E: ăn  ·  B / Esc: đóng",
+	g.text(screen, "Kéo thả (hoặc nhấp, nhấp): di chuyển  ·  Shift+nhấp: chuyển túi ↔ ô nhanh  ·  1-0: đưa vào ô nhanh  ·  E: ăn  ·  C: bảng chế tạo  ·  Tab / Esc: đóng",
 		px+pw/2, py+ph-28, colMuted, text.AlignCenter, 1)
 	g.text(screen, "Vứt xuống đất: kéo ra ngoài túi (cả chồng)  ·  chuột phải hoặc G: vứt 1  ·  Shift+G: vứt cả chồng",
 		px+pw/2, py+ph-46, colMuted, text.AlignCenter, 1)
@@ -571,10 +557,11 @@ func (g *Game) drawRecipeCard(screen *ebiten.Image, r sim.Recipe, x, y, w float6
 	case r.NearFurnace && inv.HasAll(r.Inputs) && !g.byFurnace():
 		g.text(screen, "ra cạnh lò nung", rx, ry, colHunger, text.AlignEnd, 1)
 	case inv.HasAll(r.Inputs):
-		g.text(screen, "làm được", rx, ry, colGood, text.AlignEnd, 1)
-		if k := recipeKey(r.ID); k != "" {
-			g.text(screen, k, rx-g.textWidth("làm được")-8, ry, colKey, text.AlignEnd, 1)
+		verb := "làm được"
+		if !r.Gives.Valid() {
+			verb = "dựng được" // then placed with the mouse
 		}
+		g.text(screen, verb, rx, ry, colGood, text.AlignEnd, 1)
 	default:
 		g.text(screen, "thiếu", rx, ry, colMuted, text.AlignEnd, 1)
 	}

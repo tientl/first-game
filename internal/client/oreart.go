@@ -731,7 +731,7 @@ func init() {
 	for t := sim.TierCopper; t < sim.NumTiers; t++ {
 		notes[sim.ToolItem(sim.ToolAxe, t)] = "Dụng cụ. Chặt cây, xương rồng và dỡ tường nhanh hơn rìu bậc dưới."
 		notes[sim.ToolItem(sim.ToolPickaxe, t)] = "Dụng cụ. Đập đá nhanh hơn cúp bậc dưới, đào được " + mines[t] + "."
-		notes[sim.ToolItem(sim.ToolHoe, t)] = "Cầm trên tay (ô nhanh), nhấn Space để xới đất; xới bằng cuốc tốt hay đào được khoai hơn."
+		notes[sim.ToolItem(sim.ToolHoe, t)] = "Cầm trên tay (ô nhanh), nhấp chuột để xới đất; xới bằng cuốc tốt hay đào được khoai hơn."
 	}
 	for k, s := range notes {
 		itemInfo[k] = s

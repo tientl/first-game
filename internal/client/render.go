@@ -89,7 +89,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		return
 	}
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
-	g.lastScreenH = sh
+	g.lastScreenH, g.lastScreenW = sh, sw
 	if !g.ready || !g.hasCurr {
 		msg := "Đang tải…"
 		if g.disconnected {
@@ -129,8 +129,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		cx, cy = cx+sx, cy+sy
 	}
 	cam := newCamera(cx, cy, cw, ch)
+	if !g.demo {
+		g.ptr.cam, g.ptr.scale, g.ptr.sw, g.ptr.sh, g.ptr.drawn = cam, float64(scale), sw, sh, true // see mouse.go
+	}
 	g.updateCave() // before anything hides under, or shows from, a cave roof
-	target := g.target()
+	target, far := g.target()
 
 	g.ground.draw(g.world, cam.ox, cam.oy, g.frame)
 	g.drawFish(g.world, cam, alpha)
@@ -148,6 +151,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawLightning(g.world, cam)
 	g.drawEmbers(g.world, cam)
 	g.drawFireflies(g.world, cam)
+	if !g.demo {
+		g.drawGhost(g.world, cam) // what a left click would build; see mouse.go
+	}
 
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(float64(scale), float64(scale))
@@ -165,6 +171,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	g.drawCombat(screen, cam, float64(scale), alpha) // see combatui.go
 	g.drawWorldLabels(screen, cam, float64(scale), target)
+	g.drawAimCues(screen, cam, float64(scale), target, far) // see mouse.go
 	g.drawDigLabel(screen, cam, float64(scale))
 	g.drawFishingLabels(screen, cam, float64(scale), sw, sh)
 	g.drawHUD(screen, sw, sh)
@@ -176,6 +183,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.drawBag(screen, sw, sh)
 	case overlayChest:
 		g.drawChest(screen, sw, sh)
+	case overlayCraft:
+		g.drawCraft(screen, sw, sh) // see craftui.go
 	}
 	g.drawNotice(screen, sw)      // above the bag, so a failed craft or meal says why
 	g.drawVictory(screen, sw, sh) // every boss has fallen; see bossui.go
@@ -609,6 +618,17 @@ func (g *Game) drawPlayer(dst *ebiten.Image, p protocol.PlayerView, d drawable) 
 	g.drawStanding(dst, p, d)
 }
 
+// backpedalling reports whether p walks against the way they face, as
+// they may now that they face the pointer.
+func (g *Game) backpedalling(p protocol.PlayerView) bool {
+	q, ok := g.prevPlayers[p.ID]
+	if !ok {
+		return false
+	}
+	fx, fy := p.Dir.Delta()
+	return float64(p.X-q.X)*float64(fx)+float64(p.Y-q.Y)*float64(fy) < -1e-4
+}
+
 // drawStanding draws a player who is up: swimming, standing or walking.
 func (g *Game) drawStanding(dst *ebiten.Image, p protocol.PlayerView, d drawable) {
 	if p.Swimming {
@@ -618,6 +638,9 @@ func (g *Game) drawStanding(dst *ebiten.Image, p protocol.PlayerView, d drawable
 	frame, bob := 0, 0.0
 	if d.moving {
 		frame = (g.frame / 7) % walkFrames
+		if g.backpedalling(p) {
+			frame = (walkFrames - frame) % walkFrames // facing the pointer and walking away from it: the steps run backwards
+		}
 		if frame%2 == 1 {
 			bob = 1
 		}
@@ -759,45 +782,47 @@ func (g *Game) drawEmbers(dst *ebiten.Image, cam camera) {
 	}
 }
 
-// target returns the entity or animal the Action key would work on right
-// now, using the same rule as the server.
-func (g *Game) target() targetView {
+// target returns the entity or animal the left button (or Space) would
+// work on right now, using the same rule as the server (sim/aim.go), and
+// far: what is under the pointer but out of reach, for the red cue.
+func (g *Game) target() (tg, far targetView) {
 	if g.curr.Self.Dead {
-		return targetView{}
+		return targetView{}, targetView{}
 	}
-	for _, p := range g.curr.Players {
-		if p.ID != g.myID {
-			continue
+	p, ok := g.me()
+	if !ok || p.Cast != sim.CastNone {
+		return targetView{}, targetView{} // fishing: the button strikes, it works on nothing else
+	}
+	ax, ay, aim := g.aim()
+	if aim && g.overlay == overlayNone {
+		if g.build.on {
+			return targetView{}, targetView{} // building: the left button places
 		}
-		if p.Cast != sim.CastNone {
-			return targetView{} // fishing: Space strikes, it works on nothing else
+		u, in := g.underPointer(p, ax, ay)
+		if u.ok && in {
+			return u, targetView{}
 		}
-		if _, _, ok := g.digSpot(); ok {
-			return targetView{} // a held hoe tills the tile in front: marked by drawDigSpot
+		if u.ok {
+			far = u
 		}
-		x, y := float64(p.X), float64(p.Y)
-		if d, ok := g.dropTarget(x, y); ok {
-			return targetView{ok: true, drop: true, d: d} // a pile comes first, as on the server
-		}
-		hasWood := g.curr.Self.Inv.HasFuel()
-		t, ok := sim.PickTarget(x, y, hasWood, g.candidateAt, creatureCandidates(g.curr.Creatures, x, y), sim.ReachBonusFor(p.Held)+sim.RideReach(p.Mount != 0))
-		if !ok {
-			return targetView{}
-		}
-		if t.Creature != 0 {
-			for _, c := range g.curr.Creatures {
-				if c.ID == t.Creature && !g.hiddenInCave(float64(c.X), float64(c.Y)) {
-					return targetView{ok: true, creature: true, c: c}
-				}
-			}
-		}
-		for _, e := range g.curr.Entities {
-			if e.ID == t.Entity && !g.hiddenInCave(float64(e.TX)+0.5, float64(e.TY)+0.5) {
-				return targetView{ok: true, e: e}
-			}
+		if g.ghost().ok {
+			return targetView{}, far // a left click sets down what is held
 		}
 	}
-	return targetView{}
+	if _, _, ok := g.digSpot(); ok {
+		return targetView{}, far // a held hoe tills the tile in front: marked by drawDigSpot
+	}
+	x, y := float64(p.X), float64(p.Y)
+	if d, ok := g.dropTarget(x, y); ok {
+		return targetView{ok: true, drop: true, d: d}, far // a pile comes first, as on the server
+	}
+	t, ok := sim.ResolveTarget(x, y, aim, ax, ay, g.curr.Self.Inv.HasFuel(), g.candidateAt,
+		creatureCandidates(g.curr.Creatures, x, y), sim.ReachBonusFor(p.Held)+sim.RideReach(p.Mount != 0))
+	if !ok {
+		return targetView{}, far
+	}
+	tg, _ = g.viewOf(t)
+	return tg, far
 }
 
 func (g *Game) candidateAt(tx, ty int) (sim.TargetCandidate, bool) {
@@ -853,10 +878,10 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			case e.Kind == sim.EntityCampfire:
 				label += " — thêm củi"
 				if g.hasRawFood() {
-					label += " · F nướng"
+					label += " · chuột phải: nướng"
 				}
 			case e.Kind == sim.EntityTree && !g.has(sim.ToolAxe):
-				label, col = label+" — cần rìu (Q)", colBad
+				label, col = label+" — cần rìu (C: chế tạo)", colBad
 			case e.Kind == sim.EntityWall:
 				if !g.has(sim.ToolAxe) {
 					label, col = label+" — cần rìu để dỡ", colBad
@@ -886,7 +911,7 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			case e.Kind == sim.EntityFurnace:
 				label += " — thêm than, củi"
 				if e.Fuel > 0 {
-					label += " · đang cháy: nung trong túi (B)"
+					label += " · đang cháy: nung ở bảng chế tạo (C)"
 				}
 			case !g.canMine(e.Kind):
 				need, _ := orePick(e.Kind)
@@ -905,7 +930,7 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			case sim.IsFruitTree(e.Kind) && e.Ready:
 				label += " — hái quả"
 			case sim.IsFruitTree(e.Kind) && !g.has(sim.ToolAxe):
-				label, col = label+" — hết quả, cần rìu (Q)", colBad
+				label, col = label+" — hết quả, cần rìu (C: chế tạo)", colBad
 			case sim.IsFruitTree(e.Kind):
 				label += " — hết quả, chặt"
 			default:
@@ -913,12 +938,14 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			}
 		}
 		topArt := top - 9 + math.Round(1.5*math.Sin(float64(g.frame)*0.12))
-		mb := g.art.marker.Bounds()
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(-float64(mb.Dx())/2, 0)
-		op.GeoM.Scale(scale, scale)
-		op.GeoM.Translate(sx*scale, topArt*scale)
-		screen.DrawImage(g.art.marker, op)
+		if !tg.aimed { // what the pointer is on is bracketed instead; see drawAimCues
+			mb := g.art.marker.Bounds()
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(-float64(mb.Dx())/2, 0)
+			op.GeoM.Scale(scale, scale)
+			op.GeoM.Translate(sx*scale, topArt*scale)
+			screen.DrawImage(g.art.marker, op)
+		}
 		g.text(screen, label, sx*scale, topArt*scale-18, col, text.AlignCenter, 1)
 	}
 	for _, p := range g.curr.Players {

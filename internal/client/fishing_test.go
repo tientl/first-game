@@ -56,14 +56,14 @@ func TestNoTargetWhileTheLineIsOut(t *testing.T) {
 
 	g.onSnapshot(protocol.Snapshot{Tick: 1, Players: []protocol.PlayerView{me},
 		Creatures: []protocol.CreatureView{hooked, free}})
-	if tg := g.target(); !tg.ok || tg.c.ID != free.ID {
+	if tg, _ := g.target(); !tg.ok || tg.c.ID != free.ID {
 		t.Fatalf("target %+v, want the free fish, never the hooked one", tg)
 	}
 
 	me.Cast, me.BobX, me.BobY = sim.CastWaiting, 10.5, 11.5
 	g.onSnapshot(protocol.Snapshot{Tick: 2, Players: []protocol.PlayerView{me},
 		Entities: []protocol.EntityView{bush}, Creatures: []protocol.CreatureView{hooked, free}})
-	if tg := g.target(); tg.ok {
+	if tg, _ := g.target(); tg.ok {
 		t.Fatalf("target %+v while fishing, want none", tg)
 	}
 }

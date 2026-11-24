@@ -143,7 +143,7 @@ func (g *Game) drawHUD(screen *ebiten.Image, sw, sh int) {
 	if g.overlay == overlayNone { // the map and bag cover the bottom of the screen
 		g.drawMinimap(screen, sw)
 		g.drawHotbar(screen, sw, sh)
-		g.drawHelp(screen, sh)
+		g.drawHelp(screen, sw, sh)
 	}
 
 	if since := time.Since(g.autosaved); since < 2500*time.Millisecond {
@@ -173,7 +173,7 @@ func (g *Game) drawHUD(screen *ebiten.Image, sw, sh int) {
 		if !g.difficulty.KeepsItems() {
 			cost = " (đồ nằm lại ở xác chỗ bạn chết)"
 		}
-		g.text(screen, "Nhấn R để hồi sinh "+where+cost, float64(sw/2), float64(sh/2+20), colMuted, text.AlignCenter, 1)
+		g.text(screen, "Nhấn R, E hoặc Enter để hồi sinh "+where+cost, float64(sw/2), float64(sh/2+20), colMuted, text.AlignCenter, 1)
 	}
 }
 
@@ -255,81 +255,74 @@ func (g *Game) drawHotbar(screen *ebiten.Image, sw, sh int) {
 // hotbarLabel is the key that picks hotbar slot i.
 func hotbarLabel(i int) string { return fmt.Sprintf("%d", (i+1)%10) }
 
-func (g *Game) drawHelp(screen *ebiten.Image, sh int) {
+func (g *Game) drawHelp(screen *ebiten.Image, sw, sh int) {
 	type line struct {
 		key, s string
 		c      color.Color
 	}
-	lines := []line{
-		{"WASD", "di chuyển", colMuted},
-		{"Space", "nhặt, hái, đập đá (cần cúp), chặt cây (cần rìu)", colMuted},
-		{"Chuột", "nhấp trái như Space · đồ rơi dưới đất: Space để nhặt", colMuted},
-		{"", "cầm cuốc: xới đất, trồng và đào khoai", colMuted},
-		{"", "bắt thỏ, đánh rắn, bắt giun, câu cá", colMuted},
-		{"1-0", "chọn ô (hoặc lăn chuột)", colMuted},
-		{"E", "ăn món đang cầm (quả mọng, thịt, cá)", colMuted},
-	}
-	for _, rk := range []struct {
-		id   sim.RecipeID
-		key  string
-		verb string
-	}{{sim.RecipeAxe, "Q", "làm"}, {sim.RecipeCampfire, "C", "dựng"}} {
-		r, ok := sim.RecipeByID(rk.id)
-		if !ok {
-			continue
+	held := g.myHeld()
+	lines := []line{{"WASD", "di chuyển — nhân vật quay theo con trỏ chuột", colMuted}}
+	if r, ok := sim.RecipeByID(g.build.recipe); ok && g.build.on { // see mouse.go
+		lines = append(lines,
+			line{"Chuột trái", "dựng " + r.Name + " ở ô dưới con trỏ (xanh: được · đỏ: không)", colGood},
+			line{"Chuột phải", "thôi xây (hoặc Esc)", colMuted})
+	} else {
+		lines = append(lines,
+			line{"Chuột trái", "chặt, đập, hái, cắt cỏ, đánh, câu cá… thứ dưới con trỏ", colMuted},
+			line{"", "giữ để làm liên tục · xa quá thì làm thứ gần nhất", colMuted},
+			line{"Space", "như chuột trái, vào thứ gần nhất", colMuted})
+		if gv := g.ghost(); gv.ok {
+			lines = append(lines, line{"Chuột trái", "đặt " + strings.ToLower(gv.item.Def().Name) + " vào ô dưới con trỏ", colGood})
 		}
-		c := color.Color(colMuted)
-		switch {
-		case g.haveTool(r):
-			continue // already carried: no need to show it
-		case g.curr.Self.Inv.HasAll(r.Inputs):
-			c = colGood
+		if cmd, _ := rightClickUse(held, g.hotSel, g.useContextNow()); cmd.Kind != sim.CmdNone {
+			lines = append(lines, line{"Chuột phải", useLabel(cmd, held), colGood})
+		} else {
+			lines = append(lines, line{"Chuột phải", "dùng món đang cầm: ăn, nướng, cắm đuốc, gieo hạt…", colMuted})
 		}
-		lines = append(lines, line{rk.key, fmt.Sprintf("%s %s (%s)", rk.verb, r.Name, ingredientsText(r)), c})
 	}
-	if g.hasRawFood() {
-		c := color.Color(colMuted)
-		if g.byFire() {
-			c = colGood
-		}
-		lines = append(lines, line{"F", "nướng thịt / cá (đứng gần lửa trại)", c})
-	}
+	interact, ic := "nhặt đồ · mở rương · cưỡi thú · lên thuyền", color.Color(colMuted)
 	if verb, ok := g.boatHint(); ok { // see searender.go
-		lines = append(lines, line{"R", verb, colGood})
+		interact, ic = verb, colGood
 	} else if verb, can, ok := g.mountHint(); ok { // see ride.go
-		c := color.Color(colMuted)
+		interact = verb
 		if can {
-			c = colGood
+			ic = colGood
 		}
-		lines = append(lines, line{"R", verb, c})
 	}
-	if held := g.myHeld(); held == sim.ItemRaft || held == sim.ItemSailboat {
-		lines = append(lines, line{"V", "thả thuyền xuống nước trước mặt", colGood})
-	} else if held == sim.ItemTorch || sim.IsSeed(held) {
-		lines = append(lines, line{"V", "cắm đuốc / gieo hạt trước mặt", colGood})
-	} else if held == sim.ItemDung {
-		lines = append(lines, line{"V", "bón phân cho cây non, luống đất, cây đang mọc lại", colGood})
-	} else if _, ok := sim.HeadOf(g.myHeld()); ok {
-		lines = append(lines, line{"V", "dựng đầu thú làm vật trang trí", colGood})
+	lines = append(lines, line{"E", interact, ic}, line{"1-0", "chọn ô (lăn chuột, hoặc nhấp vào ô)", colMuted})
+	n := 0
+	for _, r := range recipes() {
+		if g.canCraft(r) {
+			n++
+		}
 	}
-	if g.myHeld().Valid() {
+	craft, cc := "chế tạo", color.Color(colMuted)
+	if n > 0 {
+		craft, cc = fmt.Sprintf("chế tạo (%d món làm được)", n), colGood
+	}
+	lines = append(lines, line{"C", craft, cc}, line{"Tab / I", "túi đồ", colMuted})
+	if held.Valid() {
 		lines = append(lines, line{"G", "vứt 1 món đang cầm xuống đất (Shift+G: cả chồng)", colMuted})
 	}
 	lines = append(lines,
-		line{"B", "túi đồ", colMuted},
 		line{"M", "bản đồ", colMuted},
 		line{"= / −", "thu phóng (hoặc Ctrl + lăn chuột)", colMuted},
 		line{"F11", "toàn màn hình", colMuted},
 		line{"Esc", "tạm dừng · lưu game", colMuted})
 
-	const keyW, rowH = 46, 18
-	w := 0.0
+	const rowH = 18
+	w, keyW := 0.0, 0.0
 	for _, l := range lines {
 		w = max(w, g.textWidth(l.s))
+		keyW = max(keyW, g.textWidth(l.key)+12)
 	}
 	h := float64(rowH*len(lines)) + 14
 	x, y := 12.0, float64(sh)-h-12
-	panel(screen, float32(x), float32(y), float32(w)+keyW+26, float32(h))
+	pw := w + keyW + 26
+	if hotX := float64(sw-(sim.HotbarSlots*slotPx+(sim.HotbarSlots-1)*slotGap)) / 2; x+pw > hotX-12 {
+		y -= slotPx + 28 // too wide to sit beside the hotbar: above it
+	}
+	panel(screen, float32(x), float32(y), float32(pw), float32(h))
 	for i, l := range lines {
 		ly := y + 8 + float64(i*rowH)
 		g.text(screen, l.key, x+12, ly, colKey, text.AlignStart, 1)

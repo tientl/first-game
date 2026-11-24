@@ -188,6 +188,11 @@ func (g *Game) digSpot() (tx, ty int, ok bool) {
 		if p.ID != g.myID || p.Dead || !isHoe(p.Held) || p.Cast != sim.CastNone {
 			continue
 		}
+		if ax, ay, aim := g.aim(); aim {
+			if u, in := g.underPointer(p, ax, ay); u.ok && in {
+				return 0, 0, false // what the pointer is on comes first, as on the server
+			}
+		}
 		return sim.DigSpot(float64(p.X), float64(p.Y), p.Dir, g.tileAt, func(tx, ty int) bool {
 			_, taken := g.entAt[[2]int{tx, ty}]
 			return taken

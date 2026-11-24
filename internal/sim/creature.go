@@ -967,9 +967,15 @@ type Target struct {
 // creature within its kind's reach plus reachBonus (a held spear, see
 // ReachBonusFor). A tie goes to the entity, then to the lower creature id.
 func PickTarget(x, y float64, hasWood bool, at func(tx, ty int) (TargetCandidate, bool), creatures []CreatureCandidate, reachBonus float64) (Target, bool) {
+	return pickTarget(x, y, hasWood, at, creatures, reachBonus, nil)
+}
+
+// pickTarget is PickTarget with the distances weighed by weigh, if not nil
+// (see towards in aim.go); reach is still judged by the true distance.
+func pickTarget(x, y float64, hasWood bool, at func(tx, ty int) (TargetCandidate, bool), creatures []CreatureCandidate, reachBonus float64, weigh func(dx, dy, d2 float64) float64) (Target, bool) {
 	var best Target
 	bestD := math.Inf(1)
-	if id, d, ok := nearestEntity(x, y, hasWood, at); ok {
+	if id, d, ok := nearestEntityWeighed(x, y, hasWood, at, weigh); ok {
 		best, bestD = Target{Entity: id}, d
 	}
 	for _, c := range creatures {
@@ -978,6 +984,9 @@ func PickTarget(x, y float64, hasWood bool, at func(tx, ty int) (TargetCandidate
 		d := dx*dx + dy*dy
 		if c.Kind == CreatureNone || c.Kind >= NumCreatureKinds || d > r*r {
 			continue
+		}
+		if weigh != nil {
+			d = weigh(dx, dy, d)
 		}
 		if d < bestD || (d == bestD && best.Creature != 0 && c.ID < best.Creature) {
 			best, bestD = Target{Creature: c.ID}, d

@@ -113,7 +113,7 @@ func (g *Game) whatSwing(old protocol.Snapshot, oldAt map[[2]int]protocol.Entity
 	me := p.ID == g.myID
 	hasFuel := !me || old.Self.Inv.HasFuel()
 	px, py := float64(p.X), float64(p.Y)
-	tg, ok := sim.PickTarget(px, py, hasFuel, func(tx, ty int) (sim.TargetCandidate, bool) {
+	tg, ok := sim.ResolveTarget(px, py, p.Aim, float64(p.AimX), float64(p.AimY), hasFuel, func(tx, ty int) (sim.TargetCandidate, bool) {
 		e, ok := oldAt[[2]int{tx, ty}]
 		return sim.TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready, Var: e.Var}, ok
 	}, creatureCandidates(old.Creatures, px, py), sim.ReachBonusFor(p.Held)+sim.RideReach(p.Mount != 0))

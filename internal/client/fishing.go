@@ -113,7 +113,7 @@ func (g *Game) drawFishingLabels(screen *ebiten.Image, cam camera, scale float64
 	}
 	msg, col := "Đợi cá cắn câu…   (đi chỗ khác để thu dây)", color.Color(colMuted)
 	if me.Cast == sim.CastBite {
-		msg, col = "Cá cắn câu! Nhấn Space!", colKey
+		msg, col = "Cá cắn câu! Nhấp chuột!", colKey
 		if blink {
 			col = colWhite
 		}

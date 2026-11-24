@@ -56,7 +56,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 			hasWood = old.Self.Inv.HasFuel()
 		}
 		px, py := float64(p.X), float64(p.Y)
-		tg, ok := sim.PickTarget(px, py, hasWood, func(tx, ty int) (sim.TargetCandidate, bool) {
+		tg, ok := sim.ResolveTarget(px, py, p.Aim, float64(p.AimX), float64(p.AimY), hasWood, func(tx, ty int) (sim.TargetCandidate, bool) {
 			e, ok := oldAt[[2]int{tx, ty}]
 			return sim.TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready, Var: e.Var}, ok
 		}, creatureCandidates(old.Creatures, px, py), sim.ReachBonusFor(p.Held)+sim.RideReach(p.Mount != 0))
@@ -206,7 +206,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		case sim.NoticeTossed:
 			tossSound() // see toss.go
 		case sim.NoticeCantToss, sim.NoticeNotEnough, sim.NoticeNoSpace, sim.NoticeNotEdible, sim.NoticeNoneLeft, sim.NoticeBagFull,
-			sim.NoticeNeedTool, sim.NoticeHaveOne, sim.NoticeNeedBait, sim.NoticeNeedFire, sim.NoticeNotTired:
+			sim.NoticeNeedTool, sim.NoticeHaveOne, sim.NoticeNeedBait, sim.NoticeNeedFire, sim.NoticeNotTired, sim.NoticeTooFar, sim.NoticeNothingNear:
 			// Holding Space at a tree with no axe repeats the notice twice
 			// a second; one buzz now and then is enough.
 			if snd.ready("error", 1500*time.Millisecond) {

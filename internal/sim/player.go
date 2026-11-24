@@ -219,7 +219,7 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 		}
 	case CmdCraft:
 		if !p.Dead {
-			w.craft(p, cmd.Recipe)
+			w.craftAt(p, cmd.Recipe, cmd.At, int(cmd.TX), int(cmd.TY))
 		}
 	case CmdChestPut, CmdChestTake, CmdChestClose, CmdChestTakeDown:
 		if !p.Dead {
@@ -238,8 +238,12 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 		}
 	case CmdPlace:
 		if !p.Dead && !p.Asleep {
-			w.placeHeld(p) // see drops.go
+			w.placeHeldAt(p, cmd.At, int(cmd.TX), int(cmd.TY)) // see drops.go
 		}
+	case CmdInteract:
+		w.interactKey(p) // see aim.go
+	case CmdFeed:
+		w.feedKey(p)
 	case CmdRide:
 		if !p.Dead && !p.Asleep && !w.board(p) { // a boat first; see boats.go
 			w.ride(p) // see tame.go
@@ -298,34 +302,15 @@ func (w *World) stepPlayer(p *Player) {
 	w.travel(p) // through a cave mouth; see underground.go
 	p.explored.Reveal(p.X, p.Y)
 
+	w.faceAim(p) // the player faces the mouse; see aim.go
+
 	if p.actionCD > 0 {
 		p.actionCD--
 	}
 	if p.line.state != CastNone {
 		w.stepLine(p, pressed, moving) // fishing: Action strikes instead
 	} else if (p.input.Action || pressed) && p.actionCD == 0 && !w.Swimming(p) { // a swimmer's hands are busy
-		acted, found := false, true
-		cd := ActionCooldownTicks
-		if a, ok := w.pickNearest(p); ok { // a pile on the ground comes first; see drops.go
-			acted, found, cd = a, true, PickCooldown
-			goto done
-		}
-		switch e, c := w.findTarget(p); {
-		case w.dig(p): // a held hoe tills the free soil in front before anything else
-			acted = true
-		case c != nil:
-			p.Dir = dirToward(c.X-p.X, c.Y-p.Y)
-			acted = w.catch(p, c)
-			if !c.Kind.def().onLine {
-				cd = SwingTicks(p.Held()) // see combat.go
-			}
-		case e != nil:
-			p.Dir = dirToward(float64(e.TX)+0.5-p.X, float64(e.TY)+0.5-p.Y)
-			acted = w.interact(p, e)
-		default:
-			found = false
-		}
-	done:
+		acted, found, cd := w.act(p) // see aim.go
 		if found {
 			if acted {
 				p.actedAt = w.tick // a refused action (no axe, full bag) is no swing
@@ -360,24 +345,9 @@ func (w *World) stepPlayer(p *Player) {
 	}
 }
 
-// findTarget returns the entity the player's Action would hit, or nil.
-func (w *World) findTarget(p *Player) (*Entity, *Creature) {
-	t, ok := PickTarget(p.X, p.Y, p.Inv.HasFuel(), func(tx, ty int) (TargetCandidate, bool) {
-		e := w.entityAt(tx, ty)
-		if e == nil {
-			return TargetCandidate{}, false
-		}
-		return TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready, Var: e.Var}, true
-	}, w.creatureCandidates(p.X, p.Y), p.reachBonus())
-	switch {
-	case !ok:
-		return nil, nil
-	case t.Creature != 0:
-		return nil, w.creatureByID(t.Creature)
-	default:
-		return w.entities[t.Entity], nil
-	}
-}
+// findTarget returns the entity or creature the player's Action would hit
+// (piles and the hoe aside): see targetFor in aim.go.
+func (w *World) findTarget(p *Player) (*Entity, *Creature) { return w.targetFor(p) }
 
 // TargetCandidate is what targeting needs to know about the entity on a tile.
 type TargetCandidate struct {
@@ -408,6 +378,12 @@ func NearestTarget(x, y float64, hasWood bool, at func(tx, ty int) (TargetCandid
 
 // nearestEntity is NearestTarget that also returns the squared distance.
 func nearestEntity(x, y float64, hasWood bool, at func(tx, ty int) (TargetCandidate, bool)) (EntityID, float64, bool) {
+	return nearestEntityWeighed(x, y, hasWood, at, nil)
+}
+
+// nearestEntityWeighed is nearestEntity with the distances weighed by
+// weigh, if not nil; reach is still judged by the true distance.
+func nearestEntityWeighed(x, y float64, hasWood bool, at func(tx, ty int) (TargetCandidate, bool), weigh func(dx, dy, d2 float64) float64) (EntityID, float64, bool) {
 	reach := int(math.Ceil(InteractReach))
 	cx, cy := int(math.Floor(x)), int(math.Floor(y))
 	var (
@@ -425,6 +401,9 @@ func nearestEntity(x, y float64, hasWood bool, at func(tx, ty int) (TargetCandid
 			d := dx*dx + dy*dy
 			if d > InteractReach*InteractReach {
 				continue
+			}
+			if weigh != nil {
+				d = weigh(dx, dy, d)
 			}
 			if !found || d < bestDist || (d == bestDist && c.ID < bestID) {
 				bestID, bestDist, found = c.ID, d, true
@@ -634,7 +613,11 @@ func (w *World) eat(p *Player, i int) {
 	}
 }
 
-func (w *World) craft(p *Player, id RecipeID) {
+func (w *World) craft(p *Player, id RecipeID) { w.craftAt(p, id, false, 0, 0) }
+
+// craftAt is craft; a structure goes on tile (tx, ty) when at is set, if
+// that tile passes BuildSpot, else in front of p.
+func (w *World) craftAt(p *Player, id RecipeID, at bool, tx, ty int) {
 	r, ok := RecipeByID(id)
 	if !ok {
 		return
@@ -667,8 +650,11 @@ func (w *World) craft(p *Player, id RecipeID) {
 		p.notify(NoticeCrafted, uint8(id))
 		return
 	}
-	tx, ty, ok := w.placeSpot(p)
-	if !ok {
+	if at {
+		if !w.buildSpot(p, tx, ty, r.Places, false) {
+			return
+		}
+	} else if tx, ty, ok = w.placeSpot(p); !ok {
 		p.notify(NoticeNoSpace, uint8(id))
 		return
 	}

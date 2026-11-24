@@ -8,18 +8,24 @@ import (
 	"survivalgame/internal/sim"
 )
 
-func TestFKeyCooksWhatThereIs(t *testing.T) {
+func TestCookRecipeForWhatIsHeld(t *testing.T) {
 	g := readyGame()
-	if got := g.cookRecipe(); got != sim.RecipeCookMeat || g.hasRawFood() {
-		t.Fatalf("empty bag: cooks %d (raw food %v), want the meat recipe so the server says what is missing", got, g.hasRawFood())
+	if g.hasRawFood() {
+		t.Fatal("an empty bag has raw food")
 	}
 	g.curr.Self.Inv.Add(sim.ItemFish, 1)
-	if got := g.cookRecipe(); got != sim.RecipeCookFish || !g.hasRawFood() {
-		t.Fatalf("cooks %d, want the fish", got)
+	if !g.hasRawFood() {
+		t.Fatal("a fish is raw food")
 	}
-	g.curr.Self.Inv.Add(sim.ItemMeat, 1)
-	if got := g.cookRecipe(); got != sim.RecipeCookMeat {
-		t.Fatalf("cooks %d, want the meat first", got)
+	for held, want := range map[sim.ItemKind]sim.RecipeID{
+		sim.ItemMeat: sim.RecipeCookMeat, sim.ItemFish: sim.RecipeCookFish, sim.ItemClam: sim.RecipeRoastClam,
+	} {
+		if r, ok := cookRecipeFor(held); !ok || r.ID != want {
+			t.Errorf("cooking %v: recipe %d %v, want %d", held, r.ID, ok, want)
+		}
+	}
+	if _, ok := cookRecipeFor(sim.ItemWood); ok {
+		t.Error("wood is cooked")
 	}
 }
 
@@ -37,7 +43,6 @@ func TestByFire(t *testing.T) {
 		t.Fatal("ten tiles away is not by the fire")
 	}
 }
-
 
 func TestCookingSizzles(t *testing.T) {
 	played := testSound(t)

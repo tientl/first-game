@@ -1,6 +1,7 @@
 package client
 
 import (
+	"slices"
 	"testing"
 
 	"survivalgame/internal/sim"
@@ -66,13 +67,30 @@ func TestClickingAnItemListsItsRecipesAndACardCraftsOne(t *testing.T) {
 		t.Fatalf("hovering slot 4 changed the focus to %v", b.focus)
 	}
 
-	cx, cy := b.cardXY(0)
+	// A card for an item crafts it at once.
+	item := slices.IndexFunc(want, func(r sim.Recipe) bool { return r.Gives.Valid() })
+	cx, cy := b.cardXY(item)
 	g.bagMouse(cx+5, cy+5, true, true, false, false)
-	if len(c.cmds) != 1 || c.cmds[0].Kind != sim.CmdCraft || c.cmds[0].Recipe != want[0].ID {
-		t.Fatalf("clicking the first card sent %v, want crafting %s", c.cmds, want[0].Name)
+	if len(c.cmds) != 1 || c.cmds[0].Kind != sim.CmdCraft || c.cmds[0].Recipe != want[item].ID || c.cmds[0].At {
+		t.Fatalf("clicking the %s card sent %v, want crafting it", want[item].Name, c.cmds)
 	}
 	if b.lifting {
 		t.Error("the wood is still lifted after crafting from its recipes")
+	}
+
+	// A card for a structure (the campfire comes first) sends nothing: with
+	// the ingredients, it closes the bag and waits for a tile to build on.
+	if want[0].Gives.Valid() {
+		t.Fatalf("the first recipe for wood is %s, want a structure", want[0].Name)
+	}
+	for _, in := range want[0].Inputs {
+		g.curr.Self.Inv.Add(in.Item, in.Count)
+	}
+	cx, cy = b.cardXY(0)
+	g.bagMouse(cx+5, cy+5, true, true, false, false)
+	if len(c.cmds) != 1 || !g.build.on || g.build.recipe != want[0].ID || g.overlay != overlayNone {
+		t.Fatalf("clicking %s: sent %v, build mode %+v, overlay %d; want build mode, the bag closed",
+			want[0].Name, c.cmds[1:], g.build, g.overlay)
 	}
 }
 

@@ -378,6 +378,8 @@ const (
 	NoticeBodyLooted    // you took back all your body held
 	NoticeTossed        // Arg: ItemKind thrown out of the bag onto the ground; see toss.go
 	NoticeCantToss      // Arg: ItemKind; nowhere dry to throw it: in the water or in a boat
+	NoticeTooFar        // the tile chosen to build on is out of reach; see aim.go
+	NoticeNothingNear   // E found nothing to pick up, open or get on
 )
 
 // CommandKind is a discrete player request, as opposed to held input.
@@ -399,6 +401,8 @@ const (
 	CmdPlace                     // set down what I hold: a head on a post, a torch in the ground, a seed
 	CmdVictorySeen               // I have closed the game-beaten screen; see bosses.go
 	CmdToss                      // throw Count of the stack in Slot on the ground in front; see toss.go
+	CmdInteract                  // E: pick up a pile, open a chest, get on or off a beast or boat; see aim.go
+	CmdFeed                      // give the held food to the beast pointed at, or the nearest that eats it; see aim.go
 )
 
 // Command is a discrete player request. Fields not used by Kind are ignored.
@@ -407,15 +411,29 @@ type Command struct {
 	Recipe   RecipeID
 	Slot, To uint8 // inventory slot indices
 	Count    uint8 // CmdToss: how many, clamped to what the slot holds
+	// CmdCraft of a structure and CmdPlace: At says to build on tile
+	// (TX, TY), which the server checks (reach, free ground); without it
+	// the tile in front is used, as before. See aim.go.
+	At     bool
+	TX, TY int16
 }
 
 // Input is the continuously held player input, sampled every tick.
 type Input struct {
 	MoveX, MoveY int8 // each -1, 0 or 1
-	Action       bool // work on the nearest target (chop, mine, pick, refuel)
+	Action       bool // work on the target: the one pointed at, else the nearest (chop, mine, pick, refuel)
+	// Aim is where the mouse points, in world tiles, when Aim is set: the
+	// player faces it and Action works on what is under it if in reach.
+	// See aim.go.
+	Aim        bool
+	AimX, AimY float32
 }
 
 func (in Input) sanitized() Input {
 	clamp := func(v int8) int8 { return max(-1, min(1, v)) }
-	return Input{MoveX: clamp(in.MoveX), MoveY: clamp(in.MoveY), Action: in.Action}
+	out := Input{MoveX: clamp(in.MoveX), MoveY: clamp(in.MoveY), Action: in.Action}
+	if in.Aim && finite(float64(in.AimX), float64(in.AimY)) { // aim from the network may be anything
+		out.Aim, out.AimX, out.AimY = true, in.AimX, in.AimY
+	}
+	return out
 }

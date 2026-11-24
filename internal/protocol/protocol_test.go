@@ -16,8 +16,11 @@ func TestMessagesRoundTripThroughGob(t *testing.T) {
 	client := []ClientMsg{
 		{Kind: ClientHello, Hello: Hello{Version: Version, Name: "Tiến"}},
 		{Kind: ClientInput, Input: sim.Input{MoveX: -1, MoveY: 1, Action: true}},
+		{Kind: ClientInput, Input: sim.Input{Action: true, Aim: true, AimX: 12.5, AimY: -3.25}},
 		{Kind: ClientInput, Input: sim.Input{}}, // stop moving
 		{Kind: ClientCommand, Command: sim.Command{Kind: sim.CmdCraft, Recipe: sim.RecipeCampfire}},
+		{Kind: ClientCommand, Command: sim.Command{Kind: sim.CmdCraft, Recipe: sim.RecipeWall, At: true, TX: 40, TY: -2}},
+		{Kind: ClientCommand, Command: sim.Command{Kind: sim.CmdInteract}},
 	}
 	server := []ServerMsg{
 		{Kind: ServerWelcome, Welcome: Welcome{

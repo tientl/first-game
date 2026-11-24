@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 36
+const Version = 37
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -185,6 +185,11 @@ type PlayerView struct {
 
 	Cast       sim.CastState // fishing: whether the line is out, and whether the fish bites
 	BobX, BobY float32       // where the float sits while the line is out
+
+	// Where they point with the mouse, if they do: their blows land on what
+	// is under it (sim.ResolveTarget), so others' swings are drawn right.
+	Aim        bool
+	AimX, AimY float32
 }
 
 // EntityView is what clients see of a world entity.

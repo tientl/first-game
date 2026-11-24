@@ -64,7 +64,7 @@ func TestTargetingAnAnimal(t *testing.T) {
 		Tick: 1, Players: []protocol.PlayerView{me},
 		Entities: []protocol.EntityView{bush}, Creatures: []protocol.CreatureView{rabbit},
 	})
-	tg := g.target()
+	tg, _ := g.target()
 	if !tg.ok || !tg.creature || tg.c.ID != rabbit.ID {
 		t.Fatalf("target %+v, want the sleeping rabbit right beside me", tg)
 	}
@@ -120,7 +120,7 @@ func TestHiddenAnimalsAreOutOfReach(t *testing.T) {
 	rabbit.State, rabbit.X = sim.CreatureHidden, 11.5
 	g.onSnapshot(protocol.Snapshot{Tick: 2, Players: []protocol.PlayerView{me},
 		Entities: []protocol.EntityView{burrow}, Creatures: []protocol.CreatureView{rabbit}})
-	if tg := g.target(); tg.ok {
+	if tg, _ := g.target(); tg.ok {
 		t.Fatalf("target %+v: a burrow and a rabbit down it are not targets", tg)
 	}
 	if !slices.Contains(*played, "rustle") || slices.Contains(*played, "squeak") {
@@ -135,7 +135,7 @@ func TestALurkingCrocIsOnlyEyes(t *testing.T) {
 	me := protocol.PlayerView{ID: 1, X: 10.5, Y: 10.5}
 	croc := protocol.CreatureView{ID: 7, Kind: sim.CreatureCroc, X: 11.5, Y: 10.5, State: sim.CreatureLurk}
 	g.onSnapshot(protocol.Snapshot{Tick: 1, Players: []protocol.PlayerView{me}, Creatures: []protocol.CreatureView{croc}})
-	if tg := g.target(); tg.ok {
+	if tg, _ := g.target(); tg.ok {
 		t.Fatalf("target %+v: a crocodile under water is out of reach", tg)
 	}
 	croc.State = sim.CreatureChase // out it comes
@@ -145,7 +145,7 @@ func TestALurkingCrocIsOnlyEyes(t *testing.T) {
 	if !slices.Contains(*played, "splash") || !slices.Contains(*played, "chomp") {
 		t.Fatalf("played %v, want the splash of the ambush and the chomp", *played)
 	}
-	if tg := g.target(); !tg.ok || tg.c.ID != croc.ID {
+	if tg, _ := g.target(); !tg.ok || tg.c.ID != croc.ID {
 		t.Fatalf("target %+v, want the crocodile once it is out", tg)
 	}
 	if _, col := g.creatureLabel(croc); col != colBad {

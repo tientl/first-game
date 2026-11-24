@@ -16,7 +16,7 @@ func TestAHeldHoeMarksTheTileInFront(t *testing.T) {
 	if tx, ty, ok := g.digSpot(); !ok || tx != 11 || ty != 10 {
 		t.Fatalf("dig spot (%d, %d, %v), want (11, 10)", tx, ty, ok)
 	}
-	if tg := g.target(); tg.ok {
+	if tg, _ := g.target(); tg.ok {
 		t.Errorf("with a tile to till, Space targets %+v as well", tg)
 	}
 
@@ -26,7 +26,7 @@ func TestAHeldHoeMarksTheTileInFront(t *testing.T) {
 	if _, _, ok := g.digSpot(); ok {
 		t.Error("marked the bush's tile for tilling")
 	}
-	if tg := g.target(); !tg.ok || tg.e.ID != bush.ID {
+	if tg, _ := g.target(); !tg.ok || tg.e.ID != bush.ID {
 		t.Errorf("facing the bush, the target is %+v, want the bush", tg)
 	}
 
