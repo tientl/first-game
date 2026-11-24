@@ -82,13 +82,15 @@ Mỗi sinh vật có máu riêng (cột Máu trong các bảng; thỏ 10, rắn 
 
 | Cầm trên tay | Sát thương mỗi đòn | Mỗi đòn cách nhau |
 | --- | --- | --- |
-| Tay không | 10 | 0,4 giây |
+| Tay không | 10 (khủng long, bò sát, thú lớn: chỉ 1) | 0,4 giây |
 | Cuốc (đá → hắc diện thạch) | 9, 11, 13, 16, 19 | 0,7 giây |
 | Cúp (đá → hắc diện thạch) | 12, 15, 19, 23, 28 | 0,7 giây |
 | Rìu (đá → hắc diện thạch) | 14, 17, 21, 26, 32 | 0,7 giây |
 | Giáo | 20 | 0,6 giây |
 | Giáo ngà | 40 | 0,7 giây |
 | Kiếm (đá lửa → hắc diện thạch) | 30, 42, 55, 75 | 0,5 giây |
+
+**Da dày**: cú đấm tay không chỉ có tác dụng với thỏ, rắn, cua, nhện, khỉ và thổ dân. Với mọi loài khủng long, cá sấu, bò sát biển, hổ răng kiếm, gấu, voi ma mút và bọ cạp, mỗi cú đấm chỉ trừ 1 máu, nên đấm tay gần như vô ích và con thú sẽ đánh trả. Muốn săn chúng thì cần ít nhất giáo hoặc rìu. Trỏ vào con thú khi tay không sẽ thấy ghi "da dày: đấm tay gần như vô ích". Cầm đồ không phải vũ khí (quả mọng, đá…) cũng tính là tay không.
 
 Bẫy, hàng rào chông, sét, cây ăn thịt, thú săn và thú nuôi cắn nhau cũng trừ theo cùng thang máu này.
 

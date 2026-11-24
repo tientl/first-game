@@ -149,5 +149,9 @@ func healthText(c protocol.CreatureView, held sim.ItemKind) string {
 	if c.MaxHP <= 0 || c.Kind == sim.CreatureFish || c.Kind == sim.CreatureWorm {
 		return ""
 	}
-	return fmt.Sprintf(" · máu %d/%d · đòn ~%d", max(0, c.HP), c.MaxHP, sim.WeaponDamage(held))
+	s := fmt.Sprintf(" · máu %d/%d · đòn ~%d", max(0, c.HP), c.MaxHP, sim.BlowDamage(held, c.Kind))
+	if sim.Punches(held) && sim.FistShare(c.Kind) < 1 {
+		s += " (da dày: đấm tay gần như vô ích)"
+	}
+	return s
 }
