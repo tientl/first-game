@@ -62,7 +62,8 @@ type creatureArt struct {
 	plesio      [2][plesioPoses]sprite
 	mammoth     [2][mammothPoses]sprite // see iceart.go
 	sabre       [2][sabrePoses]sprite
-	hell        hellArt // the tyrant's neighbours: see hellart.go and hellwire.go
+	hell        hellArt    // the tyrant's neighbours: see hellart.go and hellwire.go
+	troodon     troodonArt // the night hunter: see troodon.go
 	pteroShadow sprite
 }
 
@@ -120,6 +121,7 @@ func genCreatureArt() creatureArt {
 		a.sabre[0][p], a.sabre[1][p] = sidedPair(genSabre(p))
 	}
 	a.hell = genHellArt()
+	a.troodon = genTroodonArt()
 	a.pteroShadow = mk(pteroShadow(), 10, 3)
 	return a
 }
@@ -370,10 +372,11 @@ func (g *Game) creatureSounds(old, cur protocol.Snapshot) {
 		}
 	}
 	g.beastSteps(cur)
-	g.tameEffects(old, cur) // see ride.go
-	g.chewSounds(cur)       // see hellwire.go
-	g.beastCalls(cur)       // see roar.go
-	g.predatorGrowls(cur)   // see predsound.go
+	g.tameEffects(old, cur)   // see ride.go
+	g.chewSounds(cur)         // see hellwire.go
+	g.beastCalls(cur)         // see roar.go
+	g.predatorGrowls(cur)     // see predsound.go
+	g.troodonSounds(old, cur) // see troodonsound.go
 }
 
 // swingAtCreatureSound is the sound of an Action landing on c.
@@ -386,7 +389,8 @@ func swingAtCreatureSound(c protocol.CreatureView) {
 		snd.playAt("rustle", x, y, 0.25, 0.15)
 	case sim.CreatureTrike, sim.CreatureStego, sim.CreatureBrachio, sim.CreatureRex,
 		sim.CreatureRaptor, sim.CreaturePtero, sim.CreaturePlesio, sim.CreatureMammoth, sim.CreatureSabre,
-		sim.CreatureToro, sim.CreatureAchero, sim.CreatureQuetzal, sim.CreatureBrachy, sim.CreatureChampso, sim.CreatureAnzu, sim.CreatureThesc:
+		sim.CreatureToro, sim.CreatureAchero, sim.CreatureQuetzal, sim.CreatureBrachy, sim.CreatureChampso, sim.CreatureAnzu, sim.CreatureThesc,
+		sim.CreatureTroodon:
 		snd.playAt("whack", x, y, 0.6, 0.1)
 	default:
 		snd.playAt("rustle", x, y, 0.45, 0.1)
@@ -490,6 +494,9 @@ func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {
 	if l, col, ok := hellLabel(c); ok {
 		return l, col // see hellwire.go
 	}
+	if l, col, ok := troodonLabel(c); ok {
+		return l, col // see troodon.go
+	}
 	switch c.Kind {
 	case sim.CreatureRabbit:
 		if c.State == sim.CreatureSleep {
@@ -586,6 +593,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 	}
 	if s, bob, ok := g.hellSprite(c, moving); ok {
 		return s, bob // see hellwire.go
+	}
+	if s, bob, ok := g.troodonSprite(c, moving); ok {
+		return s, bob // see troodon.go
 	}
 	switch c.Kind {
 	case sim.CreatureRabbit:
@@ -809,6 +819,8 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 		return 18
 	case sim.CreatureAchero:
 		return 12
+	case sim.CreatureTroodon:
+		return 13
 	case sim.CreatureQuetzal:
 		return 20
 	case sim.CreatureRabbit, sim.CreatureMonkey:

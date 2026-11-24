@@ -1,0 +1,246 @@
+package client
+
+import (
+	"image/color"
+	"math"
+
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
+
+	"survivalgame/internal/protocol"
+	"survivalgame/internal/sim"
+)
+
+// The night hunter (sim/nightstalker.go): Troodon, a small, long-legged,
+// feathered dinosaur the colour of charcoal, with a pale throat, a barred
+// fan at the end of its stiff tail, and huge amber eyes. It is drawn from
+// dinos/troodon.png by the rig in dinorigs.go. In the dark there is little
+// of it to see but its eyes, which shine: drawEyeshine paints them over the
+// night, after the lighting.
+
+const (
+	troodonStand = iota
+	troodonWalkA
+	troodonWalkB
+	troodonRunA
+	troodonRunB
+	troodonStalk // crouched low, watching
+	troodonHiss  // the same, jaws parted
+	troodonLeap  // darting in, off the ground
+	troodonBite  // the snout thrown forward, jaws wide
+	troodonPeer  // head up, looking about
+	troodonHurt
+	troodonPoses
+)
+
+// The two ambers of the eye in dinos/troodon.png, which nothing else in the
+// drawing uses: the eyeshine finds the eye of each pose by them.
+var troodonEye = [2]color.RGBA{hex(0xffb71e), hex(0xffdd62)}
+
+// troodonArt holds its sprites; the first index is 0 facing right, 1 left.
+type troodonArt struct {
+	s [2][troodonPoses]sprite
+	// eye is where the middle of the eye is in each sprite, from its anchor.
+	eye [2][troodonPoses][2]float64
+}
+
+func troodonCanvas(pose int) (*canvas, float64, float64) {
+	if c, ax, ay, ok := drawnDino("troodon", pose); ok {
+		if ex, ey, ok := eyeOf(c); ok {
+			redrawEye(c, int(math.Floor(ex)), int(math.Floor(ey)))
+		}
+		return c, ax, ay
+	}
+	return newCanvas(1, 1), 0, 1 // the drawing is embedded; this is never reached
+}
+
+// / redrawEye draws the eye afresh about pixel (cx, cy): turning and crouching
+// the drawing leaves so small a thing ragged.
+func redrawEye(c *canvas, cx, cy int) {
+	ink := hex(0x17120f)
+	for i, p := range c.px {
+		if p == troodonEye[0] || p == troodonEye[1] {
+			c.px[i] = ink
+		}
+	}
+	for dy := -2; dy <= 1; dy++ {
+		for dx := -2; dx <= 1; dx++ {
+			if dx == -2 && dy == -2 {
+				continue
+			}
+			c.put(cx+dx, cy+dy, ink) // the brow, and the dark feathers behind
+		}
+	}
+	for dy := -1; dy <= 1; dy++ {
+		for dx := -1; dx <= 1; dx++ {
+			c.put(cx+dx, cy+dy, troodonEye[0])
+		}
+	}
+	c.put(cx-1, cy-1, troodonEye[1])
+	c.put(cx, cy, hex(0x120a04)) // the pupil
+}
+
+// eyeOf is the middle of the eye on a Troodon's canvas; ok is false if the
+// pose hides it.
+func eyeOf(c *canvas) (x, y float64, ok bool) {
+	n := 0.0
+	for i, p := range c.px {
+		if p == troodonEye[0] || p == troodonEye[1] {
+			x += float64(i%c.w) + 0.5
+			y += float64(i/c.w) + 0.5
+			n++
+		}
+	}
+	if n == 0 {
+		return 0, 0, false
+	}
+	return x / n, y / n, true
+}
+
+func genTroodonArt() troodonArt {
+	var a troodonArt
+	for p := range troodonPoses {
+		c, ax, ay := troodonCanvas(p)
+		a.s[0][p], a.s[1][p] = sidedPair(mk(c, ax, ay))
+		if ex, ey, ok := eyeOf(c); ok {
+			a.eye[0][p] = [2]float64{ex - ax, ey - ay}
+			a.eye[1][p] = [2]float64{ax - ex, ey - ay}
+		}
+	}
+	return a
+}
+
+// troodonStrikes is the frame at which each Troodon now striking began to.
+var troodonStrikes = map[sim.CreatureID]int{}
+
+// / troodonHeld are the Troodon shown held in mid-leap, for screenshots.
+var troodonHeld = map[sim.CreatureID]bool{}
+
+// HoldLeap shows the striking Troodon id held in its leap, for screenshots.
+func (g *Game) HoldLeap(id sim.CreatureID) { troodonHeld[id] = true }
+
+// troodonLeapFrames is how long a strike is the leap in, before the bite.
+const troodonLeapFrames = 9
+
+// troodonPose is the pose a Troodon is drawn in, and how far off the ground.
+func (g *Game) troodonPose(c protocol.CreatureView, moving bool) (int, float64) {
+	t := g.frame + int(c.ID)*7
+	if c.State != sim.CreatureStrike {
+		delete(troodonStrikes, c.ID)
+	}
+	switch {
+	case c.State == sim.CreatureStrike && troodonHeld[c.ID]:
+		return troodonLeap, 4
+	case c.State == sim.CreatureStrike:
+		at, ok := troodonStrikes[c.ID]
+		if !ok || g.frame < at {
+			at = g.frame
+			troodonStrikes[c.ID] = at
+		}
+		if age := g.frame - at; age < troodonLeapFrames {
+			return troodonLeap, 2 + math.Round(3*math.Sin(float64(age+3)/float64(troodonLeapFrames+3)*math.Pi))
+		}
+		return troodonBite, 0
+	case c.State == sim.CreatureHurt:
+		return troodonHurt, 0
+	case moving && (c.State == sim.CreatureChase || c.State == sim.CreatureFlee):
+		return troodonRunA + (t/4)%2, float64((t / 4) % 2)
+	case c.State == sim.CreatureChase: // waiting at the edge of the light
+		if (t/45)%6 == 2 {
+			return troodonHiss, 0
+		}
+		return troodonStalk, 0
+	case moving:
+		return troodonWalkA + (t/9)%2, 0
+	case (t/70)%4 == 1:
+		return troodonPeer, 0
+	}
+	return troodonStand, 0
+}
+
+// troodonSprite is creatureSprite for the night hunter; ok is false for any
+// other kind.
+func (g *Game) troodonSprite(c protocol.CreatureView, moving bool) (sprite, float64, bool) {
+	if c.Kind != sim.CreatureTroodon {
+		return sprite{}, 0, false
+	}
+	side := 0
+	if c.FaceLeft {
+		side = 1
+	}
+	p, bob := g.troodonPose(c, moving)
+	return g.art.beasts.troodon.s[side][p], bob, true
+}
+
+// troodonLabel is creatureLabel for the night hunter.
+func troodonLabel(c protocol.CreatureView) (string, color.RGBA, bool) {
+	if c.Kind != sim.CreatureTroodon {
+		return "", color.RGBA{}, false
+	}
+	return c.Kind.Name() + " — đánh (săn đêm theo bầy, sợ ánh lửa!)", colBad, true
+}
+
+// drawEyeshine paints the eyes of the night hunters over the dark: two
+// small points of amber-gold, the near eye and the far one beyond it,
+// brighter the darker it is, and blinking now and then. It is drawn after
+// the lighting, so in the black of night the eyes are all that shows.
+func (g *Game) drawEyeshine(dst *ebiten.Image, cam camera, alpha, dark float64) {
+	k := (dark - 0.2) / 0.45
+	if k <= 0 {
+		return
+	}
+	k = math.Min(1, k)
+	if len(troodonStrikes) > 256 {
+		clear(troodonStrikes) // long gone
+	}
+	for _, c := range g.curr.Creatures {
+		if c.Kind != sim.CreatureTroodon {
+			continue
+		}
+		x, y, moving := g.lerpCreature(c, alpha)
+		if g.hiddenInCave(x, y) {
+			continue
+		}
+		t := g.frame + int(c.ID)*37
+		if t%(170+int(c.ID%5)*23) < 7 {
+			continue // a blink
+		}
+		side, dir := 0, 1.0
+		if c.FaceLeft {
+			side, dir = 1, -1
+		}
+		p, bob := g.troodonPose(c, moving)
+		eye := g.art.beasts.troodon.eye[side][p]
+		if eye == ([2]float64{}) {
+			continue
+		}
+		sx, sy := cam.toScreen(x, y)
+		if c.State == sim.CreatureHurt {
+			sx += math.Round(math.Sin(float64(g.frame) * 1.3)) // as drawCreature flinches it
+		}
+		ex := float32(math.Floor(sx + eye[0]))
+		ey := float32(math.Floor(sy - bob + eye[1]))
+		shimmer := 0.88 + 0.12*math.Sin(float64(t)*0.11)
+		glint(dst, ex, ey, k*shimmer)
+		glint(dst, ex+float32(dir*4), ey, k*shimmer*0.75) // the far eye, past the snout
+	}
+}
+
+// glint draws one shining eye at pixel (x, y): a bright point in a faint
+// cross of light.
+func glint(dst *ebiten.Image, x, y float32, k float64) {
+	px := func(dx, dy float32, c color.RGBA, a float64) {
+		a = math.Max(0, math.Min(1, a))
+		vector.FillRect(dst, x+dx, y+dy, 1, 1, color.RGBA{
+			uint8(float64(c.R) * a), uint8(float64(c.G) * a), uint8(float64(c.B) * a), uint8(255 * a),
+		}, false)
+	}
+	halo := color.RGBA{0xe8, 0xc2, 0x30, 0xff}
+	for _, d := range [][2]float32{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+		px(d[0], d[1], halo, 0.6*k)
+	}
+	for _, d := range [][2]float32{{1, 1}, {-1, 1}, {1, -1}, {-1, -1}} {
+		px(d[0], d[1], halo, 0.24*k)
+	}
+	px(0, 0, color.RGBA{0xff, 0xf2, 0x9a, 0xff}, 0.5+0.5*k)
+}
