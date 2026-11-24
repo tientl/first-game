@@ -75,6 +75,7 @@ func main() {
 	hurtFlag := flag.Bool("hurt", false, "the player has just been struck")
 	villageIdx := flag.Int("village", 0, "with -at village: which village to stand in, from 0")
 	blowAge := flag.Int("age", -1, "with -punch or -hurt: how many frames into the blow or the jolt to show")
+	bodies := flag.Bool("bodies", false, "put a fallen player's body and its bag next to the player, and another's gone to bones")
 	flag.Parse()
 	client.SetZoom(*zoom)
 
@@ -454,6 +455,9 @@ func main() {
 	}
 	if *woodsFlag {
 		addWoods(&snap, sx, sy)
+	}
+	if *bodies {
+		addBodies(&snap, sx, sy)
 	}
 	if *animals {
 		id := sim.CreatureID(1 << 30)
@@ -859,6 +863,44 @@ func addTribal(snap *protocol.Snapshot, sx, sy float64) {
 			X: float32(sx + 1 + float64(i)*0.6), Y: float32(sy + 1.6 + float64(i%2)*0.4), Age: 999})
 	}
 	snap.Webs = []protocol.WebView{{ID: 1, X: float32(sx + 2), Y: float32(sy + 3)}}
+}
+
+// addBodies clears the ground round (sx, sy) and lays fallen players there:
+// fresh bodies to the right, the same players gone to bones to the left.
+func addBodies(snap *protocol.Snapshot, sx, sy float64) {
+	cx, cy := int16(math.Floor(sx)), int16(math.Floor(sy))
+	kept := snap.Entities[:0]
+	for _, e := range snap.Entities {
+		if e.TX < cx-6 || e.TX > cx+6 || e.TY < cy-4 || e.TY > cy+4 {
+			kept = append(kept, e)
+		}
+	}
+	snap.Entities = kept
+	// fuel packs a look and a colour as sim's packGraveLook does.
+	fuel := func(l sim.Look, col int) int32 {
+		f := int(l.Hair&7)<<1 | int(l.HairColor&7)<<4 | int(l.Skin&7)<<7 | (col&15)<<10
+		if l.Female {
+			f |= 1
+		}
+		if got, c := sim.GraveLook(int32(f)); got != l.Sanitized() || c != col {
+			panic("addBodies: sim.GraveLook does not read the look back")
+		}
+		return int32(f)
+	}
+	id := sim.EntityID(1 << 26)
+	put := func(dx, dy int16, bones uint8, l sim.Look, col int) {
+		id++
+		snap.Entities = append(snap.Entities, protocol.EntityView{ID: id, Kind: sim.EntityGrave, TX: cx + dx, TY: cy + dy, Ready: true, Var: bones, Fuel: fuel(l, col)})
+	}
+	a := sim.Look{Hair: sim.HairSpiky, HairColor: 4, Skin: 1}
+	b := sim.Look{Female: true, Hair: sim.HairLong, HairColor: 3}
+	c := sim.Look{Hair: sim.HairPonytail, HairColor: 1, Skin: 4}
+	put(5, 0, 0, a, 1)
+	put(3, 2, 0, b, 4)
+	put(2, -2, 0, c, 2)
+	put(-5, 0, sim.GraveBones, b, 4)
+	put(-3, 3, sim.GraveBones, a, 1)
+	put(-2, -2, sim.GraveBones, c, 2)
 }
 
 // addWoods clears the ground round (sx, sy) and puts the woods there.

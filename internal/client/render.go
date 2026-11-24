@@ -326,6 +326,9 @@ func shadowWidth(e protocol.EntityView) float64 {
 	if w, ok := tribalShadow(e); ok {
 		return w
 	}
+	if w, ok := graveShadow(e); ok {
+		return w
+	}
 	size := sizeIdx(e.Big)
 	switch e.Kind {
 	case sim.EntityTree:
@@ -492,7 +495,7 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 	case sim.EntityBed:
 		return a.bed, 0
 	case sim.EntityGrave: // a fallen player's body and their things; see sim/grave.go
-		return a.tombstone, 0
+		return graveSprite(e), 0 // see bodyart.go
 	case sim.EntityPebble:
 		return a.farm.pebbles, 0
 	case sim.EntityFarmland:
@@ -853,7 +856,7 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 					label += " — dỡ"
 				}
 			case e.Kind == sim.EntityGrave:
-				label += " — lấy lại đồ"
+				label = graveLabel(e) // see bodyart.go
 			case e.Kind == sim.EntityChest:
 				label += " — mở"
 			case e.Kind == sim.EntityStoneWall:
