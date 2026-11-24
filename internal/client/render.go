@@ -2,6 +2,7 @@ package client
 
 import (
 	"cmp"
+	"fmt"
 	"image/color"
 	"math"
 	"slices"
@@ -25,6 +26,20 @@ const viewHeight = 360
 
 func pixelScale(sh int) int { return max(1, int(math.Round(float64(sh)/viewHeight))) }
 
+// Zoom steps: how many art-pixel sizes the view is from the default.
+const (
+	minZoom = -3
+	maxZoom = 3
+)
+
+// viewZoom is the player's zoom, minZoom to maxZoom; kept in the settings.
+var viewZoom int
+
+// worldScale is the pixel scale of the world on a screen sh pixels high, at
+// the player's zoom. It never goes below 1: one art pixel to a screen pixel
+// already shows the most the server sends.
+func worldScale(sh int) int { return max(1, pixelScale(sh)+viewZoom) }
+
 // camera maps world coordinates (tiles) to whole art pixels, so nothing
 // shimmers while scrolling.
 type camera struct{ ox, oy float64 }
@@ -46,7 +61,10 @@ type drawable struct {
 	id       uint32
 	isPlayer bool
 	creature bool
-	idx      int // index into curr.Players, curr.Creatures or curr.Entities
+	drop     bool    // a pile on the ground
+	boat     bool    // a boat, with its rider
+	lift     float64 // how high a falling pile is
+	idx      int     // index into curr.Players, curr.Creatures, curr.Drops or curr.Entities
 	sx, sy   float64
 	moving   bool
 }
@@ -71,6 +89,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		return
 	}
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
+	g.lastScreenH = sh
 	if !g.ready || !g.hasCurr {
 		msg := "Đang tải…"
 		if g.disconnected {
@@ -82,6 +101,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	// The world is drawn in art pixels on its own canvas, then scaled up.
 	scale := pixelScale(sh)
+	if !g.demo {
+		scale = worldScale(sh)
+	}
 	cw, ch := (sw+scale-1)/scale, (sh+scale-1)/scale
 	if g.world == nil || g.world.Bounds().Dx() != cw || g.world.Bounds().Dy() != ch {
 		if g.world != nil {
@@ -102,6 +124,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			cx, cy, _ = g.lerpPlayer(p, alpha)
 		}
 	}
+	if !g.demo {
+		sx, sy := shake(g.frame) // a tyrant roaring close by; see rexroar.go
+		cx, cy = cx+sx, cy+sy
+	}
 	cam := newCamera(cx, cy, cw, ch)
 	g.updateCave() // before anything hides under, or shows from, a cave roof
 	target := g.target()
@@ -111,11 +137,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawUndergrowth(g.world, cam)
 	g.drawSprites(g.world, cam, alpha, target)
 	g.drawLines(g.world, cam, alpha)
-	g.drawSky(g.world, cam, alpha) // flying reptiles overhead
-	g.drawHearts(g.world, cam)     // beasts being fed; see ride.go
-	g.drawSnowfall(g.world, cam)   // over the frozen north; see iceart.go
+	g.drawSky(g.world, cam, alpha)     // flying reptiles overhead
+	g.drawHearts(g.world, cam)         // beasts being fed; see ride.go
+	g.drawSnowfall(g.world, cam)       // over the frozen north; see iceart.go
+	g.drawWeather(g.world, cam, alpha) // rain, snow, wind, tornadoes, webs; see tribalrender.go
 	g.drawClouds(g.world, cam)
 	g.drawLighting(g.world, cam)
+	g.drawGlowMasks(g.world, cam, g.darknessNow())
+	g.drawLightning(g.world, cam)
 	g.drawEmbers(g.world, cam)
 	g.drawFireflies(g.world, cam)
 
@@ -133,6 +162,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if g.demo {
 		return
 	}
+	g.drawCombat(screen, cam, float64(scale), alpha) // see combatui.go
 	g.drawWorldLabels(screen, cam, float64(scale), target)
 	g.drawDigLabel(screen, cam, float64(scale))
 	g.drawFishingLabels(screen, cam, float64(scale), sw, sh)
@@ -167,8 +197,21 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		sx, sy := cam.toScreen(wx, wy)
 		list = append(list, drawable{y: wy, id: uint32(e.ID), idx: i, sx: sx, sy: sy})
 	}
+	for i, b := range g.curr.Boats {
+		wx, wy := g.lerpBoat(b, alpha)
+		sx, sy := cam.toScreen(wx, wy)
+		list = append(list, drawable{y: wy, id: uint32(b.ID), boat: true, idx: i, sx: sx, sy: sy})
+	}
+	for i, d := range g.curr.Drops {
+		wx, wy, lift := g.dropPos(d)
+		if g.hiddenInCave(wx, wy) {
+			continue
+		}
+		sx, sy := cam.toScreen(wx, wy)
+		list = append(list, drawable{y: wy, id: uint32(d.ID), drop: true, idx: i, sx: sx, sy: sy, lift: lift})
+	}
 	for i, c := range g.curr.Creatures {
-		if c.Kind == sim.CreatureFish || c.Kind == sim.CreaturePlesio || c.State == sim.CreatureHidden || inTheSky(c) {
+		if c.Kind == sim.CreatureFish || c.Kind == sim.CreaturePlesio || c.State == sim.CreatureHidden || inTheSky(c) || g.underIce(c) {
 			continue // in the water: drawn by drawFish; down its burrow or den; or high up: drawSky
 		}
 		wx, wy, moving := g.lerpCreature(c, alpha)
@@ -183,6 +226,9 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		if p.Mount != 0 && !p.Dead {
 			riders = append(riders, i)
 			continue
+		}
+		if p.Boat != 0 && !p.Dead && g.boatInView(p.Boat) {
+			continue // drawn in its boat
 		}
 		wx, wy, moving := g.lerpPlayer(p, alpha)
 		if g.hiddenInCave(wx, wy) {
@@ -203,10 +249,17 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 	g.drawList = list
 
 	g.drawSoil(dst, list)
+	g.drawFloors(dst, cam) // see tribalrender.go
 	g.drawDigSpot(dst, cam)
 	for _, d := range list {
 		var w float64
 		switch {
+		case d.drop:
+			w = 7
+		case d.boat:
+			w = 0
+		case d.isPlayer && g.curr.Players[d.idx].Swimming:
+			w = 0
 		case d.isPlayer:
 			w = 13
 		case d.creature:
@@ -221,7 +274,7 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 
 	// The thing being worked on shakes while the player swings at it.
 	shaking := sim.EntityID(0)
-	if target.ok && !target.creature {
+	if target.ok && !target.creature && !target.drop {
 		for _, p := range g.curr.Players {
 			if p.ID == g.myID && p.Acting {
 				shaking = target.e.ID
@@ -229,8 +282,17 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		}
 	}
 	for _, d := range list {
+		if d.drop {
+			g.drawDrop(dst, g.curr.Drops[d.idx], d.sx, d.sy, d.lift)
+			continue
+		}
+		if d.boat {
+			g.drawBoat(dst, g.curr.Boats[d.idx], d.sx, d.sy)
+			continue
+		}
 		if d.isPlayer {
 			g.drawPlayer(dst, g.curr.Players[d.idx], d)
+			g.drawSwarm(dst, g.curr.Players[d.idx], d.sx, d.sy) // see jungleart.go
 			continue
 		}
 		if d.creature {
@@ -257,6 +319,12 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 }
 
 func shadowWidth(e protocol.EntityView) float64 {
+	if w, ok := woodsShadow(e); ok {
+		return w
+	}
+	if w, ok := tribalShadow(e); ok {
+		return w
+	}
 	size := sizeIdx(e.Big)
 	switch e.Kind {
 	case sim.EntityTree:
@@ -348,6 +416,12 @@ func drawSwaying(dst *ebiten.Image, s sprite, x, y, skew float64) {
 // entitySprite returns the sprite for e and how much it sways in the wind.
 func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 	a := g.art
+	if s, sway, ok := g.woodsEntitySprite(e); ok {
+		return s, sway // see jungleart.go
+	}
+	if s, sway, ok := g.tribalEntitySprite(e); ok {
+		return s, sway // see tribalrender.go
+	}
 	h := sim.HashTile(int(e.TX), int(e.TY))
 	size := sizeIdx(e.Big)
 	switch e.Kind {
@@ -461,6 +535,11 @@ func (g *Game) drawEntity(dst *ebiten.Image, e protocol.EntityView, d drawable) 
 		return // picked up; another will turn up here in time
 	case e.Kind == sim.EntityFarmland:
 		return // flat: drawn with the soil, under everything
+	case e.Kind == sim.EntityGiantRoot:
+		return // part of the giant, drawn whole from its front
+	}
+	if g.drawTribalEntity(dst, e, d) {
+		return
 	}
 	s, sway := g.entitySprite(e)
 	if sway != 0 {
@@ -469,7 +548,16 @@ func (g *Game) drawEntity(dst *ebiten.Image, e protocol.EntityView, d drawable) 
 		gust := 0.55 + 0.45*math.Sin(t*0.011+float64(e.TX)*0.21+float64(e.TY)*0.13)
 		sway *= gust * math.Sin(t*0.045+float64(sim.HashTile(int(e.TX), int(e.TY))%628)/100)
 	}
-	drawSwaying(dst, s, d.sx, d.sy, sway)
+	if tint := g.treeTint(); tint != nil && (e.Kind == sim.EntityTree || e.Kind == sim.EntityGiantTree) && e.Ready && g.tileAt(int(e.TX), int(e.TY)) != sim.TileSnow {
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(-s.ax, -s.ay)
+		op.GeoM.Skew(sway, 0)
+		op.GeoM.Translate(d.sx, d.sy)
+		op.ColorScale.ScaleWithColor(tint)
+		dst.DrawImage(s.img, op)
+	} else {
+		drawSwaying(dst, s, d.sx, d.sy, sway)
+	}
 	if e.Kind == sim.EntityCampfire {
 		if e.Fuel > 0 {
 			size := 0.6 + 0.4*min(1, float64(e.Fuel)/sim.FireStartFuel)
@@ -482,6 +570,9 @@ func (g *Game) drawEntity(dst *ebiten.Image, e protocol.EntityView, d drawable) 
 		f := g.art.flames[(g.frame/4+int(e.ID))%flameFrames]
 		drawAt(dst, f, d.sx, d.sy-1, 0.45, 0.4, 0, nil) // in its mouth
 	}
+	if hasHive(e) {
+		g.drawHive(dst, e, s, d.sx, d.sy) // see jungleart.go
+	}
 }
 
 func (g *Game) drawPlayer(dst *ebiten.Image, p protocol.PlayerView, d drawable) {
@@ -491,6 +582,10 @@ func (g *Game) drawPlayer(dst *ebiten.Image, p protocol.PlayerView, d drawable) 
 	}
 	if p.Asleep {
 		g.drawSleeper(dst, p, d)
+		return
+	}
+	if p.Swimming {
+		g.drawSwimmer(dst, p, d) // see searender.go
 		return
 	}
 	frame, bob := 0, 0.0
@@ -533,6 +628,17 @@ func (g *Game) drawPlayer(dst *ebiten.Image, p protocol.PlayerView, d drawable) 
 	if !heldBehind(dir) {
 		hand()
 	}
+	if p.ID == g.myID {
+		if g.curr.Self.Webbed {
+			drawAt(dst, g.art.tribal.webbed, d.sx, d.sy, 1, 1, 0, nil)
+		}
+		if g.curr.Self.Poisoned && (g.frame/8)%3 == 0 {
+			for k := range 3 {
+				ph := math.Mod(float64(g.frame)/40+float64(k)*0.33, 1)
+				vector.FillRect(dst, float32(math.Round(d.sx-5+float64(k)*5)), float32(math.Round(d.sy-30-ph*10)), 2, 2, color.RGBA{120, 220, 80, uint8(220 * (1 - ph))}, false)
+			}
+		}
+	}
 }
 
 // drawSleeper draws p lying in bed, head on the pillow, under a blanket.
@@ -546,7 +652,7 @@ func (g *Game) drawSleeper(dst *ebiten.Image, p protocol.PlayerView, d drawable)
 	drawAt(dst, b.back[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
 	drawAt(dst, b.legs[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
 	drawAt(dst, b.shirt[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, tint)
-	drawAt(dst, b.top[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
+	drawAt(dst, b.asleep, fx, fy, 1, 1, -math.Pi/2, nil)
 	breath := 0.0
 	if (g.frame/50)%2 == 0 {
 		breath = 1
@@ -631,6 +737,9 @@ func (g *Game) target() targetView {
 			return targetView{} // a held hoe tills the tile in front: marked by drawDigSpot
 		}
 		x, y := float64(p.X), float64(p.Y)
+		if d, ok := g.dropTarget(x, y); ok {
+			return targetView{ok: true, drop: true, d: d} // a pile comes first, as on the server
+		}
 		hasWood := g.curr.Self.Inv.HasFuel()
 		t, ok := sim.PickTarget(x, y, hasWood, g.candidateAt, creatureCandidates(g.curr.Creatures, x, y), sim.ReachBonusFor(p.Held)+sim.RideReach(p.Mount != 0))
 		if !ok {
@@ -669,7 +778,15 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 		var sx, sy, top float64
 		var label string
 		col := colWhite
-		if tg.creature {
+		if tg.drop {
+			x, y, lift := g.dropPos(tg.d)
+			sx, sy = cam.toScreen(x, y)
+			top = sy - lift - 14
+			label = "Nhặt " + tg.d.Item.Def().Name
+			if tg.d.Count > 1 {
+				label += fmt.Sprintf(" ×%d", tg.d.Count)
+			}
+		} else if tg.creature {
 			x, y, moving := g.lerpCreature(tg.c, alpha)
 			sx, sy = cam.toScreen(x, y)
 			s, bob := g.creatureSprite(tg.c, moving)
@@ -685,6 +802,15 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				label += [2]string{" nhỏ", " lớn"}[sizeIdx(e.Big)]
 			}
 			switch {
+			case hasHive(e) && e.Fuel == 0: // see jungleart.go
+				label = "Tổ ong — lấy mật (cầm đuốc cho ong khỏi đốt)"
+				if g.myHeld() != sim.ItemTorch {
+					col = colBad
+				}
+			case e.Kind == sim.EntityGiantTree && !g.has(sim.ToolAxe):
+				label, col = label+" — cần rìu, chặt rất lâu", colBad
+			case e.Kind == sim.EntityGiantTree:
+				label += " — chặt (rất lâu)"
 			case e.Kind == sim.EntityCampfire:
 				label += " — thêm củi"
 				if g.hasRawFood() {
@@ -725,6 +851,9 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				need, _ := orePick(e.Kind)
 				label, col = label+" — cần "+sim.ToolItem(sim.ToolPickaxe, need).Def().Name, colBad
 			case e.Kind == sim.EntityFarmland:
+				if e.Big {
+					label += " (đã bón phân)"
+				}
 				if g.curr.Self.Inv.Count(sim.ItemPotato) > 0 {
 					label += " — trồng khoai"
 				} else {
@@ -734,6 +863,8 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				label += " — đào khoai"
 			case sim.IsFruitTree(e.Kind):
 				label += " — hái quả"
+			default:
+				label, col = g.tribalEntityLabel(e, label, col)
 			}
 		}
 		topArt := top - 9 + math.Round(1.5*math.Sin(float64(g.frame)*0.12))

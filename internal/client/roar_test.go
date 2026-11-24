@@ -93,7 +93,7 @@ func TestBeastsCallNowAndThen(t *testing.T) {
 	if !ch.calling(rex, t0.Add(time.Second)) {
 		t.Fatal("a roaring tyrant should be drawn roaring")
 	}
-	if ch.calling(rex, t0.Add(3*time.Second)) {
+	if ch.calling(rex, t0.Add(4*time.Second)) {
 		t.Fatal("still roaring long after")
 	}
 	if _, ok := ch.pick(snap, 0, 0, t0.Add(time.Second), always); ok {

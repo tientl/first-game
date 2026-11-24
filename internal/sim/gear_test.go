@@ -9,8 +9,8 @@ import (
 func TestSwordsHitHarderTierByTier(t *testing.T) {
 	w := flatWorld()
 	p := w.players[w.AddPlayer("a")]
-	if got := damageWith(p); got != 1 {
-		t.Fatalf("bare hands: %d damage, want 1", got)
+	if got := damageWith(p); got != FistDamage {
+		t.Fatalf("bare hands: %d damage, want %d", got, FistDamage)
 	}
 	holding(w, p.ID, ItemSpear)
 	prev := damageWith(p)
@@ -26,8 +26,8 @@ func TestSwordsHitHarderTierByTier(t *testing.T) {
 	p.Inv[0] = Slot{}
 	p.Inv.Add(ItemDiamondSword, 1)
 	p.Selected = 9
-	if got := damageWith(p); got != 1 {
-		t.Errorf("diamond sword in the bag: %d damage, want 1 (bare hands)", got)
+	if got := damageWith(p); got != FistDamage {
+		t.Errorf("diamond sword in the bag: %d damage, want %d (bare hands)", got, FistDamage)
 	}
 }
 
@@ -116,5 +116,26 @@ func TestAStoneWallBlocksAndTakesAPickaxe(t *testing.T) {
 	n, p = swingsToBreak(t, EntityStoneWall, false, ItemPickaxe)
 	if n != StoneWallHits || p.Inv.Count(ItemStone) != StoneWallRefund {
 		t.Errorf("with a stone pickaxe: %d swings and %d stone back, want %d and %d", n, p.Inv.Count(ItemStone), StoneWallHits, StoneWallRefund)
+	}
+}
+
+func TestBlowsVaryAroundTheWeaponsDamage(t *testing.T) {
+	w := flatWorld()
+	p := w.players[w.AddPlayer("a")]
+	holding(w, p.ID, SwordItem(TierIron))
+	base := damageWith(p)
+	lo, hi, crits := base*10, 0, 0
+	for range 400 {
+		d := w.blow(p)
+		lo, hi = min(lo, d), max(hi, d)
+		if float64(d) > float64(base)*(1+DamageSpread)+0.5 {
+			crits++
+		}
+	}
+	if lo < int(float64(base)*(1-DamageSpread)) || lo == hi || crits == 0 {
+		t.Fatalf("blows of %d to %d with %d critical, base %d", lo, hi, crits, base)
+	}
+	if WeaponDamage(ItemAxe) <= FistDamage || WeaponDamage(ItemAxe) >= WeaponDamage(SwordItem(TierCopper)) {
+		t.Errorf("axe %d: want between a punch and a copper sword", WeaponDamage(ItemAxe))
 	}
 }

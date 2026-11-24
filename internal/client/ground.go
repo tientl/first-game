@@ -48,6 +48,7 @@ type terrain struct {
 	tiles []sim.Tile
 	sdf   []float32
 	pond  []float32 // 1 in and beside swamp ponds; see swampart.go
+	under int       // the first row of the caves under the world, 0 if none: their rock is drawn black
 }
 
 func newTerrain(w, h int, tiles []sim.Tile) *terrain {

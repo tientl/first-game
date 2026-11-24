@@ -22,6 +22,7 @@ func TestBigTreeTakesMoreHitsAndGivesMore(t *testing.T) {
 			TreeHits, tree.Ready, tree.HP, w.players[id].Inv.Count(ItemWood), (BigTreeHits-TreeHits)*HitPower)
 	}
 	stepN(w, (BigTreeHits-TreeHits)*ActionCooldownTicks)
+	reap(w, id)
 	if p := mustPlayer(t, w, id); tree.Ready || p.Inv.Count(ItemWood) != BigTreeYield {
 		t.Fatalf("after %d hits: ready=%v wood=%d, want a stump and %d wood", BigTreeHits, tree.Ready, p.Inv.Count(ItemWood), BigTreeYield)
 	}
@@ -45,6 +46,7 @@ func TestBigBoulderTakesMoreHitsAndGivesMore(t *testing.T) {
 		t.Fatalf("one hit short: boulder there=%v stone=%d, want it still there and no stone", ok, w.players[id].Inv.Count(ItemStone))
 	}
 	stepN(w, ActionCooldownTicks)
+	reap(w, id)
 	if p := mustPlayer(t, w, id); p.Inv.Count(ItemStone) != BigBoulderYield {
 		t.Fatalf("stone = %d, want %d", p.Inv.Count(ItemStone), BigBoulderYield)
 	}

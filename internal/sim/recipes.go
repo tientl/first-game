@@ -38,7 +38,21 @@ const (
 
 	RecipeRoastGinkgo = RecipeIvorySpear + 1 // see fruit.go
 
-	NumRecipes = RecipeRoastGinkgo + 1
+	// The tribal age: see build.go.
+	RecipeDoor      = RecipeRoastGinkgo + 1
+	RecipeFloor     = RecipeDoor + 1
+	RecipeSpikes    = RecipeFloor + 1
+	RecipeTrap      = RecipeSpikes + 1
+	RecipePotion    = RecipeTrap + 1
+	RecipeBigPotion = RecipePotion + 1
+	RecipeBandage   = RecipeBigPotion + 1
+	RecipeDinoArmor = RecipeBandage + 1
+
+	// The open sea: see boats.go.
+	RecipeRaft     = RecipeDinoArmor + 1
+	RecipeSailboat = RecipeRaft + 1
+
+	NumRecipes = RecipeSailboat + 1
 )
 
 // Recipe turns ingredients into either a structure placed in front of the
@@ -223,6 +237,58 @@ var recipes = [NumRecipes]Recipe{
 		Gives:    ItemRoastGinkgo,
 		NearFire: true,
 	},
+	RecipeDoor: {
+		ID: RecipeDoor, Name: "Cửa gỗ",
+		Inputs: []Ingredient{{Item: ItemWood, Count: 3}},
+		Places: EntityDoor,
+	},
+	RecipeFloor: {
+		ID: RecipeFloor, Name: "Sàn gỗ",
+		Inputs: []Ingredient{{Item: ItemWood, Count: 1}},
+		Places: EntityFloor,
+	},
+	RecipeSpikes: {
+		ID: RecipeSpikes, Name: "Hàng rào chông",
+		Inputs: []Ingredient{{Item: ItemWood, Count: 2}, {Item: ItemStick, Count: 3}},
+		Places: EntitySpikes,
+	},
+	RecipeTrap: {
+		ID: RecipeTrap, Name: "Bẫy thú",
+		Inputs: []Ingredient{{Item: ItemStick, Count: 3}, {Item: ItemGrass, Count: 2}, {Item: ItemStone, Count: 1}},
+		Places: EntityTrap,
+	},
+	RecipePotion: {
+		ID: RecipePotion, Name: "Bình máu",
+		Inputs:   []Ingredient{{Item: ItemFlowerRed, Count: 2}, {Item: ItemBerry, Count: 1}, {Item: ItemMushroom, Count: 1}},
+		Gives:    ItemPotion,
+		NearFire: true,
+	},
+	RecipeBigPotion: {
+		ID: RecipeBigPotion, Name: "Bình máu lớn",
+		Inputs:   []Ingredient{{Item: ItemPotion, Count: 1}, {Item: ItemGlowSpore, Count: 2}, {Item: ItemFlowerBlue, Count: 1}},
+		Gives:    ItemBigPotion,
+		NearFire: true,
+	},
+	RecipeBandage: {
+		ID: RecipeBandage, Name: "Băng tơ nhện",
+		Inputs: []Ingredient{{Item: ItemSilk, Count: 2}, {Item: ItemGrass, Count: 1}},
+		Gives:  ItemBandage,
+	},
+	RecipeDinoArmor: {
+		ID: RecipeDinoArmor, Name: "Giáp da khủng long",
+		Inputs: []Ingredient{{Item: ItemDinoHide, Count: 4}, {Item: ItemBone, Count: 2}, {Item: ItemSilk, Count: 1}},
+		Gives:  ItemDinoArmor,
+	},
+	RecipeRaft: {
+		ID: RecipeRaft, Name: "Bè gỗ",
+		Inputs: []Ingredient{{Item: ItemWood, Count: 8}, {Item: ItemGrass, Count: 4}},
+		Gives:  ItemRaft,
+	},
+	RecipeSailboat: {
+		ID: RecipeSailboat, Name: "Thuyền buồm",
+		Inputs: []Ingredient{{Item: ItemWood, Count: 20}, {Item: ItemHide, Count: 4}, {Item: ItemGrass, Count: 8}},
+		Gives:  ItemSailboat,
+	},
 	// The metal tools are filled in by fillTierTools, swords and armour by fillGear.
 }
 
@@ -275,6 +341,32 @@ const (
 	NoticeCantRide // this beast cannot be ridden
 	NoticeHealed   // your beast ate and is mended
 	NoticeSkittish // it bolts: wait till it stops for breath, then feed it
+
+	// The tribal age.
+	NoticePickedUp  // Arg: ItemKind picked up off the ground
+	NoticeCantPlace // Arg: ItemKind held that V cannot set down
+	NoticePlantBite // a man-eating plant bit you
+	NoticeLightning // struck by lightning
+	NoticeTornado   // caught in a tornado
+	NoticeWebbed    // tangled in a spider's web
+	NoticeTreasure  // an old chest opened
+	NoticeHomeSet   // this bed is where you will come back
+
+	// The open sea: see boats.go. Arg: BoatKind unless noted.
+	NoticeLaunched  // a boat set on the water
+	NoticeNeedWater // no open water in front to set the boat on
+	NoticeNoShore   // no ground near enough to step ashore
+	NoticeSunk      // your boat sank under you
+	NoticeDrowning  // out of strength in the water; Arg unused
+
+	NoticeIntoCave  // down into the caves
+	NoticeOutOfCave // back up into daylight
+
+	NoticeFertilized    // dung spread; Arg: the EntityKind fed
+	NoticeNothingToFeed // nothing growing in front to feed dung to
+	NoticeBees          // a swarm of bees is after you
+	NoticeBeesCalm      // the torch smoke calms the bees
+	NoticeCrit          // your blow was a critical one
 )
 
 // CommandKind is a discrete player request, as opposed to held input.
@@ -293,6 +385,7 @@ const (
 	CmdChestClose                // close my open chest
 	CmdChestTakeDown             // take my open chest down; it must be empty
 	CmdRide                      // get on my nearest beast that can be ridden, or off the one I ride
+	CmdPlace                     // set down what I hold: a head on a post, a torch in the ground, a seed
 )
 
 // Command is a discrete player request. Fields not used by Kind are ignored.

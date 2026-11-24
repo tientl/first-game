@@ -55,6 +55,21 @@ const (
 	CreatureQuetzal // Quetzalcoatlus: a giant flying reptile that stalks the ground
 	CreatureBrachy  // Brachychampsa: a blunt-snouted crocodile of the ponds
 	CreatureChampso // Champsosaurus: a long-snouted crocodile of the ponds
+
+	// Cave life and the tribes: see cavelife.go and tribe.go.
+	CreatureSpider    // a venomous cave spider that spits webs
+	CreatureBear      // a cave bear that claws and bites
+	CreatureTribesman // a warrior of the woodland tribes, spear in hand
+
+	// Monsters of the open sea: see seamonsters.go.
+	CreatureMosa   // Mosasaurus: a giant sea lizard that hunts boats in deep water
+	CreatureKraken // a giant squid that seizes boats with its arms
+
+	// The desert island: see pyramid.go.
+	CreatureScorpion // a giant scorpion: pinches, and stings with venom
+
+	// The woods: see jungle.go.
+	CreatureMonkey // a monkey, in troops in the woods; tamed with bananas
 	NumCreatureKinds
 )
 
@@ -62,22 +77,26 @@ const (
 type CreatureState uint8
 
 const (
-	CreatureIdle   CreatureState = iota
-	CreatureWander               // walking somewhere at its own pace
-	CreatureFlee                 // a rabbit bolting from a player
-	CreatureRest                 // a rabbit out of breath after bolting
-	CreatureSleep                // a rabbit asleep at night
-	CreatureChase                // a snake going for a player
-	CreatureStrike               // a snake biting
-	CreatureHurt                 // flinching from a hit
-	CreatureHooked               // a fish under someone's float; see fishing.go
-	CreatureHidden               // down its burrow or den: out of sight and reach; see homes.go
-	CreatureLurk                 // a crocodile in the water, only its eyes showing; out of reach
-	CreatureSoar                 // a flying reptile high in the air; out of reach
-	CreatureRoar                 // a tyrant roaring before it charges
-	CreatureCower                // a hunter beaten down: it lies low, and can be tamed; see tame.go
-	CreatureEat                  // grazing, or eating a kill: head down, chewing; see needs.go
-	CreatureDrink                // drinking at the water's edge
+	CreatureIdle    CreatureState = iota
+	CreatureWander                // walking somewhere at its own pace
+	CreatureFlee                  // a rabbit bolting from a player
+	CreatureRest                  // a rabbit out of breath after bolting
+	CreatureSleep                 // a rabbit asleep at night
+	CreatureChase                 // a snake going for a player
+	CreatureStrike                // a snake biting
+	CreatureHurt                  // flinching from a hit
+	CreatureHooked                // a fish under someone's float; see fishing.go
+	CreatureHidden                // down its burrow or den: out of sight and reach; see homes.go
+	CreatureLurk                  // a crocodile in the water, only its eyes showing; out of reach
+	CreatureSoar                  // a flying reptile high in the air; out of reach
+	CreatureRoar                  // a tyrant roaring before it charges
+	CreatureCower                 // a hunter beaten down: it lies low, and can be tamed; see tame.go
+	CreatureEat                   // grazing, or eating a kill: head down, chewing; see needs.go
+	CreatureDrink                 // drinking at the water's edge
+	CreatureClaw                  // a bear's swipe (its bite is CreatureStrike)
+	CreatureTrapped               // caught in a snare: it struggles, going nowhere
+	CreatureSpit                  // a spider spitting web
+	CreatureGrab                  // a giant squid holding a boat in its arms
 )
 
 // OutOfReach reports whether a creature in state s cannot be targeted: on
@@ -142,6 +161,7 @@ type creatureDef struct {
 	openOnly bool         // never on the old island maps
 	herd     int          // appears in groups of this many
 	away     float64      // never appears this close to where players start
+	offshore [2]int       // a deep swimmer lives this many tiles off the coast, least and most; zero: the sea reptiles' range
 
 	// How a kind with a home lives; see homes.go.
 	homeOn      map[Tile]float64 // how well each tile suits a home (0: never); nil: every spawn tile alike
@@ -217,7 +237,7 @@ var creatureDefs = [NumCreatureKinds]creatureDef{
 		spawnOn: []Tile{TileSand}, tilesPer: 30,
 	},
 	CreatureCroc: {
-		name: "Cá sấu", hp: 6,
+		name: "Cá sấu", hp: 12,
 		walk: 0.7 / TicksPerSecond, run: 2.4 / TicksPerSecond, // slow on land: a player outruns it
 		radius: 0.35, reach: 1.6,
 		yield: ItemMeat, yieldN: 3,
@@ -284,6 +304,10 @@ type Creature struct {
 	rider     PlayerID // who is riding it, 0 if nobody
 	fedCD     int      // ticks before it takes another meal
 	healT     int      // ticks to its next point of mending, as a pet
+
+	village  int // the village a warrior belongs to, 1-based; 0 for everyone else
+	grabHP   int // a giant squid's health when it seized its boat
+	flinchCD int // ticks before a blow can make it flinch again; see combat.go
 
 	homeX, homeY float64
 	hx, hy       float64 // heading while walking or fleeing, a unit vector
@@ -374,7 +398,7 @@ func (w *World) creatureFits(k CreatureKind, x, y float64) bool {
 			}
 			tx := int(math.Floor(x - r + 2*r*float64(i)/float64(n)))
 			ty := int(math.Floor(y - r + 2*r*float64(j)/float64(n)))
-			land := w.TileAt(tx, ty).Walkable() && !w.blocked(tx, ty)
+			land := w.landAt(tx, ty) && !w.beastBlocked(tx, ty)
 			switch {
 			case d.deep && w.TileAt(tx, ty) != TileWater:
 				return false
@@ -395,7 +419,7 @@ func (w *World) creatureFits(k CreatureKind, x, y float64) bool {
 func (w *World) addCreature(k CreatureKind, x, y float64) *Creature {
 	f := &w.fauna
 	f.nextID++
-	c := &Creature{ID: f.nextID, Kind: k, X: x, Y: y, HP: k.def().hp, homeX: x, homeY: y}
+	c := &Creature{ID: f.nextID, Kind: k, X: x, Y: y, HP: k.MaxHP(), homeX: x, homeY: y}
 	c.FaceLeft = w.random().IntN(2) == 0
 	f.creatures = append(f.creatures, c) // ids only grow, so this stays sorted
 	return c
@@ -413,7 +437,7 @@ func (w *World) spawnCreatures() {
 			continue
 		}
 		if d.deep && offshore == nil {
-			offshore = w.coastDistance(plesioFar + 1)
+			offshore = w.coastDistance(250)
 		}
 		var spots []int32
 		for ty := 0; ty < w.height; ty++ {
@@ -423,7 +447,11 @@ func (w *World) spawnCreatures() {
 					continue
 				}
 				if d.deep {
-					if o := offshore[ty*w.width+tx]; o < plesioNear || o > plesioFar {
+					lo, hi := plesioNear, plesioFar
+					if d.offshore[1] > 0 {
+						lo, hi = d.offshore[0], d.offshore[1]
+					}
+					if o := int(offshore[ty*w.width+tx]); o < lo || o > hi {
 						continue
 					}
 				}
@@ -573,6 +601,7 @@ func (w *World) stepCreatures() {
 	for _, c := range f.creatures {
 		if !c.gone {
 			w.stepCreature(c)
+			w.maybeDung(c) // see dung.go
 		}
 	}
 	f.creatures = slices.DeleteFunc(f.creatures, func(c *Creature) bool { return c.gone })
@@ -582,6 +611,9 @@ func (w *World) stepCreatures() {
 }
 
 func (w *World) stepCreature(c *Creature) {
+	if c.flinchCD > 0 {
+		c.flinchCD--
+	}
 	if c.State == CreatureHooked {
 		if !w.stillHooked(c) { // the angler left, died or fell asleep
 			c.State, c.timer, c.hookedBy = CreatureIdle, 0, 0
@@ -591,6 +623,16 @@ func (w *World) stepCreature(c *Creature) {
 	if c.State == CreatureHidden {
 		w.stepHidden(c)
 		return
+	}
+	if c.State == CreatureTrapped {
+		w.stepTrapped(c)
+		return
+	}
+	if !c.Tamed() {
+		w.stepTrapsAndSpikes(c) // see build.go
+		if c.gone || c.State == CreatureTrapped {
+			return
+		}
 	}
 	if c.State == CreatureHurt {
 		if c.timer--; c.timer <= 0 {
@@ -618,7 +660,7 @@ func (w *World) stepCreature(c *Creature) {
 		w.stepSabre(c) // see iceage.go
 	case CreatureRaptor, CreatureAchero:
 		w.stepRaptor(c)
-	case CreatureOrnitho:
+	case CreatureOrnitho, CreatureMonkey:
 		w.stepRunner(c) // see hellcreek.go
 	case CreatureAnzu:
 		w.stepAnzu(c)
@@ -638,6 +680,18 @@ func (w *World) stepCreature(c *Creature) {
 		w.stepCrab(c)
 	case CreatureCroc, CreatureBrachy, CreatureChampso:
 		w.stepCroc(c)
+	case CreatureSpider:
+		w.stepSpider(c) // see cavelife.go
+	case CreatureBear:
+		w.stepBear(c)
+	case CreatureTribesman:
+		w.stepTribesman(c) // see tribe.go
+	case CreatureMosa:
+		w.stepMosa(c) // see seamonsters.go
+	case CreatureKraken:
+		w.stepKraken(c)
+	case CreatureScorpion:
+		w.stepScorpion(c) // see pyramid.go
 	default:
 		w.wander(c)
 	}
@@ -841,12 +895,11 @@ func (w *World) catch(p *Player, c *Creature) bool {
 		p.notify(NoticeNeedBait, uint8(d.bait))
 		return false
 	}
-	// A full bag refuses the blow that would kill, so nothing is wasted; but
-	// an animal that fights back can always be hit, and what does not fit of
-	// its kill is lost.
-	dmg := damageWith(p)
+	// What a kill gives falls on the ground (see drops.go), so a full bag
+	// never stops a blow; only a fish comes straight off the line into it.
+	dmg := w.blow(p) // see combat.go
 	fits := p.Inv
-	if missing := addAll(&fits, c.Kind.loot()); missing.Valid() && (d.onLine || (!d.fights && c.HP <= dmg)) {
+	if missing := addAll(&fits, c.Kind.loot()); missing.Valid() && d.onLine {
 		p.notify(NoticeBagFull, uint8(missing))
 		return false
 	}
@@ -854,14 +907,8 @@ func (w *World) catch(p *Player, c *Creature) bool {
 		w.cast(p, c) // see fishing.go
 		return true
 	}
-	if !w.wound(c, dmg, p) {
-		return true
-	}
-	if d.bait.Valid() {
+	if w.wound(c, dmg, p) && d.bait.Valid() {
 		p.Inv.Take(d.bait, 1)
-	}
-	if missing := addAll(&p.Inv, c.Kind.loot()); missing.Valid() {
-		p.notify(NoticeBagFull, uint8(missing))
 	}
 	return true
 }
@@ -921,7 +968,7 @@ func (w *World) creatureCandidates(x, y float64) []CreatureCandidate {
 	const far = CandidateRange
 	var out []CreatureCandidate
 	w.EachCreatureIn(x-far, y-far, x+far, y+far, func(c Creature) {
-		if !c.gone && !c.State.OutOfReach() && c.rider == 0 { // someone else's fish; down a hole; under water; up in the air; ridden
+		if !c.gone && !c.State.OutOfReach() && c.rider == 0 && !w.underIce(&c) { // someone else's fish; down a hole; under water; up in the air; ridden; under the ice
 			out = append(out, CreatureCandidate{ID: c.ID, Kind: c.Kind, X: c.X, Y: c.Y})
 		}
 	})

@@ -86,6 +86,10 @@ func TestCatchingARestingRabbit(t *testing.T) {
 	r.State, r.timer = CreatureRest, RabbitRestTicks
 	w.SetInput(id, Input{Action: true})
 	w.Step()
+	if n := len(entitiesOf(w, EntityCorpse)); n != 1 {
+		t.Fatalf("%d bodies, want the rabbit lying there", n)
+	}
+	reap(w, id)
 	p := mustPlayer(t, w, id)
 	if p.Inv.Count(ItemMeat) != creatureDefs[CreatureRabbit].yieldN {
 		t.Fatalf("meat = %d, want the rabbit caught", p.Inv.Count(ItemMeat))
@@ -156,7 +160,8 @@ func TestKillingASnake(t *testing.T) {
 	id := w.AddPlayer("a")
 	w.addCreature(CreatureSnake, 17.5, 16.5)
 	w.SetInput(id, Input{Action: true})
-	stepN(w, 1+creatureDefs[CreatureSnake].hp*ActionCooldownTicks)
+	stepN(w, 1+2*creatureDefs[CreatureSnake].hp*ActionCooldownTicks)
+	reap(w, id)
 	p := mustPlayer(t, w, id)
 	if len(creatureByKind(w, CreatureSnake)) != 0 || p.Inv.Count(ItemMeat) != creatureDefs[CreatureSnake].yieldN {
 		t.Fatalf("snakes %d, meat %d: want the snake killed for its meat", len(creatureByKind(w, CreatureSnake)), p.Inv.Count(ItemMeat))
@@ -207,6 +212,7 @@ func TestPickingUpAWorm(t *testing.T) {
 	w.addCreature(CreatureWorm, 16.5, 17.3)
 	w.SetInput(id, Input{Action: true})
 	w.Step()
+	reap(w, id)
 	if p := mustPlayer(t, w, id); p.Inv.Count(ItemWorm) != 1 || p.Dir != DirDown {
 		t.Fatalf("worms %d, dir %v: want the worm picked up below", p.Inv.Count(ItemWorm), p.Dir)
 	}

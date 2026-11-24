@@ -252,6 +252,21 @@ func genSFX() map[string][][]float32 {
 		add("treefall", 1, x)
 	}
 
+	for v := 0; v < 2; v++ { // Thunder: a sharp crack, then a long rolling rumble.
+		x := make([]float64, samples(3.2))
+		lp := newFilter(lowpass, 900, 0.7)
+		brown := 0.0
+		for i := range x {
+			t := float64(i) / sampleRate
+			w := r.Float64()*2 - 1
+			brown = brown*0.996 + w*0.08
+			lp.set(lowpass, 1800*math.Exp(-t/0.25)+120, 0.7)
+			roll := env(t, 0.03, 1.1) * (0.6 + 0.4*vnoise(t*(5+float64(v)), 1, 640+uint32(v)))
+			x[i] = lp.do(brown)*roll*2 + w*env(t, 0.002, 0.05)*0.6
+		}
+		add("thunder", 1, x)
+	}
+
 	for v := 0; v < 3; v++ {
 		f := []float64{1300, 1520, 1150}[v]
 		x := partials(0.4, f, []float64{1, 2.32, 4.25, 6.63}, []float64{1, 0.6, 0.4, 0.25}, []float64{0.1, 0.07, 0.04, 0.025})
@@ -492,6 +507,7 @@ func genSFX() map[string][][]float32 {
 	}
 	genCreatureSFX(r, add) // last, so the rng gives the sounds above as before
 	genCraftSFX(r, add)
+	genWoodsSFX(add) // see jungleart.go
 	return s
 }
 
@@ -560,6 +576,18 @@ func genLoops() map[string][]float32 {
 			return bp.do(r.Float64()*2-1) * (0.35 + 0.65*vnoise(t*0.25, 3, 601))
 		})
 		loops["wind"] = seamless(dur, x)
+	}
+	{ // Rain: a hiss of drops, with heavier pattering now and then.
+		const dur = 10.0
+		hp, lp := newFilter(highpass, 1800, 0.7), newFilter(lowpass, 7000, 0.7)
+		x := render(dur+xf, func(t float64, _ int) float64 {
+			return lp.do(hp.do(r.Float64()*2-1)) * (0.6 + 0.2*vnoise(t*0.5, 7, 620))
+		})
+		for g := 0; g < int((dur+xf)*60); g++ {
+			t := r.Float64() * (dur + xf)
+			addAt(x, noiseBurst(r, 0.01, bandpass, 2500+r.Float64()*4000, 2, 0.0002, 0.002), t, 0.3+r.Float64()*0.5)
+		}
+		loops["rain"] = seamless(dur, x)
 	}
 	{ // Crickets: two near ones trilling in groups, one far away.
 		const dur = 9.0

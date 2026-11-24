@@ -89,6 +89,10 @@ func TestChoppingATree(t *testing.T) {
 
 	// Hits land on the first tick and then every ActionCooldownTicks.
 	stepN(w, 1+(TreeHits-1)*ActionCooldownTicks)
+	if w.players[id].Inv.Count(ItemWood) != 0 || len(w.drops) == 0 {
+		t.Fatalf("wood went straight into the bag; want it on the ground")
+	}
+	reap(w, id)
 	p := mustPlayer(t, w, id)
 	if p.Inv.Count(ItemWood) != TreeYield {
 		t.Fatalf("wood = %d, want %d", p.Inv.Count(ItemWood), TreeYield)
@@ -120,7 +124,7 @@ func TestBoulderIsRemovedWhenMined(t *testing.T) {
 	w.players[id].Inv.Add(ItemPickaxe, 1)
 	w.SetInput(id, Input{Action: true})
 	stepN(w, 1+(BoulderHits-1)*ActionCooldownTicks)
-
+	reap(w, id)
 	if p := mustPlayer(t, w, id); p.Inv.Count(ItemStone) != BoulderYield {
 		t.Fatalf("stone = %d, want %d", p.Inv.Count(ItemStone), BoulderYield)
 	}

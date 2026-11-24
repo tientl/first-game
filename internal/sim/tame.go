@@ -94,12 +94,12 @@ func (w *World) petAction(p *Player, c *Creature) (handled, acted bool) {
 			p.notify(NoticeNotYours, uint8(c.Kind))
 			return true, false
 		}
-		if td.food.Valid() && p.Held() == td.food && c.HP < c.Kind.def().hp {
+		if td.food.Valid() && p.Held() == td.food && c.HP < c.Kind.MaxHP() {
 			if c.fedCD > 0 {
 				return true, false
 			}
 			p.Inv.TakeSlot(p.Selected, 1)
-			c.HP = min(c.Kind.def().hp, c.HP+PetMealHeal)
+			c.HP = min(c.Kind.MaxHP(), c.HP+PetMealHeal*HealthScale)
 			c.fedCD = FeedCD
 			p.notify(NoticeHealed, uint8(c.Kind))
 			return true, true
@@ -117,7 +117,7 @@ func (w *World) petAction(p *Player, c *Creature) (handled, acted bool) {
 		return false, false // a hit
 	}
 	switch {
-	case c.Kind == CreatureOrnitho && c.State == CreatureFlee:
+	case (c.Kind == CreatureOrnitho || c.Kind == CreatureMonkey) && c.State == CreatureFlee:
 		p.notify(NoticeSkittish, uint8(c.Kind))
 		return true, false
 	case td.cower && c.State != CreatureCower:
@@ -135,7 +135,7 @@ func (w *World) petAction(p *Player, c *Creature) (handled, acted bool) {
 	if c.State != CreatureCower {
 		c.State, c.timer = CreatureIdle, 2*TicksPerSecond // it stops to eat
 	}
-	if c.Kind == CreatureOrnitho {
+	if c.Kind == CreatureOrnitho || c.Kind == CreatureMonkey {
 		c.cool = OrnithoCalmTicks // and lets the feeder stay close a while
 	}
 	if c.Tame < td.meals {
@@ -153,7 +153,7 @@ func (w *World) tame(c *Creature, owner string) {
 	c.ownerName = owner
 	c.Tame = c.Kind.TameMeals()
 	c.State, c.timer, c.rage, c.foe, c.cool = CreatureIdle, 0, 0, 0, 0
-	c.HP = c.Kind.def().hp
+	c.HP = c.Kind.MaxHP()
 	c.Stay = false
 	c.homeX, c.homeY = c.X, c.Y
 }
@@ -165,14 +165,18 @@ func (w *World) wound(c *Creature, dmg int, by *Player) (killed bool) {
 	c.HP -= dmg
 	c.Tame = 0
 	if c.HP <= 0 {
-		c.gone = true
+		w.fell(c) // the body falls; see drops.go
 		return true
 	}
 	if d.tough && c.State != CreatureHurt {
 		c.after, c.afterT = c.State, c.timer
 	}
 	w.provoke(c, by) // see dino.go: it may change what comes after
+	if !d.tough && c.flinchCD > 0 {
+		return false // it shrugs off a blow so soon after the last: see combat.go
+	}
 	c.State, c.timer = CreatureHurt, CreatureHurtTicks
+	c.flinchCD = FlinchEvery
 	if d.tough {
 		c.timer = toughHurtTicks
 	}
@@ -198,9 +202,9 @@ func (w *World) stepPet(c *Creature) {
 	if c.biteCD > 0 {
 		c.biteCD--
 	}
-	if c.HP < d.hp {
+	if c.HP < c.Kind.MaxHP() {
 		if c.healT--; c.healT <= 0 {
-			c.HP++
+			c.HP = min(c.Kind.MaxHP(), c.HP+HealthScale)
 			c.healT = PetHealTicks
 		}
 	}
@@ -290,9 +294,7 @@ func (w *World) petFight(pet, foe *Creature, owner *Player, bite int) {
 		return
 	}
 	pet.State, pet.timer, pet.biteCD = CreatureStrike, AttackTicks, PetStrikeCD
-	if w.wound(foe, bite, owner) {
-		addAll(&owner.Inv, foe.Kind.loot()) // what does not fit is lost
-	}
+	w.wound(foe, bite*HealthScale, owner) // a kill's body lies there for its owner to butcher
 }
 
 // ride gets p on its nearest pet that can be ridden, or off the one it rides.
@@ -411,7 +413,7 @@ func (w *World) loadPets(pets []PetSave) {
 		}
 		c := w.addCreature(ps.Kind, x, y)
 		w.tame(c, name)
-		c.HP = min(max(ps.HP, 1), ps.Kind.def().hp)
+		c.HP = min(max(ps.HP, 1), ps.Kind.MaxHP())
 		c.Stay = ps.Stay
 	}
 }

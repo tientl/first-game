@@ -169,11 +169,14 @@ func (g *Game) cropSprite(e protocol.EntityView) sprite {
 // upright, so players and plants stand on it.
 func (g *Game) drawSoil(dst *ebiten.Image, list []drawable) {
 	for _, d := range list {
-		if d.isPlayer || d.creature {
+		if d.isPlayer || d.creature || d.drop || d.boat {
 			continue
 		}
-		if k := g.curr.Entities[d.idx].Kind; k == sim.EntityFarmland || k == sim.EntityCrop {
+		if e := g.curr.Entities[d.idx]; e.Kind == sim.EntityFarmland || e.Kind == sim.EntityCrop {
 			drawAt(dst, g.art.farm.farmland, d.sx, d.sy, 1, 1, 0, nil)
+			if e.Kind == sim.EntityFarmland && e.Big {
+				drawAt(dst, fedSoilSprite(), d.sx, d.sy, 1, 1, 0, nil) // fed with dung
+			}
 		}
 	}
 }

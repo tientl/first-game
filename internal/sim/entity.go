@@ -16,6 +16,8 @@ const (
 	TileAsh      // open world: volcanic ash around the volcano
 	TileLava     // open world: impassable, glows, warms whoever stands near
 	TileSnow     // open world: the frozen north, freezing to stand on; see iceage.go
+	TilePath     // tribal worlds: a beaten trail, quicker going; see paths.go
+	TileIce      // never in a world: what the client draws frozen ponds as in winter
 	NumTiles
 )
 
@@ -66,6 +68,37 @@ const (
 	EntityFigTree   // fruit trees, picked by hand: see fruit.go
 	EntityGinkgoTree
 	EntityPalm
+
+	// The tribal age: see drops.go, build.go, plants.go, tribe.go, cavelife.go.
+	EntityCorpse     // a kill lying in its blood; Var is its CreatureKind; butchered for its loot
+	EntityTrophy     // a head on a post; Var is the CreatureKind
+	EntityDoor       // built: players pass, beasts do not
+	EntityFloor      // built: wooden planks on the ground
+	EntitySpikes     // built: a fence of sharpened stakes that wounds beasts
+	EntityTrap       // built: a snare that holds a beast; Ready while set
+	EntityTorchStand // a torch stuck in the ground; Fuel burns down
+	EntityFlower     // wild flowers; Var is the FlowerKind
+	EntitySapling    // something planted from a seed; Var is the SeedKind
+	EntityGlowPlant  // glows at night; Var is its look (0 mushrooms, 1 fern, 2 tree)
+	EntityManEater   // a man-eating plant; Var 1 when planted by a player (it spares players)
+	EntityTreasure   // an old chest deep in a cave; Ready until it is opened
+	EntityHut        // a tribal hut of wood and thatch
+	EntityTotem      // the carved post at a village's heart
+	EntityBonfire    // a village fire that never goes out
+
+	// The desert island's pyramid: see pyramid.go.
+	EntityPyramid      // the pyramid itself, standing on the middle of its south face
+	EntityPyramidStone // the rest of its foot: blocks the way, drawn as part of the pyramid
+
+	// The caves under the archipelago: see underground.go.
+	EntityCaveMouth // a mouth of rock on the ground: walk in to go down
+	EntityCaveExit  // the way up, under a shaft of daylight: walk in to go up
+	EntityCaveRock  // the rest of a cave mouth's rocks: blocks the way, drawn with the mouth
+
+	// The woods: see jungle.go.
+	EntityBananaTree // a fruit tree: bunches of bananas, picked by hand
+	EntityGiantTree  // a giant of the old forest, standing on the middle of its front edge
+	EntityGiantRoot  // the rest of a giant's foot: blocks the way, drawn with the giant
 	NumEntityKinds
 )
 
@@ -100,6 +133,32 @@ var entityNames = [NumEntityKinds]string{
 	EntityFigTree:     "Cây sung",
 	EntityGinkgoTree:  "Cây bạch quả",
 	EntityPalm:        "Cây dừa",
+
+	EntityCorpse:     "Xác",
+	EntityTrophy:     "Đầu thú",
+	EntityDoor:       "Cửa gỗ",
+	EntityFloor:      "Sàn gỗ",
+	EntitySpikes:     "Hàng rào chông",
+	EntityTrap:       "Bẫy thú",
+	EntityTorchStand: "Đuốc cắm",
+	EntityFlower:     "Hoa",
+	EntitySapling:    "Cây non",
+	EntityGlowPlant:  "Cây phát sáng",
+	EntityManEater:   "Cây ăn thịt người",
+	EntityTreasure:   "Rương cổ",
+	EntityHut:        "Lều thổ dân",
+	EntityTotem:      "Cột vật tổ",
+	EntityBonfire:    "Lửa làng",
+
+	EntityPyramid:      "Kim tự tháp",
+	EntityPyramidStone: "Kim tự tháp",
+	EntityCaveMouth:    "Cửa hang",
+	EntityCaveExit:     "Lối ra",
+	EntityCaveRock:     "Cửa hang",
+
+	EntityBananaTree: "Cây chuối",
+	EntityGiantTree:  "Cây cổ thụ khổng lồ",
+	EntityGiantRoot:  "Cây cổ thụ khổng lồ",
 }
 
 // Name is the display name of k.
@@ -121,7 +180,9 @@ type Entity struct {
 	HP       int    // damage left before it is harvested, in HitPower units per hit
 	Ready    bool   // can be harvested now; false while a tree is a stump or a crop grows
 	RegrowAt uint64 // tick at which a harvested node becomes Ready again; for tilled soil, when it turns back to grass
-	Fuel     int    // ticks of burning left (campfires, furnaces)
+	Fuel     int    // ticks of burning left (campfires, furnaces, standing torches); a man-eater's bite cooldown
+	Var      uint8  `json:",omitempty"` // which one of a kind: a corpse's or trophy's creature, a flower's colour, a seedling's seed; on a tree, 1 if bees nest in it
+	HoneyAt  uint64 `json:",omitempty"` // a beehive: the tick its honey is back
 }
 
 // Interactable reports whether a player can act on an entity of this kind and
@@ -134,12 +195,17 @@ func Interactable(kind EntityKind, ready, hasWood bool) bool {
 	case EntityCoal, EntityCopperOre, EntityIronOre, EntityPlatinumOre, EntityDiamondOre:
 		return true
 	case EntityTree, EntityBerryBush, EntityGrassTuft, EntityTwig, EntityPebble, EntityCrop,
-		EntityFigTree, EntityGinkgoTree, EntityPalm:
+		EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree, EntityGiantTree:
 		return ready
 	case EntityBoulder, EntityWall, EntityStoneWall, EntityBed, EntityFarmland, EntityChest:
 		return true
 	case EntityCampfire, EntityFurnace:
 		return hasWood
+	case EntityCorpse, EntityTrophy, EntityDoor, EntityFloor, EntitySpikes, EntityTorchStand,
+		EntityManEater:
+		return true
+	case EntityTrap, EntityFlower, EntityGlowPlant, EntityTreasure:
+		return ready || kind == EntityTrap // a sprung trap is set again
 	default:
 		return false
 	}
@@ -180,6 +246,14 @@ func hits(kind EntityKind, big bool) int {
 		return CactusHits
 	case EntityCoal:
 		return CoalHits
+	case EntityDoor, EntityFloor:
+		return WallHits
+	case EntitySpikes:
+		return SpikesHits
+	case EntityManEater:
+		return ManEaterHits
+	case EntityGiantTree:
+		return GiantTreeHits
 	default:
 		return 1
 	}

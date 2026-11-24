@@ -13,10 +13,13 @@ const activeSweepTicks = 10 * TicksPerSecond
 // needsTick reports whether stepEntities has work to do on e over time.
 func needsTick(e *Entity) bool {
 	switch e.Kind {
-	case EntityCampfire, EntityFarmland:
+	case EntityCampfire, EntityFarmland, EntityCorpse, EntityTorchStand:
 		return true
 	case EntityFurnace:
 		return e.Fuel > 0
+	case EntityTreasure, EntityTrap, EntityBonfire, EntityTotem, EntityHut, EntityManEater, EntityPyramid, EntityPyramidStone, EntityCaveMouth, EntityCaveExit, EntityCaveRock,
+		EntityGiantTree, EntityGiantRoot:
+		return false // an open chest or a sprung snare waits for a player
 	}
 	return !e.Ready
 }

@@ -106,7 +106,7 @@ func (w *World) stepCroc(c *Creature) {
 	default: // basking or wandering about
 		_, _, water := w.nearestShallows(c.X, c.Y)
 		switch {
-		case c.HP < d.hp && !w.inShallows(c) && water:
+		case c.HP < c.Kind.MaxHP() && !w.inShallows(c) && water:
 			w.crocRetreat(c) // wounded: back to the water
 		case p != nil && dist < CrocSnapDist && c.biteCD == 0:
 			c.State, c.timer = CreatureChase, CrocChaseTicks // on land: a slow lunge

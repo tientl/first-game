@@ -14,7 +14,7 @@ import (
 
 func genOpen(t *testing.T, seed uint64, size int) *World {
 	t.Helper()
-	w, err := Generate(GenConfig{Seed: seed, Width: size, Height: size, Style: StyleLatest})
+	w, err := Generate(GenConfig{Seed: seed, Width: size, Height: size, Style: StyleTribal})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestOpenWorldHasEveryBiome(t *testing.T) {
 			count[tl]++
 		}
 		for k := TileWater; k < NumTiles; k++ {
-			if count[k] == 0 {
+			if count[k] == 0 && k != TileIce { // ice is only the client's winter look
 				t.Errorf("seed %d size %d: no tile %d", c.seed, c.size, k)
 			}
 		}
@@ -108,8 +108,8 @@ func TestOpenWorldIsDeterministicAndSaves(t *testing.T) {
 		t.Fatal("two open worlds from one seed differ")
 	}
 	d := a.Save()
-	if d.Style != StyleLatest {
-		t.Fatalf("saved style %d, want %d", d.Style, StyleLatest)
+	if d.Style != StyleTribal {
+		t.Fatalf("saved style %d, want %d", d.Style, StyleTribal)
 	}
 	c, err := Load(d)
 	if err != nil {
@@ -183,13 +183,16 @@ func TestDumpOpenWorld(t *testing.T) {
 		TileWater: {40, 90, 170, 255}, TileSand: {226, 206, 150, 255}, TileGrass: {98, 160, 72, 255},
 		TileForest: {46, 100, 52, 255}, TileRocky: {140, 132, 118, 255}, TileDesert: {232, 176, 92, 255},
 		TileMarsh: {84, 96, 58, 255}, TileMountain: {82, 78, 74, 255}, TileCave: {30, 26, 30, 255},
-		TileAsh: {60, 56, 58, 255}, TileLava: {255, 90, 20, 255},
+		TileAsh: {60, 56, 58, 255}, TileLava: {255, 90, 20, 255}, TileSnow: {240, 244, 250, 255}, TilePath: {150, 110, 70, 255},
 	}
 	for _, c := range []struct {
 		seed uint64
 		size int
 	}{{1, SizeMedium}, {1, SizeLarge}, {7, SizeLarge}} {
-		w := genOpen(t, c.seed, c.size)
+		w, err := Generate(GenConfig{Seed: c.seed, Width: c.size, Height: c.size, Style: StyleLatest})
+		if err != nil {
+			t.Fatal(err)
+		}
 		img := image.NewRGBA(image.Rect(0, 0, w.width, w.height))
 		for i, tl := range w.tiles {
 			img.Set(i%w.width, i/w.width, cols[tl])

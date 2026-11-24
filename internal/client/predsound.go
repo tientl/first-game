@@ -53,34 +53,10 @@ type pt = [2]float64
 func genPredatorSFX(add func(name string, peak float64, x []float64)) {
 	r := rand.New(rand.NewPCG(0xd1e5, 0x7))
 
-	// The tyrant's roar.
-	for _, v := range []struct{ k, dur float64 }{{1, 2.9}, {0.9, 3.2}, {1.1, 2.7}} {
-		k, pre := v.k, 0.6
-		body := v.dur - pre
-		x := make([]float64, samples(v.dur+0.2))
-		addAt(x, beastVoice(r, voiceSpec{ // the growl gathering in its chest
-			dur: pre + 0.15, pitch: glide(pt{0, 34 * k}, pt{1, 50 * k}), amp: swell(0.7, 0.2),
-			rough: 0.95, rattle: 20, formants: [2]float64{190 * k, 430 * k}, breath: 0.6, sub: 0.9, harmonics: 16,
-		}), 0, 0.8)
-		addAt(x, noiseBurst(r, 0.3, lowpass, 700, 0.7, 0.15, 0.08), pre-0.3, 0.4) // the breath drawn in
-		addAt(x, beastVoice(r, voiceSpec{                                         // the roar, the jaws opening wide
-			dur: body, pitch: glide(pt{0, 70 * k}, pt{0.12, 112 * k}, pt{0.45, 96 * k}, pt{1, 40 * k}), amp: swell(0.08, 0.5),
-			rough: 0.9, rattle: 30, formants: [2]float64{280 * k, 700 * k},
-			vowel:  vowel([3]float64{0, 280 * k, 700 * k}, [3]float64{0.2, 650 * k, 1300 * k}, [3]float64{0.6, 560 * k, 1150 * k}, [3]float64{1, 300 * k, 720 * k}),
-			breath: 1, sub: 0.6, harmonics: 16,
-		}), pre, 1)
-		addAt(x, beastVoice(r, voiceSpec{ // a second, deeper throat under it
-			dur: body, pitch: glide(pt{0, 36 * k}, pt{0.12, 55 * k}, pt{0.45, 48 * k}, pt{1, 22 * k}), amp: swell(0.12, 0.5),
-			rough: 0.95, rattle: 23, formants: [2]float64{160 * k, 380 * k}, breath: 0.5, sub: 0.8, harmonics: 18,
-		}), pre, 0.75)
-		addAt(x, beastVoice(r, voiceSpec{ // the scream at its height
-			dur: body * 0.5, pitch: glide(pt{0, 250 * k}, pt{0.35, 440 * k}, pt{0.75, 390 * k}, pt{1, 210 * k}), amp: swell(0.3, 0.55),
-			rough: 0.6, rattle: 46, formants: [2]float64{1150 * k, 2500 * k}, breath: 0.5, harmonics: 10,
-		}), pre+body*0.08, 0.5)
-		addAt(x, noiseBurst(r, body*0.6, bandpass, 2400*k, 0.9, 0.1, body*0.3), pre+0.05, 0.22) // air through the teeth
-		addAt(x, tone(body, 38*k, 26*k, body, 0.15, body*0.5), pre, 0.5)                        // the rumble
-		saturate(x, 2.4)
-		add("roar", 1, echo(x, pt{0.11, 0.34}, pt{0.24, 0.22}, pt{0.41, 0.14}, pt{0.66, 0.08}, pt{0.95, 0.04}))
+	// The tyrant's roar: see rexroar.go.
+	for _, k := range []float64{1, 0.92, 1.07} {
+		x := tyrantRoar(r, k)
+		add("roar", 1, echo(x, pt{0.09, 0.4}, pt{0.2, 0.3}, pt{0.34, 0.22}, pt{0.52, 0.15}, pt{0.75, 0.1}, pt{1.05, 0.06}, pt{1.4, 0.03}))
 		add("roar_far", 0.85, muffle(x, 380))
 	}
 	// The tyrant's growl as it closes in: slow, deep, wet breathing.
@@ -180,7 +156,7 @@ func (g *Game) predatorGrowls(cur protocol.Snapshot) {
 		name, gap, vol, rate := "", time.Duration(0), 0.0, 1.0
 		switch c.Kind {
 		case sim.CreatureRex:
-			if time.Since(lastRoar) < 2500*time.Millisecond {
+			if time.Since(lastRoar) < 4500*time.Millisecond {
 				continue // still roaring
 			}
 			name, gap, vol = "rex_growl", 3200*time.Millisecond, 0.9

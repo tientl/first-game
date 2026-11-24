@@ -20,6 +20,9 @@ func (g *Game) drawLighting(screen *ebiten.Image, cam camera) {
 	amb := sim.Ambient(g.curr.Tick)
 	night := (1 - amb) * maxDarkness
 	cave := g.caveDarkness() // inside a cave it is dark at any hour
+	if g.caveIn() < 0.5 {
+		night = math.Max(night, g.weatherDim()) // an overcast sky
+	}
 	dark := math.Max(night, cave)
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
 
@@ -58,6 +61,8 @@ func (g *Game) drawLighting(screen *ebiten.Image, cam camera) {
 			op.Blend = ebiten.BlendDestinationOut
 			g.darkness.DrawImage(g.art.light, op)
 		}
+		g.glowLights(g.darkness, cam, true, dark) // see tribalrender.go
+		g.ownLight(g.darkness, cam)
 		screen.DrawImage(g.darkness, nil)
 	}
 	if lava {
@@ -73,10 +78,16 @@ func (g *Game) drawLighting(screen *ebiten.Image, cam camera) {
 		}
 		k := float32(0.34 * (0.25 + dark) * g.flicker(uint32(e.ID)))
 		op := g.lightOp(cam, e.TX, e.TY, r*0.75)
-		op.ColorScale.Scale(k, k*0.36, k*0.06, k)
+		if e.Kind == sim.EntityCaveExit { // daylight down the shaft: pale, steady
+			k = float32(0.3 * dark)
+			op.ColorScale.Scale(k, k*0.95, k*0.8, k)
+		} else {
+			op.ColorScale.Scale(k, k*0.36, k*0.06, k)
+		}
 		op.Blend = ebiten.BlendLighter
 		screen.DrawImage(g.art.light, op)
 	}
+	g.glowLights(screen, cam, false, dark)
 	for _, t := range g.torches(cam) {
 		k := float32(0.28 * (0.2 + dark) * g.flicker(t.id))
 		op := g.lightOpAt(t.sx, t.sy, sim.TorchRadius*0.7)
@@ -139,4 +150,24 @@ func nightColor(amb float64) color.RGBA {
 	t := max(0, min(1, amb/0.6))
 	mix := func(night, dusk float64) uint8 { return uint8(night + (dusk-night)*t) }
 	return color.RGBA{mix(6, 84), mix(10, 40), mix(34, 44), 255}
+}
+
+// ownLight lets this player see a little way round themselves in the deep
+// caves: a faint ring of sight, so the passages can be felt out without a
+// torch. A torch lights far more.
+func (g *Game) ownLight(dark *ebiten.Image, cam camera) {
+	if !g.underground() {
+		return
+	}
+	for _, p := range g.curr.Players {
+		if p.ID != g.myID || p.Dead {
+			continue
+		}
+		x, y, _ := g.lerpPlayer(p, g.alpha())
+		sx, sy := cam.toScreen(x, y)
+		op := g.lightOpAt(sx, sy-6, ownLightRadius)
+		op.ColorScale.ScaleAlpha(0.8)
+		op.Blend = ebiten.BlendDestinationOut
+		dark.DrawImage(g.art.light, op)
+	}
 }

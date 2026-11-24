@@ -48,6 +48,14 @@ type Player struct {
 	pressed   bool       // Action went down since the last tick, even if already released
 	chest     EntityID   // the chest open, 0 when none; see chest.go
 	mount     CreatureID // the beast being ridden, 0 when on foot; see tame.go
+	home      EntityID   // the last bed slept in: where p comes back after dying; see build.go
+	poison    int        // ticks of spider venom left; see cavelife.go
+	webbed    int        // ticks left tangled in web
+	bees      int        // ticks a swarm keeps after them; see jungle.go
+	beeHive   [2]float64 // where the angry bees came from
+	boat      BoatID     // the boat p is aboard, 0 if none; see boats.go
+	swim      int        // ticks spent swimming without rest
+	travelCD  int        // ticks before a cave mouth takes p again
 }
 
 // Acting reports whether the player did an action recently enough to show
@@ -82,6 +90,8 @@ func (p *Player) reset(x, y float64) {
 	p.actionCD = 0
 	p.actedAt = 0
 	p.line = line{}
+	p.poison, p.webbed = 0, 0
+	p.boat, p.swim = 0, 0
 	// input and Selected are kept: they mirror what the client is holding
 	// right now, and the client only resends them when they change.
 }
@@ -138,6 +148,7 @@ func (w *World) RemovePlayer(id PlayerID) {
 	if p.mount != 0 {
 		w.dismount(p)
 	}
+	w.leaveBoat(p)
 	w.offline[p.Name] = savePlayer(p) // kept so the player resumes on rejoin
 	delete(w.players, id)
 	if i, found := slices.BinarySearch(w.playerOrder, id); found {
@@ -209,10 +220,14 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 		}
 	case CmdRespawn:
 		if p.Dead {
-			p.reset(w.spawnX, w.spawnY)
+			p.reset(w.homeBed(p)) // by the last bed slept in, if it stands
+		}
+	case CmdPlace:
+		if !p.Dead && !p.Asleep {
+			w.placeHeld(p) // see drops.go
 		}
 	case CmdRide:
-		if !p.Dead && !p.Asleep {
+		if !p.Dead && !p.Asleep && !w.board(p) { // a boat first; see boats.go
 			w.ride(p) // see tame.go
 		}
 	}
@@ -234,21 +249,35 @@ func (w *World) stepPlayer(p *Player) {
 	}
 
 	moving := p.input.MoveX != 0 || p.input.MoveY != 0
-	if p.mount != 0 && w.rideStep(p, moving) {
+	swims := w.style >= StyleSeas // in an archipelago anyone can swim
+	if p.boat != 0 && w.sailStep(p) {
+		// aboard: the boat carries p; see boats.go
+	} else if p.mount != 0 && w.rideStep(p, moving) {
 		// riding: the mount carries p; see tame.go
 	} else if mx, my := float64(p.input.MoveX), float64(p.input.MoveY); moving {
 		l := math.Hypot(mx, my)
 		sp := PlayerSpeed * w.speedAt(p.X, p.Y)
+		if p.webbed > 0 {
+			sp *= WebSlow
+		}
+		if swims && w.inWater(p.X, p.Y) {
+			sp = PlayerSpeed * SwimSpeed
+		}
 		dx, dy := mx/l*sp, my/l*sp
+		can := w.standable
+		if swims {
+			can = w.swimmable
+		}
 		// Resolve each axis on its own so the player slides along coasts.
-		if w.standable(p.X+dx, p.Y) {
+		if can(p.X+dx, p.Y) {
 			p.X += dx
 		}
-		if w.standable(p.X, p.Y+dy) {
+		if can(p.X, p.Y+dy) {
 			p.Y += dy
 		}
 		p.Dir = dirToward(mx, my)
 	}
+	w.travel(p) // through a cave mouth; see underground.go
 	p.explored.Reveal(p.X, p.Y)
 
 	if p.actionCD > 0 {
@@ -256,31 +285,44 @@ func (w *World) stepPlayer(p *Player) {
 	}
 	if p.line.state != CastNone {
 		w.stepLine(p, pressed, moving) // fishing: Action strikes instead
-	} else if (p.input.Action || pressed) && p.actionCD == 0 {
+	} else if (p.input.Action || pressed) && p.actionCD == 0 && !w.Swimming(p) { // a swimmer's hands are busy
 		acted, found := false, true
+		cd := ActionCooldownTicks
+		if a, ok := w.pickNearest(p); ok { // a pile on the ground comes first; see drops.go
+			acted, found, cd = a, true, PickCooldown
+			goto done
+		}
 		switch e, c := w.findTarget(p); {
 		case w.dig(p): // a held hoe tills the free soil in front before anything else
 			acted = true
 		case c != nil:
 			p.Dir = dirToward(c.X-p.X, c.Y-p.Y)
 			acted = w.catch(p, c)
+			if !c.Kind.def().onLine {
+				cd = SwingTicks(p.Held()) // see combat.go
+			}
 		case e != nil:
 			p.Dir = dirToward(float64(e.TX)+0.5-p.X, float64(e.TY)+0.5-p.Y)
 			acted = w.interact(p, e)
 		default:
 			found = false
 		}
+	done:
 		if found {
 			if acted {
 				p.actedAt = w.tick // a refused action (no axe, full bag) is no swing
 			}
-			p.actionCD = ActionCooldownTicks
+			p.actionCD = cd
 		}
 	}
 
 	w.burnTorch(p)
 	p.Hunger = max(0, p.Hunger-HungerPerTick)
-	p.Cold = (Ambient(w.tick) < ColdAmbient || w.freezing(p)) && !w.warm(p.X, p.Y) // night, or the snow: see iceage.go
+	w.stepPoison(p) // see cavelife.go
+	w.stepBees(p)   // see jungle.go
+	w.stepSwim(p)   // see boats.go
+	w.manEaterBites(p)
+	p.Cold = (Ambient(w.tick) < ColdAmbient || w.freezing(p) || w.wintry(p)) && !w.warm(p.X, p.Y) // night, the snow, winter: see iceage.go, weather.go
 	damage := 0.0
 	if p.Hunger == 0 {
 		damage += StarveDamagePerTick
@@ -381,14 +423,61 @@ func (w *World) interact(p *Player, e *Entity) bool {
 	}
 	switch e.Kind {
 	case EntityTree:
+		if w.takeHoney(p, e) { // see jungle.go
+			return true
+		}
 		dmg := withTool(ToolAxe)
-		return dmg > 0 && w.harvest(p, e, ItemWood, bySize(e.Big, TreeYield, BigTreeYield), dmg, func() {
+		return dmg > 0 && w.knock(e, dmg, func(x, y float64) {
+			if e.HasHive() {
+				w.angerBees(p, e) // the hive comes down with it
+				e.Var = 0
+			}
 			e.Ready = false // stump until it regrows, at the same size
 			e.RegrowAt = w.tick + TreeRegrowTicks
+			w.dropAt(x, y, w.treeYield(e))
 		})
+	case EntityGiantTree:
+		if w.takeHoney(p, e) {
+			return true
+		}
+		dmg := withTool(ToolAxe)
+		return dmg > 0 && w.fellGiant(p, e, dmg)
 	case EntityBoulder:
 		dmg := withTool(ToolPickaxe)
-		return dmg > 0 && w.harvest(p, e, ItemStone, bySize(e.Big, BoulderYield, BigBoulderYield), dmg, func() { w.removeEntity(e) })
+		return dmg > 0 && w.knock(e, dmg, func(x, y float64) {
+			w.removeEntity(e)
+			w.dropAt(x, y, w.boulderYield(e))
+		})
+	case EntityCorpse:
+		return w.butcher(p, e) // see drops.go
+	case EntityTrophy:
+		h := HeadItem(CreatureKind(e.Var))
+		if p.Inv.Add(h, 1) == 0 {
+			p.notify(NoticeBagFull, uint8(h))
+			return false
+		}
+		w.removeEntity(e)
+		return true
+	case EntityDoor, EntityFloor:
+		return w.dismantle(p, e, ToolAxe, []Ingredient{{Item: ItemWood, Count: 1}})
+	case EntitySpikes:
+		return w.dismantle(p, e, ToolAxe, []Ingredient{{Item: ItemStick, Count: 1}})
+	case EntityTrap:
+		if e.Ready {
+			return w.dismantle(p, e, ToolAxe, []Ingredient{{Item: ItemStick, Count: 1}})
+		}
+		e.Ready = true // set again
+		return true
+	case EntityTorchStand:
+		return w.takeTorch(p, e)
+	case EntityFlower:
+		return w.pickFlower(p, e)
+	case EntityGlowPlant:
+		return w.pickGlow(p, e)
+	case EntityManEater:
+		return w.cutManEater(p, e)
+	case EntityTreasure:
+		return w.openTreasure(p, e)
 	case EntityWall:
 		dmg := withTool(ToolAxe)
 		return dmg > 0 && w.harvest(p, e, ItemWood, WallRefund, dmg, func() { w.removeEntity(e) })
@@ -403,6 +492,9 @@ func (w *World) interact(p *Player, e *Entity) bool {
 		return w.harvest(p, e, ItemBerry, BushYield, HitPower, func() {
 			e.Ready = false
 			e.RegrowAt = w.tick + BushRegrowTicks
+			if w.style >= StyleTribal && w.random().Float64() < BerrySeedChance {
+				p.Inv.Add(ItemBerrySeed, 1)
+			}
 		})
 	case EntityGrassTuft:
 		return w.harvest(p, e, ItemGrass, TuftYield, HitPower, func() {
@@ -441,7 +533,7 @@ func (w *World) interact(p *Player, e *Entity) bool {
 			e.Ready = false
 			e.RegrowAt = w.tick + CactusRegrowTicks
 		})
-	case EntityFigTree, EntityGinkgoTree, EntityPalm:
+	case EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree:
 		f, _ := fruitOf(e.Kind)
 		return w.pickFruit(p, e, f)
 	case EntityReed:
@@ -490,6 +582,9 @@ func (w *World) eat(p *Player, i int) {
 	default:
 		def := s.Item.Def()
 		p.Inv.TakeSlot(i, 1)
+		if s.Item == ItemBigPotion || s.Item == ItemBandage {
+			p.cure() // draws the venom out
+		}
 		p.Hunger = min(MaxHunger, p.Hunger+def.Hunger)
 		// Raw food hurts a little, but a meal never kills.
 		p.Health = min(MaxHealth, max(p.Health+def.Health, min(p.Health, 1)))
@@ -551,4 +646,39 @@ func (w *World) placeSpot(p *Player) (tx, ty int, ok bool) {
 		}
 	}
 	return 0, 0, false
+}
+
+// knock lands one blow on a tree or boulder; the blow that brings it down
+// calls done with where its yield falls.
+func (w *World) knock(e *Entity, dmg int, done func(x, y float64)) bool {
+	e.HP -= dmg
+	if e.HP > 0 {
+		return true
+	}
+	done(float64(e.TX)+0.5, float64(e.TY)+0.5)
+	w.watch(e)
+	return true
+}
+
+// treeYield is what a felled tree drops: its wood, often branches, and in a
+// tribal world sometimes a seed.
+func (w *World) treeYield(e *Entity) []Ingredient {
+	r := w.random()
+	out := []Ingredient{{Item: ItemWood, Count: bySize(e.Big, TreeYield, BigTreeYield)}}
+	if r.Float64() < TwigChance {
+		out = append(out, Ingredient{Item: ItemStick, Count: 1 + r.IntN(bySize(e.Big, 2, 3))})
+	}
+	if w.style >= StyleTribal && r.Float64() < TreeSeedChance {
+		out = append(out, Ingredient{Item: ItemTreeSeed, Count: 1})
+	}
+	return out
+}
+
+// boulderYield is what a broken boulder drops: its stone, and sometimes a pebble.
+func (w *World) boulderYield(e *Entity) []Ingredient {
+	out := []Ingredient{{Item: ItemStone, Count: bySize(e.Big, BoulderYield, BigBoulderYield)}}
+	if w.random().Float64() < PebbleChance {
+		out = append(out, Ingredient{Item: ItemPebble, Count: 1})
+	}
+	return out
 }

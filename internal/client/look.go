@@ -2,7 +2,6 @@ package client
 
 import (
 	"image/color"
-	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
 
@@ -46,7 +45,7 @@ var skinTones = [sim.NumSkinTones]struct {
 }
 
 // hairNames are the hair styles' names, by sim.HairStyle.
-var hairNames = [sim.NumHairStyles]string{"Ngắn", "Dựng", "Bob", "Dài", "Đuôi ngựa", "Búi cao"}
+var hairNames = [sim.NumHairStyles]string{"Ngắn", "Mào dựng", "Bob tết", "Dài", "Bím dài", "Búi cao"}
 
 // SetLook sets the look of the character made for a new game; it is sent
 // to the server on joining. A player the save already knows keeps the
@@ -79,6 +78,7 @@ const headroom = 4
 // bodyArt is the sprite set of one look.
 type bodyArt struct {
 	back, legs, shirt, top [4][walkFrames]sprite // indexed by sim.Dir
+	asleep                 sprite                // top facing the viewer, eyes shut
 	head                   *ebiten.Image         // facing the viewer: the map marker
 }
 
@@ -90,6 +90,8 @@ func (a *art) body(l sim.Look) *bodyArt {
 		return b
 	}
 	b := &bodyArt{head: genHeadMark(l)}
+	_, _, _, shut := playerLayersWith(l, sim.DirDown, 0, true)
+	b.asleep = mk(shut, 9, bodyFeet)
 	for d := sim.DirDown; d <= sim.DirRight; d++ {
 		for f := range walkFrames {
 			b.back[d][f], b.legs[d][f], b.shirt[d][f], b.top[d][f] = genPlayer(l, d, f)
@@ -118,537 +120,999 @@ func padTop(c *canvas, n int) *canvas {
 	return p
 }
 
-// torsoSpan is the columns the torso covers on row y of the 18x26 frame
-// (before the headroom) facing d, the shape the tunic and the armour follow;
-// ok is false off the torso. A man is broad across the chest and shoulders
-// and narrows to the waist; a woman is slimmer, with a narrow waist. Row 19
-// is a man's tunic hem. d is never DirLeft: that is DirRight mirrored.
-func torsoSpan(female bool, d sim.Dir, y int) (x0, x1 int, ok bool) {
+// The figure is a sturdy little Norse settler, two heads tall: a big round
+// head, a fur mantle on the shoulders, a belted tunic in the player's colour
+// over trousers, leg wraps and fur boots for a man, who wears a braided
+// beard; an apron dress pinned with two brooches over a lighter shift for a
+// woman. Everything below is laid out in the sprite's own pixels: 18 wide,
+// 26 tall plus the headroom, feet standing on row bodyFeet, the head
+// centred on (9, 11).
+const (
+	bodyW    = 18
+	bodyH    = 26 + headroom
+	bodyFeet = 24 + headroom // the anchor's row: the soles are just above it
+)
+
+// headSpan is the columns the bare head covers on sprite row y; ok is false
+// above and below it.
+func headSpan(y int) (x0, x1 int, ok bool) {
+	switch {
+	case y == 5, y == 15:
+		return 5, 12, true
+	case y == 6, y == 14:
+		return 4, 13, true
+	case y >= 7 && y <= 13:
+		return 3, 14, true
+	}
+	return 0, 0, false
+}
+
+// torsoRow is the columns the tunic or dress covers on sprite row y facing
+// d (never DirLeft), without the arms; ok is false off it.
+func torsoRow(female bool, d sim.Dir, y int) (x0, x1 int, ok bool) {
 	side := d == sim.DirRight || d == sim.DirLeft
 	switch {
 	case !female && !side:
-		switch {
-		case y == 12, y == 18, y == 19:
-			return 6, 11, true
-		case y >= 13 && y <= 15:
-			return 4, 13, true
-		case y == 16, y == 17:
+		if y >= 16 && y <= 21 {
 			return 5, 12, true
 		}
 	case !female:
-		switch {
-		case y == 12:
-			return 7, 10, true
-		case y >= 13 && y <= 15:
-			return 5, 12, true
-		case y >= 16 && y <= 18:
+		if y >= 16 && y <= 21 {
 			return 6, 11, true
-		case y == 19:
-			return 7, 11, true
 		}
 	case !side:
 		switch {
-		case y == 12, y == 16, y == 17:
+		case y >= 16 && y <= 20:
 			return 6, 11, true
-		case y >= 13 && y <= 15, y == 18:
+		case y >= 21 && y <= 23:
 			return 5, 12, true
+		case y >= 24 && y <= 25:
+			return 4, 13, true
 		}
 	default:
 		switch {
-		case y == 12, y == 16, y == 17:
-			return 7, 10, true
-		case y >= 13 && y <= 15, y == 18:
+		case y >= 16 && y <= 20:
+			return 7, 11, true
+		case y == 21:
 			return 6, 11, true
+		case y >= 22 && y <= 23:
+			return 6, 12, true
+		case y >= 24 && y <= 25:
+			return 5, 12, true
 		}
 	}
 	return 0, 0, false
 }
 
+// torsoSpan is torsoRow for row y of the 18x26 frame before the headroom,
+// the shape the armour follows (armorart.go).
+func torsoSpan(female bool, d sim.Dir, y int) (x0, x1 int, ok bool) {
+	return torsoRow(female, d, y+headroom)
+}
+
+// sideArmX is the left column of the two-pixel-wide near arm on sprite row y
+// of a figure facing right on walk step step; ok is false off the arm. The
+// shoulder stays, the forearm and the hand swing.
+func sideArmX(step, y int) (x int, ok bool) {
+	switch {
+	case y >= 16 && y <= 18:
+		return 8, true
+	case y >= 19 && y <= 20:
+		return 8 - step, true
+	case y >= 21 && y <= 22:
+		return 8 - 2*step, true
+	}
+	return 0, false
+}
+
+// sideArm reports whether (x, y), in the 18x26 frame before the headroom, is
+// on the near arm or hand of a figure facing right on walk step step.
+// armorart.go leaves the arm out of the armour with it.
+func sideArm(step, x, y int) bool {
+	x0, ok := sideArmX(step, y+headroom)
+	return ok && (x == x0 || x == x0+1)
+}
+
+var (
+	trouserRamp = mkRamp(0x2c2019, 0x443227, 0x5c4636, 0x765c47)
+	wrapRamp    = mkRamp(0x7d6a4c, 0xa8936c, 0xcdb98f, 0xe6d8b4)
+	mantleRamp  = mkRamp(0x2f2a2c, 0x4d4548, 0x736a69, 0x9c938d, 0xc6beb4)
+	leatherRamp = mkRamp(0x33200f, 0x543619, 0x774f26, 0x9a6a36)
+	broochRamp  = mkRamp(0x8a5a14, 0xd09a26, 0xf6cf52, 0xfff2b0)
+	eyeDark     = hex(0x1d1626)
+	eyeShine    = hex(0xffffff)
+	mouthDark   = hex(0x6e2a2a)
+	beadColors  = []color.RGBA{hex(0xe8a83a), hex(0xd24a3a), hex(0x4fb4c8), hex(0xe8a83a)}
+)
+
+// artPalette maps the letters of the pixel maps below to colours for look l:
+//
+//	H h d D  hair, light to dark      x  stubble (shaved hair)
+//	S s e E  skin, light to dark      r  a hair tie
+//	F f u U  fur, light to dark       y o O  gold, light to dark
+//	m        the mouth
+func artPalette(l sim.Look) func(ch byte) (color.RGBA, bool) {
+	hr, sk := hairColors[l.HairColor].ramp, skinTones[l.Skin].ramp
+	stubble := mix(sk[1], hr[1], 0.5)
+	return func(ch byte) (color.RGBA, bool) {
+		switch ch {
+		case 'H':
+			return hr[3], true
+		case 'h':
+			return hr[2], true
+		case 'd':
+			return hr[1], true
+		case 'D':
+			return hr[0], true
+		case 'x':
+			return stubble, true
+		case 'S':
+			return sk[3], true
+		case 's':
+			return sk[2], true
+		case 'e':
+			return sk[1], true
+		case 'E':
+			return sk[0], true
+		case 'F':
+			return mantleRamp[4], true
+		case 'f':
+			return mantleRamp[3], true
+		case 'u':
+			return mantleRamp[2], true
+		case 'U':
+			return mantleRamp[1], true
+		case 'y':
+			return broochRamp[3], true
+		case 'o':
+			return broochRamp[2], true
+		case 'O':
+			return broochRamp[1], true
+		case 'r':
+			return hairTie, true
+		case 'm':
+			return mouthDark, true
+		}
+		return color.RGBA{}, false
+	}
+}
+
+// pixMap is a block of pixel art: one string per row, 18 letters wide, the
+// first on sprite row y0. '.' is empty.
+type pixMap struct {
+	y0   int
+	rows []string
+}
+
+func (m pixMap) stamp(c *canvas, pal func(byte) (color.RGBA, bool)) {
+	for dy, row := range m.rows {
+		for x := 0; x < len(row); x++ {
+			if col, ok := pal(row[x]); ok {
+				c.put(x, m.y0+dy, col)
+			}
+		}
+	}
+}
+
+// has reports whether the map covers (x, y).
+func (m pixMap) has(x, y int) bool {
+	dy := y - m.y0
+	return dy >= 0 && dy < len(m.rows) && x >= 0 && x < len(m.rows[dy]) && m.rows[dy][x] != '.'
+}
+
+// hairArt is one hair style seen from the front, the back and the right
+// side. behind is what hangs behind the body when facing the viewer.
+type hairArt struct {
+	front, back, side, behind pixMap
+}
+
+var hairArts = [sim.NumHairStyles]hairArt{
+	sim.HairShort: { // swept over the top, the sides shaved
+		front: pixMap{3, []string{
+			"......dhhhhd......",
+			"....dhHHHhhhhd....",
+			"...dhHHHhhhhhhd...",
+			"...hhHHhhhhhhhd...",
+			"...dhhhdhhhhhdd...",
+			"...dd.hh..dh.dd...",
+			"...d..........d...",
+			"...d..........d...",
+		}},
+		back: pixMap{3, []string{
+			"......dhhhhd......",
+			"....dhHHHhhhhd....",
+			"...dhHHHhhhhhhd...",
+			"...hhHHhhhhhhhd...",
+			"...hhHhhhhhhhhd...",
+			"...hhhhhhhhhhhd...",
+			"...dhhhdhhhdhhd...",
+			"...ddhddhddhddd...",
+			"...dddddddddddD...",
+			"...dDddDddDddDD...",
+			"....DdDDdDDdDD....",
+		}},
+		side: pixMap{3, []string{
+			".....dhhhhhhd.....",
+			"...dhhHHHhhhhhd...",
+			"...hhHHHHhhhhhhd..",
+			"...hhHHhhhhhhhhd..",
+			"...dhhhhhhhhhhhh..",
+			"...ddddhhhhhhdh...",
+			"...dddddhh.hd.....",
+			"...ddddd..........",
+			"...dddd...........",
+			"....ddd...........",
+			"....dd............",
+		}},
+	},
+	sim.HairSpiky: { // a crest down the middle, the sides shaved
+		front: pixMap{0, []string{
+			"........hh........",
+			".......hHhd.......",
+			".......hHhd.......",
+			"......dhHhhd......",
+			"....xxdhHhhdxx....",
+			"...xxxdhHhhdxxx...",
+			"...xxxxhHhdxxxx...",
+			"...xxxxdhhdxxxx...",
+			"...xx...dd...xx...",
+			"...x..........x...",
+			"...x..........x...",
+		}},
+		back: pixMap{0, []string{
+			"........hh........",
+			".......hHhd.......",
+			".......hHhd.......",
+			"......dhHhhd......",
+			"....xxdhHhhdxx....",
+			"...xxxdhHhhdxxx...",
+			"...xxxxhHhdxxxx...",
+			"...xxxxhHhdxxxx...",
+			"...xxxxhHhdxxxx...",
+			"...xxxxhhhdxxxx...",
+			"...xxxxdhhdxxxx...",
+			"...xxxxxhdxxxxx...",
+			"...xxxxxxxxxxxx...",
+			"....xxxxxxxxxx....",
+		}},
+		side: pixMap{0, []string{
+			".......h..h..h....",
+			"......hHh.Hh.Hh...",
+			".....hHHhhHhhHhh..",
+			"....dhHHhHHhHHhd..",
+			"...ddhhhhhhhhhhd..",
+			"...xxddhhhhhhdd...",
+			"...xxxxxxxxxxx....",
+			"...xxxxxxxxxx.....",
+			"...xxxxxxxx.......",
+			"...xxxxxxx........",
+			"...xxxxxx.........",
+			"...xxxx...........",
+			"....xxx...........",
+			"....xx............",
+		}},
+	},
+	sim.HairBob: { // chin length with a straight fringe, a thin braid at one side
+		front: pixMap{3, []string{
+			"......dhhhhd......",
+			"....dhHHHhhhhd....",
+			"..dhhHHHhhhhhhhd..",
+			"..hhHHhhhhhhhhhd..",
+			"..hhHhhhhhhhhhhd..",
+			"..hhhhhdhhhdhhhd..",
+			"..hhd.h..h..hdhd..",
+			"..hhd........dhd..",
+			"..hhd........dhd..",
+			"..hhd........dhd..",
+			"..hdd........dhd..",
+			"..dhd.........dd..",
+		}},
+		back: pixMap{3, []string{
+			"......dhhhhd......",
+			"....dhHHHhhhhd....",
+			"..dhhHHHhhhhhhhd..",
+			"..hhHHhhhhhhhhhd..",
+			"..hhHhhhhhhhhhhd..",
+			"..hhHhhdhhhdhhhd..",
+			"..hhhhhdhhhdhhhd..",
+			"..hhhhhdhhhdhhhd..",
+			"..hhhhdhhhhdhhhd..",
+			"..hhhhdhhhdhhhdd..",
+			"..hdhhdhhhdhhdhd..",
+			"...dhdhhdhhdhdd...",
+		}},
+		side: pixMap{3, []string{
+			".....dhhhhhhd.....",
+			"...dhhHHHhhhhhd...",
+			"..dhhHHHhhhhhhhd..",
+			"..hhhHHhhhhhhhhd..",
+			"..hhhhhhhhhhhhhh..",
+			"..hhhhhhhhhhhdhd..",
+			"..hhdhhhhhhd..d...",
+			"..hhdhhhhhd.......",
+			"..hhdhhhhhd.......",
+			"..hhdhhhhd........",
+			"..hddhhhhd........",
+			"...dhdhhd.........",
+		}},
+	},
+	sim.HairLong: { // loose, parted in the middle, down past the shoulders
+		front: pixMap{3, []string{
+			"......dhhhhd......",
+			"....dhHHhhHhhd....",
+			"..dhHHHhddhHhhhd..",
+			"..hHHhhd..dhhhhd..",
+			"..hHhhd....dhhhd..",
+			"..hhhd......dhhd..",
+			"..hhd........dhd..",
+			"..hhd........dhd..",
+			"..hhd........dhd..",
+			"..hhd........dhd..",
+			"..hhd........dhd..",
+			"..hhd........dhd..",
+			"..hhd........dhd..",
+			"..hd..........hd..",
+			"..hd..........hd..",
+			"..hd..........dd..",
+			"..d............d..",
+		}},
+		behind: pixMap{14, []string{
+			"...hhdhhhhhhdhd...",
+			"...hhdhhhhhhdhd...",
+			"...hhdhhhhhhdhd...",
+			"...hhdhhhhhhdhd...",
+			"...hhdhhhhhhdhd...",
+			"...hddhhhhhddhd...",
+			"...dhdhhdhhdhdd...",
+			"....d.dd.dd.d.....",
+		}},
+		back: pixMap{3, []string{
+			"......dhhhhd......",
+			"....dhHHHhhhhd....",
+			"..dhhHHHhhhhhhhd..",
+			"..hhHHhhhhhhhhhd..",
+			"..hhHhhhhhhhhhhd..",
+			"..hhHhhdhhhdhhhd..",
+			"..hhhhhdhhhdhhhd..",
+			"..hhhhhdhhhdhhhd..",
+			"..hhhhdhhhhdhhhd..",
+			"..hhhhdhhhdhhhhd..",
+			"..hhhhdhhhdhhhdd..",
+			"..hhhdhhhhdhhhdd..",
+			"..hhhdhhhdhhhhdd..",
+			"...hhdhhhdhhhdd...",
+			"...hhdhhhdhhhdd...",
+			"...hdhhhdhhhdhd...",
+			"...hdhhhdhhhdhd...",
+			"...dhdhhdhhdhdd...",
+			"....d.dd.dd.d.....",
+		}},
+		side: pixMap{3, []string{
+			".....dhhhhhhd.....",
+			"...dhhHHHhhhhhd...",
+			"..dhhHHHhhhhhhhd..",
+			"..hhhHHhhhhhhhhd..",
+			"..hhhhhhhhhhhhd...",
+			"..hhhhhhhhhhd.....",
+			"..hhdhhhhhhd......",
+			"..hhdhhhhhd.......",
+			"..hhdhhhhd........",
+			"..hhdhhhhd........",
+			"..hhdhhhhd........",
+			"..hhdhhhhd........",
+			"..hhdhhhhd........",
+			"..hhdhhhd.........",
+			"..hhdhhd..........",
+			"..hdhhdd..........",
+			"..dhdhd...........",
+			"...ddd............",
+		}},
+	},
+	sim.HairPonytail: { // pulled back into a long braid; a woman wears two
+		front: pixMap{4, []string{
+			".....dhHHhhhd.....",
+			"...dhHHHhhhhhhd...",
+			"...hHHhhhhhhhhd...",
+			"...hhhd....dhhd...",
+			"...hd........dd...",
+			"...d..........d...",
+			"...d..........d...",
+		}},
+		back: pixMap{4, []string{
+			".....dhHHhhhd.....",
+			"...dhHHHhhhhhhd...",
+			"...hhHHhhhhhhhd...",
+			"...hhHhhhhhhhhd...",
+			"...hhHhhhhhhhhd...",
+			"...hhhhhhhhhhhd...",
+			"...hhhhhhhhhhhd...",
+			"...hhhhhhhhhhdd...",
+			"...dhhhhhhhhhdd...",
+			"....dhhhhhhhdd....",
+			".....ddhhhhdd.....",
+		}},
+		side: pixMap{4, []string{
+			"....dhhhhhhhd.....",
+			"...dhHHHhhhhhd....",
+			"...hhHHhhhhhhhd...",
+			"...hhhhhhhhhhd....",
+			"...hhhhhhhhd......",
+			"...hhdhhhhd.......",
+			"...hhdhhh.........",
+			"...hhdh...........",
+			"...hdd............",
+		}},
+	},
+	sim.HairBun: { // tied up in a knot on the crown
+		front: pixMap{0, []string{
+			".......dhhd.......",
+			"......hHHhhd......",
+			"......hHhhhd......",
+			".......rrrr.......",
+			".....dhhhhhhd.....",
+			"...dhHHhhhhhhhd...",
+			"...hHHhhhhhhhhd...",
+			"...hhhd....dhhd...",
+			"...hd........dd...",
+			"...d..........d...",
+			"...d..........d...",
+		}},
+		back: pixMap{0, []string{
+			".......dhhd.......",
+			"......hHHhhd......",
+			"......hHhhhd......",
+			".......rrrr.......",
+			".....dhhhhhhd.....",
+			"...dhHHhhhhhhhd...",
+			"...hhHHhhhhhhhd...",
+			"...hhHhhhhhhhhd...",
+			"...hhHhhhhhhhhd...",
+			"...hhhhhhhhhhhd...",
+			"...hhhhhhhhhhhd...",
+			"...hhhhhhhhhhdd...",
+			"...dhhhhhhhhhdd...",
+			"....dhhhhhhhdd....",
+			".....ddhhhhdd.....",
+		}},
+		side: pixMap{0, []string{
+			"......dhhd........",
+			".....hHHhhd.......",
+			".....hHhhhd.......",
+			"......rrrr........",
+			"....dhhhhhhhd.....",
+			"...dhHHHhhhhhd....",
+			"...hhHHhhhhhhhd...",
+			"...hhhhhhhhhhd....",
+			"...hhhhhhhhd......",
+			"...hhdhhhhd.......",
+			"...hhdhhh.........",
+			"...hhdh...........",
+			"...hdd............",
+		}},
+	},
+}
+
+// A man's beard: a moustache, a full beard and a short braid with a bead,
+// seen from the front and from the side.
+var (
+	beardFront = pixMap{12, []string{
+		"...d..........d...",
+		"...d..dhhhhd..d...",
+		"....dhhhmmhhhd....",
+		".....hHHhhhhd.....",
+		"......hHhhhd......",
+		".......hhhd.......",
+		"........o.........",
+	}}
+	beardSide = pixMap{13, []string{
+		"........d...dhh...",
+		"........dhhhhhh...",
+		".........dhHhhhh..",
+		"..........dhhhh...",
+		"...........hhd....",
+		"............o.....",
+	}}
+)
+
+// The fur mantle on the shoulders, pinned with a round brooch.
+var (
+	mantleFront = pixMap{16, []string{
+		"...fFFFffffffuu...",
+		"...ufyO....ufuU...",
+		"...U.u.......uU...",
+	}}
+	mantleBack = pixMap{16, []string{
+		"...fFFFFfffffuu...",
+		"...ffFffufffuuu...",
+		"...uU.uu.uu.uuU...",
+	}}
+	mantleSide = pixMap{16, []string{
+		".....fFFFfffu.....",
+		".....ufFffuyO.....",
+		".....U.uu.u.......",
+	}}
+	collarFront = pixMap{16, []string{"....fFFffffuuu...."}}
+	collarSide  = pixMap{16, []string{"......fFFffu......"}}
+)
+
+// braid draws a plait two pixels wide down column x from row y0 to y1, tied
+// near the end.
+func braid(c *canvas, hr ramp, x, y0, y1 int) {
+	for y := y0; y <= y1; y++ {
+		a, b := hr[2], hr[1]
+		switch {
+		case y == y1:
+			c.put(x+(y1-y0)%2, y, hr[1]) // the tuft
+			continue
+		case y == y1-1:
+			a, b = hairTie, hairTie
+		case (y-y0)%2 == 1:
+			a, b = hr[0], hr[3]
+		}
+		c.put(x, y, a)
+		c.put(x+1, y, b)
+	}
+}
+
 // genPlayer draws one direction and walk frame of look l as four layers.
 // Walk frames are 0 stand, 1 left step, 2 stand, 3 right step.
 //
-// The figure is a strong survivor: a man has broad, rounded shoulders that
-// stand out past his head, thick bare arms and a chest that narrows to the
-// waist; a woman is lean and toned. Coordinates are in the 18x26 frame
-// before the headroom, feet at (9, 24); armorart.go, held.go and ride.go
-// follow the same frame.
+// armorart.go, held.go and ride.go follow the same frame: 18x26 before the
+// headroom, feet at (9, 24), the head centred on (9, 7).
 func genPlayer(l sim.Look, d sim.Dir, frame int) (back, legs, shirt, top sprite) {
-	l = l.Sanitized()
-	sk := skinTones[l.Skin].ramp
 	if d == sim.DirLeft {
 		b, lg, s, t := genPlayer(l, sim.DirRight, frame)
 		return mirrorSprite(b), mirrorSprite(lg), mirrorSprite(s), mirrorSprite(t)
 	}
-	const w, h = 18, 26
-	const ax, ay = 9, 24
-	L, S, T := newCanvas(w, h), newCanvas(w, h), newCanvas(w, h)
-	step := 0 // -1 or +1 on the step frames
-	switch frame {
-	case 1:
-		step = -1
-	case 3:
-		step = 1
-	}
-	male := !l.Female
+	B, L, S, T := playerLayers(l, d, frame)
+	return mk(B, 9, bodyFeet), mk(L, 9, bodyFeet), mk(S, 9, bodyFeet), mk(T, 9, bodyFeet)
+}
 
-	// Everyone dresses in hide: a man in a one-shouldered tunic, a woman in a
-	// hide dress, both in the player's colour, ragged at the hem, over bare
-	// legs with hide wraps round the shins and hide boots.
-	leg := func(x0, top, bottom int, lit float64) {
-		for y := top; y <= bottom; y++ {
-			for x := x0; x < x0+3; x++ {
-				t := lit - float64(x-x0)*0.25
+// playerLayers draws the four layers of genPlayer; d is not DirLeft. What
+// goes where: B is hair behind the body; L the legs, which stay on the
+// ground while the rest bobs; S the clothes, in greys the player's colour
+// tints; T the head, hands, fur, belt and brooches.
+func playerLayers(l sim.Look, d sim.Dir, frame int) (B, L, S, T *canvas) {
+	return playerLayersWith(l, d, frame, false)
+}
+
+// playerLayersWith is playerLayers, with the eyes shut if asleep.
+func playerLayersWith(l sim.Look, d sim.Dir, frame int, asleep bool) (B, L, S, T *canvas) {
+	l = l.Sanitized()
+	sk := skinTones[l.Skin].ramp
+	B, L, S, T = newCanvas(bodyW, bodyH), newCanvas(bodyW, bodyH), newCanvas(bodyW, bodyH), newCanvas(bodyW, bodyH)
+	step := walkStep(frame)
+	pal := artPalette(l)
+	female, up := l.Female, d == sim.DirUp
+	cloth := func(x, y, tone int) { S.put(x, y, shirtRamp.at(tone)) }
+
+	// leg draws a trouser leg three wide from column x0 down to row bottom:
+	// cloth, cross-bound wraps, then a boot with a fur cuff, its toe
+	// pointing toe columns outwards (0 for none). dim darkens the far leg.
+	leg := func(x0, bottom, dim, toe int) {
+		for y := 19; y <= bottom; y++ {
+			for i := range 3 {
+				x := x0 + i
+				tone := 2 - dim
+				if i == 2 {
+					tone = 0
+				} else if i == 0 && dim == 0 {
+					tone = 3
+				}
 				switch {
-				case y >= bottom-1:
-					L.set(x, y, darkHideRamp.pick(t, x, y)) // boots
+				case y == bottom:
+					L.put(x, y, darkHideRamp.at(tone))
+				case y == bottom-1:
+					L.put(x, y, mantleRamp.at(tone+1))
 				case y >= bottom-3:
-					L.set(x, y, hideRamp.pick(t+0.1*float64(y%2), x, y)) // shin wraps
-				default:
-					L.set(x, y, sk.pick(t, x, y))
-				}
-			}
-		}
-	}
-	// fur gives the tunic the nap of a hide.
-	fur := func(x, y int, t float64) color.RGBA {
-		return shirtRamp.pick(t+(hashf(x, y/2, 71)-0.5)*0.16, x, y)
-	}
-	// skirt hangs from the dress's waist, x0..x1, and flares one pixel each
-	// side at the hem.
-	skirt := func(x0, x1 int) {
-		for y := 19; y <= 20; y++ {
-			grow := y - 19
-			for x := x0 - grow; x <= x1+grow; x++ {
-				if y == 20 && (x+1)%3 == 0 {
-					continue // a ragged hem
-				}
-				t := 0.9 - float64(x-x0+grow)/float64(x1-x0+2*grow)*0.6 - float64(grow)*0.15
-				S.set(x, y, fur(x, y, t))
-			}
-		}
-	}
-	// limb paints bare skin from shade indexes into the skin ramp, rows top
-	// to bottom, starting at column x0. -1 leaves a pixel empty.
-	limb := func(c *canvas, x0, y0 int, rows ...[]int) {
-		for dy, row := range rows {
-			for dx, i := range row {
-				if i >= 0 {
-					c.set(x0+dx, y0+dy, sk.at(i))
-				}
-			}
-		}
-	}
-	// torso fills the tunic or dress down to row last, leaving bare the
-	// pixels bare() picks: those go on the legs layer, under the shirt.
-	torso := func(last int, bare func(x, y int) bool, shade func(x, y int) float64) {
-		for y := 12; y <= last; y++ {
-			x0, x1, ok := torsoSpan(l.Female, d, y)
-			for x := x0; ok && x <= x1; x++ {
-				switch {
-				case y == 19 && x%2 == 0:
-					continue // a ragged hem
-				case bare(x, y):
-					// Bare skin, darker along the tunic's edge: the
-					// underside of the chest muscle.
-					t := 0.85
-					if !bare(x, y+1) {
-						t -= 0.35
+					if y == bottom-2 && i != 2 {
+						tone-- // the binding
 					}
-					L.set(x, y, sk.pick(t, x, y))
+					L.put(x, y, wrapRamp.at(tone))
 				default:
-					t := shade(x, y)
-					if y == 17 && male {
-						t -= 0.3 // a sash of the same hide
-					}
-					S.set(x, y, fur(x, y, t))
+					L.put(x, y, trouserRamp.at(min(tone, 2)))
 				}
 			}
 		}
+		if toe != 0 {
+			tx := x0 - 1
+			if toe > 0 {
+				tx = x0 + 3
+			}
+			L.put(tx, bottom, darkHideRamp.at(1-dim))
+		}
+	}
+	// hand is a fist two pixels square with its top-left at (x, y).
+	hand := func(c *canvas, x, y, lit int) {
+		c.put(x, y, sk.at(lit+1))
+		c.put(x+1, y, sk.at(lit))
+		c.put(x, y+1, sk.at(lit))
+		c.put(x+1, y+1, sk.at(lit-1))
 	}
 
 	switch d {
 	case sim.DirDown, sim.DirUp:
-		lb, rb := 23, 23
+		lb, rb := bodyFeet-1, bodyFeet-1
 		if step < 0 {
-			lb = 22
+			lb--
 		} else if step > 0 {
-			rb = 22
+			rb--
 		}
-		leg(6, 18, lb, 0.8)
-		leg(9, 18, rb, 0.55)
-		if l.Female {
-			skirt(5, 12)
-		}
-		// The tunic goes over one shoulder only. Facing the viewer the bare
-		// one is on the left of the screen; from behind, on the right. A
-		// man's is cut diagonally from it, so the muscle of the chest (or
-		// back) shows, and comes down past the hips to a ragged hem.
-		edge, dir := 4, 1 // the bare side's outer column, and inwards
-		if l.Female {
-			edge = 5
-		}
-		if d == sim.DirUp {
-			edge, dir = 17-edge, -1
-		}
-		bare := func(x, y int) bool {
-			in := (x - edge) * dir // columns in from the bare side's edge
-			if male {
-				return in >= 0 && in+(y-12) <= 3
+		leg(6, lb, 0, -1)
+		leg(9, rb, 1, 1)
+
+		// The tunic or the dress.
+		for y := 16; y <= 25; y++ {
+			x0, x1, ok := torsoRow(female, d, y)
+			for x := x0; ok && x <= x1; x++ {
+				if !female {
+					tone := 2
+					switch {
+					case x <= x0+1:
+						tone = 3
+					case x >= x1-1:
+						tone = 1
+					}
+					switch {
+					case y == 21: // an embroidered hem
+						tone = 1 + 2*(x%2)
+					case y == 20 || y == 18:
+						tone-- // under the belt, under the mantle
+					}
+					cloth(x, y, tone)
+					continue
+				}
+				// A light shift, and over it the apron dress, darker.
+				tone := 1
+				switch {
+				case x == x0+1 || x == x0+2:
+					tone = 2
+				case x == x1:
+					tone = 0
+				}
+				switch {
+				case y == 25:
+					tone = 3 // the shift's hem under the apron
+					if x >= x1-1 {
+						tone = 2
+					}
+				case y == 24:
+					tone = 2 * (x % 2) // a woven band
+				case y == 16:
+					tone = 3
+				case y == 17 && (x == 8 || x == 9) && !up:
+					tone = 3 // the shift at the neck
+				case y >= 21 && y <= 23 && x == x1-2:
+					tone = 0 // a fold
+				}
+				if y == 25 && (step < 0 && x < 9 || step > 0 && x >= 9) {
+					continue // the hem lifts over the stepping foot
+				}
+				cloth(x, y, tone)
 			}
-			return in >= 0 && (y == 12 && in <= 1 || y == 13 && in == 0)
 		}
-		last := 18
-		if male {
-			last = 19
+
+		// Arms swing opposite to the legs.
+		lx, rx := 3, 13
+		if female {
+			lx, rx = 4, 12
 		}
-		torso(last, bare, func(x, y int) float64 {
-			t := 0.95 - float64(x-4)/9*0.6 - float64(y-12)*0.03
-			if male && y == 15 && x >= 8 {
-				t -= 0.12 // the chest's lower edge under the tunic
-			}
-			return t
-		})
-		// Bare arms swing opposite to the legs: the shoulder stays, the
-		// forearm and fist move. A man's are two pixels thick: a round
-		// shoulder standing out past his head, a bulge of biceps with a
-		// darker line above it, and the fists in by his hips. Shade indexes
-		// into the skin ramp, lit from the top left.
 		la, ra := -step, step
-		if male {
-			limb(T, 2, 12, []int{-1, 3}, []int{3, 3}, []int{2, 1}, []int{3, 2})
-			limb(T, 14, 12, []int{2, -1}, []int{2, 1}, []int{1, 0}, []int{2, 1})
-			for y := 16 + min(la, 0); y <= 17+la; y++ {
-				limb(T, 2, y, []int{2, 1})
+		for y := 16; y <= 20+la; y++ {
+			a, b := 3, 1
+			if female {
+				a, b = 3, 2
 			}
-			for y := 16 + min(ra, 0); y <= 17+ra; y++ {
-				limb(T, 14, y, []int{1, 0})
+			if y == 20+la && !female {
+				a, b = 2, 2 // the cuff
 			}
-			limb(T, 3, 18+la, []int{3, 2}) // fists
-			limb(T, 13, 18+ra, []int{2, 1})
-		} else {
-			// A woman's arms are lean: a toned upper arm, a slim forearm.
-			limb(T, 3, 12, []int{-1, 3}, []int{3, 2}, []int{3, 2})
-			limb(T, 13, 12, []int{2, -1}, []int{2, 1}, []int{2, 1})
-			for y := 15 + min(la, 0); y <= 17+la; y++ {
-				limb(T, 4, y, []int{2})
-			}
-			for y := 15 + min(ra, 0); y <= 17+ra; y++ {
-				limb(T, 13, y, []int{1})
-			}
-			T.set(4, 18+la, sk[2])
-			T.set(13, 18+ra, sk[1])
+			cloth(lx, y, a)
+			cloth(lx+1, y, b)
 		}
-	case sim.DirRight:
-		back, frontX := 7, 8
-		if step != 0 {
-			back, frontX = 7-2*step, 8+2*step
+		for y := 16; y <= 20+ra; y++ {
+			a, b := 0, 1
+			if female {
+				a, b = 2, 1
+			}
+			if y == 20+ra && !female {
+				a, b = 1, 1
+			}
+			cloth(rx, y, a)
+			cloth(rx+1, y, b)
 		}
-		leg(back, 18, 23, 0.35)
-		leg(frontX, 18, 23, 0.8)
-		last := 18
-		if l.Female {
-			skirt(6, 11)
-		} else {
-			last = 19
-		}
-		torso(last, func(int, int) bool { return false }, func(x, y int) float64 {
-			return 0.95 - float64(x-5)/7*0.55
-		})
-		// The near arm is the bare one, swinging from a fixed shoulder.
-		for y := 12; y <= 18; y++ {
+		hand(T, lx, 21+la, 2)
+		hand(T, rx, 21+ra, 1)
+
+		if !female {
+			// A leather belt with a buckle; its end hangs down.
 			for x := 5; x <= 12; x++ {
-				if i := sideArm(l.Female, step, x, y); i >= 0 {
-					T.set(x, y, sk.at(i))
+				tone := 2
+				if x >= 11 {
+					tone = 1
+				} else if x <= 6 {
+					tone = 3
+				}
+				T.put(x, 19, leatherRamp.at(tone))
+			}
+			if up {
+				mantleBack.stamp(T, pal)
+			} else {
+				T.put(8, 19, broochRamp[3])
+				T.put(9, 19, broochRamp[1])
+				T.put(10, 20, leatherRamp[1])
+				T.put(10, 21, leatherRamp[0])
+				mantleFront.stamp(T, pal)
+			}
+		} else {
+			collarFront.stamp(T, pal)
+			if up {
+				// The apron's straps cross on the back.
+				for y := 17; y <= 18; y++ {
+					cloth(7, y, 0)
+					cloth(10, y, 0)
+				}
+			} else {
+				// Two oval brooches with a string of beads between.
+				for _, x := range []int{6, 11} {
+					T.put(x, 17, broochRamp[3])
+					T.put(x, 18, broochRamp[1])
+				}
+				T.put(7, 18, beadColors[0])
+				T.put(8, 19, beadColors[1])
+				T.put(9, 19, beadColors[2])
+				T.put(10, 18, beadColors[3])
+			}
+		}
+
+	case sim.DirRight:
+		near, far := 7+2*step, 8-2*step
+		leg(far, bodyFeet-1, 1, 1)
+		leg(near, bodyFeet-1, 0, 1)
+		for y := 16; y <= 25; y++ {
+			x0, x1, ok := torsoRow(female, d, y)
+			for x := x0; ok && x <= x1; x++ {
+				tone := 2
+				if x >= x1-1 {
+					tone = 1
+				}
+				switch {
+				case !female && y == 21:
+					tone = 1 + 2*(x%2)
+				case !female && (y == 20 || y == 18):
+					tone--
+				case female && y == 25:
+					tone = 3
+				case female && y == 24:
+					tone = 2 * (x % 2)
+				case female && y >= 21 && y <= 23 && x == x1-2:
+					tone = 0
+				case female:
+					tone--
+				}
+				cloth(x, y, max(tone, 0))
+			}
+		}
+		// The near arm, set off from the body by a darker edge each side.
+		for y := 16; y <= 20; y++ {
+			x, _ := sideArmX(step, y)
+			a, b := 3, 2
+			if y == 20 && !female {
+				a, b = 2, 1
+			}
+			cloth(x-1, y, 1)
+			cloth(x, y, a)
+			cloth(x+1, y, b)
+			if _, x1, _ := torsoRow(female, d, y); x+2 <= x1 {
+				cloth(x+2, y, 0)
+			}
+		}
+		hx, _ := sideArmX(step, 21)
+		hand(T, hx, 21, 2)
+		// The far hand shows past the body as it swings the other way.
+		if step > 0 {
+			T.put(12, 19, sk[1])
+			T.put(12, 20, sk[0])
+		} else if step < 0 {
+			T.put(5, 19, sk[1])
+			T.put(5, 20, sk[0])
+		}
+		if !female {
+			for x := 6; x <= 11; x++ {
+				if ax, _ := sideArmX(step, 19); x == ax || x == ax+1 {
+					continue
+				}
+				T.put(x, 19, leatherRamp.at(2-(x-6)/3))
+			}
+			T.put(11, 19, broochRamp[2])
+			mantleSide.stamp(T, pal)
+		} else {
+			collarSide.stamp(T, pal)
+			T.put(11, 17, broochRamp[3])
+			T.put(11, 18, broochRamp[1])
+		}
+	}
+
+	drawHead(T, B, l, d, 0, asleep)
+	L.outline(0.7)
+	rimLayers(B, S, T)
+	return B, L, S, T
+}
+
+// rimLayers gives the layers that bob together one shared dark outline,
+// round their joint silhouette: each rim pixel goes in the layer it borders,
+// so the rim of the clothes takes the player's colour too.
+func rimLayers(layers ...*canvas) {
+	type rim struct {
+		c    *canvas
+		x, y int
+		col  color.RGBA
+	}
+	top := func(x, y int) (*canvas, color.RGBA) {
+		for i := len(layers) - 1; i >= 0; i-- {
+			if layers[i].opaque(x, y) {
+				return layers[i], layers[i].at(x, y)
+			}
+		}
+		return nil, color.RGBA{}
+	}
+	var rims []rim
+	c0 := layers[0]
+	for y := 0; y < c0.h; y++ {
+		for x := 0; x < c0.w; x++ {
+			if c, _ := top(x, y); c != nil {
+				continue
+			}
+			for _, d := range [4][2]int{{0, 1}, {0, -1}, {-1, 0}, {1, 0}} {
+				if c, col := top(x+d[0], y+d[1]); c != nil {
+					rims = append(rims, rim{c, x, y, mix(col, colInk, 0.72)})
+					break
 				}
 			}
 		}
 	}
-
-	B := newCanvas(w, h+headroom)
-	L, S, T = padTop(L, headroom), padTop(S, headroom), padTop(T, headroom)
-	drawHead(T, B, l, d, 9, 7+headroom)
-	for _, c := range []*canvas{B, L, S, T} {
-		c.outline(0.7)
+	for _, r := range rims {
+		r.c.put(r.x, r.y, r.col)
 	}
-	return mk(B, ax, ay+headroom), mk(L, ax, ay+headroom), mk(S, ax, ay+headroom), mk(T, ax, ay+headroom)
 }
 
 // genHeadMark draws l's head facing the viewer, for markers on the maps.
 func genHeadMark(l sim.Look) *ebiten.Image {
 	const w, h = 18, 22
 	front, back := newCanvas(w, h), newCanvas(w, h)
-	drawHead(front, back, l, sim.DirDown, 9, 11)
+	drawHead(front, back, l, sim.DirDown, 0, false)
 	back.over(front, 0, 0)
 	back.outline(0.8)
 	return back.image()
 }
 
-// headRX and headRY are the head's radii in art pixels: a big head, but not
-// a chibi's.
-const headRX, headRY = 5.4, 5.2
-
-// drawHead draws a round head centred on (cx, cy) in c, with l's face and
-// hair. Hair hanging behind the body goes in behind.
-// d is never DirLeft: that is the mirror image of DirRight.
-func drawHead(c, behind *canvas, l sim.Look, d sim.Dir, cx, cy int) {
-	const rx, ry = headRX, headRY
+// drawHead draws l's head, face, hair and beard in c, oy rows below its
+// place in the player sprite, where it is centred on (9, 11). Hair hanging
+// behind the body goes in behind. d is never DirLeft: that is the mirror
+// image of DirRight. shut closes the eyes.
+func drawHead(c, behind *canvas, l sim.Look, d sim.Dir, oy int, shut bool) {
 	l = l.Sanitized()
 	hr, sk := hairColors[l.HairColor].ramp, skinTones[l.Skin].ramp
-	fx, fy := float64(cx), float64(cy)
-	// A round head; a man's has a squarer jaw, filling out the lower corners.
-	inHead := func(nx, ny float64) bool {
-		if nx*nx+ny*ny <= 1 {
-			return true
-		}
-		ax, ay := math.Abs(nx), math.Abs(ny)
-		return !l.Female && ny > 0.3 && ax*ax*ax+ay*ay*ay <= 1
+	pal := artPalette(l)
+	ha := hairArts[l.Hair]
+	hair := ha.front
+	switch d {
+	case sim.DirUp:
+		hair = ha.back
+	case sim.DirRight:
+		hair = ha.side
 	}
-	for y := cy - 7; y <= cy+7; y++ { // a box round the head (headRX, headRY < 7)
-		for x := cx - 7; x <= cx+7; x++ {
-			nx, ny := (float64(x)+0.5-fx)/rx, (float64(y)+0.5-fy)/ry
-			if !inHead(nx, ny) {
+	shift := func(m pixMap) pixMap { m.y0 += oy; return m }
+	put := func(x, y int, col color.RGBA) { c.put(x, y+oy, col) }
+
+	// The head: lit from the top left, darker down the far cheek and under
+	// the chin, and in the shadow of the hair.
+	for y := 5; y <= 15; y++ {
+		x0, x1, _ := headSpan(y)
+		for x := x0; x <= x1; x++ {
+			tone := 2
+			switch {
+			case x == x1 || y == 15 || hair.has(x, y-1) && y <= 10:
+				tone = 1
+			case x >= x0+1 && x <= x0+3 && y <= 13:
+				tone = 3
+			}
+			put(x, y, sk.at(tone))
+		}
+	}
+	blush := skinTones[l.Skin].blush
+	iris := mix(eyeDark, hr[2], 0.35)
+	lips := mix(blush, mouthDark, 0.5)
+	switch d {
+	case sim.DirDown:
+		for _, ex := range []int{5, 11} {
+			if shut {
+				put(ex, 12, eyeDark)
+				put(ex+1, 12, eyeDark)
 				continue
 			}
-			l2 := lum(nx, ny)
-			if hairCap(l.Hair, d, x-cx+9, nx, ny) {
-				c.set(x, y, hr.pick(l2+0.1, x, y))
-			} else {
-				c.set(x, y, sk.pick(l2+0.25, x, y))
-			}
+			put(ex, 10, eyeDark)
+			put(ex+1, 10, eyeDark)
+			put(ex, 11, eyeShine)
+			put(ex+1, 11, eyeDark)
+			put(ex, 12, iris)
+			put(ex+1, 12, eyeDark)
 		}
-	}
-	// isHair reports whether the head pixel at (x, y) is hair, so the face
-	// is not drawn over it.
-	isHair := func(x, y int) bool {
-		nx, ny := (float64(x)+0.5-fx)/rx, (float64(y)+0.5-fy)/ry
-		return hairCap(l.Hair, d, x-cx+9, nx, ny)
-	}
-	face := func(x, y int, col color.RGBA) {
-		if !isHair(x, y) {
-			c.set(x, y, col)
-		}
-	}
-	eye, blush := hex(0x1b1424), skinTones[l.Skin].blush
-	switch d {
-	case sim.DirDown:
-		for _, ex := range []int{cx - 3, cx + 2} {
-			face(ex, cy+1, eye)
-			face(ex, cy+2, eye)
-		}
-		if l.Female { // lashes
-			face(cx-4, cy, eye)
-			face(cx+3, cy, eye)
-		} else { // heavy brows
-			for _, bx := range []int{cx - 4, cx - 3, cx + 2, cx + 3} {
-				face(bx, cy, hr[1])
-			}
-		}
-		face(cx-4, cy+3, blush)
-		face(cx+3, cy+3, blush)
-	case sim.DirRight:
-		face(cx+3, cy+1, eye)
-		face(cx+3, cy+2, eye)
 		if l.Female {
-			face(cx+4, cy, eye)
+			put(4, 9, eyeDark) // lashes
+			put(13, 9, eyeDark)
+			put(4, 13, blush)
+			put(5, 13, blush)
+			put(12, 13, blush)
+			put(13, 13, blush)
+			put(8, 14, lips)
+			put(9, 14, lips)
 		} else {
-			face(cx+3, cy, hr[1])
-			face(cx+4, cy, hr[1])
+			for _, bx := range []int{5, 6, 11, 12} { // heavy brows
+				put(bx, 9, hr[0])
+			}
+			put(4, 13, blush)
+			put(13, 13, blush)
 		}
-		face(cx+2, cy+3, blush) // the cheek, below and behind the eye
-		face(cx-1, cy+1, sk[1]) // ear
-	case sim.DirUp:
-		c.set(cx, cy-4, hr[3])
-		c.set(cx-1, cy-3, hr[3])
+		put(8, 12, sk[3]) // the nose
+		put(9, 12, sk[1])
+	case sim.DirRight:
+		put(14, 12, sk[3]) // the nose
+		put(11, 10, eyeDark)
+		put(12, 10, eyeDark)
+		put(11, 11, eyeShine)
+		put(12, 11, eyeDark)
+		put(11, 12, iris)
+		put(12, 12, eyeDark)
+		put(7, 11, sk[1]) // the ear
+		put(7, 12, sk[0])
+		put(8, 12, sk[1])
+		if l.Female {
+			put(13, 9, eyeDark)
+			put(10, 13, blush)
+			put(11, 13, blush)
+			put(13, 14, lips)
+		} else {
+			put(11, 9, hr[0])
+			put(12, 9, hr[0])
+			put(13, 9, hr[0])
+			put(10, 13, blush)
+		}
 	}
-	hairExtras(c, behind, l.Hair, d, fx, fy, hr)
-}
 
-// hairCap reports whether the head pixel with normalised offset (nx, ny) is
-// hair. x is the pixel's column with the head centred on column 9, for
-// patterns such as a fringe.
-func hairCap(s sim.HairStyle, d sim.Dir, x int, nx, ny float64) bool {
-	if d == sim.DirUp {
-		return true
+	shift(hair).stamp(c, pal)
+	if d == sim.DirDown && len(ha.behind.rows) > 0 {
+		shift(ha.behind).stamp(behind, pal)
 	}
-	side := math.Abs(nx)
-	switch s {
-	case sim.HairSpiky:
-		if d == sim.DirDown {
-			return ny < -0.3 || (ny < 0.0 && x%3 == 0) || side > 0.85
-		}
-		return ny < -0.35 || nx < -0.2 || (ny < -0.05 && nx < 0.4 && x%2 == 0)
-	case sim.HairBob:
-		if d == sim.DirDown {
-			return ny < 0.0 || side > 0.68
-		}
-		return ny < -0.1 || nx < -0.05 || (ny < 0.2 && nx < 0.25)
-	case sim.HairLong:
-		if d == sim.DirDown { // parted in the middle
-			return ny < -0.3 || side > 0.65 || (ny < 0.05 && side > 0.25)
-		}
-		return ny < -0.3 || nx < 0.05 || (ny < 0.0 && nx < 0.4)
-	case sim.HairPonytail, sim.HairBun: // pulled back off the face
-		if d == sim.DirDown {
-			return ny < -0.35 || side > 0.85 || (ny < -0.1 && side > 0.5)
-		}
-		return ny < -0.35 || nx < -0.3 || (ny < -0.1 && nx < 0.2)
-	}
-	// HairShort, the original cut.
-	switch d {
-	case sim.DirDown:
-		return ny < -0.25 || (ny < 0.05 && (x/2)%2 == 0) || side > 0.82
-	default:
-		return ny < -0.3 || nx < -0.15 || (ny < 0.0 && nx < 0.3)
-	}
-}
-
-// hairExtras draws the hair outside the head's outline: spikes, a bun, locks
-// and tails. What hangs behind the body goes in behind.
-func hairExtras(c, behind *canvas, s sim.HairStyle, d sim.Dir, cx, cy float64, hr ramp) {
-	shade := func(t float64) color.RGBA { return hr.at(int(math.Round(clamp01(t) * float64(len(hr)-1)))) }
-	// strands fills a hanging panel of hair: lighter at the top and on the
-	// lit side, with darker strand lines, rounded off at the bottom.
-	strands := func(dst *canvas, x0, y0, x1, y1 int) {
-		for y := y0; y <= y1; y++ {
-			for x := x0; x <= x1; x++ {
-				if y == y1 && (x == x0 || x == x1) && x1 > x0 {
-					continue
-				}
-				t := 0.7 - float64(y-y0)/float64(max(1, y1-y0))*0.3 - (float64(x)+0.5-cx)/16
-				if x%3 == 1 && y > y0+1 {
-					t -= 0.22
-				}
-				dst.set(x, y, shade(t))
-			}
-		}
-	}
-	// tail fills a lock of hair along the points pts, its radius going from
-	// r0 at the first point to r1 at the last.
-	tail := func(dst *canvas, pts [][2]float64, r0, r1 float64) {
-		type sample struct{ x, y, r, t float64 }
-		var ss []sample
-		const per = 12
-		for i := 0; i+1 < len(pts); i++ {
-			for k := range per {
-				f := float64(k) / per
-				t := (float64(i) + f) / float64(len(pts)-1)
-				ss = append(ss, sample{
-					x: lerpf(pts[i][0], pts[i+1][0], f), y: lerpf(pts[i][1], pts[i+1][1], f),
-					r: lerpf(r0, r1, t), t: t,
-				})
-			}
-		}
-		last := pts[len(pts)-1]
-		ss = append(ss, sample{last[0], last[1], r1, 1})
-		for y := int(cy) - 12; y <= int(cy)+14; y++ {
-			for x := int(cx) - 10; x <= int(cx)+10; x++ {
-				px, py := float64(x)+0.5, float64(y)+0.5
-				best, bs := math.Inf(1), sample{}
-				for _, s := range ss {
-					if d := math.Hypot(px-s.x, py-s.y) / s.r; d < best {
-						best, bs = d, s
-					}
-				}
-				if best > 1 {
-					continue
-				}
-				dst.set(x, y, shade(0.78-0.3*bs.t-0.45*(px-bs.x)/bs.r))
-			}
-		}
-	}
-	// blob is a round lump of hair, lit from the top-left.
-	blob := func(dst *canvas, x, y, r float64) {
-		dst.ellipse(x, y, r, r, func(px, py int, nx, ny float64) color.RGBA {
-			return hr.pick(lum(nx, ny)+0.1, px, py)
-		})
-	}
-	// The shapes below were laid out for a head six pixels in radius; k
-	// scales them to the head's size. at, col and row place an offset from
-	// the head's centre.
-	k := headRX / 6
-	at := func(dx, dy float64) [2]float64 { return [2]float64{cx + dx*k, cy + dy*k} }
-	col := func(o float64) int { return int(cx) + int(math.Round(o*k)) }
-	row := func(o float64) int { return int(cy) + int(math.Round(o*k)) }
-	switch s {
-	case sim.HairSpiky:
-		tips := [][2]float64{{-5.5, -6.5}, {-2.8, -8.5}, {0, -9.2}, {2.8, -8.5}, {5.5, -6.5}}
-		lean := 0.0
-		if d == sim.DirRight {
-			lean = 1.6 // swept back
-			tips = [][2]float64{{-7, -4}, {-5, -7.5}, {-2, -9}, {1.5, -8.5}, {4, -7}}
-		}
-		base, half := cy-3.6*k, 1.9*k
-		for _, tp := range tips {
-			p := at(tp[0], tp[1])
-			x, y, sx := p[0], p[1], p[0]+lean*k
-			c.polygon([]float64{sx - half, base, x, y, sx + half, base}, func(px, py int) color.RGBA {
-				return hr.pick(0.85-(float64(px)+0.5-cx)/12-(float64(py)-y)*0.04, px, py)
-			})
-		}
-	case sim.HairBob:
+	if !l.Female {
 		switch d {
 		case sim.DirDown:
-			strands(c, col(-7), row(-2), col(-5), row(5))
-			strands(c, col(4), row(-2), col(6), row(5))
-		case sim.DirUp:
-			strands(c, col(-6), row(2), col(5), row(5))
+			shift(beardFront).stamp(c, pal)
 		case sim.DirRight:
-			strands(c, col(-7), row(0), col(-3), row(4))
+			shift(beardSide).stamp(c, pal)
 		}
-	case sim.HairLong:
+	}
+	switch l.Hair {
+	case sim.HairBob: // a thin braid by the cheek
 		switch d {
 		case sim.DirDown:
-			strands(c, col(-7), row(-1), col(-5), row(8))
-			strands(c, col(4), row(-1), col(6), row(8))
-			strands(behind, col(-6), row(3), col(5), row(8))
-		case sim.DirUp:
-			strands(c, col(-6), row(2), col(5), row(8))
+			braid(c, hr, 2, 15+oy, 19+oy)
 		case sim.DirRight:
-			strands(c, col(-7), row(0), col(-3), row(8))
+			braid(c, hr, 6, 14+oy, 18+oy)
 		}
 	case sim.HairPonytail:
-		switch d {
-		case sim.DirDown: // the tail swings out from behind the head
-			tail(behind, [][2]float64{at(3.5, -3.5), at(6.2, -1), at(7, 2.5), at(6.2, 6)}, 2.0*k, 0.8*k)
-		case sim.DirUp:
-			tail(c, [][2]float64{at(0, 1), at(0.2, 4), at(0.8, 7), at(1.4, 9.5)}, 1.9*k, 0.7*k)
-			c.set(col(-1), row(2), hairTie)
-			c.set(col(0), row(2), hairTie)
-		case sim.DirRight:
-			tail(c, [][2]float64{at(-4.5, -3), at(-6.8, -0.5), at(-7.4, 3), at(-6.8, 6.5)}, 1.9*k, 0.7*k)
-			c.set(col(-6), row(-2), hairTie)
-			c.set(col(-5), row(-3), hairTie)
+		switch {
+		case d == sim.DirUp && l.Female:
+			braid(c, hr, 4, 14+oy, 21+oy)
+			braid(c, hr, 12, 14+oy, 21+oy)
+		case d == sim.DirUp:
+			braid(c, hr, 8, 14+oy, 22+oy)
+		case d == sim.DirRight:
+			braid(c, hr, 3, 13+oy, 21+oy)
+		case l.Female:
+			braid(c, hr, 4, 13+oy, 20+oy)
+			braid(c, hr, 12, 13+oy, 20+oy)
+		default: // over one shoulder
+			braid(c, hr, 13, 13+oy, 20+oy)
 		}
-	case sim.HairBun:
-		p := at(0, -6.4)
-		if d == sim.DirRight {
-			p = at(-1.5, -6)
-		}
-		blob(c, p[0], p[1], 2.6*k)
 	}
-}
-
-// sideArm is the shade index into the skin ramp of the near arm's pixel
-// (x, y) for a figure facing right on walk step step, or -1 off the arm.
-// The shoulder and upper arm stay; the forearm and fist swing. A man's arm
-// has a round shoulder and a bulging upper arm. armorart.go leaves the arm
-// out of the armour with it.
-func sideArm(female bool, step, x, y int) int {
-	if y >= 16 && y <= 18 { // the forearm and the fist
-		switch x {
-		case 8 - step:
-			return 2
-		case 9 - step:
-			return 1
-		}
-		return -1
-	}
-	upper, x0 := [4][]int{{-1, 3, 2, -1}, {3, 3, 2, 1}, {-1, 2, 1, 1}, {-1, 2, 3, 1}}, 7
-	if female {
-		upper, x0 = [4][]int{{3, 2}, {3, 2}, {2, 1}, {3, 1}}, 8
-	}
-	if y < 12 || y > 15 || x < x0 || x >= x0+len(upper[y-12]) {
-		return -1
-	}
-	return upper[y-12][x-x0]
 }

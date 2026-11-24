@@ -21,9 +21,11 @@ const (
 	StyleOpen                     // as V2, with larger deserts, swamps and beaches
 	StyleIce                      // as StyleOpen, with a frozen north; see iceage.go
 	StyleJungle                   // as StyleIce, with the woods spread over far more of the lowland
+	StyleTribal                   // as StyleJungle, with thinner woods, trails, villages, deep caves; see tribe.go
+	StyleSeas                     // as StyleTribal, but an archipelago: one land to an island; see archipelago.go
 
 	// StyleLatest is what a new game is made with.
-	StyleLatest = StyleJungle
+	StyleLatest = StyleSeas
 )
 
 // biomeShares is how much of the lowland each biome takes, and how wide the
@@ -120,8 +122,12 @@ func (w *World) openTerrain(seed uint32) (sx, sy int) {
 	for j, i := range land {
 		landElev[j] = hill[i]
 	}
-	mountain := quantile(landElev, 1-openMountainShare)
-	rocky := quantile(landElev, 1-openMountainShare-openRockyShare)
+	mShare := openMountainShare
+	if w.style >= StyleTribal {
+		mShare = tribalMountainShare // more mountain, for the deep caves
+	}
+	mountain := quantile(landElev, 1-mShare)
+	rocky := quantile(landElev, 1-mShare-openRockyShare)
 	top := slices.Max(landElev)
 
 	// Temperature (warmer to the south) and moisture pick the lowland biomes.
@@ -158,6 +164,9 @@ func (w *World) openTerrain(seed uint32) (sx, sy int) {
 			if math.Abs(fbm(x/16, y/16, seed+31, 2)-0.5) < openCaveWidth {
 				t = TileCave
 			}
+			if w.style >= StyleTribal && tribalCave(x, y, seed) {
+				t = TileCave
+			}
 		case hill[i] >= rocky:
 			t = TileRocky
 		case temp[i]+0.25*wet[i] < snow:
@@ -180,6 +189,9 @@ func (w *World) openTerrain(seed uint32) (sx, sy int) {
 	}
 
 	sx, sy = w.openSpawn()
+	if w.style >= StyleTribal {
+		w.thawNearSpawn(seed, sx, sy)
+	}
 	w.volcano(seed, sx, sy)
 	if w.style >= StyleOpenV2 {
 		w.cutCaveMouths()
@@ -337,12 +349,21 @@ func (w *World) volcano(seed uint32, sx, sy int) {
 	n := max(w.width, w.height)
 	R := min(max(float64(n)/14, 14), 40)
 	minAway := math.Max(float64(n)/4, 3*R)
+	if w.style >= StyleTribal {
+		minAway = math.Max(float64(n)/2.6, 3.5*R) // well away: it is a long journey
+	}
+	if w.style >= StyleSeas {
+		minAway = float64(n) / 5 // the ash island is far already
+	}
 	best, bestScore := -1, math.Inf(-1)
 	for ty := int(R); ty < w.height-int(R); ty += 4 {
 		for tx := int(R); tx < w.width-int(R); tx += 4 {
 			d := math.Hypot(float64(tx-sx), float64(ty-sy))
 			if d < minAway || w.tiles[ty*w.width+tx] == TileWater {
 				continue
+			}
+			if w.style >= StyleSeas && w.tiles[ty*w.width+tx] != TileAsh {
+				continue // in an archipelago the volcano stands on the ash island
 			}
 			// Prefer solid land under the whole cone, then distance.
 			landN, all := 0, 0
@@ -396,7 +417,7 @@ func (w *World) scatterOpen(rng, sizeRng *rand.Rand) {
 			tile := w.tiles[ty*w.width+tx]
 			switch tile {
 			case TileForest:
-				kind = pick(r, chance{EntityTree, forestTrees}, chance{EntityBerryBush, 0.03}, chance{EntityGrassTuft, 0.03}, chance{EntityTwig, 0.035})
+				kind = pick(r, chance{EntityTree, w.forestTrees()}, chance{EntityBerryBush, 0.03}, chance{EntityGrassTuft, 0.03}, chance{EntityTwig, 0.035})
 			case TileGrass:
 				kind = pick(r, chance{EntityTree, grassTrees}, chance{EntityGrassTuft, 0.08}, chance{EntityBerryBush, 0.03}, chance{EntityTwig, 0.015})
 			case TileRocky:
@@ -451,8 +472,11 @@ func (w *World) speedAt(x, y float64) float64 {
 	if t := w.TileAt(int(math.Floor(x)), int(math.Floor(y))); t == TileSnow {
 		return snowSpeed // deep snow
 	}
-	if w.TileAt(int(math.Floor(x)), int(math.Floor(y))) == TileMarsh {
+	switch w.TileAt(int(math.Floor(x)), int(math.Floor(y))) {
+	case TileMarsh:
 		return openMarshSpeed
+	case TilePath:
+		return PathSpeed
 	}
 	return 1
 }
@@ -487,3 +511,53 @@ func quantile(vs []float64, share float64) float64 {
 }
 
 func clamp(v, lo, hi float64) float64 { return math.Max(lo, math.Min(hi, v)) }
+
+// Tribal-world tuning.
+const (
+	tribalMountainShare = 0.1
+	tribalForestTrees   = 0.36 // the woods are thinner, with room to walk
+	tribalSnowAway      = 0.22 // of the world's size: no snow this near the spawn
+)
+
+// forestTrees is the share of forest tiles with a tree.
+func (w *World) forestTrees() float64 {
+	if w.style >= StyleTribal {
+		return tribalForestTrees
+	}
+	return forestTrees
+}
+
+// tribalCave reports whether the deep caves of a tribal world run through
+// (x, y), inside a mountain: two crossing networks of tunnels and rounder
+// chambers where they meet.
+func tribalCave(x, y float64, seed uint32) bool {
+	a := math.Abs(fbm(x/19+11, y/19+5, seed+33, 2)-0.5) < 0.05
+	b := math.Abs(fbm(x/11+40, y/11+17, seed+34, 2)-0.5) < 0.032
+	chamber := fbm(x/8+9, y/8+3, seed+35, 2) > 0.66
+	return a || b || chamber
+}
+
+// thawNearSpawn turns the snow near the spawn to wood and meadow: the frozen
+// north is a long way off.
+func (w *World) thawNearSpawn(seed uint32, sx, sy int) {
+	r := tribalSnowAway * float64(max(w.width, w.height))
+	r = max(r, 50)
+	for ty := sy - int(r); ty <= sy+int(r); ty++ {
+		for tx := sx - int(r); tx <= sx+int(r); tx++ {
+			if !w.inBounds(tx, ty) || w.tiles[ty*w.width+tx] != TileSnow {
+				continue
+			}
+			d := math.Hypot(float64(tx-sx), float64(ty-sy))
+			// The edge wavers a little so it does not show as a circle.
+			x, y := float64(tx)+0.5, float64(ty)+0.5
+			if d > r*(0.85+0.3*fbm(x/12, y/12, seed+91, 2)) {
+				continue
+			}
+			t := TileGrass
+			if fbm(x/28+57, y/28+213, seed+202, 4) > w.forestLine() {
+				t = TileForest
+			}
+			w.tiles[ty*w.width+tx] = t
+		}
+	}
+}

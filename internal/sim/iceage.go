@@ -38,13 +38,13 @@ const (
 	SabreCowerBelow  = 3 // hit points at which it gives up
 	SabreCowerTicks  = 8 * TicksPerSecond
 
-	IvorySpearDamage = 4
+	IvorySpearDamage = 40
 	IvorySpearReach  = 0.8 // extra reach on creatures, held
 )
 
 var (
 	mammothDef = creatureDef{
-		name: "Voi ma mút", hp: 24,
+		name: "Voi ma mút", hp: 60,
 		walk: 0.8 / TicksPerSecond, run: 3.4 / TicksPerSecond,
 		radius: 0.95, reach: 3.0,
 		yield: ItemMeat, yieldN: 10, drops: []Ingredient{{ItemFur, 4}, {ItemIvory, 2}, {ItemHide, 1}},
@@ -53,7 +53,7 @@ var (
 		fights: true, tough: true, openOnly: true, herd: 3, away: 20,
 	}
 	sabreDef = creatureDef{
-		name: "Hổ răng kiếm", hp: 10,
+		name: "Hổ răng kiếm", hp: 22,
 		walk: 1.2 / TicksPerSecond, run: 3.6 / TicksPerSecond, // slower than a player
 		radius: 0.42, reach: 1.8,
 		yield: ItemMeat, yieldN: 4, drops: []Ingredient{{ItemFur, 2}, {ItemBone, 1}},
@@ -128,7 +128,7 @@ func (w *World) stepSabre(c *Creature) {
 		}
 		return
 	}
-	if p != nil && c.HP <= SabreCowerBelow && dist < SabreGiveUp {
+	if p != nil && c.HP <= SabreCowerBelow*HealthScale && dist < SabreGiveUp {
 		c.State, c.timer, c.rage = CreatureCower, SabreCowerTicks, 0 // beaten
 		return
 	}

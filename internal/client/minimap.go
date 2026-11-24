@@ -17,7 +17,7 @@ const (
 	miniW, miniH = 188, 141 // the minimap's inside, in screen pixels: 4:3 like a tile
 	miniTiles    = 36       // tiles across the minimap
 	miniPad      = 6
-	miniTop      = 76 // just under the clock
+	miniTop      = 98 // just under the clock
 )
 
 // miniBottom is the screen y just below the minimap, for what goes under it.

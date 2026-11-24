@@ -79,6 +79,7 @@ func TestKillingACroc(t *testing.T) {
 			break
 		}
 	}
+	reap(w, id)
 	p := mustPlayer(t, w, id)
 	if len(creatureByKind(w, CreatureCroc)) != 0 || p.Inv.Count(ItemMeat) != 3 {
 		t.Fatalf("crocs %d, meat %d: want it killed for 3 meat", len(creatureByKind(w, CreatureCroc)), p.Inv.Count(ItemMeat))

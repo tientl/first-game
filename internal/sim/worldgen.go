@@ -57,20 +57,51 @@ func Generate(cfg GenConfig) (*World, error) {
 	}
 	w := newWorld(cfg.Width, cfg.Height)
 	w.seed = cfg.Seed
+	w.genH = cfg.Height
 	w.style = cfg.Style
 	seed := uint32(cfg.Seed) ^ uint32(cfg.Seed>>32)
 	rng := rand.New(rand.NewPCG(cfg.Seed, 0x5eed5eed))
 
 	if cfg.Style != StyleIsland {
-		sx, sy := w.openTerrain(seed)
+		var sx, sy int
+		if cfg.Style >= StyleSeas {
+			sx, sy = w.archipelagoTerrain(seed)
+		} else {
+			sx, sy = w.openTerrain(seed)
+		}
+		tribal := cfg.Style >= StyleTribal
+		if tribal {
+			trng := rand.New(rand.NewPCG(cfg.Seed, 0x7e1b))
+			w.pickVillages(trng, sx, sy)
+			w.carvePaths(trng, sx, sy)
+		}
+		if cfg.Style >= StyleSeas {
+			w.addUnderground(seed) // see underground.go
+		}
 		w.scatterOpen(rng, rand.New(rand.NewPCG(cfg.Seed, 0xb16b16)))
 		w.scatterPebbles(rand.New(rand.NewPCG(cfg.Seed, 0x9ebb1e)))
 		w.scatterOres(rand.New(rand.NewPCG(cfg.Seed, 0x0de5)))
 		w.scatterFruit(rand.New(rand.NewPCG(cfg.Seed, 0xf1f)))
 		w.spawnX, w.spawnY = float64(sx)+0.5, float64(sy)+0.5
+		if tribal {
+			prng := rand.New(rand.NewPCG(cfg.Seed, 0x91a47))
+			w.scatterPlants(prng, seed)
+			w.buildVillages(prng)
+			if cfg.Style >= StyleSeas {
+				w.raisePyramid(prng)
+				w.digCaveMouths(prng) // after the pyramid, which clears its ground
+			}
+			w.placeTreasure(prng)
+		}
+		w.spawnX, w.spawnY = float64(sx)+0.5, float64(sy)+0.5
+		w.growGiants(rand.New(rand.NewPCG(cfg.Seed, 0x6a17))) // see jungle.go
 		w.clearAround(sx, sy, clearSpawnRadius)
 		w.starterKit(rng)
 		w.spawnCreatures()
+		if tribal {
+			w.spawnTribes()
+			w.guardPyramid()
+		}
 		return w, nil
 	}
 

@@ -86,7 +86,7 @@ const (
 
 var (
 	trikeDef = creatureDef{
-		name: "Khủng long ba sừng", hp: 14,
+		name: "Khủng long ba sừng", hp: 30,
 		walk: 0.9 / TicksPerSecond, run: 3.6 / TicksPerSecond,
 		radius: 0.75, reach: 2.6,
 		yield: ItemMeat, yieldN: 6, drops: []Ingredient{{ItemHide, 2}, {ItemBone, 1}},
@@ -95,7 +95,7 @@ var (
 		fights: true, tough: true, openOnly: true, herd: 4, away: 14,
 	}
 	stegoDef = creatureDef{
-		name: "Khủng long gai lưng", hp: 16,
+		name: "Khủng long gai lưng", hp: 34,
 		walk: 0.7 / TicksPerSecond, run: 1.6 / TicksPerSecond,
 		radius: 0.8, reach: 2.7,
 		yield: ItemMeat, yieldN: 6, drops: []Ingredient{{ItemHide, 2}, {ItemBone, 2}},
@@ -104,7 +104,7 @@ var (
 		fights: true, tough: true, openOnly: true, herd: 2, away: 14,
 	}
 	brachioDef = creatureDef{
-		name: "Khủng long cổ dài", hp: 30,
+		name: "Khủng long cổ dài", hp: 70,
 		walk: 0.8 / TicksPerSecond, run: 1.4 / TicksPerSecond,
 		radius: 1.05, reach: 3.2,
 		yield: ItemMeat, yieldN: 12, drops: []Ingredient{{ItemHide, 4}, {ItemBone, 4}},
@@ -113,7 +113,7 @@ var (
 		tough: true, openOnly: true, herd: 3, away: 20,
 	}
 	raptorDef = creatureDef{
-		name: "Dakotaraptor", hp: 6,
+		name: "Dakotaraptor", hp: 12,
 		walk: 1.4 / TicksPerSecond, run: 3.4 / TicksPerSecond, // slower than a player: running away works
 		radius: 0.36, reach: 1.7,
 		yield: ItemMeat, yieldN: 2, drops: []Ingredient{{ItemHide, 1}, {ItemBone, 1}},
@@ -122,7 +122,7 @@ var (
 		fights: true, openOnly: true, herd: 3, away: 40,
 	}
 	rexDef = creatureDef{
-		name: "Khủng long bạo chúa", hp: 40,
+		name: "Khủng long bạo chúa", hp: 200,
 		walk: 0.9 / TicksPerSecond, run: 3.3 / TicksPerSecond,
 		radius: 0.95, reach: 3.1,
 		yield: ItemMeat, yieldN: 10, drops: []Ingredient{{ItemHide, 4}, {ItemBone, 4}, {ItemRexTooth, 2}},
@@ -140,7 +140,7 @@ var (
 		fights: true, flies: true, openOnly: true, away: 16,
 	}
 	plesioDef = creatureDef{
-		name: "Thằn lằn cổ dài", hp: 12,
+		name: "Thằn lằn cổ dài", hp: 24,
 		walk: 1.0 / TicksPerSecond, run: 2.2 / TicksPerSecond,
 		radius: 0.55, reach: 3.0, // a player on the shore hits its neck from there
 		yield: ItemMeat, yieldN: 6, drops: []Ingredient{{ItemBone, 2}, {ItemHide, 1}},
@@ -381,7 +381,7 @@ func (w *World) stepRaptor(c *Creature) {
 		}
 		return
 	}
-	if p != nil && c.HP <= cowerAt && dist < RaptorGiveUp {
+	if p != nil && c.HP <= cowerAt*HealthScale && dist < RaptorGiveUp {
 		c.State, c.timer = CreatureCower, RaptorCowerTicks // badly hurt: it gives up the fight
 		c.rage = 0
 		return

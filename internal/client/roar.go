@@ -213,7 +213,9 @@ func roarAt(x, y, vol float64) {
 		return
 	}
 	lastRoar = time.Now()
-	if math.Hypot(x-snd.lx, (y-snd.ly)*1.3) < hearingRange {
+	d := math.Hypot(x-snd.lx, (y-snd.ly)*1.3)
+	roarShake(d)
+	if d < hearingRange {
 		callAt("roar", x, y, vol, 1, roarReach)
 		return
 	}
@@ -242,7 +244,7 @@ func callOf(k sim.CreatureKind) (callVoice, bool) {
 	s := time.Second
 	switch k {
 	case sim.CreatureRex:
-		return callVoice{"roar", 0.9, 1, roarReach, 28 * s, 9 * s, 2200 * time.Millisecond}, true
+		return callVoice{"roar", 0.9, 1, roarReach, 28 * s, 9 * s, 3400 * time.Millisecond}, true
 	case sim.CreatureBrachio:
 		return callVoice{"hoot", 0.75, 1, 28, 26 * s, 7 * s, 0}, true
 	case sim.CreatureTrike:
@@ -267,6 +269,8 @@ func callOf(k sim.CreatureKind) (callVoice, bool) {
 		return callVoice{"croak", 0.35, 1.55, 16, 30 * s, 5 * s, 0}, true
 	case sim.CreatureSabre:
 		return callVoice{"sabre_roar", 0.4, 1, 22, 34 * s, 8 * s, 0}, true
+	case sim.CreatureMonkey: // a troop hooting and chattering in the trees
+		return callVoice{"chirp", 0.4, 1.9, 18, 14 * s, 3 * s, 0}, true
 	}
 	return callVoice{}, false
 }

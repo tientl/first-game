@@ -70,7 +70,12 @@ type art struct {
 	bodies map[sim.Look]*bodyArt
 	armors map[armorKey]*armorArt // drawn on first use; see armorart.go
 
-	beasts creatureArt // animals; see creatures.go
+	beasts creatureArt                 // animals; see creatures.go
+	tribal tribalArt                   // the tribal age; see tribalart.go
+	heads  map[sim.CreatureKind]sprite // trophy heads cut from the beasts; see tribalrender.go
+	sea    seaArt                      // boats and sea monsters; see seaart.go
+	desert desertArt                   // the pyramid and the giant scorpion; see desertart.go
+	cave   caveArt                     // cave mouths and the way up; see caveart.go
 
 	shadow   *ebiten.Image // soft black disc, drawn squashed
 	light    *ebiten.Image // radial white gradient, alpha-premultiplied
@@ -160,6 +165,11 @@ func newArt() *art {
 	genGearIcons(&a.icons)
 	genFruitIcons(&a.icons)
 	a.heart, a.food = genHeart(), genFood()
+	a.sea = genSeaArt()
+	a.desert = genDesertArt()
+	a.cave = genCaveArt()
+	genSeaIcons(&a.icons)
+	a.addTribalArt()
 	return a
 }
 
@@ -464,6 +474,21 @@ func genTombstone() sprite {
 }
 
 // --- player -----------------------------------------------------------------
+
+// mirrorCache holds the mirror images made by flipped, by source image.
+var mirrorCache = map[*ebiten.Image]sprite{}
+
+// flipped is mirrorSprite for drawing every frame: each image is mirrored
+// once and kept.
+func flipped(s sprite) sprite {
+	m, ok := mirrorCache[s.img]
+	if !ok {
+		m = mirrorSprite(sprite{s.img, 0, s.ay})
+		mirrorCache[s.img] = m
+	}
+	w := float64(s.img.Bounds().Dx())
+	return sprite{m.img, w - s.ax, s.ay}
+}
 
 func mirrorSprite(s sprite) sprite {
 	w, h := s.img.Bounds().Dx(), s.img.Bounds().Dy()

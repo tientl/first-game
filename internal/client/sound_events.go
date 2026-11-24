@@ -25,6 +25,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 	if snd == nil || g.demo {
 		return
 	}
+	g.thunderSounds(cur)
 	oldEnts := make(map[sim.EntityID]protocol.EntityView, len(old.Entities))
 	oldAt := make(map[[2]int]protocol.EntityView, len(old.Entities))
 	for _, e := range old.Entities {
@@ -193,6 +194,8 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 			} else {
 				snd.play("craft", 0.6, 0, 1)
 			}
+		case sim.NoticeFertilized:
+			snd.playVar("pick_grass", 0.6, 0, 0.08)
 		case sim.NoticeNotEnough, sim.NoticeNoSpace, sim.NoticeNotEdible, sim.NoticeNoneLeft, sim.NoticeBagFull,
 			sim.NoticeNeedTool, sim.NoticeHaveOne, sim.NoticeNeedBait, sim.NoticeNeedFire, sim.NoticeNotTired:
 			// Holding Space at a tree with no axe repeats the notice twice
@@ -230,6 +233,7 @@ func (g *Game) frameSounds(alpha float64) {
 		g.sm.stepFrame = make(map[sim.PlayerID]int)
 	}
 
+	g.swarmSounds() // see jungleart.go
 	lx, ly := float64(g.width)/2, float64(g.height)/2
 	for _, p := range g.curr.Players {
 		if p.ID == g.myID {
@@ -306,7 +310,19 @@ func (g *Game) frameSounds(alpha float64) {
 	out := 1 - g.caveIn()
 	snd.setLoop("ocean", min(1, g.sm.ocean*2.5)*0.5*out)
 	snd.setLoop("fire", fire*0.7)
-	snd.setLoop("wind", (0.1+0.08*night)*out)
+	wind := 0.1 + 0.08*night
+	if g.curr.Weather.Windy() {
+		wind = 0.55
+	}
+	rain := 0.0
+	if g.curr.Weather.Wet() {
+		rain = 0.45
+		if g.curr.Weather == sim.WeatherStorm {
+			rain = 0.7
+		}
+	}
+	snd.setLoop("wind", wind*out)
+	snd.setLoop("rain", rain*out)
 	snd.setLoop("crickets", math.Pow(night, 1.5)*0.3*(1-g.sm.ocean)*out)
 	snd.setLoop("cave", 0.5*g.caveIn())
 
@@ -332,4 +348,26 @@ func bigLouder(e protocol.EntityView, vol float64) float64 {
 		return min(1, vol*1.3)
 	}
 	return vol
+}
+
+// thunderSounds rolls thunder for each new strike of lightning, louder and
+// sooner the closer it fell.
+func (g *Game) thunderSounds(cur protocol.Snapshot) {
+	if g.strikesSeen == nil {
+		g.strikesSeen = make(map[[2]float32]bool)
+	}
+	for _, s := range cur.Strikes {
+		k := [2]float32{s.X, s.Y}
+		if g.strikesSeen[k] {
+			continue
+		}
+		g.strikesSeen[k] = true
+		snd.playAt("thunder", float64(s.X), float64(s.Y), 1, 40)
+	}
+	if len(g.strikesSeen) > 64 {
+		clear(g.strikesSeen)
+		for _, s := range cur.Strikes {
+			g.strikesSeen[[2]float32{s.X, s.Y}] = true
+		}
+	}
 }

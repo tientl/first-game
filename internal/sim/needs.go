@@ -252,7 +252,7 @@ func (w *World) hunt(c *Creature) bool {
 	if prey != nil && (prey.Tamed() || prey.State.OutOfReach() || math.Hypot(prey.X-c.X, prey.Y-c.Y) > HuntGiveUp) {
 		prey = nil
 	}
-	if float64(c.HP) < float64(c.Kind.def().hp)*HunterQuitBelow {
+	if float64(c.HP) < float64(c.Kind.MaxHP())*HunterQuitBelow {
 		prey = nil // too badly hurt to go on
 		c.hunger /= 2
 	}
@@ -313,7 +313,7 @@ func (w *World) findPrey(c *Creature, kinds []CreatureKind) *Creature {
 // maul takes dmg from a creature bitten by a beast, and reports whether
 // that killed it (it is gone; nobody gets its meat).
 func (w *World) maul(c *Creature, dmg int) bool {
-	c.HP -= dmg
+	c.HP -= dmg * HealthScale
 	c.Tame = 0
 	if c.HP <= 0 {
 		c.gone = true

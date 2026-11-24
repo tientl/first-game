@@ -78,11 +78,11 @@ func TestHornedGrazersTurnAndFight(t *testing.T) {
 	hungry(rex)
 	trike.fed = true
 	for range 20 * TicksPerSecond {
-		if w.Step(); trike.gone || rex.HP < rexDef.hp {
+		if w.Step(); trike.gone || rex.HP < rexDef.hp*HealthScale {
 			break
 		}
 	}
-	if rex.HP == rexDef.hp {
+	if rex.HP == rexDef.hp*HealthScale {
 		t.Fatalf("trike state %d gone %v: a hunted three-horn should gore the tyrant", trike.State, trike.gone)
 	}
 }
@@ -109,7 +109,7 @@ func TestCrocodilesTakeAnimalsComeToDrink(t *testing.T) {
 	c.fed = true
 	c.State, c.timer = CreatureDrink, DrinkTicks
 	w.Step()
-	if c.HP == thescDef.hp || croc.State != CreatureStrike {
+	if c.HP == thescDef.hp*HealthScale || croc.State != CreatureStrike {
 		t.Fatalf("hp %d croc state %d: a lurking crocodile should take a drinker", c.HP, croc.State)
 	}
 	if c.hunter != croc.ID {

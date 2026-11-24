@@ -79,7 +79,20 @@ func (g *Game) crystals(cam camera, w, h int) []crystalLight {
 }
 
 // caveDarkness is how dark the whole view is for a player in a cave.
-func (g *Game) caveDarkness() float64 { return caveInsideDark * smooth(g.caveIn()) }
+func (g *Game) caveDarkness() float64 {
+	d := caveInsideDark
+	if g.underground() {
+		d = caveDeepDark // the deep caves: no light gets in at all
+	}
+	return d * smooth(g.caveIn())
+}
+
+// caveDeepDark is how dark the caves under the world are, away from light.
+const caveDeepDark = 0.97
+
+// ownLightRadius is the faint light a player sees by underground with no
+// torch: enough to make out the walls close by.
+const ownLightRadius = 1.9
 
 // crystalLights punches the crystals' light out of the darkness (punch) or
 // adds their cold glow to the scene.

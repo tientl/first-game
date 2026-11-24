@@ -63,16 +63,15 @@ func genArmor(t sim.Tier, female bool, d sim.Dir, frame int) (body, helmet sprit
 		b, h := genArmor(t, female, sim.DirRight, frame)
 		return mirrorSprite(b), mirrorSprite(h)
 	}
+	B, H := armorLayers(t, female, d, frame)
+	return mk(B, 9, bodyFeet), mk(H, 9, bodyFeet)
+}
+
+// armorLayers draws the two layers of genArmor; d is not DirLeft.
+func armorLayers(t sim.Tier, female bool, d sim.Dir, frame int) (B, H *canvas) {
 	const w, h = 18, 26
-	const ax, ay = 9, 24
-	B, H := newCanvas(w, h), newCanvas(w, h)
-	step := 0
-	switch frame {
-	case 1:
-		step = -1
-	case 3:
-		step = 1
-	}
+	B, H = newCanvas(w, h), newCanvas(w, h)
+	step := walkStep(frame)
 	hide := hideRamp
 	if t == sim.TierDiamond {
 		hide = darkHideRamp
@@ -113,8 +112,8 @@ func genArmor(t sim.Tier, female bool, d sim.Dir, frame int) (body, helmet sprit
 	switch d {
 	case sim.DirDown, sim.DirUp:
 		for y := 13; y <= 18; y++ {
-			x0, x1, _ := torsoSpan(female, d, y)
-			for x := x0; x <= x1; x++ {
+			x0, x1, ok := torsoSpan(female, d, y)
+			for x := x0; ok && x <= x1; x++ {
 				l := 0.85 - float64(x-4)/9*0.45 - float64(y-13)*0.03
 				if y == 18 {
 					l -= 0.2
@@ -122,9 +121,9 @@ func genArmor(t sim.Tier, female bool, d sim.Dir, frame int) (body, helmet sprit
 				skin(B, x, y, l, d == sim.DirDown)
 			}
 		}
-		left, right := 2, 13 // each guard is three pixels wide
+		left, right := 3, 12 // each guard is three pixels wide
 		if female {
-			left, right = 3, 12
+			left, right = 4, 11
 		}
 		for _, sx := range []int{left, right} {
 			for dx := range 3 {
@@ -139,9 +138,9 @@ func genArmor(t sim.Tier, female bool, d sim.Dir, frame int) (body, helmet sprit
 		}
 	case sim.DirRight:
 		for y := 13; y <= 18; y++ {
-			x0, x1, _ := torsoSpan(female, d, y)
-			for x := x0; x <= x1; x++ {
-				if sideArm(female, step, x, y) >= 0 {
+			x0, x1, ok := torsoSpan(female, d, y)
+			for x := x0; ok && x <= x1; x++ {
+				if sideArm(step, x, y) {
 					continue // the arm and the hand
 				}
 				l := 0.82 - float64(x-5)/7*0.4
@@ -165,58 +164,68 @@ func genArmor(t sim.Tier, female bool, d sim.Dir, frame int) (body, helmet sprit
 		}
 	}
 
+	B, H = padTop(B, headroom), padTop(H, headroom)
+	// Headgear, in the sprite's own rows (look.go): the head is on rows 5 to
+	// 15 and the hair a row or two above.
 	switch t {
 	case sim.TierPlatinum: // a hide band round the brow with an agate set in it
-		const cx, rx = 9.0, headRX + 0.4
-		for x := 0; x < w; x++ {
-			if nx := (float64(x) + 0.5 - cx) / rx; nx*nx < 1 {
-				H.set(x, 5, hide.pick(0.6-nx*0.2, x, 5))
-			}
+		const row = 8
+		x0, x1, _ := headSpan(row)
+		for x := x0; x <= x1; x++ {
+			H.put(x, row, hide.at(3-(x-x0)/4))
 		}
 		if d == sim.DirDown {
-			H.set(9, 5, agateRamp[3])
-			H.set(8, 5, agateRamp[2])
+			H.put(8, row, agateRamp[3])
+			H.put(9, row, agateRamp[2])
 		}
 		if d == sim.DirRight {
-			H.set(13, 5, agateRamp[3])
+			H.put(x1, row, agateRamp[3])
 		}
 	case sim.TierDiamond: // a skull cap, its brow fringed with teeth
-		const cx, cy, rx, ry = 9.0, 7.0, headRX + 0.6, headRY + 0.6
-		for y := 0; y < 14; y++ {
-			for x := 0; x < w; x++ {
-				nx, ny := (float64(x)+0.5-cx)/rx, (float64(y)+0.5-cy)/ry
-				if nx*nx+ny*ny > 1 {
-					continue
-				}
-				brow := 5
+		for y := 3; y <= 14; y++ {
+			x0, x1, ok := headSpan(y)
+			switch y {
+			case 3:
+				x0, x1, ok = 6, 11, true
+			case 4:
+				x0, x1, ok = 4, 13, true
+			case 5, 6:
+				x0, x1 = 3, 14
+			}
+			for x := x0; ok && x <= x1; x++ {
+				brow := 8
 				switch {
 				case d == sim.DirUp:
-					brow = 9
+					brow = 13
 				case d == sim.DirRight && x < 8:
-					brow = 9
-				}
-				if y > brow+1 {
-					continue
+					brow = 13
 				}
 				switch {
 				case y == brow+1 && x%2 == 0 && d != sim.DirUp:
-					H.set(x, y, toothArt[3]) // the teeth
+					H.put(x, y, toothArt[3]) // the teeth
 				case y <= brow:
-					l := lum(nx, ny) + 0.15
-					if (x == 6 || x == 11) && y == 3 && d == sim.DirDown {
-						H.set(x, y, colInk) // eye sockets of the skull
+					tone := 3
+					switch {
+					case x >= x1-1 || y == brow:
+						tone = 1
+					case x <= x0+4 && y <= 6:
+						tone = 4
+					case x >= x1-4:
+						tone = 2
+					}
+					if (x == 6 || x == 11) && y == 6 && d == sim.DirDown {
+						H.put(x, y, colInk) // eye sockets of the skull
 						continue
 					}
-					H.set(x, y, hornRamp.pick(l, x, y))
+					H.put(x, y, hornRamp.at(tone))
 				}
 			}
 		}
 	}
 
-	B, H = padTop(B, headroom), padTop(H, headroom)
 	B.outline(0.75)
 	H.outline(0.75)
-	return mk(B, ax, ay+headroom), mk(H, ax, ay+headroom)
+	return B, H
 }
 
 // drawArmored draws p in armour: the body up to the shirt, the armour,

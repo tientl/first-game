@@ -20,7 +20,9 @@ import (
 //   - 7: a day lasts twice as long (8 minutes); older ticks are doubled.
 //   - 8: tamed beasts are saved with their owners' names.
 //   - 9: fruit trees grow wild.
-const SaveVersion = 9
+//   - 10: things lie on the ground; players come back by their last bed.
+//   - 11: a beast's health counts in HealthScale units (weapons do damage, not hits).
+const SaveVersion = 11
 
 // v6DayTicks is how long a day was in saves before version 7.
 const v6DayTicks = 240 * TicksPerSecond
@@ -38,6 +40,8 @@ type SaveData struct {
 	Style         WorldStyle   `json:",omitempty"` // which generator made the terrain
 	Chests        []ChestSave  `json:",omitempty"` // what each chest holds
 	Pets          []PetSave    `json:",omitempty"` // tamed beasts; wild ones are not saved
+	Drops         []Drop       `json:",omitempty"` // piles on the ground
+	Boats         []BoatSave   `json:",omitempty"` // boats on the water
 }
 
 // PlayerSave is the persistent part of a player.
@@ -51,7 +55,8 @@ type PlayerSave struct {
 	Selected       int    // held hotbar slot
 	Explored       []byte `json:",omitempty"` // tiles seen, as Explored.Bytes
 	Dead           bool
-	TorchFuel      int `json:",omitempty"` // ticks left on the torch being burnt
+	TorchFuel      int      `json:",omitempty"` // ticks left on the torch being burnt
+	Home           EntityID `json:",omitempty"` // the last bed slept in
 
 	// Inv is how saves before version 4 kept the inventory: a count per item
 	// kind, indexed by ItemKind. Load turns it into Slots.
@@ -62,7 +67,7 @@ func savePlayer(p *Player) PlayerSave {
 	return PlayerSave{
 		Name: p.Name, Look: p.Look, X: p.X, Y: p.Y, Dir: p.Dir,
 		Health: p.Health, Hunger: p.Hunger, Slots: p.Inv, Selected: p.Selected, Explored: p.explored.Bytes(), Dead: p.Dead,
-		TorchFuel: p.torchFuel,
+		TorchFuel: p.torchFuel, Home: p.home,
 	}
 }
 
@@ -82,6 +87,14 @@ func (w *World) restorePlayer(p *Player, ps PlayerSave) {
 	p.Look = ps.Look.Sanitized()
 	if finite(ps.X, ps.Y) && w.standable(ps.X, ps.Y) {
 		p.X, p.Y = ps.X, ps.Y
+	} else if finite(ps.X, ps.Y) {
+		// Saved at sea: back aboard the boat that is still there.
+		for _, b := range w.boats {
+			if b.Rider == 0 && math.Hypot(b.X-ps.X, b.Y-ps.Y) < 0.5 {
+				p.X, p.Y, p.boat, b.Rider = b.X, b.Y, b.ID, p.ID
+				break
+			}
+		}
 	}
 	if ps.Dir <= DirRight {
 		p.Dir = ps.Dir
@@ -94,6 +107,9 @@ func (w *World) restorePlayer(p *Player, ps PlayerSave) {
 	p.Inv.sanitize()
 	p.explored = ExploredFrom(w.width, w.height, ps.Explored)
 	p.torchFuel = min(TorchBurnTicks, max(0, ps.TorchFuel))
+	if b := w.entities[ps.Home]; b != nil && b.Kind == EntityBed {
+		p.home = ps.Home
+	}
 	if IsHotbar(ps.Selected) {
 		p.Selected = ps.Selected
 	}
@@ -116,13 +132,19 @@ func (w *World) Save() SaveData {
 		Version: SaveVersion,
 		Seed:    w.seed,
 		Width:   w.width,
-		Height:  w.height,
+		Height:  w.genH,
 		Tick:    w.tick,
 		Style:   w.style,
 	}
 	d.NextEntity = w.nextEnt
 	d.Chests = w.saveChests()
 	d.Pets = w.savePets() // see tame.go
+	d.Boats = w.saveBoats()
+	for _, dr := range w.drops {
+		if !dr.gone {
+			d.Drops = append(d.Drops, *dr)
+		}
+	}
 	for _, e := range w.entities {
 		d.Entities = append(d.Entities, *e)
 	}
@@ -256,7 +278,24 @@ func Load(d SaveData) (*World, error) {
 			w.offline[name] = ps
 		}
 	}
+	if d.Version < 11 {
+		for i := range d.Pets {
+			d.Pets[i].HP *= HealthScale
+		}
+	}
 	w.loadPets(d.Pets)
+	w.loadBoats(d.Boats)
+	for _, dr := range d.Drops {
+		if !dr.Item.Valid() || dr.Count <= 0 || !finite(dr.X, dr.Y, dr.FromX, dr.FromY) {
+			continue
+		}
+		dr.Count = min(dr.Count, dr.Item.MaxCount())
+		dr.Born = min(dr.Born, w.tick)
+		w.nextDrop++
+		dr.ID = w.nextDrop
+		x := dr
+		w.drops = append(w.drops, &x)
+	}
 	w.watchAll() // regrowing plants, fires and soil from the save keep going
 	return w, nil
 }

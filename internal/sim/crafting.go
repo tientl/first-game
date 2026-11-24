@@ -5,7 +5,7 @@ package sim
 
 // Tool and building tuning.
 const (
-	SpearDamage     = 2   // damage per thrust with a held spear
+	SpearDamage     = 20  // damage per thrust with a held spear; see combat.go
 	SpearReachBonus = 0.5 // extra reach on creatures with a held spear, in tiles
 
 	TorchBurnTicks = 90 * TicksPerSecond // one torch burns this long while held
@@ -60,7 +60,7 @@ func (w *World) warm(x, y float64) bool {
 // blocked reports whether a structure on tile (tx, ty) blocks the way.
 func (w *World) blocked(tx, ty int) bool {
 	e := w.entityAt(tx, ty)
-	return e != nil && (e.Kind == EntityWall || e.Kind == EntityStoneWall)
+	return e != nil && blocksPlayers(e.Kind)
 }
 
 // sleep puts p to bed in e. Beds are for the evening and the night.
@@ -70,6 +70,10 @@ func (w *World) sleep(p *Player, e *Entity) bool {
 		return false
 	}
 	p.Asleep, p.bed = true, e.ID
+	if p.home != e.ID {
+		p.home = e.ID // this is where p comes back after dying now
+		p.notify(NoticeHomeSet, 0)
+	}
 	if x, y := float64(e.TX)+0.5, float64(e.TY)+0.5; w.standable(x, y) {
 		p.X, p.Y = x, y
 	}
@@ -131,17 +135,4 @@ func ReachBonusFor(held ItemKind) float64 {
 		return IvorySpearReach // see iceage.go
 	}
 	return 0
-}
-
-func damageWith(p *Player) int {
-	if t, ok := SwordTier(p.Held()); ok {
-		return swordDamage[t]
-	}
-	switch p.Held() {
-	case ItemSpear:
-		return SpearDamage
-	case ItemIvorySpear:
-		return IvorySpearDamage
-	}
-	return 1
 }

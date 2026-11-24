@@ -118,6 +118,13 @@ func (g *Game) drawHUD(screen *ebiten.Image, sw, sh int) {
 		if sim.Ambient(g.curr.Tick) >= sim.ColdAmbient { // by day: it is the snow
 			warn = "Tuyết lạnh cóng! Mặc Áo lông, cưỡi voi ma mút hoặc đứng gần lửa"
 		}
+		if g.curr.Season == sim.Winter && g.curr.Weather != sim.WeatherClear {
+			warn = "Rét mùa đông! Mặc Áo lông hoặc áo da, hoặc đứng gần lửa, đuốc"
+		}
+	} else if self.Poisoned && !self.Dead {
+		warn, warnCol = "Trúng độc nhện! Dùng Băng tơ nhện hoặc Bình máu lớn", color.RGBA{140, 230, 100, 255}
+	} else if self.Webbed && !self.Dead {
+		warn, warnCol = "Dính tơ nhện — đi chậm lại", colMuted
 	} else if self.Hunger <= 0 && !self.Dead {
 		warn, warnCol = "Đang chết đói!", colHunger
 	}
@@ -131,6 +138,7 @@ func (g *Game) drawHUD(screen *ebiten.Image, sw, sh int) {
 		g.text(screen, warn, 24, 93, c, text.AlignStart, 1)
 	}
 
+	g.drawSeaHUD(screen) // see searender.go
 	g.drawClock(screen, sw)
 	if g.overlay == overlayNone { // the map and bag cover the bottom of the screen
 		g.drawMinimap(screen, sw)
@@ -146,7 +154,7 @@ func (g *Game) drawHUD(screen *ebiten.Image, sw, sh int) {
 		msg := "Đã tự động lưu"
 		w := float32(g.textWidth(msg)) + 24
 		x := float32(sw) - w - 12
-		y := float32(76)
+		y := float32(98)
 		if g.overlay == overlayNone {
 			y = float32(miniBottom()) + 8 // under the minimap
 		}
@@ -157,7 +165,11 @@ func (g *Game) drawHUD(screen *ebiten.Image, sw, sh int) {
 	if self.Dead {
 		g.dim(screen, sw, sh, 0.6)
 		g.text(screen, "Bạn đã gục ngã", float64(sw/2), float64(sh/2-40), color.RGBA{236, 110, 110, 255}, text.AlignCenter, 3)
-		g.text(screen, "Nhấn R để hồi sinh (mất hết đồ)", float64(sw/2), float64(sh/2+20), colMuted, text.AlignCenter, 1)
+		where := "ở chỗ xuất phát"
+		if self.HomeBed {
+			where = "cạnh giường ngủ lần cuối"
+		}
+		g.text(screen, "Nhấn R để hồi sinh "+where+" (mất hết đồ)", float64(sw/2), float64(sh/2+20), colMuted, text.AlignCenter, 1)
 	}
 }
 
@@ -174,11 +186,14 @@ func (g *Game) drawClock(screen *ebiten.Image, sw int) {
 	const w, h = 176, 8
 	tick := g.curr.Tick
 	px := float32(sw - w - 24 - 12)
-	panel(screen, px, 12, w+24, 56)
+	panel(screen, px, 12, w+24, 78)
 	x, y := px+12, float32(46)
 	phase := map[sim.Phase]string{sim.PhaseDay: "Ban ngày", sim.PhaseDusk: "Chạng vạng", sim.PhaseNight: "Ban đêm"}[sim.PhaseOf(tick)]
 	g.text(screen, fmt.Sprintf("Ngày %d", sim.DayOf(tick)), float64(x), 20, colWhite, text.AlignStart, 1)
 	g.text(screen, phase, float64(x)+w, 20, colMuted, text.AlignEnd, 1)
+	season := fmt.Sprintf("%s %d/%d", g.curr.Season.Name(), sim.SeasonDay(tick), sim.SeasonDays)
+	g.text(screen, season, float64(x), 62, seasonColors[g.curr.Season%sim.NumSeasons], text.AlignStart, 1)
+	g.text(screen, g.curr.Weather.Name(), float64(x)+w, 62, colMuted, text.AlignEnd, 1)
 
 	fillRoundRect(screen, x, y, w, h, 4, colNight)
 	fillRoundRect(screen, x, y, w*sim.NightStart, h, 4, colDusk)
@@ -244,6 +259,7 @@ func (g *Game) drawHelp(screen *ebiten.Image, sh int) {
 	lines := []line{
 		{"WASD", "di chuyển", colMuted},
 		{"Space", "nhặt, hái, đập đá (cần cúp), chặt cây (cần rìu)", colMuted},
+		{"Chuột", "nhấp trái như Space · đồ rơi dưới đất: Space để nhặt", colMuted},
 		{"", "cầm cuốc: xới đất, trồng và đào khoai", colMuted},
 		{"", "bắt thỏ, đánh rắn, bắt giun, câu cá", colMuted},
 		{"1-0", "chọn ô (hoặc lăn chuột)", colMuted},
@@ -274,16 +290,28 @@ func (g *Game) drawHelp(screen *ebiten.Image, sh int) {
 		}
 		lines = append(lines, line{"F", "nướng thịt / cá (đứng gần lửa trại)", c})
 	}
-	if verb, can, ok := g.mountHint(); ok { // see ride.go
+	if verb, ok := g.boatHint(); ok { // see searender.go
+		lines = append(lines, line{"R", verb, colGood})
+	} else if verb, can, ok := g.mountHint(); ok { // see ride.go
 		c := color.Color(colMuted)
 		if can {
 			c = colGood
 		}
 		lines = append(lines, line{"R", verb, c})
 	}
+	if held := g.myHeld(); held == sim.ItemRaft || held == sim.ItemSailboat {
+		lines = append(lines, line{"V", "thả thuyền xuống nước trước mặt", colGood})
+	} else if held == sim.ItemTorch || sim.IsSeed(held) {
+		lines = append(lines, line{"V", "cắm đuốc / gieo hạt trước mặt", colGood})
+	} else if held == sim.ItemDung {
+		lines = append(lines, line{"V", "bón phân cho cây non, luống đất, cây đang mọc lại", colGood})
+	} else if _, ok := sim.HeadOf(g.myHeld()); ok {
+		lines = append(lines, line{"V", "dựng đầu thú làm vật trang trí", colGood})
+	}
 	lines = append(lines,
 		line{"B", "túi đồ", colMuted},
 		line{"M", "bản đồ", colMuted},
+		line{"= / −", "thu phóng (hoặc Ctrl + lăn chuột)", colMuted},
 		line{"F11", "toàn màn hình", colMuted},
 		line{"Esc", "tạm dừng · lưu game", colMuted})
 
@@ -309,4 +337,9 @@ func (g *Game) drawPause(screen *ebiten.Image, sw, sh int) {
 	g.text(screen, "Tạm dừng", cx, top, colWhite, text.AlignCenter, 3)
 	g.pause.draw(screen, cx, top+64, 340)
 	g.text(screen, "Game tự lưu mỗi phút và khi thoát", cx, g.pause.rowY(len(g.pause.items))+8, colMuted, text.AlignCenter, 1)
+}
+
+// seasonColors colour the season's name on the clock.
+var seasonColors = [sim.NumSeasons]color.RGBA{
+	{150, 230, 140, 255}, {255, 214, 100, 255}, {240, 150, 70, 255}, {190, 220, 255, 255},
 }
