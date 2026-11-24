@@ -116,8 +116,16 @@ func TestPetsDefendTheirOwner(t *testing.T) {
 	if !raptor.gone && raptor.HP == raptorDef.hp*HealthScale {
 		t.Fatal("the pet never fought the raptor going for its owner")
 	}
-	if raptor.gone && p.Inv.Count(ItemHide) == 0 {
-		t.Error("the pet's kill should go to its owner")
+	if raptor.gone {
+		bodies := 0
+		for _, e := range w.entities {
+			if e.Kind == EntityCorpse && CreatureKind(e.Var) == CreatureRaptor {
+				bodies++
+			}
+		}
+		if bodies == 0 {
+			t.Error("the pet's kill should lie there for its owner to butcher")
+		}
 	}
 	if p.Dead {
 		t.Error("the owner died with a three-horn guarding them")

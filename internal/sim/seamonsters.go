@@ -38,7 +38,7 @@ const (
 
 var (
 	mosaDef = creatureDef{
-		name: "Thương long", hp: 45,
+		name: "Thương long", hp: 90,
 		walk: 1.6 / TicksPerSecond, run: 5.4 / TicksPerSecond,
 		radius: 1.0, reach: 3.2,
 		yield: ItemMeat, yieldN: 12, drops: []Ingredient{{ItemBone, 5}, {ItemHide, 2}},
@@ -48,7 +48,7 @@ var (
 		offshore: [2]int{8, 250},
 	}
 	krakenDef = creatureDef{
-		name: "Mực khổng lồ", hp: 36,
+		name: "Mực khổng lồ", hp: 80,
 		walk: 0.8 / TicksPerSecond, run: 3.6 / TicksPerSecond,
 		radius: 1.1, reach: 3.4,
 		yield: ItemMeat, yieldN: 8, drops: []Ingredient{{ItemSilk, 4}},

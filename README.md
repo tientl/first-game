@@ -77,17 +77,17 @@ bay lập lòe trên đồng cỏ, trong rừng và đầm lầy.
 
 ### Máu và sát thương
 
-Mỗi sinh vật có máu riêng (cột Máu trong các bảng; thỏ 10, rắn 30, bạo chúa 400). Mỗi đòn trừ máu bằng sát thương của thứ đang cầm trên tay, xê dịch ±20%; 10% số đòn là **chí mạng**, mạnh gấp 1,6 lần. Con thú bị đánh hiện thanh máu trên đầu (xanh, vàng, rồi đỏ), số máu mất nổi lên mỗi đòn (đòn chí mạng màu cam, có dấu "!"). Trỏ vào con thú sẽ thấy máu còn lại và sát thương ước chừng của đòn bạn.
+Mỗi sinh vật có máu riêng (cột Máu trong các bảng; thỏ 10, rắn 30, raptor 120, gấu hang 450, voi ma mút 600, bạo chúa 2000). Mỗi đòn trừ máu bằng sát thương của thứ đang cầm trên tay, xê dịch ±20%; 10% số đòn là **chí mạng**, mạnh gấp 1,6 lần. Mỗi vũ khí vung nhanh chậm khác nhau. Thú nhỏ trúng đòn chỉ khựng lại tối đa một lần mỗi giây, nên đánh liên tục vẫn bị cắn trả. Bạo chúa cần ít nhất kiếm và giáp bạch kim. Con thú bị đánh hiện thanh máu trên đầu (xanh, vàng, rồi đỏ), số máu mất nổi lên mỗi đòn (đòn chí mạng màu cam, có dấu "!"). Trỏ vào con thú sẽ thấy máu còn lại và sát thương ước chừng của đòn bạn.
 
-| Cầm trên tay | Sát thương mỗi đòn |
-| --- | --- |
-| Tay không | 10 |
-| Cuốc (đá → hắc diện thạch) | 9, 11, 13, 16, 19 |
-| Cúp (đá → hắc diện thạch) | 12, 15, 19, 23, 28 |
-| Rìu (đá → hắc diện thạch) | 14, 17, 21, 26, 32 |
-| Giáo | 20 |
-| Giáo ngà | 40 |
-| Kiếm (đá lửa → hắc diện thạch) | 30, 42, 55, 75 |
+| Cầm trên tay | Sát thương mỗi đòn | Mỗi đòn cách nhau |
+| --- | --- | --- |
+| Tay không | 10 | 0,4 giây |
+| Cuốc (đá → hắc diện thạch) | 9, 11, 13, 16, 19 | 0,7 giây |
+| Cúp (đá → hắc diện thạch) | 12, 15, 19, 23, 28 | 0,7 giây |
+| Rìu (đá → hắc diện thạch) | 14, 17, 21, 26, 32 | 0,7 giây |
+| Giáo | 20 | 0,6 giây |
+| Giáo ngà | 40 | 0,7 giây |
+| Kiếm (đá lửa → hắc diện thạch) | 30, 42, 55, 75 | 0,5 giây |
 
 Bẫy, hàng rào chông, sét, cây ăn thịt, thú săn và thú nuôi cắn nhau cũng trừ theo cùng thang máu này.
 
@@ -97,23 +97,23 @@ Chỉ có ở thế giới mở, không bao giờ ở gần chỗ xuất phát (
 
 | Con | Ở đâu | Tính nết | Máu | Được gì |
 | --- | --- | --- | --- | --- |
-| Khủng long ba sừng | Đồng cỏ, theo đàn 4 con | Hiền; đánh một con thì cả đàn quanh đó (8 ô) nổi giận khoảng 12 giây: lao tới húc (22 máu). Chạy chậm hơn bạn | 140 | 6 Thịt sống, 2 Da thú, 1 Xương |
-| Khủng long gai lưng | Rừng, theo cặp | Hiền; bị đánh thì quất đuôi gai vào ai đứng gần (20 máu), đuổi rất chậm | 160 | 6 Thịt sống, 2 Da thú, 2 Xương |
-| Khủng long cổ dài | Đồng cỏ, rừng, nhóm 3 con | Không bao giờ đánh; bị đánh thì lững thững bỏ đi | 300 | 12 Thịt sống, 4 Da thú, 4 Xương |
-| Dakotaraptor | Rừng sâu, bầy 3 con | Thấy bạn trong 7 ô (ban đêm 10 ô) là đuổi, tới gần thì vồ cắn (9 máu) rồi lùi ra. Chạy chậm hơn bạn, nên cứ chạy là thoát; con bị thương nặng tự bỏ chạy | 60 | 2 Thịt sống, 1 Da thú, 1 Xương |
-| Khủng long bạo chúa | Vùng tro quanh núi lửa, hoang mạc xa | Thấy bạn trong 8 ô thì gầm lên rồi lao tới cắn (35 máu). Chậm hơn bạn; đuổi tối đa 20 giây rồi bỏ | 400 | 10 Thịt sống, 4 Da thú, 4 Xương, 2 Răng bạo chúa |
+| Khủng long ba sừng | Đồng cỏ, theo đàn 4 con | Hiền; đánh một con thì cả đàn quanh đó (8 ô) nổi giận khoảng 12 giây: lao tới húc (22 máu). Chạy chậm hơn bạn | 300 | 6 Thịt sống, 2 Da thú, 1 Xương |
+| Khủng long gai lưng | Rừng, theo cặp | Hiền; bị đánh thì quất đuôi gai vào ai đứng gần (20 máu), đuổi rất chậm | 340 | 6 Thịt sống, 2 Da thú, 2 Xương |
+| Khủng long cổ dài | Đồng cỏ, rừng, nhóm 3 con | Không bao giờ đánh; bị đánh thì lững thững bỏ đi | 700 | 12 Thịt sống, 4 Da thú, 4 Xương |
+| Dakotaraptor | Rừng sâu, bầy 3 con | Thấy bạn trong 7 ô (ban đêm 10 ô) là đuổi, tới gần thì vồ cắn (9 máu) rồi lùi ra. Chạy chậm hơn bạn, nên cứ chạy là thoát; con bị thương nặng tự bỏ chạy | 120 | 2 Thịt sống, 1 Da thú, 1 Xương |
+| Khủng long bạo chúa | Vùng tro quanh núi lửa, hoang mạc xa | Thấy bạn trong 8 ô thì gầm lên rồi lao tới cắn (35 máu). Chậm hơn bạn; đuổi tối đa 20 giây rồi bỏ | 2000 | 10 Thịt sống, 4 Da thú, 4 Xương, 2 Răng bạo chúa |
 | Thằn lằn bay | Bay lượn trên đồi đá, bờ biển | Bay cao thì không đánh được; thấy bạn trong 6 ô thì bổ nhào mổ (8 máu) rồi bay lên. Đánh được khi nó bổ nhào hoặc đậu dưới đất | 40 | 2 Thịt sống, 1 Da thú |
-| Thằn lằn cổ dài | Biển, cách bờ 2–6 ô | Bơi dưới nước (không đánh được), ai đứng trên bờ trong khoảng 4,5 ô thì ngoi lên vươn cổ cắn (16 máu). Lúc ngoi lên thì đánh vào cổ được từ trên bờ | 120 | 6 Thịt sống, 2 Xương, 1 Da thú |
-| Voi ma mút | Vùng tuyết, đàn 3 con | Hiền; đánh một con thì cả đàn quanh đó nổi giận, lao tới húc ngà (26 máu). Chạy chậm hơn bạn | 240 | 10 Thịt sống, 4 Lông thú, 2 Ngà voi, 1 Da thú |
-| Hổ răng kiếm | Vùng tuyết, đi một mình | Thấy bạn trong 9 ô thì rình lại gần, cách khoảng 3 ô thì vồ cắn (20 máu) rồi lùi ra vồ tiếp. Chạy chậm hơn bạn; còn 3 máu thì nằm gục 8 giây | 100 | 4 Thịt sống, 2 Lông thú, 1 Xương |
+| Thằn lằn cổ dài | Biển, cách bờ 2–6 ô | Bơi dưới nước (không đánh được), ai đứng trên bờ trong khoảng 4,5 ô thì ngoi lên vươn cổ cắn (16 máu). Lúc ngoi lên thì đánh vào cổ được từ trên bờ | 240 | 6 Thịt sống, 2 Xương, 1 Da thú |
+| Voi ma mút | Vùng tuyết, đàn 3 con | Hiền; đánh một con thì cả đàn quanh đó nổi giận, lao tới húc ngà (26 máu). Chạy chậm hơn bạn | 600 | 10 Thịt sống, 4 Lông thú, 2 Ngà voi, 1 Da thú |
+| Hổ răng kiếm | Vùng tuyết, đi một mình | Thấy bạn trong 9 ô thì rình lại gần, cách khoảng 3 ô thì vồ cắn (20 máu) rồi lùi ra vồ tiếp. Chạy chậm hơn bạn; còn 3 máu thì nằm gục 8 giây | 220 | 4 Thịt sống, 2 Lông thú, 1 Xương |
 | Ornithomimus | Đồng cỏ, hoang mạc, đàn 5 con | Giống đà điểu, chạy rất nhanh (nhanh hơn bạn nhiều), thấy bạn trong 6 ô là chạy. Chạy 3 giây thì dừng lại thở dốc: lúc đó mới bắt được | 40 | 3 Thịt sống, 1 Da thú, 1 Xương |
 | Thescelosaurus | Rừng, đồng cỏ, đàn 3 con | Ăn cỏ cỡ vừa, hiền; bị đánh thì bỏ chạy | 80 | 4 Thịt sống, 1 Da thú, 1 Xương |
-| Anzu | Rừng, đầm lầy, theo cặp | Như con gà khổng lồ có mào. Ai lại gần trong 3,5 ô thì xù mào dọa, lại gần nữa thì đá (10 máu); không đuổi xa | 70 | 3 Thịt sống, 1 Xương |
-| Torosaurus | Đồng cỏ, rừng, đàn 3 con | Họ hàng ba sừng, to hơn, diềm cổ lớn có lỗ. Đánh một con thì cả đàn húc (26 máu) | 180 | 8 Thịt sống, 3 Da thú, 2 Xương |
-| Acheroraptor | Rừng sâu, bầy 5 con | Raptor nhỏ hơn Dakotaraptor, bầy đông hơn: vồ cắn 6 máu; chạy chậm hơn bạn | 40 | 1 Thịt sống, 1 Da thú |
-| Quetzalcoatlus | Đồng cỏ, bãi cát, đồi đá, hoang mạc, đi một mình | Thằn lằn bay khổng lồ, đứng cao ngang hươu cao cổ. Đi bộ rình, thấy bạn trong 6 ô thì lại gần mổ (18 máu); còn 40% máu thì bay vụt đi chỗ khác | 160 | 6 Thịt sống, 2 Da thú, 3 Xương |
-| Brachychampsa | Ao trong đầm lầy | Giống cá sấu mõm tù: rình dưới nước, ai lại gần mép ao 2,8 ô thì lao lên cắn (16 máu) | 70 | 3 Thịt sống, 1 Da thú |
-| Champsosaurus | Ao trong đầm lầy | Giống cá sấu mõm dài mảnh: rình dưới nước, ai lại gần 2,2 ô thì đớp (10 máu) | 50 | 2 Thịt sống, 1 Da thú |
+| Anzu | Rừng, đầm lầy, theo cặp | Như con gà khổng lồ có mào. Ai lại gần trong 3,5 ô thì xù mào dọa, lại gần nữa thì đá (10 máu); không đuổi xa | 120 | 3 Thịt sống, 1 Xương |
+| Torosaurus | Đồng cỏ, rừng, đàn 3 con | Họ hàng ba sừng, to hơn, diềm cổ lớn có lỗ. Đánh một con thì cả đàn húc (26 máu) | 380 | 8 Thịt sống, 3 Da thú, 2 Xương |
+| Acheroraptor | Rừng sâu, bầy 5 con | Raptor nhỏ hơn Dakotaraptor, bầy đông hơn: vồ cắn 6 máu; chạy chậm hơn bạn | 80 | 1 Thịt sống, 1 Da thú |
+| Quetzalcoatlus | Đồng cỏ, bãi cát, đồi đá, hoang mạc, đi một mình | Thằn lằn bay khổng lồ, đứng cao ngang hươu cao cổ. Đi bộ rình, thấy bạn trong 6 ô thì lại gần mổ (18 máu); còn 40% máu thì bay vụt đi chỗ khác | 250 | 6 Thịt sống, 2 Da thú, 3 Xương |
+| Brachychampsa | Ao trong đầm lầy | Giống cá sấu mõm tù: rình dưới nước, ai lại gần mép ao 2,8 ô thì lao lên cắn (16 máu) | 120 | 3 Thịt sống, 1 Da thú |
+| Champsosaurus | Ao trong đầm lầy | Giống cá sấu mõm dài mảnh: rình dưới nước, ai lại gần 2,2 ô thì đớp (10 máu) | 90 | 2 Thịt sống, 1 Da thú |
 
 **Ăn, uống và săn mồi.** Thú hoang cũng biết đói và khát:
 

@@ -52,7 +52,7 @@ const (
 
 var (
 	spiderDef = creatureDef{
-		name: "Nhện độc", hp: 5,
+		name: "Nhện độc", hp: 6,
 		walk: 1.2 / TicksPerSecond, run: 3.2 / TicksPerSecond, // a player outruns it
 		radius: 0.35, reach: 1.6,
 		yield: ItemSilk, yieldN: 2,
@@ -61,7 +61,7 @@ var (
 		fights: true, openOnly: true, away: 18,
 	}
 	bearDef = creatureDef{
-		name: "Gấu hang", hp: 22,
+		name: "Gấu hang", hp: 45,
 		walk: 0.9 / TicksPerSecond, run: 3.4 / TicksPerSecond,
 		radius: 0.6, reach: 2.1,
 		yield: ItemMeat, yieldN: 6, drops: []Ingredient{{ItemFur, 3}, {ItemBone, 2}},

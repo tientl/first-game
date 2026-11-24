@@ -298,6 +298,9 @@ func (w *World) stepPlayer(p *Player) {
 		case c != nil:
 			p.Dir = dirToward(c.X-p.X, c.Y-p.Y)
 			acted = w.catch(p, c)
+			if !c.Kind.def().onLine {
+				cd = SwingTicks(p.Held()) // see combat.go
+			}
 		case e != nil:
 			p.Dir = dirToward(float64(e.TX)+0.5-p.X, float64(e.TY)+0.5-p.Y)
 			acted = w.interact(p, e)

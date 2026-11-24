@@ -237,7 +237,7 @@ var creatureDefs = [NumCreatureKinds]creatureDef{
 		spawnOn: []Tile{TileSand}, tilesPer: 30,
 	},
 	CreatureCroc: {
-		name: "Cá sấu", hp: 6,
+		name: "Cá sấu", hp: 12,
 		walk: 0.7 / TicksPerSecond, run: 2.4 / TicksPerSecond, // slow on land: a player outruns it
 		radius: 0.35, reach: 1.6,
 		yield: ItemMeat, yieldN: 3,
@@ -305,8 +305,9 @@ type Creature struct {
 	fedCD     int      // ticks before it takes another meal
 	healT     int      // ticks to its next point of mending, as a pet
 
-	village int // the village a warrior belongs to, 1-based; 0 for everyone else
-	grabHP  int // a giant squid's health when it seized its boat
+	village  int // the village a warrior belongs to, 1-based; 0 for everyone else
+	grabHP   int // a giant squid's health when it seized its boat
+	flinchCD int // ticks before a blow can make it flinch again; see combat.go
 
 	homeX, homeY float64
 	hx, hy       float64 // heading while walking or fleeing, a unit vector
@@ -610,6 +611,9 @@ func (w *World) stepCreatures() {
 }
 
 func (w *World) stepCreature(c *Creature) {
+	if c.flinchCD > 0 {
+		c.flinchCD--
+	}
 	if c.State == CreatureHooked {
 		if !w.stillHooked(c) { // the angler left, died or fell asleep
 			c.State, c.timer, c.hookedBy = CreatureIdle, 0, 0

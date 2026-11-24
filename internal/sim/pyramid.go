@@ -31,7 +31,7 @@ const (
 )
 
 var scorpionDef = creatureDef{
-	name: "Bọ cạp khổng lồ", hp: 18,
+	name: "Bọ cạp khổng lồ", hp: 35,
 	walk: 1.0 / TicksPerSecond, run: 3.3 / TicksPerSecond, // a player outruns it
 	radius: 0.55, reach: 2.0,
 	yield: ItemMeat, yieldN: 3, drops: []Ingredient{{ItemBone, 2}},

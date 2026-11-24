@@ -33,7 +33,7 @@ const (
 )
 
 var tribesmanDef = creatureDef{
-	name: "Thổ dân", hp: 10,
+	name: "Thổ dân", hp: 15,
 	walk: 1.3 / TicksPerSecond, run: 3.7 / TicksPerSecond,
 	radius: 0.3, reach: 1.7,
 	yield: ItemHide, yieldN: 1, drops: []Ingredient{{ItemBone, 1}},

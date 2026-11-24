@@ -16,6 +16,28 @@ const (
 	CritBonus    = 1.6 // ...and does this much more
 )
 
+// FlinchEvery is how often, at most, a blow makes a small beast flinch: a
+// flurry of blows does not keep it from fighting back.
+const FlinchEvery = TicksPerSecond
+
+// SwingTicks is how long a blow at a beast with held takes before the next:
+// a fist is quick, a sword quicker than a heavy axe or a long ivory spear.
+func SwingTicks(held ItemKind) int {
+	if _, ok := SwordTier(held); ok {
+		return TicksPerSecond / 2
+	}
+	switch held {
+	case ItemSpear:
+		return 3 * TicksPerSecond / 5
+	case ItemIvorySpear:
+		return 7 * TicksPerSecond / 10
+	}
+	if class, _ := held.ToolKind(); class != NoTool {
+		return 7 * TicksPerSecond / 10
+	}
+	return 2 * TicksPerSecond / 5 // a punch
+}
+
 // toolDamage is a blow with a tool of each tier, by class.
 var toolDamage = [NumToolClasses][NumTiers]int{
 	ToolAxe:     {14, 17, 21, 26, 32},

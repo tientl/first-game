@@ -70,7 +70,7 @@ var (
 		openOnly: true, herd: 3, away: 10,
 	}
 	anzuDef = creatureDef{
-		name: "Anzu", hp: 7,
+		name: "Anzu", hp: 12,
 		walk: 1.0 / TicksPerSecond, run: 3.0 / TicksPerSecond,
 		radius: 0.4, reach: 1.9,
 		yield: ItemMeat, yieldN: 3, drops: []Ingredient{{ItemBone, 1}},
@@ -79,7 +79,7 @@ var (
 		fights: true, openOnly: true, herd: 2, away: 18,
 	}
 	toroDef = creatureDef{
-		name: "Torosaurus", hp: 18,
+		name: "Torosaurus", hp: 38,
 		walk: 0.9 / TicksPerSecond, run: 3.4 / TicksPerSecond,
 		radius: 0.85, reach: 2.9,
 		yield: ItemMeat, yieldN: 8, drops: []Ingredient{{ItemHide, 3}, {ItemBone, 2}},
@@ -88,7 +88,7 @@ var (
 		fights: true, tough: true, openOnly: true, herd: 3, away: 20,
 	}
 	acheroDef = creatureDef{
-		name: "Acheroraptor", hp: 4,
+		name: "Acheroraptor", hp: 8,
 		walk: 1.5 / TicksPerSecond, run: 3.6 / TicksPerSecond, // still slower than a player
 		radius: 0.3, reach: 1.6,
 		yield: ItemMeat, yieldN: 1, drops: []Ingredient{{ItemHide, 1}},
@@ -97,7 +97,7 @@ var (
 		fights: true, openOnly: true, herd: 5, away: 35,
 	}
 	quetzalDef = creatureDef{
-		name: "Quetzalcoatlus", hp: 16,
+		name: "Quetzalcoatlus", hp: 25,
 		walk: 1.1 / TicksPerSecond, run: 2.2 / TicksPerSecond,
 		radius: 0.5, reach: 2.6,
 		yield: ItemMeat, yieldN: 6, drops: []Ingredient{{ItemHide, 2}, {ItemBone, 3}},
@@ -106,7 +106,7 @@ var (
 		fights: true, tough: true, openOnly: true, away: 30,
 	}
 	brachyDef = creatureDef{
-		name: "Brachychampsa", hp: 7,
+		name: "Brachychampsa", hp: 12,
 		walk: 0.7 / TicksPerSecond, run: 2.4 / TicksPerSecond,
 		radius: 0.38, reach: 1.7,
 		yield: ItemMeat, yieldN: 3, drops: []Ingredient{{ItemHide, 1}},
@@ -116,7 +116,7 @@ var (
 		fights: true, openOnly: true,
 	}
 	champsoDef = creatureDef{
-		name: "Champsosaurus", hp: 5,
+		name: "Champsosaurus", hp: 9,
 		walk: 0.8 / TicksPerSecond, run: 2.6 / TicksPerSecond,
 		radius: 0.3, reach: 1.6,
 		yield: ItemMeat, yieldN: 2, drops: []Ingredient{{ItemHide, 1}},
