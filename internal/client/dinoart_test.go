@@ -35,6 +35,7 @@ func dinoCanvases() (out []struct {
 	add("sabre", sabrePoses, sabreCanvas)
 	add("toro", trikePoses, func(p int) (*canvas, float64, float64) { return trikeCanvasOf(p, toroLook) })
 	add("achero", raptorPoses, func(p int) (*canvas, float64, float64) { return raptorCanvasOf(p, acheroLook) })
+	add("troodon", troodonPoses, troodonCanvas)
 	add("ornitho", ornithoPoses, ornithoCanvas)
 	add("thesc", thescPoses, thescCanvas)
 	add("anzu", anzuPoses, anzuCanvas)

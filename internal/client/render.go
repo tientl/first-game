@@ -144,6 +144,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawClouds(g.world, cam)
 	g.drawLighting(g.world, cam)
 	g.drawGlowMasks(g.world, cam, g.darknessNow())
+	g.drawEyeshine(g.world, cam, alpha, g.darknessNow()) // the night hunters' eyes; see troodon.go
 	g.drawLightning(g.world, cam)
 	g.drawEmbers(g.world, cam)
 	g.drawFireflies(g.world, cam)

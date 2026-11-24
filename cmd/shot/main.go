@@ -64,6 +64,7 @@ func main() {
 	season := flag.String("season", "", "the season: spring, summer, autumn, winter")
 	zoom := flag.Int("zoom", 0, "the view's zoom, -3 to 3")
 	fight := flag.Bool("fight", false, "show the beasts' health: a few just hurt, with the damage floating up (use with -dinos)")
+	troodon := flag.Bool("troodon", false, "put a pack of night hunters round the player: one stalking, one leaping in, one biting, and two more watching from the dark (use with -time 0.9 for their eyes)")
 	woodsFlag := flag.Bool("woods", false, "put the woods round the player: a giant tree and a tree with beehives, banana trees, a troop of monkeys, and bees after the player")
 	dung := flag.Bool("dung", false, "with -farm: a fed bed, heaps of dung by a grazing three-horn, and dung in hand")
 	sea := flag.Bool("sea", false, "out at sea: the player sailing, a raft, a swimmer, a mosasaur and a giant squid")
@@ -500,6 +501,19 @@ func main() {
 		put(sim.CreatureAchero, 4.8, 3.2, sim.CreatureIdle, true)
 		put(sim.CreatureQuetzal, 1.5, -2.5, sim.CreatureSoar, false)
 	}
+	if *troodon {
+		put := func(id sim.CreatureID, dx, dy float64, st sim.CreatureState, left bool) {
+			snap.Creatures = append(snap.Creatures, protocol.CreatureView{
+				ID: id, Kind: sim.CreatureTroodon, X: float32(sx + dx), Y: float32(sy + dy), State: st, FaceLeft: left,
+				HP: 5, MaxHP: 5,
+			})
+		}
+		put(troodonLeaper, 1.3, 2.1, sim.CreatureStrike, true)     // leaping in
+		put(troodonLeaper+1, -1.5, 0.3, sim.CreatureStrike, false) // biting
+		put(troodonLeaper+2, -4.2, 1.8, sim.CreatureChase, false)  // crouched, waiting its turn
+		put(troodonLeaper+3, -7.5, -2.2, sim.CreatureChase, false) // and two more out in the dark
+		put(troodonLeaper+4, 7.5, 3.4, sim.CreatureIdle, true)
+	}
 	if *ice {
 		id := sim.CreatureID(1 << 26)
 		put := func(k sim.CreatureKind, dx, dy float64, st sim.CreatureState, left bool) {
@@ -668,6 +682,9 @@ func main() {
 	game := client.New(conn, "Tien")
 	game.ShowOverlay(*overlay)
 	game.HoldBlows(*blowAge)
+	if *troodon {
+		game.HoldLeap(troodonLeaper)
+	}
 	var inner ebiten.Game = game
 	if *create {
 		m := client.NewMenu(client.SaveInfo{})
@@ -859,3 +876,6 @@ func addWoods(snap *protocol.Snapshot, sx, sy float64) {
 	monkey(5.2, 0.6, sim.CreatureIdle, false)
 	snap.Players[0].Bees = true
 }
+
+// troodonLeaper is the night hunter -troodon shows in mid-leap.
+const troodonLeaper = sim.CreatureID(1<<24 + 1)

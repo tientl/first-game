@@ -53,6 +53,14 @@ var dinoRigs = map[string]dinoRig{
 		jaw:   [2]rigPt{{31, 5}, {36.5, 5.2}},
 		teeth: true,
 	},
+	"troodon": {
+		file: "troodon", stride: 3,
+		legs:  []rigLimb{{23, 32, 22}, {13, 22, 22}}, // the near leg, then the far one behind it
+		head:  rigPart{pivot: rigPt{34.5, 10.5}, dir: headUp(0.5), maxY: 13},
+		jaw:   [2]rigPt{{40.5, 9}, {48.5, 9.4}},
+		tail:  rigPart{pivot: rigPt{17, 14.5}, dir: math.Pi, maxY: 19},
+		teeth: true,
+	},
 	"rex": {
 		file: "rex", stride: 4,
 		legs:  []rigLimb{{45, 64, 62}, {27, 44, 60}}, // the near leg, then the far one behind it
@@ -139,6 +147,18 @@ var dinoPoses = map[string]map[int]rigPose{
 		raptorCower:  {squash: 0.75, head: 0.4},
 		raptorEatA:   {head: 0.7},
 		raptorEatB:   {head: 0.7, open: 0.4},
+	},
+	"troodon": {
+		troodonWalkA: {step: 0.8},
+		troodonWalkB: {step: -0.8},
+		troodonRunA:  {step: 1.5, tilt: 0.08, head: 0.1, tail: 0.06},
+		troodonRunB:  {step: -1.3, tilt: 0.08, head: 0.1},
+		troodonStalk: {squash: 0.7, head: 0.4, tail: 0.14, step: 0.6},
+		troodonHiss:  {squash: 0.7, head: 0.4, tail: 0.14, step: 0.6, open: 0.3},
+		troodonLeap:  {step: 1.2, tilt: -0.22, head: 0.15, open: 0.45, tail: -0.1},
+		troodonBite:  {step: 1.2, tilt: 0.16, head: 0.3, open: 0.5, tail: 0.12},
+		troodonPeer:  {head: -0.3},
+		troodonHurt:  {squash: 0.9, head: -0.45, open: 0.35, tail: -0.15},
 	},
 	"rex": {
 		rexWalkB: {step: 1},
