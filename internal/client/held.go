@@ -20,9 +20,9 @@ import (
 func handAt(dir sim.Dir, step int) (dx, dy float64) {
 	switch dir {
 	case sim.DirRight:
-		return float64(-step), -5.5
+		return float64(-2 * step), -5.5
 	case sim.DirLeft:
-		return float64(step), -5.5
+		return float64(2 * step), -5.5
 	default:
 		return 4.5, -5.5 + float64(step)
 	}

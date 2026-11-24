@@ -67,6 +67,7 @@ func main() {
 	woodsFlag := flag.Bool("woods", false, "put the woods round the player: a giant tree and a tree with beehives, banana trees, a troop of monkeys, and bees after the player")
 	dung := flag.Bool("dung", false, "with -farm: a fed bed, heaps of dung by a grazing three-horn, and dung in hand")
 	sea := flag.Bool("sea", false, "out at sea: the player sailing, a raft, a swimmer, a mosasaur and a giant squid")
+	armor := flag.Int("armor", 0, "the armour tier the player wears, 0 (none) to 4")
 	flag.Parse()
 	client.SetZoom(*zoom)
 
@@ -328,6 +329,7 @@ func main() {
 		}
 	}
 	snap.Players[0].Look = sim.Look{Female: *female, Hair: sim.HairStyle(*hair), HairColor: uint8(*hairColor), Skin: uint8(*skin)}
+	snap.Players[0].Armor = sim.Tier(*armor)
 	snap.Players[1].Held = sim.ItemBerry
 	if snap.Players[0].Held == sim.ItemTorch {
 		snap.Self.TorchFuel = sim.TorchBurnTicks * 2 / 3

@@ -652,7 +652,7 @@ func (g *Game) drawSleeper(dst *ebiten.Image, p protocol.PlayerView, d drawable)
 	drawAt(dst, b.back[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
 	drawAt(dst, b.legs[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
 	drawAt(dst, b.shirt[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, tint)
-	drawAt(dst, b.top[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
+	drawAt(dst, b.asleep, fx, fy, 1, 1, -math.Pi/2, nil)
 	breath := 0.0
 	if (g.frame/50)%2 == 0 {
 		breath = 1
