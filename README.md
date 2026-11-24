@@ -30,6 +30,7 @@ Chạy client trên Linux cần cgo và các gói X11/GL dev (xem tài liệu c�
 Mọi âm thanh cũng được tổng hợp bằng code, không có file âm thanh nào:
 
 - `internal/client/sfx.go`: hiệu ứng (chặt, đập đá, nhặt đồ, ăn, lửa, bước chân theo loại đất…) và âm thanh môi trường lặp (sóng biển, lửa, gió, dế).
+- `internal/client/swimsound.go`: tiếng bơi. Nhảy xuống nước thì ùm một tiếng; bơi thì mỗi sải tay một tiếng rẽ nước, giữa hai sải có tiếng đạp chân; đứng nổi một chỗ thì nước óc ách quanh vai; leo lên bờ thì nước chảy ròng và nhỏ giọt. Dưới nước và trên thuyền không có tiếng bước chân.
 - `internal/client/music.go`: ba bản nhạc nền (menu, ban ngày, ban đêm) được soạn và "chơi" bằng code rồi lặp liền mạch; nhạc tự chuyển theo giờ trong game.
 - `internal/client/audio.go`: bộ trộn phần mềm (âm lượng, pan trái/phải, độ cao) đưa ra một luồng Ebitengine.
 - `internal/client/sound_events.go`: server chỉ gửi trạng thái, nên client so hai snapshot liên tiếp để biết khi nào phát tiếng.
