@@ -68,6 +68,9 @@ func main() {
 	dung := flag.Bool("dung", false, "with -farm: a fed bed, heaps of dung by a grazing three-horn, and dung in hand")
 	sea := flag.Bool("sea", false, "out at sea: the player sailing, a raft, a swimmer, a mosasaur and a giant squid")
 	armor := flag.Int("armor", 0, "the armour tier the player wears, 0 (none) to 4")
+	punch := flag.String("punch", "", "a blow by hand at a rabbit put in front of the player: jab, or cross for the other hand; nothing is held unless -held says so")
+	hurtFlag := flag.Bool("hurt", false, "the player has just been struck")
+	blowAge := flag.Int("age", -1, "with -punch or -hurt: how many frames into the blow or the jolt to show")
 	flag.Parse()
 	client.SetZoom(*zoom)
 
@@ -600,7 +603,7 @@ func main() {
 		})
 	}
 
-	conn := &fakeConn{ch: make(chan protocol.ServerMsg, 4)}
+	conn := &fakeConn{ch: make(chan protocol.ServerMsg, 8)}
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerWelcome, Welcome: protocol.Welcome{
 		PlayerID: 1, Width: N, Height: mapH, Tiles: w.Tiles(),
 		Explored: shotExplored(N, mapH, sx, sy), SurfaceH: surfH,
@@ -626,6 +629,33 @@ func main() {
 		hurt.Tick++
 		snap = hurt
 	}
+	if *punch != "" {
+		me := &snap.Players[0]
+		me.Acting = true
+		if *held < 0 {
+			me.Held = sim.ItemNone
+		}
+		dx, dy := me.Dir.Delta()
+		snap.Creatures = append(snap.Creatures, protocol.CreatureView{
+			ID: 1<<30 + 99, Kind: sim.CreatureRabbit, X: me.X + 1.1*float32(dx), Y: me.Y + 1.0*float32(dy),
+			HP: 6, MaxHP: 10, FaceLeft: dx > 0,
+		})
+		if *punch == "cross" { // a blow before this one, and a rest between
+			first, rest := snap, snap
+			first.Players, rest.Players = slices.Clone(snap.Players), slices.Clone(snap.Players)
+			rest.Players[0].Acting = false
+			first.Tick, rest.Tick = snap.Tick-2, snap.Tick-1
+			conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: first}
+			conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: rest}
+		}
+	}
+	if *hurtFlag {
+		before := snap
+		before.Players = slices.Clone(snap.Players)
+		before.Tick = snap.Tick - 1
+		conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: before}
+		snap.Players[0].HurtSeq++
+	}
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}
 
 	if *audioSettings != "" {
@@ -635,6 +665,7 @@ func main() {
 	ebiten.SetWindowTitle("shot")
 	game := client.New(conn, "Tien")
 	game.ShowOverlay(*overlay)
+	game.HoldBlows(*blowAge)
 	var inner ebiten.Game = game
 	if *create {
 		m := client.NewMenu(client.SaveInfo{})

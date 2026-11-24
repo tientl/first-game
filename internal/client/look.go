@@ -80,6 +80,10 @@ type bodyArt struct {
 	back, legs, shirt, top [4][walkFrames]sprite // indexed by sim.Dir
 	asleep                 sprite                // top facing the viewer, eyes shut
 	head                   *ebiten.Image         // facing the viewer: the map marker
+
+	look  sim.Look
+	bare  [numArmSides]*bareArt // without one arm, for a punch; see punch.go
+	fists *fistArt              // the arms thrown out in a punch
 }
 
 // body returns the sprites of look l, drawing them on first use. It must be
@@ -89,7 +93,7 @@ func (a *art) body(l sim.Look) *bodyArt {
 	if b, ok := a.bodies[l]; ok {
 		return b
 	}
-	b := &bodyArt{head: genHeadMark(l)}
+	b := &bodyArt{head: genHeadMark(l), look: l}
 	_, _, _, shut := playerLayersWith(l, sim.DirDown, 0, true)
 	b.asleep = mk(shut, 9, bodyFeet)
 	for d := sim.DirDown; d <= sim.DirRight; d++ {
@@ -678,6 +682,12 @@ func playerLayers(l sim.Look, d sim.Dir, frame int) (B, L, S, T *canvas) {
 
 // playerLayersWith is playerLayers, with the eyes shut if asleep.
 func playerLayersWith(l sim.Look, d sim.Dir, frame int, asleep bool) (B, L, S, T *canvas) {
+	return playerLayersPose(l, d, frame, asleep, armNone)
+}
+
+// playerLayersPose is playerLayersWith, drawn without the arm hide names:
+// punch.go draws that arm itself, thrown out in a punch.
+func playerLayersPose(l sim.Look, d sim.Dir, frame int, asleep bool, hide armSide) (B, L, S, T *canvas) {
 	l = l.Sanitized()
 	sk := skinTones[l.Skin].ramp
 	B, L, S, T = newCanvas(bodyW, bodyH), newCanvas(bodyW, bodyH), newCanvas(bodyW, bodyH), newCanvas(bodyW, bodyH)
@@ -798,7 +808,7 @@ func playerLayersWith(l sim.Look, d sim.Dir, frame int, asleep bool) (B, L, S, T
 			lx, rx = 4, 12
 		}
 		la, ra := -step, step
-		for y := 16; y <= 20+la; y++ {
+		for y := 16; y <= 20+la && hide != armOff; y++ {
 			a, b := 3, 1
 			if female {
 				a, b = 3, 2
@@ -809,7 +819,7 @@ func playerLayersWith(l sim.Look, d sim.Dir, frame int, asleep bool) (B, L, S, T
 			cloth(lx, y, a)
 			cloth(lx+1, y, b)
 		}
-		for y := 16; y <= 20+ra; y++ {
+		for y := 16; y <= 20+ra && hide != armHand; y++ {
 			a, b := 0, 1
 			if female {
 				a, b = 2, 1
@@ -820,8 +830,12 @@ func playerLayersWith(l sim.Look, d sim.Dir, frame int, asleep bool) (B, L, S, T
 			cloth(rx, y, a)
 			cloth(rx+1, y, b)
 		}
-		hand(T, lx, 21+la, 2)
-		hand(T, rx, 21+ra, 1)
+		if hide != armOff {
+			hand(T, lx, 21+la, 2)
+		}
+		if hide != armHand {
+			hand(T, rx, 21+ra, 1)
+		}
 
 		if !female {
 			// A leather belt with a buckle; its end hangs down.
@@ -893,7 +907,7 @@ func playerLayersWith(l sim.Look, d sim.Dir, frame int, asleep bool) (B, L, S, T
 			}
 		}
 		// The near arm, set off from the body by a darker edge each side.
-		for y := 16; y <= 20; y++ {
+		for y := 16; y <= 20 && hide != armHand; y++ {
 			x, _ := sideArmX(step, y)
 			a, b := 3, 2
 			if y == 20 && !female {
@@ -906,8 +920,9 @@ func playerLayersWith(l sim.Look, d sim.Dir, frame int, asleep bool) (B, L, S, T
 				cloth(x+2, y, 0)
 			}
 		}
-		hx, _ := sideArmX(step, 21)
-		hand(T, hx, 21, 2)
+		if hx, _ := sideArmX(step, 21); hide != armHand {
+			hand(T, hx, 21, 2)
+		}
 		// The far hand shows past the body as it swings the other way.
 		if step > 0 {
 			T.put(12, 19, sk[1])
@@ -918,7 +933,7 @@ func playerLayersWith(l sim.Look, d sim.Dir, frame int, asleep bool) (B, L, S, T
 		}
 		if !female {
 			for x := 6; x <= 11; x++ {
-				if ax, _ := sideArmX(step, 19); x == ax || x == ax+1 {
+				if ax, _ := sideArmX(step, 19); hide != armHand && (x == ax || x == ax+1) {
 					continue
 				}
 				T.put(x, 19, leatherRamp.at(2-(x-6)/3))

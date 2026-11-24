@@ -62,8 +62,27 @@ func (g *Game) drawRider(dst *ebiten.Image, p protocol.PlayerView, c protocol.Cr
 		ride += float64((g.frame / 6) % 2) // jogged along
 	}
 	fy := y + riderLegs - ride
-	drawBody(dst, g.art.body(p.Look), dir, 0, x, fy, 1, 0, tint)
-	g.drawHeld(dst, p.Held, dir, x, fy, 0, 0)
+	// The rider: punching from the saddle (punch.go), or thrown back by a
+	// blow (jolt.go).
+	rider := func(dst *ebiten.Image, x, fy float64) {
+		fp, arms := g.punchPose(p)
+		if age, ok := g.jolting(p.ID); ok && !arms && age < joltFling {
+			fp, arms = flingPose(p), true
+		}
+		if arms {
+			g.drawFigure(dst, p, dir, 0, x, fy, 0, tint, 0, fp)
+		} else {
+			drawBody(dst, g.art.body(p.Look), dir, 0, x, fy, 1, 0, tint)
+		}
+		if !arms || fp.hand == poseRest {
+			g.drawHeld(dst, p.Held, dir, x, fy, 0, 0)
+		}
+	}
+	if age, ok := g.jolting(p.ID); ok {
+		g.drawJolted(dst, age, dir, x, fy, rider)
+		return
+	}
+	rider(dst, x, fy)
 }
 
 // drawPetMark draws a little heart over a pet: red over mine, pale over

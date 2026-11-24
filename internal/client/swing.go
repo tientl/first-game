@@ -30,8 +30,10 @@ const (
 
 // swingInfo is what a player's latest blow was.
 type swingInfo struct {
-	kind swingKind
-	tier sim.Tier // of the tool swung
+	kind  swingKind
+	tier  sim.Tier // of the tool swung
+	beast bool     // at a creature: by hand, a punch (see punch.go)
+	cross bool     // a punch thrown with the other hand than the last
 }
 
 // A chop, in frames at 60 a second: overhead, down onto the target, a small
@@ -94,14 +96,18 @@ func (g *Game) classifySwings(old, cur protocol.Snapshot) {
 	}
 	for _, p := range cur.Players {
 		if p.Acting && (first || !was[p.ID]) {
-			g.swingWhat[p.ID] = g.whatSwing(old, oldAt, p)
+			w := g.whatSwing(old, oldAt, p)
+			if last := g.swingWhat[p.ID]; w.beast && last.beast {
+				w.cross = !last.cross // jab, cross, jab
+			}
+			g.swingWhat[p.ID] = w
 		}
 	}
 }
 
 func (g *Game) whatSwing(old protocol.Snapshot, oldAt map[[2]int]protocol.EntityView, p protocol.PlayerView) swingInfo {
 	if isHoe(p.Held) {
-		return swingInfo{swingHoe, toolTier(p.Held)}
+		return swingInfo{kind: swingHoe, tier: toolTier(p.Held)}
 	}
 	me := p.ID == g.myID
 	hasFuel := !me || old.Self.Inv.HasFuel()
@@ -117,17 +123,17 @@ func (g *Game) whatSwing(old protocol.Snapshot, oldAt map[[2]int]protocol.Entity
 		if p.Held == sim.ItemSpear || p.Held == sim.ItemIvorySpear {
 			return swingInfo{kind: swingThrust}
 		}
-		return swingInfo{kind: swingHand}
+		return swingInfo{kind: swingHand, beast: true}
 	}
 	// The best tool of the class carried: known for me, guessed for others
 	// (their axe's tier is sent; a pickaxe is shown as the stone one).
 	tool := func(c sim.ToolClass, k swingKind, seen sim.Tier) swingInfo {
 		if me {
 			if t, ok := old.Self.Inv.BestTool(c); ok {
-				return swingInfo{k, t}
+				return swingInfo{kind: k, tier: t}
 			}
 		}
-		return swingInfo{k, seen}
+		return swingInfo{kind: k, tier: seen}
 	}
 	for _, e := range old.Entities {
 		if e.ID != tg.Entity {

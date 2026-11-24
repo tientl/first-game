@@ -20,6 +20,7 @@ import (
 // everything, the shoulder guards and any headgear.
 type armorArt struct {
 	body, helmet [4][walkFrames]sprite
+	whole        [4][walkFrames]sprite // body with no gap for the near arm, sideways only; see punch.go
 }
 
 type armorKey struct {
@@ -39,6 +40,14 @@ func (a *art) armor(tier sim.Tier, female bool) *armorArt {
 	for d := sim.DirDown; d <= sim.DirRight; d++ {
 		for f := range walkFrames {
 			s.body[d][f], s.helmet[d][f] = genArmor(k.tier, female, d, f)
+		}
+	}
+	for f := range walkFrames {
+		B, _ := armorLayersPose(k.tier, female, sim.DirRight, f, true)
+		s.whole[sim.DirRight][f] = mk(B, 9, bodyFeet)
+		s.whole[sim.DirLeft][f] = mirrorSprite(s.whole[sim.DirRight][f])
+		for _, d := range []sim.Dir{sim.DirDown, sim.DirUp} {
+			s.whole[d][f] = s.body[d][f]
 		}
 	}
 	if a.armors == nil {
@@ -69,6 +78,12 @@ func genArmor(t sim.Tier, female bool, d sim.Dir, frame int) (body, helmet sprit
 
 // armorLayers draws the two layers of genArmor; d is not DirLeft.
 func armorLayers(t sim.Tier, female bool, d sim.Dir, frame int) (B, H *canvas) {
+	return armorLayersPose(t, female, d, frame, false)
+}
+
+// armorLayersPose is armorLayers; whole leaves no gap for the near arm of a
+// figure seen from the side, for when that arm is thrown out in a punch.
+func armorLayersPose(t sim.Tier, female bool, d sim.Dir, frame int, whole bool) (B, H *canvas) {
 	const w, h = 18, 26
 	B, H = newCanvas(w, h), newCanvas(w, h)
 	step := walkStep(frame)
@@ -140,7 +155,7 @@ func armorLayers(t sim.Tier, female bool, d sim.Dir, frame int) (B, H *canvas) {
 		for y := 13; y <= 18; y++ {
 			x0, x1, ok := torsoSpan(female, d, y)
 			for x := x0; ok && x <= x1; x++ {
-				if sideArm(step, x, y) {
+				if !whole && sideArm(step, x, y) {
 					continue // the arm and the hand
 				}
 				l := 0.82 - float64(x-5)/7*0.4

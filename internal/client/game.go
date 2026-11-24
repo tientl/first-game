@@ -75,6 +75,9 @@ type Game struct {
 	prevPlayers   map[sim.PlayerID]protocol.PlayerView
 	swingAt       map[sim.PlayerID]int       // frame each player's latest blow began; see slash.go
 	swingWhat     map[sim.PlayerID]swingInfo // what that blow was at, and with what; see swing.go
+	hurtAt        map[sim.PlayerID]int       // frame each player was last struck; see jolt.go
+	joltBuf       *ebiten.Image              // scratch for drawing a struck player
+	heldAge       int                        // see HoldBlows in punch.go
 	prevCreatures map[sim.CreatureID]protocol.CreatureView
 	hearts        []heartFX      // floating up from beasts being fed; see ride.go
 	riders        []int          // scratch: players drawn on their mounts this frame
@@ -368,6 +371,7 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 	}
 	g.noteSwings(s)
 	g.classifySwings(old, s)
+	g.noteHurts(s)
 	if !g.selKnown && sim.IsHotbar(int(s.Self.Selected)) {
 		g.hotSel, g.sentSel, g.selKnown = int(s.Self.Selected), int(s.Self.Selected), true
 	}

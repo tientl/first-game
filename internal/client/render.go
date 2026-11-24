@@ -584,6 +584,19 @@ func (g *Game) drawPlayer(dst *ebiten.Image, p protocol.PlayerView, d drawable) 
 		g.drawSleeper(dst, p, d)
 		return
 	}
+	if age, ok := g.jolting(p.ID); ok { // struck: thrown back, flashing; see jolt.go
+		g.drawJolted(dst, age, p.Dir&3, d.sx, d.sy, func(buf *ebiten.Image, x, y float64) {
+			at := d
+			at.sx, at.sy = x, y
+			g.drawStanding(buf, p, at)
+		})
+		return
+	}
+	g.drawStanding(dst, p, d)
+}
+
+// drawStanding draws a player who is up: swimming, standing or walking.
+func (g *Game) drawStanding(dst *ebiten.Image, p protocol.PlayerView, d drawable) {
 	if p.Swimming {
 		g.drawSwimmer(dst, p, d) // see searender.go
 		return
@@ -617,15 +630,25 @@ func (g *Game) drawPlayer(dst *ebiten.Image, p protocol.PlayerView, d drawable) 
 			g.drawHeld(dst, p.Held, dir, d.sx, d.sy, bob, step)
 		}
 	}
-	if heldBehind(dir) {
+	// A blow by hand throws the arm itself out, and a struck player flings
+	// both: see punch.go and jolt.go.
+	fp, arms := g.punchPose(p)
+	if age, ok := g.jolting(p.ID); ok && !arms && age < joltFling {
+		fp, arms = flingPose(p), true
+	}
+	inFist := arms && fp.hand != poseRest // drawFigure draws what the fist holds
+	if heldBehind(dir) && !inFist {
 		hand()
 	}
-	if p.Armor > sim.TierStone {
+	switch {
+	case arms:
+		g.drawFigure(dst, p, dir, frame, d.sx, d.sy, bob, tint, p.Armor, fp)
+	case p.Armor > sim.TierStone:
 		g.drawArmored(dst, p, dir, frame, d.sx, d.sy, bob, tint)
-	} else {
+	default:
 		drawBody(dst, g.art.body(p.Look), dir, frame, d.sx, d.sy, 1, bob, tint)
 	}
-	if !heldBehind(dir) {
+	if !heldBehind(dir) && !inFist {
 		hand()
 	}
 	if p.ID == g.myID {
