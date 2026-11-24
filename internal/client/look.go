@@ -19,14 +19,14 @@ var hairColors = [sim.NumHairColors]struct {
 	name string
 	ramp ramp
 }{
-	{"Nâu đen", mkRamp(0x24150f, 0x3b2418, 0x573620, 0x74492b)},
-	{"Đen", mkRamp(0x0e0c12, 0x1a1720, 0x29252f, 0x3c3744)},
-	{"Nâu hạt dẻ", mkRamp(0x3d1c10, 0x5e2d17, 0x82421f, 0xa65b2b)},
-	{"Vàng", mkRamp(0x6e4e22, 0xa07a34, 0xd0aa4e, 0xf0d68a)},
-	{"Đỏ", mkRamp(0x561810, 0x8a2a14, 0xbc461e, 0xe2723a)},
-	{"Bạch kim", mkRamp(0x5a5d6c, 0x878b9a, 0xb7bac6, 0xe8eaf0)},
-	{"Xanh dương", mkRamp(0x18234e, 0x26387a, 0x3856a8, 0x5c80d2)},
-	{"Hồng", mkRamp(0x66223f, 0x98345f, 0xc95688, 0xf08ab4)},
+	{"Nâu đen", mkRamp(0x23130d, 0x3d2416, 0x5c3920, 0x8a5c30)},
+	{"Đen", mkRamp(0x0d0b14, 0x1a1724, 0x2b2738, 0x4b4a66)},
+	{"Nâu hạt dẻ", mkRamp(0x3a190e, 0x5e2c16, 0x8a4520, 0xb96c32)},
+	{"Vàng", mkRamp(0x6a4720, 0xa37730, 0xd8ad4c, 0xf8e294)},
+	{"Đỏ", mkRamp(0x521510, 0x8a2814, 0xc2481e, 0xf0823e)},
+	{"Bạch kim", mkRamp(0x565a6c, 0x858a9c, 0xbcc0cc, 0xf2f4f8)},
+	{"Xanh dương", mkRamp(0x151f4a, 0x24367a, 0x3858ae, 0x6a94e4)},
+	{"Hồng", mkRamp(0x62203d, 0x98325e, 0xcf578a, 0xf89cc2)},
 }
 
 // skinTones are the skin colours on the character screen, by sim.Look.Skin,
@@ -225,8 +225,11 @@ var (
 	broochRamp  = mkRamp(0x8a5a14, 0xd09a26, 0xf6cf52, 0xfff2b0)
 	eyeDark     = hex(0x1d1626)
 	eyeShine    = hex(0xffffff)
-	mouthDark   = hex(0x6e2a2a)
-	beadColors  = []color.RGBA{hex(0xe8a83a), hex(0xd24a3a), hex(0x4fb4c8), hex(0xe8a83a)}
+	// irisColors are the eyes that go with each skin tone, light enough to
+	// show beside the pupil.
+	irisColors = [sim.NumSkinTones]color.RGBA{hex(0x4f8fd6), hex(0x4fa07a), hex(0x9a6a34), hex(0xb07c3c), hex(0xc08a44), hex(0xc8924a)}
+	mouthDark  = hex(0x6e2a2a)
+	beadColors = []color.RGBA{hex(0xe8a83a), hex(0xd24a3a), hex(0x4fb4c8), hex(0xe8a83a)}
 )
 
 // artPalette maps the letters of the pixel maps below to colours for look l:
@@ -281,6 +284,38 @@ func artPalette(l sim.Look) func(ch byte) (color.RGBA, bool) {
 	}
 }
 
+// beardPalette is artPalette for a man's beard: a step lighter than dark
+// hair, a step darker than fair hair, so the beard and the hair above it
+// read as two things and the jaw shows between them.
+func beardPalette(l sim.Look) func(ch byte) (color.RGBA, bool) {
+	hr := hairColors[l.HairColor].ramp
+	pal := artPalette(l)
+	var br ramp // dark to light, like hr
+	if luma(hr[2]) < 50 {
+		br = ramp{hr[1], mix(hr[2], hr[3], 0.35), hr[3], mix(hr[3], colWhite, 0.25)}
+	} else {
+		br = ramp{mix(hr[0], colInk, 0.3), hr[0], hr[1], hr[2]}
+	}
+	return func(ch byte) (color.RGBA, bool) {
+		switch ch {
+		case 'H':
+			return br[3], true
+		case 'h':
+			return br[2], true
+		case 'd':
+			return br[1], true
+		case 'D':
+			return br[0], true
+		}
+		return pal(ch)
+	}
+}
+
+// luma is how bright c looks, 0 to 255.
+func luma(c color.RGBA) float64 {
+	return 0.3*float64(c.R) + 0.59*float64(c.G) + 0.11*float64(c.B)
+}
+
 // pixMap is a block of pixel art: one string per row, 18 letters wide, the
 // first on sprite row y0. '.' is empty.
 type pixMap struct {
@@ -311,65 +346,63 @@ type hairArt struct {
 }
 
 var hairArts = [sim.NumHairStyles]hairArt{
-	sim.HairShort: { // swept over the top, the sides shaved
+	sim.HairShort: { // swept over the top, the sides cropped
 		front: pixMap{3, []string{
-			"......dhhhhd......",
-			"....dhHHHhhhhd....",
-			"...dhHHHhhhhhhd...",
-			"...hhHHhhhhhhhd...",
-			"...dhhhdhhhhhdd...",
-			"...dd.hh..dh.dd...",
-			"...d..........d...",
-			"...d..........d...",
+			"......hhhhhd......",
+			"....hHHHHhhhhd....",
+			"...hHHHHhhhhhhd...",
+			"...hHhhhhhdhhdd...",
+			"...dhhhd.hhhd.D...",
+			"...d..........D...",
+			"...d..........D...",
 		}},
 		back: pixMap{3, []string{
-			"......dhhhhd......",
-			"....dhHHHhhhhd....",
-			"...dhHHHhhhhhhd...",
-			"...hhHHhhhhhhhd...",
-			"...hhHhhhhhhhhd...",
-			"...hhhhhhhhhhhd...",
-			"...dhhhdhhhdhhd...",
-			"...ddhddhddhddd...",
-			"...dddddddddddD...",
-			"...dDddDddDddDD...",
-			"....DdDDdDDdDD....",
+			"......hhhhhd......",
+			"....hHHHHhhhhd....",
+			"...hHHHHhhhhhhd...",
+			"...hHHhhhhhhhhd...",
+			"...hHhhhhhhhhdd...",
+			"...hhhhhhhhhhdd...",
+			"...hhhdhhdhhddd...",
+			"...dhhdhhdhhdDd...",
+			"...ddhdhhdhhdDD...",
+			"...ddddddddddDD...",
+			"....dDDDDDDDDD....",
 		}},
 		side: pixMap{3, []string{
-			".....dhhhhhhd.....",
-			"...dhhHHHhhhhhd...",
-			"...hhHHHHhhhhhhd..",
-			"...hhHHhhhhhhhhd..",
-			"...dhhhhhhhhhhhh..",
-			"...ddddhhhhhhdh...",
-			"...dddddhh.hd.....",
-			"...ddddd..........",
+			".....hhhhhhhd.....",
+			"...hhHHHHHhhhhd...",
+			"...hHHHHhhhhhhhd..",
+			"...hHHhhhhhhhhhd..",
+			"...hhhhhhdhhhdhd..",
+			"...dhhhhdhhhd.d...",
+			"...dhhhdhh........",
+			"...ddhhd..........",
 			"...dddd...........",
 			"....ddd...........",
-			"....dd............",
+			"....dD............",
 		}},
 	},
 	sim.HairSpiky: { // a crest down the middle, the sides shaved
 		front: pixMap{0, []string{
-			"........hh........",
+			"........Hh........",
 			".......hHhd.......",
 			".......hHhd.......",
-			"......dhHhhd......",
-			"....xxdhHhhdxx....",
-			"...xxxdhHhhdxxx...",
+			"......hHHhhd......",
+			"....xxhHHhhdxx....",
+			"...xxxhHhhhdxxx...",
 			"...xxxxhHhdxxxx...",
-			"...xxxxdhhdxxxx...",
-			"...xx...dd...xx...",
+			"...xx...hd...xx...",
 			"...x..........x...",
 			"...x..........x...",
 		}},
 		back: pixMap{0, []string{
-			"........hh........",
+			"........Hh........",
 			".......hHhd.......",
 			".......hHhd.......",
-			"......dhHhhd......",
-			"....xxdhHhhdxx....",
-			"...xxxdhHhhdxxx...",
+			"......hHHhhd......",
+			"....xxhHHhhdxx....",
+			"...xxxhHhhhdxxx...",
 			"...xxxxhHhdxxxx...",
 			"...xxxxhHhdxxxx...",
 			"...xxxxhHhdxxxx...",
@@ -380,11 +413,11 @@ var hairArts = [sim.NumHairStyles]hairArt{
 			"....xxxxxxxxxx....",
 		}},
 		side: pixMap{0, []string{
-			".......h..h..h....",
+			".......H..H..H....",
 			"......hHh.Hh.Hh...",
-			".....hHHhhHhhHhh..",
-			"....dhHHhHHhHHhd..",
-			"...ddhhhhhhhhhhd..",
+			".....hHHhhHhhHhd..",
+			"....hhHHhHHhHHhd..",
+			"...hhhhhhhhhhhdd..",
 			"...xxddhhhhhhdd...",
 			"...xxxxxxxxxxx....",
 			"...xxxxxxxxxx.....",
@@ -398,67 +431,67 @@ var hairArts = [sim.NumHairStyles]hairArt{
 	},
 	sim.HairBob: { // chin length with a straight fringe, a thin braid at one side
 		front: pixMap{3, []string{
-			"......dhhhhd......",
-			"....dhHHHhhhhd....",
-			"..dhhHHHhhhhhhhd..",
-			"..hhHHhhhhhhhhhd..",
-			"..hhHhhhhhhhhhhd..",
-			"..hhhhhdhhhdhhhd..",
-			"..hhd.h..h..hdhd..",
-			"..hhd........dhd..",
-			"..hhd........dhd..",
-			"..hhd........dhd..",
-			"..hdd........dhd..",
-			"..dhd.........dd..",
+			"......hhhhhd......",
+			"....hhHHHHhhhd....",
+			"..hhHHHHhhhhhhhd..",
+			"..hHHhhhhhhhhhhd..",
+			"..hHhdhhhdhhhdhd..",
+			"..hd..d...d...hd..",
+			"..hd..........hd..",
+			"..hd..........hd..",
+			"..hd..........hd..",
+			"..hd..........hd..",
+			"..hd..........dd..",
+			"..d............D..",
 		}},
 		back: pixMap{3, []string{
-			"......dhhhhd......",
-			"....dhHHHhhhhd....",
-			"..dhhHHHhhhhhhhd..",
-			"..hhHHhhhhhhhhhd..",
-			"..hhHhhhhhhhhhhd..",
-			"..hhHhhdhhhdhhhd..",
-			"..hhhhhdhhhdhhhd..",
-			"..hhhhhdhhhdhhhd..",
-			"..hhhhdhhhhdhhhd..",
+			"......hhhhhd......",
+			"....hhHHHHhhhd....",
+			"..hhHHHHhhhhhhhd..",
+			"..hHHHhhhhhhhhhd..",
+			"..hHHhhhhhhhhhhd..",
+			"..hHhhhhhhhhhhdd..",
+			"..hhhhhdhhhdhhdd..",
+			"..hhhhhdhhhdhhdd..",
 			"..hhhhdhhhdhhhdd..",
-			"..hdhhdhhhdhhdhd..",
-			"...dhdhhdhhdhdd...",
+			"..hhhhdhhhdhhddd..",
+			"..hdhhdhhhdhhdDd..",
+			"...ddddddddddDD...",
 		}},
 		side: pixMap{3, []string{
-			".....dhhhhhhd.....",
-			"...dhhHHHhhhhhd...",
-			"..dhhHHHhhhhhhhd..",
-			"..hhhHHhhhhhhhhd..",
-			"..hhhhhhhhhhhhhh..",
-			"..hhhhhhhhhhhdhd..",
-			"..hhdhhhhhhd..d...",
-			"..hhdhhhhhd.......",
+			".....hhhhhhhd.....",
+			"...hhHHHHHhhhhd...",
+			"..hhHHHHhhhhhhhd..",
+			"..hHHHhhhhhhhhhd..",
+			"..hHhhhhhhdhhdhd..",
+			"..hhhhhhhdhd..d...",
 			"..hhdhhhhhd.......",
 			"..hhdhhhhd........",
-			"..hddhhhhd........",
-			"...dhdhhd.........",
+			"..hhdhhhhd........",
+			"..hhdhhhhd........",
+			"..hddhhhdd........",
+			"...dddddd.........",
 		}},
 	},
 	sim.HairLong: { // loose, parted in the middle, down past the shoulders
 		front: pixMap{3, []string{
-			"......dhhhhd......",
-			"....dhHHhhHhhd....",
-			"..dhHHHhddhHhhhd..",
+			"......hhhhhd......",
+			"....hhHHhdHhhd....",
+			"..hhHHHhddhHhhhd..",
 			"..hHHhhd..dhhhhd..",
 			"..hHhhd....dhhhd..",
 			"..hhhd......dhhd..",
 			"..hhd........dhd..",
-			"..hhd........dhd..",
-			"..hhd........dhd..",
-			"..hhd........dhd..",
-			"..hhd........dhd..",
-			"..hhd........dhd..",
-			"..hhd........dhd..",
+			"..hd..........hd..",
+			"..hd..........hd..",
+			"..hd..........hd..",
+			"..hd..........hd..",
+			"..hd..........hd..",
+			"..hd..........hd..",
 			"..hd..........hd..",
 			"..hd..........hd..",
 			"..hd..........dd..",
-			"..d............d..",
+			"..d............D..",
 		}},
 		behind: pixMap{14, []string{
 			"...hhdhhhhhhdhd...",
@@ -471,35 +504,35 @@ var hairArts = [sim.NumHairStyles]hairArt{
 			"....d.dd.dd.d.....",
 		}},
 		back: pixMap{3, []string{
-			"......dhhhhd......",
-			"....dhHHHhhhhd....",
-			"..dhhHHHhhhhhhhd..",
-			"..hhHHhhhhhhhhhd..",
-			"..hhHhhhhhhhhhhd..",
-			"..hhHhhdhhhdhhhd..",
-			"..hhhhhdhhhdhhhd..",
-			"..hhhhhdhhhdhhhd..",
-			"..hhhhdhhhhdhhhd..",
-			"..hhhhdhhhdhhhhd..",
+			"......hhhhhd......",
+			"....hhHHHHhhhd....",
+			"..hhHHHHhhhhhhhd..",
+			"..hHHHhhhhhhhhhd..",
+			"..hHHhhhhhhhhhhd..",
+			"..hHhhhhhhhhhhdd..",
+			"..hhhhhdhhhdhhdd..",
+			"..hhhhhdhhhdhhdd..",
+			"..hhhhdhhhhdhhdd..",
+			"..hhhhdhhhdhhhdd..",
 			"..hhhhdhhhdhhhdd..",
 			"..hhhdhhhhdhhhdd..",
-			"..hhhdhhhdhhhhdd..",
+			"..hhhdhhhdhhhddd..",
 			"...hhdhhhdhhhdd...",
 			"...hhdhhhdhhhdd...",
 			"...hdhhhdhhhdhd...",
-			"...hdhhhdhhhdhd...",
-			"...dhdhhdhhdhdd...",
+			"...hdhhhdhhhddD...",
+			"...dhdhhdhhdhdD...",
 			"....d.dd.dd.d.....",
 		}},
 		side: pixMap{3, []string{
-			".....dhhhhhhd.....",
-			"...dhhHHHhhhhhd...",
-			"..dhhHHHhhhhhhhd..",
-			"..hhhHHhhhhhhhhd..",
-			"..hhhhhhhhhhhhd...",
-			"..hhhhhhhhhhd.....",
-			"..hhdhhhhhhd......",
+			".....hhhhhhhd.....",
+			"...hhHHHHHhhhhd...",
+			"..hhHHHHhhhhhhhd..",
+			"..hHHHhhhhhhhhhd..",
+			"..hHhhhhhhhhhdd...",
+			"..hhhhhhhhhd......",
 			"..hhdhhhhhd.......",
+			"..hhdhhhhd........",
 			"..hhdhhhhd........",
 			"..hhdhhhhd........",
 			"..hhdhhhhd........",
@@ -509,111 +542,109 @@ var hairArts = [sim.NumHairStyles]hairArt{
 			"..hhdhhd..........",
 			"..hdhhdd..........",
 			"..dhdhd...........",
-			"...ddd............",
+			"...ddD............",
 		}},
 	},
 	sim.HairPonytail: { // pulled back into a long braid; a woman wears two
 		front: pixMap{4, []string{
-			".....dhHHhhhd.....",
-			"...dhHHHhhhhhhd...",
-			"...hHHhhhhhhhhd...",
-			"...hhhd....dhhd...",
-			"...hd........dd...",
-			"...d..........d...",
-			"...d..........d...",
+			".....hhHHhhhd.....",
+			"...hhHHHHhdhhhd...",
+			"...hHHhdhhhdhhd...",
+			"...hhd......dhd...",
+			"...d..........D...",
+			"...d..........D...",
 		}},
 		back: pixMap{4, []string{
-			".....dhHHhhhd.....",
-			"...dhHHHhhhhhhd...",
-			"...hhHHhhhhhhhd...",
-			"...hhHhhhhhhhhd...",
-			"...hhHhhhhhhhhd...",
-			"...hhhhhhhhhhhd...",
-			"...hhhhhhhhhhhd...",
-			"...hhhhhhhhhhdd...",
-			"...dhhhhhhhhhdd...",
-			"....dhhhhhhhdd....",
-			".....ddhhhhdd.....",
+			".....hhHHhhhd.....",
+			"...hhHHHHhhhhhd...",
+			"...hHHHhhhhhhhd...",
+			"...hHHhhhdhhhhd...",
+			"...hHhhhhdhhhdd...",
+			"...hhhdhhdhhdhd...",
+			"...hhhdhhdhhdhd...",
+			"...hhhhdhdhdhdd...",
+			"...dhhhdhdhdhdD...",
+			"....dhhhddhhdD....",
+			".....ddddddDD.....",
 		}},
 		side: pixMap{4, []string{
-			"....dhhhhhhhd.....",
-			"...dhHHHhhhhhd....",
-			"...hhHHhhhhhhhd...",
-			"...hhhhhhhhhhd....",
-			"...hhhhhhhhd......",
-			"...hhdhhhhd.......",
-			"...hhdhhh.........",
-			"...hhdh...........",
+			"....hhhhhhhhd.....",
+			"...hhHHHHhhhhd....",
+			"...hHHHhhhhdhhd...",
+			"...hHhhhdhhhdd....",
+			"...hhhdhhhd.......",
+			"...hhdhhhd........",
+			"...hhdhd..........",
 			"...hdd............",
+			"...dd.............",
 		}},
 	},
-	sim.HairBun: { // tied up in a knot on the crown
+	sim.HairBun: { // tied up in a knot on the crown, the brow bare
 		front: pixMap{0, []string{
-			".......dhhd.......",
+			".......hhhd.......",
 			"......hHHhhd......",
-			"......hHhhhd......",
-			".......rrrr.......",
-			".....dhhhhhhd.....",
-			"...dhHHhhhhhhhd...",
-			"...hHHhhhhhhhhd...",
-			"...hhhd....dhhd...",
+			"......dhhhdD......",
+			"........rr........",
+			"......hhhhhd......",
+			"....hhHHdhhdhd....",
+			"...hHHhdhhhhdhd...",
 			"...hd........dd...",
-			"...d..........d...",
-			"...d..........d...",
+			"...d..........D...",
 		}},
 		back: pixMap{0, []string{
-			".......dhhd.......",
+			".......hhhd.......",
 			"......hHHhhd......",
-			"......hHhhhd......",
-			".......rrrr.......",
-			".....dhhhhhhd.....",
-			"...dhHHhhhhhhhd...",
-			"...hhHHhhhhhhhd...",
-			"...hhHhhhhhhhhd...",
-			"...hhHhhhhhhhhd...",
-			"...hhhhhhhhhhhd...",
-			"...hhhhhhhhhhhd...",
-			"...hhhhhhhhhhdd...",
-			"...dhhhhhhhhhdd...",
-			"....dhhhhhhhdd....",
-			".....ddhhhhdd.....",
+			"......dhhhdD......",
+			"........rr........",
+			"......hhhhhd......",
+			"....hhHHdhhdhd....",
+			"...hHHhhdhhdhhd...",
+			"...hHHhhdhhdhhd...",
+			"...hHhhdhhhhdhd...",
+			"...hhhhdhhhhdhd...",
+			"...hhhdhhhhhdhd...",
+			"...hhhdhhhhhhdd...",
+			"...dhhhhhhhhhdD...",
+			"....dhhhhhhhdD....",
+			".....ddddddDD.....",
 		}},
 		side: pixMap{0, []string{
-			"......dhhd........",
-			".....hHHhhd.......",
-			".....hHhhhd.......",
-			"......rrrr........",
-			"....dhhhhhhhd.....",
-			"...dhHHHhhhhhd....",
-			"...hhHHhhhhhhhd...",
-			"...hhhhhhhhhhd....",
-			"...hhhhhhhhd......",
-			"...hhdhhhhd.......",
-			"...hhdhhh.........",
-			"...hhdh...........",
-			"...hdd............",
+			".....hhhd.........",
+			"....hHHhhd........",
+			"....dhhhdD........",
+			"......rr..........",
+			".....hhhhhhhd.....",
+			"...hhHHHdhhhhd....",
+			"...hHHhdhhhdhhd...",
+			"...hHhdhhhhdd.....",
+			"...hhdhhhd........",
+			"...hhdhhd.........",
+			"...hhdd...........",
+			"...hd.............",
+			"...dd.............",
 		}},
 	},
 }
 
-// A man's beard: a moustache, a full beard and a short braid with a bead,
-// seen from the front and from the side.
+// A man's beard: a moustache parted under the nose, a full beard and a short
+// braid with a bead, seen from the front and from the side. It is drawn a
+// step off the hair's own colour (beardPalette), so the jaw shows.
 var (
 	beardFront = pixMap{12, []string{
 		"...d..........d...",
-		"...d..dhhhhd..d...",
+		"...d.hhh..hhh.d...",
 		"....dhhhmmhhhd....",
-		".....hHHhhhhd.....",
-		"......hHhhhd......",
-		".......hhhd.......",
+		".....hHHhhhdd.....",
+		"......hHhhdd......",
+		".......hhdd.......",
 		"........o.........",
 	}}
 	beardSide = pixMap{13, []string{
-		"........d...dhh...",
+		"........d...hhh...",
 		"........dhhhhhh...",
-		".........dhHhhhh..",
-		"..........dhhhh...",
-		"...........hhd....",
+		".........dhHHhhd..",
+		"..........dhhhd...",
+		"...........hdd....",
 		"............o.....",
 	}}
 )
@@ -621,21 +652,21 @@ var (
 // The fur mantle on the shoulders, pinned with a round brooch.
 var (
 	mantleFront = pixMap{16, []string{
-		"...fFFFffffffuu...",
-		"...ufyO....ufuU...",
-		"...U.u.......uU...",
+		"...fFFFFfffffuu...",
+		"...ufyo....ufuU...",
+		"...U.Ou......uU...",
 	}}
 	mantleBack = pixMap{16, []string{
-		"...fFFFFfffffuu...",
-		"...ffFffufffuuu...",
-		"...uU.uu.uu.uuU...",
+		"...fFFFFFffffuu...",
+		"...ffFffufffuuU...",
+		"...uU.uu.uu.uUU...",
 	}}
 	mantleSide = pixMap{16, []string{
-		".....fFFFfffu.....",
-		".....ufFffuyO.....",
-		".....U.uu.u.......",
+		".....fFFFFffu.....",
+		".....ufFffuyo.....",
+		".....U.uu.u.O.....",
 	}}
-	collarFront = pixMap{16, []string{"....fFFffffuuu...."}}
+	collarFront = pixMap{16, []string{"....fFFFffffuu...."}}
 	collarSide  = pixMap{16, []string{"......fFFffu......"}}
 )
 
@@ -764,8 +795,11 @@ func playerLayersPose(l sim.Look, d sim.Dir, frame int, asleep bool, hide armSid
 						tone = 1
 					}
 					switch {
-					case y == 21: // an embroidered hem
-						tone = 1 + 2*(x%2)
+					case y == 21: // a pale band along the hem
+						tone = 3
+						if x >= x1-1 {
+							tone = 2
+						}
 					case y == 20 || y == 18:
 						tone-- // under the belt, under the mantle
 					}
@@ -787,7 +821,7 @@ func playerLayersPose(l sim.Look, d sim.Dir, frame int, asleep bool, hide armSid
 						tone = 2
 					}
 				case y == 24:
-					tone = 2 * (x % 2) // a woven band
+					tone = 0 // a woven band
 				case y == 16:
 					tone = 3
 				case y == 17 && (x == 8 || x == 9) && !up:
@@ -809,23 +843,17 @@ func playerLayersPose(l sim.Look, d sim.Dir, frame int, asleep bool, hide armSid
 		}
 		la, ra := -step, step
 		for y := 16; y <= 20+la && hide != armOff; y++ {
-			a, b := 3, 1
-			if female {
-				a, b = 3, 2
-			}
+			a, b := 3, 0 // lit, then the line between the arm and the body
 			if y == 20+la && !female {
-				a, b = 2, 2 // the cuff
+				a, b = 2, 0 // the cuff
 			}
 			cloth(lx, y, a)
 			cloth(lx+1, y, b)
 		}
 		for y := 16; y <= 20+ra && hide != armHand; y++ {
-			a, b := 0, 1
-			if female {
-				a, b = 2, 1
-			}
+			a, b := 0, 2
 			if y == 20+ra && !female {
-				a, b = 1, 1
+				a, b = 0, 1
 			}
 			cloth(rx, y, a)
 			cloth(rx+1, y, b)
@@ -885,23 +913,26 @@ func playerLayersPose(l sim.Look, d sim.Dir, frame int, asleep bool, hide armSid
 		for y := 16; y <= 25; y++ {
 			x0, x1, ok := torsoRow(female, d, y)
 			for x := x0; ok && x <= x1; x++ {
-				tone := 2
-				if x >= x1-1 {
-					tone = 1
+				// The body is a step down from the near arm, darkest at
+				// the back.
+				tone := 1
+				if x == x1 {
+					tone = 2
 				}
 				switch {
 				case !female && y == 21:
-					tone = 1 + 2*(x%2)
-				case !female && (y == 20 || y == 18):
-					tone--
+					tone = 3
+					if x == x0 {
+						tone = 2
+					}
 				case female && y == 25:
 					tone = 3
 				case female && y == 24:
-					tone = 2 * (x % 2)
+					tone = 0
 				case female && y >= 21 && y <= 23 && x == x1-2:
 					tone = 0
-				case female:
-					tone--
+				case female && y >= 21 && x > x0 && x < x1-2:
+					tone = 2
 				}
 				cloth(x, y, max(tone, 0))
 			}
@@ -909,11 +940,14 @@ func playerLayersPose(l sim.Look, d sim.Dir, frame int, asleep bool, hide armSid
 		// The near arm, set off from the body by a darker edge each side.
 		for y := 16; y <= 20 && hide != armHand; y++ {
 			x, _ := sideArmX(step, y)
-			a, b := 3, 2
-			if y == 20 && !female {
-				a, b = 2, 1
+			a, b := 3, 3
+			if y >= 19 {
+				a, b = 3, 2
 			}
-			cloth(x-1, y, 1)
+			if y == 20 && !female {
+				a, b = 2, 2 // the cuff
+			}
+			cloth(x-1, y, 0)
 			cloth(x, y, a)
 			cloth(x+1, y, b)
 			if _, x1, _ := torsoRow(female, d, y); x+2 <= x1 {
@@ -977,9 +1011,11 @@ func rimLayers(layers ...*canvas) {
 			if c, _ := top(x, y); c != nil {
 				continue
 			}
-			for _, d := range [4][2]int{{0, 1}, {0, -1}, {-1, 0}, {1, 0}} {
+			// The light is from the top left: the rim is thinner in
+			// colour above and to the left, heavy below and to the right.
+			for i, d := range [4][2]int{{0, 1}, {1, 0}, {-1, 0}, {0, -1}} {
 				if c, col := top(x+d[0], y+d[1]); c != nil {
-					rims = append(rims, rim{c, x, y, mix(col, colInk, 0.72)})
+					rims = append(rims, rim{c, x, y, mix(col, colInk, rimInk[i])})
 					break
 				}
 			}
@@ -989,6 +1025,10 @@ func rimLayers(layers ...*canvas) {
 		r.c.put(r.x, r.y, r.col)
 	}
 }
+
+// rimInk is how dark rimLayers makes the rim above, left of, right of and
+// below the figure.
+var rimInk = [4]float64{0.64, 0.7, 0.82, 0.86}
 
 // genHeadMark draws l's head facing the viewer, for markers on the maps.
 func genHeadMark(l sim.Look) *ebiten.Image {
@@ -1019,39 +1059,52 @@ func drawHead(c, behind *canvas, l sim.Look, d sim.Dir, oy int, shut bool) {
 	shift := func(m pixMap) pixMap { m.y0 += oy; return m }
 	put := func(x, y int, col color.RGBA) { c.put(x, y+oy, col) }
 
-	// The head: lit from the top left, darker down the far cheek and under
-	// the chin, and in the shadow of the hair.
+	// The head: bright, so the face stands out of the hair; a step darker
+	// down the far cheek, under the chin and in the shadow of the hair. In
+	// profile the whole face is in the light.
+	side := d == sim.DirRight
 	for y := 5; y <= 15; y++ {
 		x0, x1, _ := headSpan(y)
 		for x := x0; x <= x1; x++ {
-			tone := 2
+			tone := 3
 			switch {
-			case x == x1 || y == 15 || hair.has(x, y-1) && y <= 10:
+			case y == 15 || x == x1 && !side:
 				tone = 1
-			case x >= x0+1 && x <= x0+3 && y <= 13:
-				tone = 3
+			case x == x1 || x >= x1-2 && !side || y == 14 && x >= x1-4:
+				tone = 2
+			}
+			if hair.has(x, y-1) && !hair.has(x, y) && y <= 10 {
+				tone-- // the fringe's shadow
 			}
 			put(x, y, sk.at(tone))
 		}
 	}
 	blush := skinTones[l.Skin].blush
-	iris := mix(eyeDark, hr[2], 0.35)
+	iris := irisColors[l.Skin]
 	lips := mix(blush, mouthDark, 0.5)
+	brow := hr[1]
+	if luma(brow) < 45 {
+		brow = mix(hr[2], sk[1], 0.3) // black brows would run into the eyes
+	}
+	// eye is two wide and three tall: the lid, a glint beside the pupil,
+	// the iris beside it.
+	eye := func(ex int) {
+		if shut {
+			put(ex, 12, eyeDark)
+			put(ex+1, 12, eyeDark)
+			return
+		}
+		put(ex, 10, eyeDark)
+		put(ex+1, 10, eyeDark)
+		put(ex, 11, eyeShine)
+		put(ex+1, 11, eyeDark)
+		put(ex, 12, iris)
+		put(ex+1, 12, eyeDark)
+	}
 	switch d {
 	case sim.DirDown:
-		for _, ex := range []int{5, 11} {
-			if shut {
-				put(ex, 12, eyeDark)
-				put(ex+1, 12, eyeDark)
-				continue
-			}
-			put(ex, 10, eyeDark)
-			put(ex+1, 10, eyeDark)
-			put(ex, 11, eyeShine)
-			put(ex+1, 11, eyeDark)
-			put(ex, 12, iris)
-			put(ex+1, 12, eyeDark)
-		}
+		eye(5)
+		eye(11)
 		if l.Female {
 			put(4, 9, eyeDark) // lashes
 			put(13, 9, eyeDark)
@@ -1062,22 +1115,17 @@ func drawHead(c, behind *canvas, l sim.Look, d sim.Dir, oy int, shut bool) {
 			put(8, 14, lips)
 			put(9, 14, lips)
 		} else {
-			for _, bx := range []int{5, 6, 11, 12} { // heavy brows
-				put(bx, 9, hr[0])
+			for _, bx := range []int{4, 5, 6, 11, 12, 13} { // heavy brows
+				put(bx, 9, brow)
 			}
 			put(4, 13, blush)
 			put(13, 13, blush)
 		}
-		put(8, 12, sk[3]) // the nose
-		put(9, 12, sk[1])
+		put(9, 12, sk[1]) // the nose's shadow
 	case sim.DirRight:
 		put(14, 12, sk[3]) // the nose
-		put(11, 10, eyeDark)
-		put(12, 10, eyeDark)
-		put(11, 11, eyeShine)
-		put(12, 11, eyeDark)
-		put(11, 12, iris)
-		put(12, 12, eyeDark)
+		put(14, 13, sk[1])
+		eye(11)
 		put(7, 11, sk[1]) // the ear
 		put(7, 12, sk[0])
 		put(8, 12, sk[1])
@@ -1086,10 +1134,11 @@ func drawHead(c, behind *canvas, l sim.Look, d sim.Dir, oy int, shut bool) {
 			put(10, 13, blush)
 			put(11, 13, blush)
 			put(13, 14, lips)
+			put(14, 14, lips)
 		} else {
-			put(11, 9, hr[0])
-			put(12, 9, hr[0])
-			put(13, 9, hr[0])
+			put(11, 9, brow)
+			put(12, 9, brow)
+			put(13, 9, brow)
 			put(10, 13, blush)
 		}
 	}
@@ -1101,9 +1150,9 @@ func drawHead(c, behind *canvas, l sim.Look, d sim.Dir, oy int, shut bool) {
 	if !l.Female {
 		switch d {
 		case sim.DirDown:
-			shift(beardFront).stamp(c, pal)
+			shift(beardFront).stamp(c, beardPalette(l))
 		case sim.DirRight:
-			shift(beardSide).stamp(c, pal)
+			shift(beardSide).stamp(c, beardPalette(l))
 		}
 	}
 	switch l.Hair {
