@@ -376,6 +376,8 @@ const (
 	NoticeCrit          // your blow was a critical one
 	NoticeBodyLeft      // you died; your things lie with your body
 	NoticeBodyLooted    // you took back all your body held
+	NoticeTossed        // Arg: ItemKind thrown out of the bag onto the ground; see toss.go
+	NoticeCantToss      // Arg: ItemKind; nowhere dry to throw it: in the water or in a boat
 )
 
 // CommandKind is a discrete player request, as opposed to held input.
@@ -395,6 +397,8 @@ const (
 	CmdChestTakeDown             // take my open chest down; it must be empty
 	CmdRide                      // get on my nearest beast that can be ridden, or off the one I ride
 	CmdPlace                     // set down what I hold: a head on a post, a torch in the ground, a seed
+	CmdVictorySeen               // I have closed the game-beaten screen; see bosses.go
+	CmdToss                      // throw Count of the stack in Slot on the ground in front; see toss.go
 )
 
 // Command is a discrete player request. Fields not used by Kind are ignored.
@@ -402,6 +406,7 @@ type Command struct {
 	Kind     CommandKind
 	Recipe   RecipeID
 	Slot, To uint8 // inventory slot indices
+	Count    uint8 // CmdToss: how many, clamped to what the slot holds
 }
 
 // Input is the continuously held player input, sampled every tick.

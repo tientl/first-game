@@ -47,6 +47,8 @@ type Drop struct {
 	FromY float64 `json:",omitempty"`
 	Born  uint64  // tick it fell
 	gone  bool
+
+	tosser PlayerID // who threw it out of their bag, till they step off it; see toss.go
 }
 
 // Drops returns copies of every pile on the ground, in id order.
@@ -105,12 +107,13 @@ func (w *World) stepDrops() {
 			d.gone = true
 			continue
 		}
+		w.settleToss(d)
 		if w.tick-d.Born < DropPickupDelay {
 			continue
 		}
 		for _, id := range w.playerOrder {
 			p := w.players[id]
-			if p.Dead || p.Asleep || math.Abs(p.X-d.X) > DropTouch || math.Abs(p.Y-d.Y) > DropTouch {
+			if id == d.tosser || p.Dead || p.Asleep || math.Abs(p.X-d.X) > DropTouch || math.Abs(p.Y-d.Y) > DropTouch {
 				continue
 			}
 			if w.pickUp(p, d, false) {

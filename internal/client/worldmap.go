@@ -349,6 +349,8 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 		drawFireMark(screen, fx, fy)
 	}
 
+	g.drawBossMarks(screen, at, r0) // see bossui.go
+
 	alpha := g.alpha()
 	for _, p := range g.curr.Players {
 		if p.ID == g.myID {

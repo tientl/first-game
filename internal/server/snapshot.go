@@ -149,6 +149,7 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			MaxHP:    int16(min(c.Kind.MaxHP(), 32767)),
 		})
 	})
+	s.bossViews(&snap, id) // see bosses.go
 	return snap, true
 }
 

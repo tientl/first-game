@@ -207,6 +207,9 @@ func (w *World) stepPoison(p *Player) {
 	if p.webbed > 0 {
 		p.webbed--
 	}
+	if PoisonProof(&p.Inv) {
+		p.poison = 0 // the great snake's scales: see legendary.go
+	}
 	if p.poison > 0 {
 		p.poison--
 		hurt(p, PoisonTick)

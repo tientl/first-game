@@ -73,6 +73,14 @@ const (
 
 	// The night: see nightstalker.go.
 	CreatureTroodon // a small, big-eyed hunter that comes out in packs at night
+
+	// The six bosses, one to a world each: see bosses.go.
+	CreatureTitanoboa
+	CreatureSpino
+	CreatureMammothKing
+	CreatureCarcharo
+	CreatureGiganoto
+	CreatureMegalodon
 	NumCreatureKinds
 )
 
@@ -99,7 +107,8 @@ const (
 	CreatureClaw                  // a bear's swipe (its bite is CreatureStrike)
 	CreatureTrapped               // caught in a snare: it struggles, going nowhere
 	CreatureSpit                  // a spider spitting web
-	CreatureGrab                  // a giant squid holding a boat in its arms
+	CreatureGrab                  // a giant squid holding a boat in its arms; Titanoboa's coils round a player
+	CreatureSpecial               // a boss's own great move; see bossfight.go
 )
 
 // OutOfReach reports whether a creature in state s cannot be targeted: on
@@ -146,6 +155,7 @@ type creatureDef struct {
 	tool       ItemKind   // must be held to catch it; ItemNone if bare hands do
 	water      bool       // swims in the shallows instead of walking on land
 	amphibious bool       // walks on land and wades in the shallows alike
+	wades      bool       // walks on land and swims anywhere in the water, deep or not (Spinosaurus)
 	seaside    bool       // appears only on sand by the water
 	waterside  bool       // appears only on its spawn tiles where they touch water
 	onLine     bool       // caught on a fishing line: cast, wait for the bite, strike
@@ -409,7 +419,9 @@ func (w *World) creatureFits(k CreatureKind, x, y float64) bool {
 				return false
 			case d.amphibious && !land && !w.isShallow(tx, ty):
 				return false
-			case !d.water && !d.deep && !d.amphibious && !land:
+			case d.wades && !land && w.TileAt(tx, ty) != TileWater:
+				return false
+			case !d.water && !d.deep && !d.amphibious && !d.wades && !land:
 				return false
 			}
 		}
@@ -612,11 +624,16 @@ func (w *World) stepCreatures() {
 		w.repopulate()
 	}
 	w.stepNightHunters() // see nightstalker.go
+	w.stepBosses()       // see bosses.go
 }
 
 func (w *World) stepCreature(c *Creature) {
 	if c.flinchCD > 0 {
 		c.flinchCD--
+	}
+	if c.Kind.Boss() {
+		w.stepBoss(c) // no snare holds it, and it eats nobody's food: see bossfight.go
+		return
 	}
 	if c.State == CreatureHooked {
 		if !w.stillHooked(c) { // the angler left, died or fell asleep

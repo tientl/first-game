@@ -134,5 +134,5 @@ func ReachBonusFor(held ItemKind) float64 {
 	case ItemIvorySpear:
 		return IvorySpearReach // see iceage.go
 	}
-	return 0
+	return legendaryReach(held) // see legendary.go
 }

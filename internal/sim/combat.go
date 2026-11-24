@@ -31,6 +31,9 @@ const FlinchEvery = TicksPerSecond
 // SwingTicks is how long a blow at a beast with held takes before the next:
 // a fist is quick, a sword quicker than a heavy axe or a long ivory spear.
 func SwingTicks(held ItemKind) int {
+	if _, swing, ok := legendaryBlow(held); ok {
+		return swing // see legendary.go
+	}
 	if _, ok := SwordTier(held); ok {
 		return TicksPerSecond / 2
 	}
@@ -60,6 +63,9 @@ func (k CreatureKind) MaxHP() int { return k.def().hp * HealthScale }
 
 // WeaponDamage is what one blow does, before the spread, with held in hand.
 func WeaponDamage(held ItemKind) int {
+	if dmg, _, ok := legendaryBlow(held); ok {
+		return dmg // see legendary.go
+	}
 	if t, ok := SwordTier(held); ok {
 		return swordDamage[t]
 	}

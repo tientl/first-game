@@ -49,6 +49,8 @@ type World struct {
 	pyramidPlanned bool
 	difficulty     Difficulty // see difficulty.go
 
+	bosses bossWorld // the six bosses; see bosses.go
+
 	genH     int                 // the height the generator was asked for: what a save keeps
 	surfaceH int                 // rows above ground, when the caves lie below; see underground.go
 	links    map[[2]int]caveLink // cave mouths and ways up: where each leads
@@ -207,6 +209,10 @@ func (w *World) stepEntities() {
 			EntityCactus, EntityReed, EntityMushroom, EntityClam, EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree,
 			EntityFlower, EntityGlowPlant:
 			if !e.Ready && w.tick >= e.RegrowAt {
+				if e.FruitStump() {
+					w.standFruitTree(e) // up again, still bare; see fruit.go
+					break
+				}
 				e.Ready = true // for a crop: ripe
 				e.HP = maxHP(e.Kind, e.Big)
 			}

@@ -111,7 +111,15 @@ const (
 	ItemBanana // the woods: see jungle.go
 	ItemHoney
 	ItemBattleAxe // held: a heavy axe for fighting, the hardest single blow; see combat.go
-	itemsEnd      // new items go above this line
+
+	// The bosses' legendary spoils, one of each to a world: see legendary.go.
+	ItemTitanArmor   // Giáp vảy Titanoboa: the best armour, and venom-proof
+	ItemSpinoSpear   // Giáo răng Spinosaurus: the strongest spear, the longest reach
+	ItemKingCoat     // Áo lông Voi Chúa: never cold
+	ItemCarchaSword  // Kiếm răng cưa Carcharo: quick, hard blows
+	ItemGigaAxe      // Rìu nanh Giganoto: the hardest blow; fells trees fast
+	ItemMegaNecklace // Vòng răng Megalodon: swim and sail faster
+	itemsEnd         // new items go above this line
 
 	// The head of each kind of beast, a trophy: HeadItem(k). They sit at a
 	// fixed place so new items above never move them.

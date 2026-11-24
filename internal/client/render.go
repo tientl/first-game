@@ -168,6 +168,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawDigLabel(screen, cam, float64(scale))
 	g.drawFishingLabels(screen, cam, float64(scale), sw, sh)
 	g.drawHUD(screen, sw, sh)
+	g.drawBossBar(screen, sw) // see bossui.go
 	switch g.overlay {
 	case overlayMap:
 		g.drawMap(screen, sw, sh)
@@ -176,7 +177,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	case overlayChest:
 		g.drawChest(screen, sw, sh)
 	}
-	g.drawNotice(screen, sw) // above the bag, so a failed craft or meal says why
+	g.drawNotice(screen, sw)      // above the bag, so a failed craft or meal says why
+	g.drawVictory(screen, sw, sh) // every boss has fallen; see bossui.go
 
 	if g.disconnected && !g.paused {
 		g.dim(screen, sw, sh, 0.6)
@@ -320,6 +322,9 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 }
 
 func shadowWidth(e protocol.EntityView) float64 {
+	if sim.IsFruitStump(e.Kind, e.Var) {
+		return 14 * stumpScale[fruitStumpSize(e.Kind)]
+	}
 	if w, ok := woodsShadow(e); ok {
 		return w
 	}
@@ -420,6 +425,9 @@ func drawSwaying(dst *ebiten.Image, s sprite, x, y, skew float64) {
 // entitySprite returns the sprite for e and how much it sways in the wind.
 func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 	a := g.art
+	if sim.IsFruitStump(e.Kind, e.Var) {
+		return a.stumps[fruitStumpSize(e.Kind)], 0 // a felled fruit tree; see fruitart.go
+	}
 	if s, sway, ok := g.woodsEntitySprite(e); ok {
 		return s, sway // see jungleart.go
 	}
@@ -798,7 +806,7 @@ func (g *Game) candidateAt(tx, ty int) (sim.TargetCandidate, bool) {
 		return sim.TargetCandidate{}, false
 	}
 	e := g.curr.Entities[i]
-	return sim.TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready}, true
+	return sim.TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready, Var: e.Var}, true
 }
 
 // drawWorldLabels draws, at full screen resolution, what must stay readable
@@ -894,8 +902,12 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				}
 			case e.Kind == sim.EntityCrop:
 				label += " — đào khoai"
-			case sim.IsFruitTree(e.Kind):
+			case sim.IsFruitTree(e.Kind) && e.Ready:
 				label += " — hái quả"
+			case sim.IsFruitTree(e.Kind) && !g.has(sim.ToolAxe):
+				label, col = label+" — hết quả, cần rìu (Q)", colBad
+			case sim.IsFruitTree(e.Kind):
+				label += " — hết quả, chặt"
 			default:
 				label, col = g.tribalEntityLabel(e, label, col)
 			}

@@ -89,16 +89,334 @@ func crystals(c *canvas, rng *rand.Rand, n int, rp ramp, size float64) {
 	c.over(g, 0, 0)
 }
 
-// genOreCanvas is boulder variant v shot through with ore o.
-func genOreCanvas(o, v int) (*canvas, float64, float64) {
-	c, ax, ay := boulderCanvas(v, 1)
-	rng := rand.New(rand.NewPCG(uint64(o*7+v), 55))
-	if look := oreLooks[o]; look.crystal {
-		crystals(c, rng, 4, look.fleck, 5)
-	} else {
-		flecks(c, rng, 9, look.fleck)
+// The ore deposits stand on a canvas of oreW by oreH with their foot on row
+// oreGround: a craggy host rock of angular blocks, unlike a boulder's round
+// back, with the ore itself standing proud of it.
+const (
+	oreW, oreH = 30, 30
+	oreGround  = 27
+)
+
+var (
+	chalkRamp   = mkRamp(0x5e5648, 0x8a806c, 0xb3a98f, 0xd3cab0, 0xe9e2cc, 0xf8f4e6)
+	flintOre    = mkRamp(0x121013, 0x221e20, 0x38322f, 0x574e47, 0x857a6c)
+	jadeOre     = mkRamp(0x0c3329, 0x16604a, 0x27966f, 0x55c795, 0xa9f0c6)
+	agateOre    = mkRamp(0x4a1610, 0x8f2f19, 0xd25f2a, 0xf29a50, 0xfbd39c, 0xfff3dc)
+	obsidianOre = mkRamp(0x0b0812, 0x1a1429, 0x33284f, 0x5d4c8c, 0x9d8dd2, 0xe2dcff)
+	coalOre     = mkRamp(0x09080c, 0x131118, 0x201d27, 0x35313f, 0x57536a)
+	ashRock     = mkRamp(0x1c1a22, 0x2b2932, 0x3d3b46, 0x53515c, 0x6d6b75)
+	jadeSheen   = hex(0xd6fbe9)
+	colGloss    = hex(0x8a8496)
+	colGlint    = hex(0xfdfcff)
+)
+
+// oreBlock is one angular block of a host rock: its outline, and the ridge
+// from (rx, ry) down to bx on the ground that parts its lit face from its
+// shaded one.
+type oreBlock struct {
+	pts        []float64
+	rx, ry, bx float64
+}
+
+// oreBlocks is the host rock from the back to the front, as variant 0 has
+// it; variant 1 is its mirror image, lit from the same side.
+var oreBlocks = [...]oreBlock{
+	{[]float64{7, 28, 7, 17, 9, 13, 13, 11, 19, 12, 23, 16, 24, 28}, 13, 11, 15},
+	{[]float64{2, 27, 2, 22, 4, 19, 7, 17, 11, 19, 13, 28, 3, 28}, 7, 17, 8},
+	{[]float64{17, 28, 18, 19, 23, 16, 27, 20, 28, 26, 27, 28}, 22, 16, 22},
+	{[]float64{9, 28, 10, 23, 15, 21, 19, 23, 20, 28}, 14, 21, 15},
+}
+
+// oreX is x on variant v's canvas.
+func oreX(v int, x float64) float64 {
+	if v == 1 {
+		return oreW - x
 	}
-	return c, ax, ay
+	return x
+}
+
+// overInked draws g onto c, inking a rim round it wherever it lies on what
+// c already holds, so that each piece stands apart from the one behind.
+func overInked(c, g *canvas, strength float64) {
+	for y := 0; y < g.h; y++ {
+		for x := 0; x < g.w; x++ {
+			if g.opaque(x, y) || !c.opaque(x, y) {
+				continue
+			}
+			if g.opaque(x-1, y) || g.opaque(x+1, y) || g.opaque(x, y-1) || g.opaque(x, y+1) {
+				c.put(x, y, mix(c.at(x, y), colInk, strength))
+			}
+		}
+	}
+	c.over(g, 0, 0)
+}
+
+// oreBlockOn draws block i of variant v's host rock onto c in rp, its
+// height scaled by hs and its light by dim.
+func oreBlockOn(c *canvas, v, i int, rp ramp, hs, dim float64) {
+	b := oreBlocks[i]
+	const foot = oreGround + 1
+	lift := math.Round(hashf(i, v, 77)*3) - 1
+	pts := make([]float64, len(b.pts))
+	for j := 0; j < len(pts); j += 2 {
+		x, y := b.pts[j], b.pts[j+1]
+		if y < oreGround-1 {
+			y = foot - (foot-y+lift)*hs
+		}
+		pts[j], pts[j+1] = oreX(v, x), y
+	}
+	rx, bx := oreX(v, b.rx), oreX(v, b.bx)
+	ry := foot - (foot-b.ry+lift)*hs
+	ridge := func(py float64) float64 { return rx + (bx-rx)*clamp01((py-ry)/(foot-ry)) }
+	g := newCanvas(c.w, c.h)
+	g.polygon(pts, func(x, y int) color.RGBA {
+		px, py := float64(x)+0.5, float64(y)+0.5
+		l := 0.34
+		if px < ridge(py) {
+			l = 0.7
+		}
+		l += (vnoise(px*0.55, py*0.55, 150+uint32(i))-0.5)*0.16 - clamp01((py-oreGround+3)/4)*0.16
+		return rp.pick(l*dim, x, y)
+	})
+	for y := 0; y < g.h; y++ { // the top edges catch the light
+		for x := 0; x < g.w; x++ {
+			if g.opaque(x, y) && !g.opaque(x, y-1) {
+				l := 0.62
+				if float64(x)+0.5 < ridge(float64(y)+0.5) {
+					l = 1
+				}
+				g.put(x, y, rp.pick(l*dim, x, y))
+			}
+		}
+	}
+	overInked(c, g, 0.55)
+}
+
+// oreHost is variant v's host rock in rp.
+func oreHost(v int, rp ramp, hs, dim float64) *canvas {
+	c := newCanvas(oreW, oreH)
+	for i := range oreBlocks {
+		oreBlockOn(c, v, i, rp, hs, dim)
+	}
+	return c
+}
+
+// oreLump is a rounded lump of rp at (x, y) with a wet gloss on its
+// shoulder: a nodule or a polished cobble.
+func oreLump(c *canvas, x, y, rx, ry float64, rp ramp, gloss color.RGBA) {
+	g := newCanvas(c.w, c.h)
+	g.ellipse(x, y, rx, ry, func(px, py int, nx, ny float64) color.RGBA {
+		return rp.pick(lum(nx, ny)*0.95+0.05, px, py)
+	})
+	gx, gy := int(math.Floor(x-rx*0.4)), int(math.Floor(y-ry*0.45))
+	g.put(gx, gy, gloss)
+	if rx >= 2.5 {
+		g.put(gx+1, gy, mix(gloss, rp[len(rp)-1], 0.4))
+		g.put(gx, gy+1, rp[len(rp)-1])
+	}
+	overInked(c, g, 0.8)
+}
+
+// genFlintOre is a bank of pale chalk with dark, glossy flint nodules
+// weathering out of it.
+func genFlintOre(v int) *canvas {
+	c := oreHost(v, chalkRamp, 1, 1)
+	for _, n := range [][4]float64{{13, 11.5, 3.3, 2.7}, {5.5, 20.5, 2.7, 2.2}, {22.5, 17, 3, 2.5}, {9.5, 15.5, 1.9, 1.6}, {25.5, 23.5, 1.9, 1.6}, {7.5, 24.5, 1.6, 1.3}, {17, 22.5, 3.3, 2.8}} {
+		oreLump(c, oreX(v, n[0]), n[1], n[2], n[3], flintOre, hex(0xf2ecdc))
+	}
+	c.outline(0.8)
+	return c
+}
+
+// gemCrystals is how a cluster of gem crystals stands on variant 0's canvas,
+// from the back to the front: each from its foot (bx, by) up to its point
+// (tx, ty), w wide.
+var gemCrystals = [...][5]float64{
+	{14, 25, 13.5, 7.5, 4.3}, {7.5, 25, 5.5, 12.5, 3.3}, {21.5, 25, 23.5, 11, 3.5},
+	{3.8, 26.5, 2.5, 19, 2}, {26, 26.5, 27.5, 18.5, 2}, {17, 27.5, 17.5, 17.5, 2.9}, {10.5, 27.5, 9.5, 20, 2.3},
+}
+
+// gemCrystal stands crystal i of a cluster on c: a stout prism that comes
+// to a point, its lit and shaded faces coloured by face (up runs from 0 at
+// the foot to 1 at the point), with a bright edge between them in edge and
+// a glint at the point.
+func gemCrystal(c *canvas, v, i int, edge color.RGBA, face func(x, y int, lit bool, up float64) color.RGBA) {
+	s := gemCrystals[i]
+	bx, by, tx, ty, w := oreX(v, s[0]), s[1], oreX(v, s[2]), s[3], s[4]
+	h := by - ty
+	lean := (tx - bx) * 0.62
+	ridge := func(py float64) float64 { return bx + (tx-bx)*(by-py)/h + w*0.12 }
+	g := newCanvas(c.w, c.h)
+	g.polygon([]float64{bx - w, by, bx - w + lean, by - h*0.62, tx, ty, bx + w + lean, by - h*0.55, bx + w, by}, func(x, y int) color.RGBA {
+		px, py := float64(x)+0.5, float64(y)+0.5
+		return face(x, y, px < ridge(py), (by-py)/h)
+	})
+	for y := int(ty) + 1; float64(y) < by-h*0.2; y++ {
+		x := int(math.Floor(ridge(float64(y) + 0.5)))
+		if !g.opaque(x, y) {
+			continue
+		}
+		col := edge
+		if float64(y) < ty+h*0.35 {
+			col = colGlint
+		}
+		g.put(x, y, col)
+	}
+	g.put(int(math.Floor(tx)), int(ty)+1, colGlint)
+	if w > 2.5 { // a sparkle on the lit face
+		sx, sy := int(math.Floor(bx-w*0.45+lean*0.5)), int(by-h*0.42)
+		g.put(sx, sy, colGlint)
+		g.put(sx, sy+1, edge)
+	}
+	overInked(c, g, 0.8)
+}
+
+// genJadeOre is a cluster of stout jade crystals, green through and
+// through, with a milky sheen sliding down their lit faces.
+func genJadeOre(v int) *canvas {
+	c := oreHost(v, jadeOre, 0.5, 0.62)
+	for i := range gemCrystals {
+		gemCrystal(c, v, i, jadeOre[4], func(x, y int, lit bool, up float64) color.RGBA {
+			if !lit {
+				return jadeOre.pick(0.12+up*0.2, x, y)
+			}
+			if (x+y+i)%6 == 0 {
+				return jadeSheen // the sheen
+			}
+			return jadeOre.pick(0.52+up*0.3, x, y)
+		})
+	}
+	c.outline(0.8)
+	return c
+}
+
+// genAgateOre is a cluster of pointed agate crystals, banded across from
+// dark red through orange to cream.
+func genAgateOre(v int) *canvas {
+	c := oreHost(v, agateOre, 0.5, 0.42)
+	bands := [...]int{1, 2, 3, 4, 2, 3, 5, 3, 2, 4}
+	for i := range gemCrystals {
+		gemCrystal(c, v, i, agateOre[5], func(x, y int, lit bool, up float64) color.RGBA {
+			sag := float64(x) * 0.35
+			if v == 1 {
+				sag = -sag
+			}
+			b := bands[int(float64(y)+sag+float64(i*3)+40)/2%len(bands)]
+			if !lit {
+				return agateOre.at(b - 2)
+			}
+			return agateOre.at(b)
+		})
+	}
+	c.outline(0.8)
+	return c
+}
+
+// obsidianShard stands a blade of volcanic glass on c from (bx, by) up to
+// its tip (tx, ty), w wide at the foot.
+func obsidianShard(c *canvas, bx, by, tx, ty, w float64) {
+	g := newCanvas(c.w, c.h)
+	h := by - ty
+	ridge := func(py float64) float64 { return bx + (tx-bx)*(by-py)/h }
+	g.polygon([]float64{bx - w, by, tx - 0.6, ty + 1, tx, ty, tx + 0.7, ty + 1.5, bx + w, by, bx, by + w*0.5}, func(x, y int) color.RGBA {
+		px, py := float64(x)+0.5, float64(y)+0.5
+		up := (by - py) / h
+		if px < ridge(py) {
+			return obsidianOre.pick(0.3+up*0.24-math.Mod(py*0.37+px*0.2, 1)*0.14, x, y)
+		}
+		return obsidianOre.pick(0.06+up*0.14, x, y)
+	})
+	for y := int(ty) + 1; float64(y) < by-h*0.25; y++ { // the edge of the glass
+		x := int(math.Floor(ridge(float64(y) + 0.5)))
+		if !g.opaque(x, y) {
+			continue
+		}
+		col := obsidianOre[4]
+		if float64(y) < ty+h*0.3 {
+			col = obsidianOre[5]
+		}
+		g.put(x, y, col)
+	}
+	g.put(int(math.Floor(tx)), int(ty)+1, colGlint)
+	overInked(c, g, 0.8)
+}
+
+// genObsidianOre is a low heap of ash-dark rock with blades of black
+// volcanic glass standing out of it.
+func genObsidianOre(v int) *canvas {
+	c := oreHost(v, ashRock, 0.62, 1)
+	for _, s := range [][5]float64{{9, 23, 5.5, 9, 2.7}, {20.5, 23, 23.5, 7.5, 2.9}, {14.5, 24, 13.5, 3.5, 3.4}, {4.5, 25, 2.5, 17.5, 1.9}, {25, 25.5, 27.5, 16.5, 1.9}, {18, 26, 19, 15, 2.2}} {
+		obsidianShard(c, oreX(v, s[0]), s[1], oreX(v, s[2]), s[3], s[4])
+	}
+	oreBlockOn(c, v, 3, ashRock, 0.5, 1) // rubble heaped at their feet
+	c.outline(0.8)
+	return c
+}
+
+// genCoalCanvas is a coal seam: grey rock banded with glossy black coal,
+// blocks of it broken out on top and fallen at its foot.
+func genCoalCanvas(v int) (*canvas, float64, float64) {
+	c := oreHost(v, stoneRamp, 0.92, 0.95)
+	tilt := 0.42
+	if v == 1 {
+		tilt = -tilt
+	}
+	for y := 0; y < oreH; y++ {
+		for x := 0; x < oreW; x++ {
+			b := math.Mod(float64(y)+float64(x)*tilt+vnoise(float64(x)*0.3, 0, 170)*2+40, 7)
+			if !interior(c, x, y) || b >= 2.6 {
+				continue
+			}
+			col := coalOre.at(int(b))
+			if b < 1 && hashf(x/2, y, 171) < 0.45 {
+				col = colGloss // along the top of a seam
+			}
+			c.set(x, y, col)
+		}
+	}
+	for i, n := range [][3]float64{{12, 12, 4.2}, {20, 15.5, 3.2}, {5.5, 20.5, 2.6}, {16.5, 24.5, 2.4}, {25, 24.5, 1.8}} {
+		g := newCanvas(oreW, oreH)
+		x, y, r := oreX(v, n[0]), n[1], n[2]
+		j := func(k int) float64 { return (hashf(i, k, 172) - 0.5) * r * 0.4 }
+		g.polygon([]float64{x - r, y + j(0), x - r*0.5 + j(1), y - r*0.9, x + r*0.6, y - r + j(2), x + r, y - r*0.2 + j(3), x + r*0.7, y + r*0.8, x - r*0.4 + j(4), y + r*0.9}, func(px, py int) color.RGBA {
+			u, w := (float64(px)+0.5-x)/r, (float64(py)+0.5-y)/r
+			switch s := u + w*0.9; {
+			case s < -0.95:
+				return coalOre[4]
+			case s < -0.55:
+				return colGloss
+			case s < -0.3:
+				return coalOre[3]
+			case u > 0.25:
+				return coalOre.at(int(1.2 - w))
+			default:
+				return coalOre.pick(0.45-w*0.2, px, py)
+			}
+		})
+		if r > 3 {
+			g.put(int(x-r*0.35), int(y-r*0.45), colGlint)
+		}
+		overInked(c, g, 0.85)
+	}
+	c.outline(0.85)
+	return c, oreW / 2, oreGround
+}
+
+// genOreCanvas is variant v of the deposit of ore o: flint in chalk, jade,
+// agate, or obsidian.
+func genOreCanvas(o, v int) (*canvas, float64, float64) {
+	var c *canvas
+	switch o {
+	case 0:
+		c = genFlintOre(v)
+	case 1:
+		c = genJadeOre(v)
+	case 2:
+		c = genAgateOre(v)
+	default:
+		c = genObsidianOre(v)
+	}
+	return c, oreW / 2, oreGround
 }
 
 // genFurnaceCanvas is a domed stone furnace with a chimney, its mouth dark

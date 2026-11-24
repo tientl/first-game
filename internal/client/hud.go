@@ -312,6 +312,9 @@ func (g *Game) drawHelp(screen *ebiten.Image, sh int) {
 	} else if _, ok := sim.HeadOf(g.myHeld()); ok {
 		lines = append(lines, line{"V", "dựng đầu thú làm vật trang trí", colGood})
 	}
+	if g.myHeld().Valid() {
+		lines = append(lines, line{"G", "vứt 1 món đang cầm xuống đất (Shift+G: cả chồng)", colMuted})
+	}
 	lines = append(lines,
 		line{"B", "túi đồ", colMuted},
 		line{"M", "bản đồ", colMuted},

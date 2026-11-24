@@ -48,6 +48,8 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 - `internal/client/sound_events.go`: server chỉ gửi trạng thái, nên client so hai snapshot liên tiếp để biết khi nào phát tiếng.
 - `internal/client/roar.go`: tiếng gầm và tiếng kêu của thú. Mỗi loài một giọng: bạo chúa gầm (3 kiểu, có tiếng vọng; ở xa nghe trầm và đục, vọng tới khoảng 32 ô), cổ dài hú trầm dài, ba sừng, Torosaurus, gai lưng rống, voi ma mút rống vòi, raptor sủa từng tràng ngắn, Anzu "bùm" ba tiếng từ ngực, Quetzalcoatlus kêu khàn. Thú đứng hoặc đi thong thả thỉnh thoảng tự cất tiếng (mỗi lần chỉ một con, cách nhau ít nhất 2,5 giây); bạo chúa ngửa cổ há hàm khi gầm, ba sừng hất đầu, voi giơ vòi, Anzu xù mào. Bạo chúa còn gầm khi thấy người, khi lao đi săn, khi hạ được mồi và khi bị đánh; bầy raptor kêu khi hạ mồi.
 - `internal/client/predsound.go`: giọng của thú săn mồi, làm cho đáng sợ. Tiếng gầm bạo chúa (`rexroar.go`) ghép nhiều con vật như tiếng gầm làm cho phim: gừ trầm trong ngực, tiếng hàm bật mở và hít hơi; rồi tiếng rống há miệng của mèo lớn từ ba cổ họng lệch tông nhau, một giọng trầm hơn bên dưới, tiếng rú kiểu voi rống ở đỉnh kèm một tiếng rú lệch tông nghe gai người, tiếng ầm hạ âm bên dưới; cuối cùng khò khè ướt trong cổ và phì hơi. Ép rè mạnh, vọng dài như trong thung lũng. Bạo chúa gầm trong vòng 14 ô thì màn hình rung theo, càng gần rung càng mạnh. Raptor rít khàn như ngỗng lẫn rắn khi lao vào; hổ răng kiếm gầm như mèo lớn khi nhắm mồi và gầm gừ khi vồ; cá sấu phì phò khi lao khỏi nước. Thú săn đang đuổi trong vòng 12 ô thì nghe tiếng nó tới gần: bạo chúa thở gừ, raptor gừ lách cách trong cổ, hổ gầm gừ.
+- `internal/client/tribesound.go`: tiếng người của thổ dân, tổng hợp từ một giọng người (dây thanh rung, ba formant đổi theo nguyên âm, hơi thở), mỗi chiến binh một giọng cao thấp riêng. Thấy người lạ là hét xung trận (6 kiểu: "Ha-yaaa!", "Ooo-aaa!", "Hây-ya-haaa!", tiếng lưỡi "ay-ay-ay-ay" rền, "Hựh! Haaa!", "Yaaa!"; không bao giờ lặp lại kiểu vừa hét); tối đa 3 người đứng gần (trong 10 ô) lần lượt hô đáp lại ("Hô!", "Hai!", "Hup! Hup!"…) cách nhau chừng nửa giây. Một trận chỉ hét một lần: mất dấu rồi thấy lại trong 8 giây thì thôi. Đuổi theo thú để săn thì chỉ hô một tiếng ngắn. Đâm giáo thì gằn "hựh", bị đánh thì kêu đau, ngã xuống thì kêu một tiếng dài lịm dần.
+- `internal/client/creaturevoice.go`: tiếng các loài còn thiếu, con càng to giọng càng trầm và dài. Gấu hang gầm gừ khi đi lang thang và gầm vang khi thấy người; nhện rít lách tách; bọ cạp kêu lách cách, chích thì vút một tiếng; khỉ "hu-hu-ha-ha" và thét lên khi hoảng; thỏ kêu chít chít khi bỏ chạy; Thescelosaurus kêu "quác" trầm qua mũi; thằn lằn biển Mosasaurus rền trầm dưới nước, nổi lên thì ùm và rền, thỉnh thoảng nghe tiếng rền từ đáy biển; Kraken rên ướt, ùng ục khi quấn thuyền. Thú bị đánh thì kêu đau (thú ăn cỏ lớn rống ngắn vỡ giọng, raptor kêu thét, chim và thằn lằn bay kêu khàn…), cả đàn ăn cỏ gần đó rống báo động một tiếng; thú chết thì rên một tiếng dài trầm dần. Tiếng nào cũng đặt đúng chỗ trong thế giới (xa thì nhỏ, lệch trái phải), và có giới hạn cho từng con lẫn từng loại tiếng để cả bầy không kêu loạn xạ. Các tiếng này tạo song song với các hiệu ứng khác nên gần như không làm chậm lúc mở game.
 
 Âm lượng nhạc và hiệu ứng chỉnh trong menu chính hoặc menu Esc (A/D hoặc phím mũi tên), lưu ở `%AppData%\SinhTon\settings.json`.
 
@@ -58,15 +60,16 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 | WASD / mũi tên | Di chuyển |
 | Giữ Space | Nhặt cành cây, hái quả, cắt cỏ, đập đá, chặt cây (cần rìu), thêm củi vào lửa; bắt thỏ, đánh rắn, bắt giun, câu cá |
 | 1–9, 0 / lăn chuột | Chọn ô 1–10 trên hàng ô nhanh; món ở ô đó là món đang cầm (người khác cũng thấy) |
-| E | Ăn món đang cầm; nếu nó không ăn được thì ăn món tốt nhất trong túi (đồ nướng trước, đồ sống sau cùng) |
+| E | Ăn món đang chọn trên thanh đồ (mở túi thì ăn món đang trỏ); món đó không ăn được thì không ăn gì cả |
 | F | Nướng 1 miếng Thịt sống hoặc Cá sống (phải đứng trong vùng sáng của lửa trại đang cháy) |
 | Q | Làm Rìu (2 Cành cây, 1 Đá) |
 | C | Dựng lửa trại (2 Gỗ, 2 Cỏ khô, 3 Đá) |
-| B | Mở/đóng túi đồ: 20 ngăn túi + 10 ô nhanh, mỗi ô chứa một loại (tối đa 40, rìu 1). Nhấp một ô để nhấc lên, nhấp ô khác để đặt, gộp hoặc đổi chỗ (chuột phải để bỏ). Shift+nhấp chuyển nhanh giữa túi và ô nhanh; 1–0 đưa món đang trỏ vào ô nhanh đó; mũi tên/WASD + Enter cũng dùng được. Nhấp vào công thức để chế tạo |
+| B | Mở/đóng túi đồ: 20 ngăn túi + 10 ô nhanh, mỗi ô chứa một loại (tối đa 40, rìu 1). Nhấp một ô để nhấc lên, nhấp ô khác để đặt, gộp hoặc đổi chỗ (chuột phải để bỏ). Shift+nhấp chuyển nhanh giữa túi và ô nhanh; 1–0 đưa món đang trỏ vào ô nhanh đó; mũi tên/WASD + Enter cũng dùng được. Nhấp vào công thức để chế tạo. Vứt đồ: kéo một chồng ra ngoài khung túi rồi thả là vứt cả chồng xuống đất; chuột phải vào một ô (lúc không nhấc gì) hoặc G vứt 1 món ở ô đang trỏ, Shift+G cả chồng |
 | M | Mở/đóng bản đồ: chỉ hiện những nơi bạn đã đi qua (trong vòng khoảng 10 ô quanh nhân vật), phần còn lại phủ sương; bản đồ đã khám phá được lưu theo từng người chơi. Có vị trí của bạn (icon đầu nhân vật), người chơi gần đó, lửa trại đã thấy. Góc trên bên phải màn hình luôn có minimap: vùng quanh bạn, chỉ hiện chỗ đã đi qua |
 | R | Cưỡi thú đã thuần đứng gần (cần Yên da trong túi), nhấn lần nữa để xuống. Khi đã chết: hồi sinh |
 | Chuột trái (giữ) | Như giữ Space |
 | V | Đặt món đang cầm xuống trước mặt: đầu thú lên cọc, cắm đuốc xuống đất, gieo hạt |
+| G | Vứt 1 món đang cầm xuống đất ngay trước mặt; Shift+G (hoặc Ctrl+G) vứt cả chồng. (Q đã dùng để làm Rìu nên vứt đồ là G.) Xem "Vứt đồ ra khỏi túi" bên dưới |
 | = / − (hoặc Ctrl + lăn chuột) | Thu phóng: nhìn gần hơn hoặc xa hơn; lưu trong settings.json. Khi mở bản đồ (M): lăn chuột hoặc = / − để phóng to bản đồ quanh chỗ bạn |
 | Esc | Tạm dừng: tiếp tục, lưu game, chỉnh âm lượng, về menu, thoát |
 | F11 | Toàn màn hình |
@@ -196,6 +199,8 @@ Trò chơi mới tạo một thế giới mở (`sim/openworld.go`): một lục
 
 Than đào ở mỏ than (cần cúp đá); bỏ vào lửa trại cháy lâu gấp đôi gỗ. Bản lưu cũ vẫn giữ nguyên hòn đảo của nó.
 
+**Cây ăn quả** (`sim/fruit.go`) mọc ở mọi thế giới: cây sung (rừng, đồng cỏ), cây bạch quả (đồng cỏ, ít hơn trong rừng), cây dừa (bãi cát), cây chuối (rừng, đầm lầy). Space vào cây đang có quả để hái bằng tay (3 Quả sung, 4 Hạt bạch quả, 2 Dừa, 3 Chuối); quả ra lại sau 1 ngày (bạch quả 1,5 ngày, dừa 2 ngày). Cây đã hết quả thì chặt được bằng rìu như cây thường (không có rìu thì báo cần rìu): cây sung, cây bạch quả 4 nhát rìu đá, đổ cho 4 Gỗ; cây dừa 3 nhát, 3 Gỗ; cây chuối 2 nhát, 2 Gỗ; hay rơi thêm Cành cây. Cây đang có quả thì Space luôn hái quả trước. Giữ Space để hái thì không chặt luôn: muốn chặt, thả Space ra rồi nhấn lại. Cây đổ để lại gốc, 3 ngày sau gốc mọc lại đúng loại cây đó, lúc đầu chưa có quả, rồi ra quả như thường.
+
 Xem nhanh: `go run ./cmd/shot -open -size 512 -at cave` (hoặc desert, marsh, mountain, ash, lava); bản đồ toàn thế giới ra PNG: `OPEN_DUMP=<thư mục> go test ./internal/sim -run DumpOpen`.
 
 ### Thuần hóa và cưỡi
@@ -243,6 +248,7 @@ Xem nhanh: `go run ./cmd/shot -open -sea`; bản đồ toàn thế giới: `OPEN
 Thế giới mới (kiểu `StyleTribal`) có thêm những thứ dưới đây; bản lưu cũ giữ nguyên địa hình cũ nhưng vẫn có mùa, thời tiết, đồ rơi, xác thú, đồ xây mới.
 
 - **Đồ rơi dưới đất**: chặt cây, đập đá, mổ xác, mở rương cổ thì đồ văng ra đất. Nhấn Space (đống gần nhất trong tầm với trước tiên) hoặc đi ngang qua để nhặt. Chặt cây hay rơi thêm Cành cây, đôi khi Hạt cây; đập đá đôi khi rơi Đá cuội. Đồ nằm đất 5 phút thì mục mất.
+- **Vứt đồ ra khỏi túi** (mọi thế giới; `internal/sim/toss.go`, `internal/client/toss.go`): G vứt 1 món đang cầm, Shift+G (hoặc Ctrl+G) cả chồng; trong túi đồ (B) thì kéo một chồng ra ngoài khung túi rồi thả, chuột phải vào một ô, hoặc G / Shift+G với ô đang trỏ. Đồ rơi thành một đống ngay trước mặt (cách chừng 1 ô, theo hướng đang nhìn); phía trước là tường hay nước thì rơi ngay dưới chân. Vứt tiếp cùng loại vào chỗ đó thì dồn vào đống cũ (tối đa một ô túi mỗi đống). Đống vứt ra là đồ rơi như mọi đồ rơi khác: ai cũng nhặt được bằng Space hoặc đi ngang qua, được lưu cùng thế giới, 5 phút thì mục (trừ đồ huyền thoại). Riêng người vứt, đang đứng trên đống đó thì không tự nhặt lại khi đứng yên; bước ra rồi đi vào lại mới nhặt (Space thì nhặt ngay). Đang bơi hay ngồi thuyền thì chỉ vứt được lên bờ trước mặt; ngoài biển thì không vứt được (hiện thông báo, đồ vẫn trong túi) để khỏi mất đồ. Đã chết, đang ngủ hay đang mở rương thì không vứt được. Vứt cây đuốc đang cháy trên tay thì đuốc tắt. Có tiếng "bịch" nhẹ khi vứt.
 - **Xác thú**: hạ thú thì xác nằm lại trên vũng máu (thú bốn chân lật ngửa). Space vào xác để mổ (cầm dao thì nhanh gấp đôi): ra thịt, da, xương, **đầu thú**, và **Da khủng long** nếu là khủng long. Xác để 4 phút thì rữa mất. Xác thổ dân thì lục soát (có khi được giáo).
 - **Đầu thú**: cầm đầu trên tay, nhấn V để cắm lên cọc làm vật trang trí; Space để gỡ xuống.
 - **Mùa và thời tiết**: mỗi mùa 3 ngày (xuân, hạ, thu, đông). Thời tiết đổi vài phút một lần: mưa (lửa cháy nhanh gấp đôi), gió, giông bão (sét đánh gần người: 35 máu, cây bị sét thì đổ), lốc xoáy (cuốn người quay vòng, mất máu, quật đổ cây), tuyết. Mùa đông khi có tuyết hay gió thì ở ngoài trời rất lạnh kể cả ban ngày (mặc Áo lông, Áo da thú hoặc Giáp da khủng long, hoặc đứng gần lửa, đuốc); mặt đất phủ tuyết; ao hồ (không phải biển) đóng băng, đi lên được, cá trốn dưới băng. Mùa thu lá cây ngả vàng.
@@ -252,7 +258,7 @@ Thế giới mới (kiểu `StyleTribal`) có thêm những thứ dưới đây;
 - **Hoa và hạt**: 6 loại hoa (anh túc đỏ, cúc vàng, hoa lam, oải hương, cúc trắng, hồng dại), hái được hoa và hay được Hạt hoa. Hạt quả mọng (hái bụi quả), Hạt cây (chặt cây), Hạt phát sáng, Hạt cây ăn thịt: cầm hạt nhấn V để gieo trước mặt.
 - **Cây phát sáng**: nấm, dương xỉ và cây cao phát sáng xanh lam, tím vào ban đêm, trong rừng sâu, đầm lầy và hang. Hái được Bào tử phát sáng.
 - **Cây ăn thịt người**: cây khổng lồ đầu đỏ ở đầm lầy và rừng xa, với tới khoảng 2 ô. Thú nhỏ và khủng long nhỏ (thỏ, rắn, cua, Thescelosaurus, Ornithomimus, raptor, Anzu, nhện, bọ cạp) lại gần là bị nuốt chửng, rồi cây ngậm miệng nhai khoảng 8 giây. Thú to bị cắn, người bị đớp mất 16 máu. Chặt bằng vũ khí hoặc rìu (10 nhát tay), rơi hạt; cây trồng từ hạt thì chỉ đớp thú, canh nhà cho bạn.
-- **Rừng** (thế giới tạo mới): **cây cổ thụ khổng lồ** thỉnh thoảng mọc giữa rừng, gốc rộng 3×2 ô không đi xuyên qua được. Phải chặt rất lâu (24 nhát rìu đá), đổ xuống cho 30 Gỗ, 8 Cành cây, 3 Hạt cây; gốc để lại mãi. **Cây chuối** ở rừng và đầm lầy, hái buồng bằng tay (3 Chuối: +14 no, +3 máu), mọc lại sau 1 ngày. **Tổ ong** treo trên một số cây, cây cổ thụ hay có nhất. Space vào cây có tổ để lấy 3 Mật ong (+10 no, +15 máu), tổ đầy lại sau 1 ngày. Ong bay ra đốt (3 máu mỗi giây trong 8 giây) trừ khi bạn **cầm đuốc** (khói làm ong hiền). Chạy xa 10 ô hoặc nhảy xuống nước thì ong thôi đuổi; chặt cây có tổ cũng bị ong đốt. **Khỉ** sống theo đàn 4 con trong rừng, thấy người là chạy, chạy mệt thì ngồi thở. Lúc đó cầm Chuối cho ăn 3 lần là thuần, khỉ sẽ đi theo bạn. Xem nhanh: `go run ./cmd/shot -woods`.
+- **Rừng** (thế giới tạo mới): **cây cổ thụ khổng lồ** thỉnh thoảng mọc giữa rừng, gốc rộng 3×2 ô không đi xuyên qua được. Phải chặt rất lâu (24 nhát rìu đá), đổ xuống cho 30 Gỗ, 8 Cành cây, 3 Hạt cây; gốc để lại mãi. **Cây chuối** ở rừng và đầm lầy, hái buồng bằng tay (3 Chuối: +14 no, +3 máu), mọc lại sau 1 ngày; hết buồng thì chặt được như mọi cây ăn quả. **Tổ ong** treo trên một số cây, cây cổ thụ hay có nhất. Space vào cây có tổ để lấy 3 Mật ong (+10 no, +15 máu), tổ đầy lại sau 1 ngày. Ong bay ra đốt (3 máu mỗi giây trong 8 giây) trừ khi bạn **cầm đuốc** (khói làm ong hiền). Chạy xa 10 ô hoặc nhảy xuống nước thì ong thôi đuổi; chặt cây có tổ cũng bị ong đốt. **Khỉ** sống theo đàn 4 con trong rừng, thấy người là chạy, chạy mệt thì ngồi thở. Lúc đó cầm Chuối cho ăn 3 lần là thuần, khỉ sẽ đi theo bạn. Xem nhanh: `go run ./cmd/shot -woods`.
 - **Phân thú** (mọi thế giới, cả bản lưu cũ): thú ăn cỏ thỉnh thoảng thải phân sau lưng. Cổ dài để 3 cục; ba sừng, Torosaurus, gai lưng, voi ma mút và bạo chúa để 2; Thescelosaurus và Ornithomimus để 1. Trung bình mỗi con 1/3 ngày một lần, thú đã thuần thì nhanh gấp đôi. Đống phân có ruồi bay quanh, nằm được 1 ngày, cả thế giới có tối đa 160 đống. Nhặt như đồ rơi khác. Cầm phân và nhấn **V** trước cây non, khoai đang lớn hoặc bụi, cây, hoa vừa bị hái: thời gian còn lại giảm một nửa. Bón cho luống đất trống thì luống sẫm lại, khoai trồng ở đó chín nhanh gấp đôi. Xem nhanh: `go run ./cmd/shot -farm -dung`.
 - **Tuyết và núi lửa** luôn ở rất xa chỗ xuất phát.
 - **Hồi sinh**: chết thì hồi sinh cạnh giường ngủ lần cuối (nếu giường còn), không thì ở chỗ xuất phát.
@@ -271,6 +277,36 @@ Thế giới mới (kiểu `StyleTribal`) có thêm những thứ dưới đây;
 | Giáp da khủng long | 4 Da khủng long, 2 Xương, 1 Tơ nhện | Đỡ 50% sức tấn công, giữ ấm mùa đông |
 
 Xem nhanh: `go run ./cmd/shot -open -tribal`, `-at village`, `-at path`, `-weather storm|rain|wind|tornado|snow`, `-season winter|autumn`, `-zoom -2`.
+
+## Trùm (thế giới mở)
+
+Mỗi thế giới mở có sáu con trùm, mỗi vùng đất hoang một con (`internal/sim/bosses.go`, `bossfight.go`). Trùm sống ở hang ổ sâu trong vùng của nó, xa chỗ xuất phát, và không bao giờ đi xa hang quá 18 ô (Megalodon 34 ô). Nó ngủ cho tới khi có người tới gần, rồi gầm lên và đánh. Ai bỏ đi thì nó về hang và hồi máu. Còn dưới nửa máu thì nó **nổi giận**: gầm lên lần nữa, đánh nhanh hơn và chạy nhanh hơn. Mọi đòn đều có báo trước: trùm há miệng (hoặc chồm lên, cúi đầu, vung đuôi) chừng nửa giây rồi đòn mới tới, nên lùi kịp thì tránh được. Trùm đã hạ thì không bao giờ sống lại (được lưu); bản lưu cũ khi mở sẽ có đủ trùm.
+
+| Trùm | Ở đâu | Đánh thế nào | Máu |
+| --- | --- | --- | --- |
+| Titanoboa — Chúa rừng rậm | Rừng rậm sâu nhất | Nằm cuộn trong bụi rậm. Cắn (36 máu); thỉnh thoảng quấn lấy người: bị giữ chặt, mỗi giây bị siết 14 máu tới 5 giây. Giữ phím di chuyển để vùng ra nhanh gấp đôi, hoặc đánh nó đủ đau thì nó nhả | 16500 |
+| Spinosaurus — Chúa đầm lầy | Ao giữa đầm lầy | Rình dưới nước, chỉ lộ cánh buồm và đôi mắt (không đánh được). Ai tới mép ao trong 5 ô thì lao lên đớp (46 máu); trên cạn cào bằng vuốt (30 máu); lên bờ chừng 14 giây lại lặn xuống. Bơi trong ao của nó cũng bị đớp | 15000 |
+| Voi Ma Mút Chúa — Chúa xứ tuyết | Giữa vùng tuyết, có đàn voi đi cùng | Quật ngà (34 máu, hất lùi), lao tới húc từ xa (40 máu, hất văng 3 ô), chồm lên dậm đất trúng mọi người quanh nó 3,6 ô (44 máu). Gầm lên là voi ma mút quanh đó kéo tới đánh cùng | 16500 |
+| Carcharodontosaurus — Chúa sa mạc | Giữa sa mạc, tránh xa kim tự tháp | Cắn (38 máu); cúi đầu rồi lao như tên bắn, húc văng người đầu tiên nó đâm phải (44 máu); lao xong phải thở dốc một lúc | 15500 |
+| Giganotosaurus — Chúa núi lửa | Vùng tro quanh núi lửa | To hơn bạo chúa. Cắn rất đau (46 máu); quay mình quét đuôi trúng mọi người trong 4,2 ô (36 máu, hất văng) | 16000 |
+| Megalodon — Chúa biển sâu | Biển sâu, xa bờ | Lượn vòng quanh thuyền chỉ lộ vây (không đánh được), rồi húc thuyền (thuyền mất 5 độ bền, người 12 máu, người đang bơi 45 máu), nổi lên vài giây đớp người trên thuyền: lúc đó mới đánh được. Thỉnh thoảng nhảy vọt khỏi mặt nước đập xuống cạnh thuyền (thuyền mất 12) | 10000 |
+
+Số máu trên là trước khi giáp đỡ. Với dao hắc diện thạch, giáp răng bạo chúa, 8 Bình máu và 4 Bình máu lớn, một người biết lùi tránh đòn hạ mỗi trùm trong khoảng 1 phút 40 tới 2 phút 40 và vẫn phải uống 2–6 bình; đứng đỡ đòn thì tốn gấp đôi; không giáp, không thuốc thì chết sau vài đòn. Đánh Megalodon cần thuyền buồm (bè gỗ sẽ chìm). Khi trùm đang đánh bạn trong vòng 14 ô, giữa trên màn hình có thanh máu lớn ghi tên nó. Thấy trùm hoặc hang của nó rồi thì bản đồ (M) đánh dấu hang; trùm đã hạ thì có dấu chéo đỏ.
+
+**Chiến lợi phẩm**: xác trùm cho rất nhiều thịt, da, xương (khủng long còn có Da khủng long, Răng bạo chúa; Voi Chúa có lông và ngà), đầu trùm để cắm cọc, và rơi đúng một **món huyền thoại** ngay chỗ nó chết (món này không bao giờ mục):
+
+| Món | Của | Tác dụng |
+| --- | --- | --- |
+| Giáp vảy Titanoboa | Titanoboa | Giáp tốt nhất: đỡ 80% sức tấn công; không bao giờ trúng độc (nhện, bọ cạp) |
+| Giáo răng Spinosaurus | Spinosaurus | Cầm trên tay: giáo mạnh nhất (60), với xa nhất (thêm 1,2 ô) |
+| Áo lông Voi Chúa | Voi Ma Mút Chúa | Có trong túi thì không bao giờ bị lạnh: tuyết, đêm đông, gió tuyết |
+| Kiếm răng cưa Carcharo | Carcharodontosaurus | Cầm trên tay: 80 mỗi đòn, vung nhanh nhất (0,4 giây) |
+| Rìu nanh Giganoto | Giganotosaurus | Cầm trên tay: đòn nặng nhất (150, 0,8 giây); có trong túi thì chặt cây nhanh nhất |
+| Vòng răng Megalodon | Megalodon | Đeo (có trong túi): bơi nhanh gấp 1,6 và lâu mệt hơn, chèo và lái thuyền nhanh hơn 25% |
+
+**Phá đảo!** Khi cả sáu trùm đã bị hạ, mọi người chơi đều thấy màn hình "Phá đảo!" một lần: sáu trùm đã hạ, ngày phá đảo, và nút **Tiếp tục chơi**. Đã đóng thì không hiện lại (được lưu theo tên người chơi).
+
+Xem nhanh: `go run ./cmd/shot -open -bosses` (thêm `-bosspose 1`, `2`… để đổi tư thế, `-overlay map -frames 120` để xem dấu hang), `go run ./cmd/shot -victory`.
 
 ## Chế tạo
 

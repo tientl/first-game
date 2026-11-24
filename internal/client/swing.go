@@ -115,7 +115,7 @@ func (g *Game) whatSwing(old protocol.Snapshot, oldAt map[[2]int]protocol.Entity
 	px, py := float64(p.X), float64(p.Y)
 	tg, ok := sim.PickTarget(px, py, hasFuel, func(tx, ty int) (sim.TargetCandidate, bool) {
 		e, ok := oldAt[[2]int{tx, ty}]
-		return sim.TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready}, ok
+		return sim.TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready, Var: e.Var}, ok
 	}, creatureCandidates(old.Creatures, px, py), sim.ReachBonusFor(p.Held)+sim.RideReach(p.Mount != 0))
 	switch {
 	case !ok:
@@ -144,7 +144,8 @@ func (g *Game) whatSwing(old protocol.Snapshot, oldAt map[[2]int]protocol.Entity
 			continue
 		}
 		switch {
-		case e.Kind == sim.EntityTree || e.Kind == sim.EntityWall || e.Kind == sim.EntityCactus:
+		case e.Kind == sim.EntityTree || e.Kind == sim.EntityWall || e.Kind == sim.EntityCactus,
+			sim.IsFruitTree(e.Kind) && !e.Ready: // a bare fruit tree is felled
 			return tool(sim.ToolAxe, swingAxe, p.AxeTier)
 		case e.Kind == sim.EntityBoulder || e.Kind == sim.EntityStoneWall || e.Kind == sim.EntityCoal || isOre(e.Kind):
 			return tool(sim.ToolPickaxe, swingPick, sim.TierStone)

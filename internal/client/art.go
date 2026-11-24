@@ -71,6 +71,7 @@ type art struct {
 	armors map[armorKey]*armorArt // drawn on first use; see armorart.go
 
 	beasts creatureArt                 // animals; see creatures.go
+	bosses bossSprites                 // the six bosses; see bosses.go
 	tribal tribalArt                   // the tribal age; see tribalart.go
 	heads  map[sim.CreatureKind]sprite // trophy heads cut from the beasts; see tribalrender.go
 	sea    seaArt                      // boats and sea monsters; see seaart.go
@@ -150,6 +151,7 @@ func newArt() *art {
 	a.chest, a.chestOpen = genChest(false), genChest(true)
 
 	a.beasts = genCreatureArt()
+	a.bosses = genBossSprites() // before addTribalArt cuts their heads
 
 	a.shadow = genSoftDisc(shadowSize, 1.0)
 	a.light = genLight()
@@ -171,6 +173,7 @@ func newArt() *art {
 	genSeaIcons(&a.icons)
 	a.addTribalArt()
 	redrawItemIcons(&a.icons) // see itemicons.go
+	bossItemIcons(&a.icons)   // the legendary items; see bosses.go
 	return a
 }
 

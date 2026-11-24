@@ -94,7 +94,7 @@ func ArmorShare(inv *Inventory) float64 {
 	if inv.Count(ItemDinoArmor) > 0 {
 		share = max(share, DinoArmorBlock)
 	}
-	return share
+	return max(share, legendaryArmor(inv)) // see legendary.go
 }
 
 // SwordRecipe and ArmorRecipe are the recipes for tier t's sword and

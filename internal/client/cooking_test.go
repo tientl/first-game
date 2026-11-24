@@ -38,20 +38,6 @@ func TestByFire(t *testing.T) {
 	}
 }
 
-func TestEatsCookedFoodBeforeRaw(t *testing.T) {
-	g := readyGame()
-	inv := &g.curr.Self.Inv
-	inv[2] = sim.Slot{Item: sim.ItemMeat, Count: 3}
-	inv[4] = sim.Slot{Item: sim.ItemBerry, Count: 1}
-	inv[sim.HotbarSlots+3] = sim.Slot{Item: sim.ItemCookedFish, Count: 1}
-	if got, ok := g.slotToEat(); !ok || got != sim.HotbarSlots+3 {
-		t.Fatalf("eats slot %d, want the cooked fish", got)
-	}
-	inv[sim.HotbarSlots+3] = sim.Slot{}
-	if got, _ := g.slotToEat(); got != 4 {
-		t.Fatalf("eats slot %d, want berries before raw meat", got)
-	}
-}
 
 func TestCookingSizzles(t *testing.T) {
 	played := testSound(t)

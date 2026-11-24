@@ -135,6 +135,7 @@ type Game struct {
 	strikesSeen map[[2]float32]bool
 	prevBoats   map[sim.BoatID]protocol.BoatView
 	swimBuf     *ebiten.Image // scratch for drawing a swimmer cut off at the water
+	boss        bossUI        // the boss bar and the victory screen; see bossui.go
 }
 
 // New returns a game that plays over conn under the given player name.
@@ -226,7 +227,7 @@ func (g *Game) Update() error {
 		g.updatePause()
 		return nil
 	}
-	if g.ready && g.hasCurr && !g.disconnected {
+	if g.ready && g.hasCurr && !g.disconnected && !g.updateVictory() { // see bossui.go
 		g.handleInput()
 	}
 	return nil
@@ -386,6 +387,7 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 	g.syncChest()
 	if hadOld {
 		g.snapshotSounds(old, s)
+		g.noteBosses(old, s) // see bossui.go
 	}
 	g.mapSnapshot(s)
 
@@ -450,7 +452,7 @@ func (g *Game) handleInput() {
 		if slot, ok := g.slotToEat(); ok {
 			g.command(sim.Command{Kind: sim.CmdEat, Slot: uint8(slot)})
 		} else {
-			g.showNotice("Không có gì ăn được")
+			g.showNotice("Món đang chọn không ăn được: chọn đồ ăn rồi nhấn E")
 		}
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyC) {
@@ -460,6 +462,7 @@ func (g *Game) handleInput() {
 		g.command(sim.Command{Kind: sim.CmdPlace}) // a head on a post, a torch in the ground, a seed
 	}
 	g.updateZoom()
+	g.updateToss() // G throws things on the ground; see toss.go
 	if inpututil.IsKeyJustPressed(ebiten.KeyQ) {
 		g.command(sim.Command{Kind: sim.CmdCraft, Recipe: sim.RecipeAxe})
 	}
@@ -520,26 +523,19 @@ func (g *Game) selectSlot(i int) {
 	snd.ui("ui_move")
 }
 
-// slotToEat is the slot E eats from: the one pointed at in the bag, else the
-// held one, else the first slot with food in it, hotbar first.
+// slotToEat is the slot E eats from: the one pointed at with the bag open,
+// else the held one; ok is false when that is not food.
 func (g *Game) slotToEat() (int, bool) {
 	inv := &g.curr.Self.Inv
 	edible := func(i int) bool { return sim.ValidSlot(i) && !inv[i].Empty() && inv[i].Item.Edible() }
 	if g.overlay == overlayBag && edible(g.bag.cursor) {
 		return g.bag.cursor, true
 	}
-	if edible(g.hotSel) {
+	if g.overlay != overlayBag && edible(g.hotSel) {
 		return g.hotSel, true
 	}
-	// Else the best food carried (cooked before raw), hotbar first on a tie.
-	// Medicine is only taken when held: it is no meal.
-	best, found := 0, false
-	for i := range inv {
-		if edible(i) && !inv[i].Item.Healing() && (!found || foodScore(inv[i].Item) > foodScore(inv[best].Item)) {
-			best, found = i, true
-		}
-	}
-	return best, found
+	// Only what is chosen is eaten: nothing else from the bag behind your back.
+	return 0, false
 }
 
 // haveTool reports whether r makes a tool the player already carries, so
@@ -704,8 +700,10 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 			return "Phải đứng gần lửa trại đang cháy để nấu " + r.Name
 		}
 		return "Phải đứng gần lửa trại đang cháy để nướng"
-	case sim.NoticePickedUp:
-		return "" // the pick-up sound says it
+	case sim.NoticePickedUp, sim.NoticeTossed:
+		return "" // the pick-up or thump sound says it
+	case sim.NoticeCantToss:
+		return "Đồ vứt xuống nước sẽ mất — quay mặt vào bờ rồi hẵng vứt"
 	case sim.NoticeCantPlace:
 		return "Cầm đầu thú, đuốc, hạt giống hoặc phân trên tay rồi nhấn V"
 	case sim.NoticePlantBite:

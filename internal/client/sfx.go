@@ -215,15 +215,24 @@ func midiFreq(m float64) float64 { return 440 * math.Pow(2, (m-69)/12) }
 // --- sound effects ------------------------------------------------------------
 
 func genSFX() map[string][][]float32 {
+	voices := goVoiceSFX() // made alongside: see creaturevoice.go
 	r := rand.New(rand.NewPCG(2026, 11))
 	s := make(map[string][][]float32)
 	add := func(name string, peak float64, x []float64) { s[name] = append(s[name], finish(x, peak)) }
 
-	for v := 0; v < 3; v++ {
-		k := 1 + float64(v)*0.08
-		x := tone(0.35, 170*k, 75*k, 0.08, 0.001, 0.06)
-		addAt(x, noiseBurst(r, 0.06, bandpass, 1900*k, 1.4, 0.0005, 0.012), 0, 0.7)
-		addAt(x, partials(0.3, 400*k, []float64{1, 1.52, 2.4}, []float64{0.4, 0.25, 0.1}, []float64{0.06, 0.045, 0.03}), 0, 1)
+	// An axe biting into a trunk: a hard crack as the blade goes in, the dry
+	// knock of wood (resonances that die within a few hundredths of a
+	// second, at a wooden beam's inharmonic ratios rather than a bell's), a
+	// short thud from the trunk, and a few splinters.
+	for v := 0; v < 4; v++ {
+		k := 1 + (float64(v)-1.5)*0.06
+		x := make([]float64, samples(0.3))
+		addAt(x, noiseBurst(r, 0.02, highpass, 2600, 0.7, 0.0002, 0.004), 0, 0.9)
+		addAt(x, noiseBurst(r, 0.12, bandpass, 540*k, 5, 0.0004, 0.03), 0, 1)
+		addAt(x, noiseBurst(r, 0.08, bandpass, 1250*k, 4, 0.0004, 0.018), 0, 0.6)
+		addAt(x, partials(0.12, 260*k, []float64{1, 2.76, 5.4}, []float64{0.5, 0.25, 0.1}, []float64{0.028, 0.016, 0.009}), 0, 0.55)
+		addAt(x, tone(0.1, 130*k, 85*k, 0.03, 0.001, 0.025), 0, 0.45)
+		addAt(x, grains(r, 0.18, 45, 0.003, bandpass, 3400, 1.5, func(t float64) float64 { return math.Exp(-t / 0.05) }), 0.008, 0.25)
 		add("chop", 1, x)
 	}
 
@@ -510,6 +519,9 @@ func genSFX() map[string][][]float32 {
 	genWoodsSFX(add)   // see jungleart.go
 	genSwimSFX(add)    // see swimsound.go
 	genTroodonSFX(add) // see troodonsound.go
+	for name, vs := range <-voices {
+		s[name] = append(s[name], vs...)
+	}
 	return s
 }
 

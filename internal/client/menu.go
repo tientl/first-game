@@ -52,7 +52,7 @@ type Menu struct {
 	confirm  bool // asking before a new game overwrites the save
 	yesNo    buttonList
 	picking  bool // choosing the difficulty of the new world
-	diffs    buttonList
+	diffs    diffPicker
 	diff     sim.Difficulty // the difficulty chosen for the new world
 	creating bool           // on the character screen, after the difficulty
 	create   *charCreator   // kept, so going back and forth keeps the choices
@@ -68,12 +68,6 @@ func NewMenu(info SaveInfo) *Menu {
 		info:   info,
 		create: newCharCreator(),
 		yesNo:  buttonList{items: []button{{label: "Bắt đầu mới"}, {label: "Quay lại"}}},
-		diffs: buttonList{items: []button{
-			{label: "Cơ bản", sub: "x1 · chết không mất đồ"},
-			{label: "Thành thạo", sub: "thú đánh x1,5, đói nhanh hơn · chết mất đồ, lấy lại ở xác"},
-			{label: "Chúa tể", sub: "thú đánh x2, đói, rét gấp bội · chết mất đồ, lấy lại ở xác"},
-			{label: "Quay lại"},
-		}},
 	}
 	cont := button{label: "Chơi tiếp", disabled: !info.Exists || info.Broken}
 	switch {
@@ -237,14 +231,7 @@ func (m *Menu) Draw(screen *ebiten.Image) {
 	}
 
 	if m.picking {
-		vector.FillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, 150}, false)
-		pw, ph := float32(480), float32(340)
-		px, py := float32(cx)-pw/2, float32(sh)/2-ph/2
-		fillRoundRect(screen, px-2, py-2, pw+4, ph+4, 12, color.RGBA{0, 0, 0, 120})
-		fillRoundRect(screen, px, py, pw, ph, 10, color.RGBA{18, 20, 32, 245})
-		drawText(screen, "Chọn độ khó", cx, float64(py)+18, colWhite, text.AlignCenter, 2)
-		drawText(screen, "Thế giới luôn rộng nhất: 1024 × 1024 ô", cx, float64(py)+50, colMuted, text.AlignCenter, 1)
-		m.diffs.draw(screen, cx, float64(py)+76, 400)
+		m.diffs.draw(screen)
 	}
 
 	if m.busy != "" {

@@ -46,6 +46,7 @@ type Player struct {
 	bed       EntityID   // the bed slept in
 	line      line       // the fishing line, while it is out; see fishing.go
 	pressed   bool       // Action went down since the last tick, even if already released
+	picked    EntityID   // the fruit tree this hold of Action picked: not chopped till Action is pressed again
 	chest     EntityID   // the chest open, 0 when none; see chest.go
 	mount     CreatureID // the beast being ridden, 0 when on foot; see tame.go
 	home      EntityID   // the last bed slept in: where p comes back after dying; see build.go
@@ -186,6 +187,9 @@ func (w *World) SetInput(id PlayerID, in Input) {
 		if in.Action && !p.input.Action {
 			p.pressed = true // kept for the next step, so a quick tap is not lost
 		}
+		if !in.Action || !p.input.Action {
+			p.picked = 0 // let go, or pressed afresh
+		}
 		p.input = in
 	}
 }
@@ -240,6 +244,10 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 		if !p.Dead && !p.Asleep && !w.board(p) { // a boat first; see boats.go
 			w.ride(p) // see tame.go
 		}
+	case CmdVictorySeen:
+		w.victorySeen(p) // see bosses.go
+	case CmdToss:
+		w.toss(p, int(cmd.Slot), int(cmd.Count)) // see toss.go
 	}
 }
 
@@ -271,7 +279,7 @@ func (w *World) stepPlayer(p *Player) {
 			sp *= WebSlow
 		}
 		if swims && w.inWater(p.X, p.Y) {
-			sp = PlayerSpeed * SwimSpeed
+			sp = PlayerSpeed * SwimSpeed * swimBoost(&p.Inv) // see legendary.go
 		}
 		dx, dy := mx/l*sp, my/l*sp
 		can := w.standable
@@ -332,7 +340,7 @@ func (w *World) stepPlayer(p *Player) {
 	w.stepBees(p)   // see jungle.go
 	w.stepSwim(p)   // see boats.go
 	w.manEaterBites(p)
-	p.Cold = (w.winterNight() || w.freezing(p) || w.wintry(p)) && !w.warm(p.X, p.Y) // a winter night, the snow, winter weather: see iceage.go, weather.go
+	p.Cold = (w.winterNight() || w.freezing(p) || w.wintry(p)) && !w.warm(p.X, p.Y) && !NeverCold(&p.Inv) // a winter night, the snow, winter weather: see iceage.go, weather.go, legendary.go
 	damage := 0.0
 	if p.Hunger == 0 {
 		damage += StarveDamagePerTick
@@ -359,7 +367,7 @@ func (w *World) findTarget(p *Player) (*Entity, *Creature) {
 		if e == nil {
 			return TargetCandidate{}, false
 		}
-		return TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready}, true
+		return TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready, Var: e.Var}, true
 	}, w.creatureCandidates(p.X, p.Y), p.reachBonus())
 	switch {
 	case !ok:
@@ -376,6 +384,17 @@ type TargetCandidate struct {
 	ID    EntityID
 	Kind  EntityKind
 	Ready bool
+	Var   uint8 // tells a fruit tree from its stump
+}
+
+// targetable reports whether c can be acted on: as Interactable says, except
+// that a standing fruit tree is a target with fruit (to pick) or without (to
+// fell), and its stump is not.
+func (c TargetCandidate) targetable(hasWood bool) bool {
+	if IsFruitTree(c.Kind) {
+		return !IsFruitStump(c.Kind, c.Var)
+	}
+	return Interactable(c.Kind, c.Ready, hasWood)
 }
 
 // NearestTarget is the targeting rule: the nearest interactable entity whose
@@ -399,7 +418,7 @@ func nearestEntity(x, y float64, hasWood bool, at func(tx, ty int) (TargetCandid
 	for ty := cy - reach; ty <= cy+reach; ty++ {
 		for tx := cx - reach; tx <= cx+reach; tx++ {
 			c, ok := at(tx, ty)
-			if !ok || !Interactable(c.Kind, c.Ready, hasWood) {
+			if !ok || !c.targetable(hasWood) {
 				continue
 			}
 			dx, dy := float64(tx)+0.5-x, float64(ty)+0.5-y
@@ -424,6 +443,9 @@ func (w *World) interact(p *Player, e *Entity) bool {
 	// withTool is the damage of p's best tool of class c, or 0 (refused,
 	// with a notice) when p has none.
 	withTool := func(c ToolClass) int {
+		if c == ToolAxe && legendaryChop(&p.Inv) > 0 {
+			return legendaryChop(&p.Inv) // the fang axe: see legendary.go
+		}
 		t, ok := p.Inv.BestTool(c)
 		if !ok {
 			p.notify(NoticeNeedTool, uint8(ToolItem(c, TierStone)))
@@ -545,9 +567,18 @@ func (w *World) interact(p *Player, e *Entity) bool {
 			e.Ready = false
 			e.RegrowAt = w.tick + CactusRegrowTicks
 		})
-	case EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree:
+	case EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree: // see fruit.go
 		f, _ := fruitOf(e.Kind)
-		return w.pickFruit(p, e, f)
+		switch {
+		case e.FruitStump():
+			return false
+		case e.Ready:
+			return w.pickFruit(p, e, f) // ripe fruit first, by hand
+		case p.picked == e.ID:
+			return false // the hold that picked it: a fresh press chops
+		}
+		dmg := withTool(ToolAxe)
+		return dmg > 0 && w.fellFruit(e, f, dmg)
 	case EntityReed:
 		return w.harvest(p, e, ItemGrass, ReedYield, HitPower, func() {
 			e.Ready = false

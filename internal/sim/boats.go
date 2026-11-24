@@ -239,7 +239,7 @@ func (w *World) sailStep(p *Player) bool {
 		goal := math.Atan2(my, mx)
 		turn := math.Remainder(goal-b.Heading, 2*math.Pi)
 		b.Heading += max(-BoatTurn, min(BoatTurn, turn))
-		want = def.speed
+		want = def.speed * sailBoost(&p.Inv) // see legendary.go
 		if math.Abs(turn) > math.Pi/2 {
 			want *= 0.3 // turning about
 		}
@@ -337,7 +337,9 @@ func (w *World) stepSwim(p *Player) {
 		p.swim = max(0, p.swim-SwimRecover)
 		return
 	}
-	p.swim++
+	if swimBoost(&p.Inv) == 1 || w.tick%3 != 0 { // the shark's teeth: a third of the time without tiring
+		p.swim++
+	}
 	if p.swim > SwimTireTicks {
 		hurt(p, DrownPerTick)
 		if w.tick%TicksPerSecond == 0 {

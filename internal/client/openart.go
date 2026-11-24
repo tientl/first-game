@@ -155,26 +155,10 @@ func genMushrooms() sprite {
 	return mk(c, 9, 12)
 }
 
-// genCoalSeam is a dark rock studded with glossy black coal.
+// genCoalSeam is a seam of coal in its rock (see genCoalCanvas).
 func genCoalSeam() sprite {
-	c := newCanvas(28, 22)
-	const cx, cy = 14.0, 12.0
-	c.ellipse(cx, cy, 12, 8.5, func(x, y int, nx, ny float64) color.RGBA {
-		return stoneRamp.pick(lum(nx, ny)*0.55, x, y)
-	})
-	c.ellipse(cx-7, cy+3, 6, 5, func(x, y int, nx, ny float64) color.RGBA {
-		return stoneRamp.pick(lum(nx, ny)*0.5, x, y)
-	})
-	for i, l := range [][3]float64{{10, 9, 3}, {17, 11, 3.5}, {13, 15, 2.5}, {7, 14, 2.2}, {20, 15, 2}} {
-		c.ellipse(l[0], l[1], l[2], l[2]*0.8, func(x, y int, nx, ny float64) color.RGBA {
-			if nx < -0.2 && ny < -0.2 && nx > -0.7 && ny > -0.7 {
-				return hex(0x8a8496) // gloss
-			}
-			return coalRamp.pick(lum(nx, ny)*0.8+float64(i%2)*0.05, x, y)
-		})
-	}
-	c.outline(0.85)
-	return mk(c, cx, 20)
+	c, ax, ay := genCoalCanvas(0)
+	return mk(c, ax, ay)
 }
 
 // genOpenIcons draws the bag icons of cactus flesh, mushrooms and coal.

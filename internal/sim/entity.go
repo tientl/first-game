@@ -65,7 +65,7 @@ const (
 	EntityClam      // open world: clams on the sand by the sea, picked by hand
 	EntityStoneWall // built: blocks the way; a pickaxe takes it down
 	EntityChest     // built: stores things; see chest.go
-	EntityFigTree   // fruit trees, picked by hand: see fruit.go
+	EntityFigTree   // fruit trees, picked by hand, felled bare: see fruit.go
 	EntityGinkgoTree
 	EntityPalm
 
@@ -186,7 +186,7 @@ type Entity struct {
 	Ready    bool   // can be harvested now; false while a tree is a stump or a crop grows
 	RegrowAt uint64 // tick at which a harvested node becomes Ready again; for tilled soil, when it turns back to grass
 	Fuel     int    // ticks of burning left (campfires, furnaces, standing torches); a man-eater's bite cooldown
-	Var      uint8  `json:",omitempty"` // which one of a kind: a corpse's or trophy's creature, a flower's colour, a seedling's seed; on a tree, 1 if bees nest in it
+	Var      uint8  `json:",omitempty"` // which one of a kind: a corpse's or trophy's creature, a flower's colour, a seedling's seed; on a tree, 1 if bees nest in it; on a fruit tree, 1 while it is a stump
 	HoneyAt  uint64 `json:",omitempty"` // a beehive: the tick its honey is back
 }
 
@@ -239,6 +239,9 @@ func maxHP(kind EntityKind, big bool) int { return hits(kind, big) * HitPower }
 func hits(kind EntityKind, big bool) int {
 	if o, ok := oreOf(kind); ok {
 		return o.hits
+	}
+	if f, ok := fruitOf(kind); ok {
+		return f.hits // to fell it; its fruit is picked in one go
 	}
 	switch kind {
 	case EntityTree:

@@ -316,7 +316,7 @@ func (g *Game) creatureSounds(old, cur protocol.Snapshot) {
 		if !seen || o.State == c.State {
 			continue
 		}
-		if g.feedSound(o, c) || dinoSound(o, c) || iceSound(o, c) {
+		if bossSound(o, c) || g.feedSound(o, c) || dinoSound(o, c) || iceSound(o, c) {
 			continue // see dinosound.go and iceart.go
 		}
 		if c.State == sim.CreatureHidden || o.State == sim.CreatureHidden {
@@ -377,6 +377,7 @@ func (g *Game) creatureSounds(old, cur protocol.Snapshot) {
 	g.beastCalls(cur)         // see roar.go
 	g.predatorGrowls(cur)     // see predsound.go
 	g.troodonSounds(old, cur) // see troodonsound.go
+	g.voiceSounds(old, cur)   // cries, alarms, death cries, the tribes: see creaturevoice.go
 }
 
 // swingAtCreatureSound is the sound of an Action landing on c.
@@ -390,7 +391,8 @@ func swingAtCreatureSound(c protocol.CreatureView) {
 	case sim.CreatureTrike, sim.CreatureStego, sim.CreatureBrachio, sim.CreatureRex,
 		sim.CreatureRaptor, sim.CreaturePtero, sim.CreaturePlesio, sim.CreatureMammoth, sim.CreatureSabre,
 		sim.CreatureToro, sim.CreatureAchero, sim.CreatureQuetzal, sim.CreatureBrachy, sim.CreatureChampso, sim.CreatureAnzu, sim.CreatureThesc,
-		sim.CreatureTroodon:
+		sim.CreatureTroodon, sim.CreatureTitanoboa, sim.CreatureSpino, sim.CreatureMammothKing,
+		sim.CreatureCarcharo, sim.CreatureGiganoto, sim.CreatureMegalodon:
 		snd.playAt("whack", x, y, 0.6, 0.1)
 	default:
 		snd.playAt("rustle", x, y, 0.45, 0.1)
@@ -484,6 +486,9 @@ func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {
 	}
 	if c.State == sim.CreatureCower {
 		return name + " (đã gục) — cầm " + strings.ToLower(c.Kind.TameFood().Def().Name) + " để thuần", colGood
+	}
+	if l, col, ok := bossLabel(c); ok {
+		return l, col // see bosses.go
 	}
 	if l, col, ok := seaLabel(c); ok {
 		return l, col // see searender.go
@@ -582,6 +587,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 		side = 1
 	}
 	t := g.frame + int(c.ID)*7 // so a group does not move in lockstep
+	if s, bob, ok := g.bossSprite(c, moving); ok {
+		return s, bob // see bosses.go
+	}
 	if s, bob, ok := g.seaSprite(c); ok {
 		return s, bob // see searender.go
 	}
@@ -848,7 +856,7 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 	case sim.CreatureScorpion:
 		return 30
 	default:
-		return 0 // fish and sea reptiles are under water; flying ones cast their own
+		return bossShadow(k) // 0 for fish and sea reptiles, under water, and flying ones, which cast their own
 	}
 }
 

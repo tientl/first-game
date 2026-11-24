@@ -76,8 +76,14 @@ func main() {
 	villageIdx := flag.Int("village", 0, "with -at village: which village to stand in, from 0")
 	blowAge := flag.Int("age", -1, "with -punch or -hurt: how many frames into the blow or the jolt to show")
 	bodies := flag.Bool("bodies", false, "put a fallen player's body and its bag next to the player, and another's gone to bones")
+	bossesFlag := flag.Bool("bosses", false, "put the six bosses round the player on a beach (the Megalodon and a lurking Spinosaurus in the sea), the boss bar up and the lairs on the map; see -bosspose")
+	bossPose := flag.Int("bosspose", 0, "with -bosses: shift which pose each boss shows")
+	victory := flag.Bool("victory", false, "show the game-beaten (Phá đảo!) screen")
 	flag.Parse()
 	client.SetZoom(*zoom)
+	if *bossesFlag {
+		*coast = true
+	}
 
 	N := 96
 	style := sim.StyleIsland
@@ -600,6 +606,12 @@ func main() {
 
 	if *tribal {
 		addTribal(&snap, sx, sy)
+	}
+	if *bossesFlag {
+		addBosses(&snap, sx, sy, *bossPose) // see bosses.go
+	}
+	if *victory {
+		addVictory(&snap)
 	}
 	if *prey {
 		dx, dy := sim.Dir(*dir).Delta()

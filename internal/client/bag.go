@@ -147,6 +147,8 @@ type bagView struct {
 
 	// Layout from the last draw, for the mouse.
 	drawn          bool
+	panelX, panelY float64 // the bag's window: a stack let go outside it is thrown away; see toss.go
+	panelW, panelH float64
 	gridX, gridY   float64 // the bag's first slot
 	hotY           float64 // the hotbar row
 	cardX, cardY   float64 // the first recipe
@@ -316,7 +318,7 @@ func (g *Game) updateBag() {
 			inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft),
 			inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft), shift)
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
-			b.lifting = false // put it back
+			g.bagRightClick(float64(mx), float64(my)) // put it back, or throw one away
 		}
 	}
 
@@ -365,8 +367,9 @@ func (g *Game) bagActivate(shift bool) {
 
 // bagMouse handles the pointer at (x, y) in the bag. Pressing on a stack
 // lifts it and it follows the pointer. Letting go after dragging drops it on
-// the slot underneath, or back where it was if that is not a slot; letting
-// go where it was pressed keeps it lifted, so a second click puts it down.
+// the slot underneath, on the ground outside the bag's window, or back where
+// it was elsewhere; letting go where it was pressed keeps it lifted, so a
+// second click puts it down.
 // press and release are the left button's edges this frame.
 func (g *Game) bagMouse(x, y float64, moved, press, release, shift bool) {
 	b := &g.bag
@@ -379,7 +382,9 @@ func (g *Game) bagMouse(x, y float64, moved, press, release, shift bool) {
 		g.bagActivate(shift)
 	}
 	if release && b.lifting && b.byMouse && math.Hypot(x-b.pressX, y-b.pressY) > dragPx {
-		if onSlot && i != b.lifted {
+		if b.outsideBag(x, y) {
+			g.tossSlot(b.lifted, true) // see toss.go
+		} else if onSlot && i != b.lifted {
 			g.command(sim.Command{Kind: sim.CmdMoveSlot, Slot: uint8(b.lifted), To: uint8(i)})
 		}
 		b.lifting = false
@@ -410,13 +415,14 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 	pw := max(gridW+48, cardCols*cardMinW+(cardCols-1)*12+32)
 	gridH := float64(bagRows*(slotPx+slotGap) - slotGap)
 	// As many rows of cards as the window has room for; the rest scroll.
-	fixedH := 56 + gridH + 26 + slotPx + 18 + 70 + 34 + 46
+	fixedH := 56 + gridH + 26 + slotPx + 18 + 70 + 34 + 64
 	b.cardRowsShown = max(1, min(cardRows, int((float64(sh)-16-fixedH+cardGap)/(cardH+cardGap))))
 	b.scrollCards(0)
 	cardsH := float64(b.cardRowsShown)*(cardH+cardGap) - cardGap
 	ph := fixedH + cardsH
 	px, py := float64(int((float64(sw)-pw)/2)), float64(int(max(8, (float64(sh)-ph)/2)))
 	panel(screen, float32(px), float32(py), float32(pw), float32(ph))
+	b.panelX, b.panelY, b.panelW, b.panelH = px, py, pw, ph
 
 	g.text(screen, "Túi đồ", px+20, py+14, colWhite, text.AlignStart, 2)
 	g.text(screen, fmt.Sprintf("Mỗi ô chứa tối đa %d", sim.MaxStack), px+pw-20, py+22, colMuted, text.AlignEnd, 1)
@@ -458,6 +464,7 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 			if s.Item.MaxCount() > 1 {
 				g.text(screen, fmt.Sprintf("%d", s.Count), x+51, y+33, colWhite, text.AlignEnd, 1)
 			}
+			g.drawTossHint(screen, x+24, y+24)
 			return
 		}
 		x, y := b.slotXY(b.cursor)
@@ -527,6 +534,8 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 
 	g.text(screen, "Kéo thả (hoặc nhấp, nhấp): di chuyển  ·  Shift+nhấp: chuyển túi ↔ ô nhanh  ·  1-0: đưa vào ô nhanh  ·  E: ăn  ·  B / Esc: đóng",
 		px+pw/2, py+ph-28, colMuted, text.AlignCenter, 1)
+	g.text(screen, "Vứt xuống đất: kéo ra ngoài túi (cả chồng)  ·  chuột phải hoặc G: vứt 1  ·  Shift+G: vứt cả chồng",
+		px+pw/2, py+ph-46, colMuted, text.AlignCenter, 1)
 	b.drawn = true
 }
 

@@ -22,7 +22,8 @@ import (
 //   - 9: fruit trees grow wild.
 //   - 10: things lie on the ground; players come back by their last bed.
 //   - 11: a beast's health counts in HealthScale units (weapons do damage, not hits).
-const SaveVersion = 11
+//   - 12: the bosses: which have fallen, who has seen their lairs, the victory.
+const SaveVersion = 12
 
 // v6DayTicks is how long a day was in saves before version 7.
 const v6DayTicks = 240 * TicksPerSecond
@@ -43,6 +44,7 @@ type SaveData struct {
 	Drops         []Drop       `json:",omitempty"` // piles on the ground
 	Boats         []BoatSave   `json:",omitempty"` // boats on the water
 	Difficulty    Difficulty   `json:",omitempty"` // absent: normal; see difficulty.go
+	Bosses        *BossSave    `json:",omitempty"` // the bosses fallen, and the victory; see bosses.go
 }
 
 // PlayerSave is the persistent part of a player.
@@ -142,6 +144,7 @@ func (w *World) Save() SaveData {
 	d.Chests = w.saveChests()
 	d.Pets = w.savePets() // see tame.go
 	d.Boats = w.saveBoats()
+	d.Bosses = w.saveBosses()
 	for _, dr := range w.drops {
 		if !dr.gone {
 			d.Drops = append(d.Drops, *dr)
@@ -240,6 +243,9 @@ func Load(d SaveData) (*World, error) {
 			e.HP *= HitPower // HP counted whole hits before version 6
 		}
 		e.HP = min(max(e.HP, 1), maxHP(e.Kind, e.Big))
+		if IsFruitTree(e.Kind) {
+			e.HP = maxHP(e.Kind, false) // a few blows at it are not kept: older saves hold the one hit of picking
+		}
 		switch e.Kind {
 		case EntityCampfire:
 			if e.Fuel <= 0 {
@@ -287,6 +293,7 @@ func Load(d SaveData) (*World, error) {
 	}
 	w.loadPets(d.Pets)
 	w.loadBoats(d.Boats)
+	w.loadBosses(d.Bosses) // the fallen stay fallen
 	for _, dr := range d.Drops {
 		if !dr.Item.Valid() || dr.Count <= 0 || !finite(dr.X, dr.Y, dr.FromX, dr.FromY) {
 			continue

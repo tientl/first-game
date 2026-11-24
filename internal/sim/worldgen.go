@@ -104,6 +104,7 @@ func Generate(cfg GenConfig) (*World, error) {
 			w.spawnTribes()
 			w.guardPyramid()
 		}
+		w.placeBosses() // see bosses.go
 		return w, nil
 	}
 

@@ -58,7 +58,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		px, py := float64(p.X), float64(p.Y)
 		tg, ok := sim.PickTarget(px, py, hasWood, func(tx, ty int) (sim.TargetCandidate, bool) {
 			e, ok := oldAt[[2]int{tx, ty}]
-			return sim.TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready}, ok
+			return sim.TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready, Var: e.Var}, ok
 		}, creatureCandidates(old.Creatures, px, py), sim.ReachBonusFor(p.Held)+sim.RideReach(p.Mount != 0))
 		if !ok {
 			continue
@@ -83,6 +83,10 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		switch e.Kind {
 		case sim.EntityTree:
 			snd.playAt("chop", x, y, 0.75, 0.06)
+		case sim.EntityFigTree, sim.EntityGinkgoTree, sim.EntityPalm, sim.EntityBananaTree:
+			if !e.Ready { // bare: the axe; ripe fruit is picked by hand
+				snd.playAt("chop", x, y, 0.7, 0.06)
+			}
 		case sim.EntityBoulder:
 			if g.swingWhat[p.ID].kind == swingPick { // the sound of the tool drawn swinging
 				snd.playAt("pick_hit", x, y, 0.6, 0.06)
@@ -112,6 +116,8 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		switch {
 		case e.Kind == sim.EntityTree && e.Ready && (!still || !c.Ready):
 			snd.playAt("treefall", x, y, bigLouder(e, 0.75), 0.04)
+		case still && sim.IsFruitTree(e.Kind) && !sim.IsFruitStump(e.Kind, e.Var) && sim.IsFruitStump(c.Kind, c.Var):
+			snd.playAt("treefall", x, y, 0.7, 0.04) // a fruit tree felled
 		case (e.Kind == sim.EntityBoulder || e.Kind == sim.EntityCoal || e.Kind == sim.EntityStoneWall || isOre(e.Kind)) && !still:
 			snd.playAt("rockbreak", x, y, bigLouder(e, 0.7), 0.05)
 		case e.Kind == sim.EntityCampfire && !still && e.Fuel < sim.TicksPerSecond*2:
@@ -197,7 +203,9 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 			}
 		case sim.NoticeFertilized:
 			snd.playVar("pick_grass", 0.6, 0, 0.08)
-		case sim.NoticeNotEnough, sim.NoticeNoSpace, sim.NoticeNotEdible, sim.NoticeNoneLeft, sim.NoticeBagFull,
+		case sim.NoticeTossed:
+			tossSound() // see toss.go
+		case sim.NoticeCantToss, sim.NoticeNotEnough, sim.NoticeNoSpace, sim.NoticeNotEdible, sim.NoticeNoneLeft, sim.NoticeBagFull,
 			sim.NoticeNeedTool, sim.NoticeHaveOne, sim.NoticeNeedBait, sim.NoticeNeedFire, sim.NoticeNotTired:
 			// Holding Space at a tree with no axe repeats the notice twice
 			// a second; one buzz now and then is enough.

@@ -79,29 +79,31 @@ func TestTargetingAnAnimal(t *testing.T) {
 	}
 }
 
-func TestEKeyEatsWhateverFoodThereIs(t *testing.T) {
+func TestEKeyEatsOnlyWhatIsChosen(t *testing.T) {
 	g := readyGame()
 	if _, ok := g.slotToEat(); ok {
 		t.Fatal("found food in an empty bag")
 	}
 	inv := &g.curr.Self.Inv
-	inv[0] = sim.Slot{Item: sim.ItemStone, Count: 3}
-	inv[sim.HotbarSlots+5] = sim.Slot{Item: sim.ItemFish, Count: 1}
-	if got, ok := g.slotToEat(); !ok || got != sim.HotbarSlots+5 {
-		t.Fatalf("eats slot %d, want the fish in the bag", got)
-	}
+	inv[0] = sim.Slot{Item: sim.ItemWood, Count: 3}
 	inv[7] = sim.Slot{Item: sim.ItemBerry, Count: 2}
-	if got, _ := g.slotToEat(); got != 7 {
-		t.Fatalf("eats slot %d, want the hotbar's berries before the bag's fish", got)
+	inv[sim.HotbarSlots+5] = sim.Slot{Item: sim.ItemFish, Count: 1}
+	g.hotSel = 0
+	if got, ok := g.slotToEat(); ok {
+		t.Fatalf("holding wood, E eats slot %d; want nothing", got)
 	}
 	inv[3] = sim.Slot{Item: sim.ItemMeat, Count: 1}
 	g.hotSel = 3
-	if got, _ := g.slotToEat(); got != 3 {
+	if got, ok := g.slotToEat(); !ok || got != 3 {
 		t.Fatalf("eats slot %d, want the held meat", got)
 	}
 	g.overlay, g.bag.cursor = overlayBag, sim.HotbarSlots+5
-	if got, _ := g.slotToEat(); got != sim.HotbarSlots+5 {
+	if got, ok := g.slotToEat(); !ok || got != sim.HotbarSlots+5 {
 		t.Fatalf("eats slot %d, want the fish pointed at in the bag", got)
+	}
+	g.bag.cursor = 0
+	if got, ok := g.slotToEat(); ok {
+		t.Fatalf("pointing at wood in the bag, E eats slot %d; want nothing", got)
 	}
 }
 

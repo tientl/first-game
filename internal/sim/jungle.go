@@ -8,7 +8,8 @@ import (
 // The woods.
 //
 //   - Banana trees grow in the woods and the marsh: their bunches are picked
-//     by hand, like any fruit tree's, and grow back.
+//     by hand, like any fruit tree's, and grow back. A bare one can be felled
+//     with an axe for a little wood; its stump grows back (see fruit.go).
 //   - Now and then a giant of the old forest towers over the rest: a trunk
 //     three tiles wide that nothing walks through. It takes a great many
 //     blows of an axe and gives a great heap of wood; its stump stays.

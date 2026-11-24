@@ -254,7 +254,7 @@ func callOf(k sim.CreatureKind) (callVoice, bool) {
 	case sim.CreatureStego:
 		return callVoice{"bellow", 0.5, 0.92, 20, 30 * s, 4 * s, 0}, true
 	case sim.CreatureThesc:
-		return callVoice{"bellow", 0.35, 1.45, 16, 30 * s, 4 * s, 0}, true
+		return callVoice{"honk", 0.4, 1, 16, 30 * s, 4 * s, 0}, true // see creaturevoice.go
 	case sim.CreatureMammoth:
 		return callVoice{"trumpet", 0.65, 1, 22, 26 * s, 6 * s, 1200 * time.Millisecond}, true
 	case sim.CreatureRaptor:
@@ -270,11 +270,11 @@ func callOf(k sim.CreatureKind) (callVoice, bool) {
 	case sim.CreatureSabre:
 		return callVoice{"sabre_roar", 0.4, 1, 22, 34 * s, 8 * s, 0}, true
 	case sim.CreatureMonkey: // a troop hooting and chattering in the trees
-		return callVoice{"chirp", 0.4, 1.9, 18, 14 * s, 3 * s, 0}, true
+		return callVoice{"monkey_chatter", 0.4, 1, 18, 14 * s, 3 * s, 0}, true
 	case sim.CreatureTroodon: // the night hunters calling in the dark; see troodonsound.go
 		return callVoice{"troodon_call", 0.5, 1, 24, 10 * s, 3 * s, 0}, true
 	}
-	return callVoice{}, false
+	return moreCalls(k) // the bear, the spider, the scorpion, the flying reptile: see creaturevoice.go
 }
 
 // callGap is the least time between any two beasts calling on their own, so

@@ -81,6 +81,9 @@ func dropLife(k ItemKind) uint64 {
 	if k == ItemDung {
 		return DungLifeTicks
 	}
+	if k.Legendary() {
+		return math.MaxUint64 // the only one there is: it never rots; see legendary.go
+	}
 	return DropLifeTicks
 }
 

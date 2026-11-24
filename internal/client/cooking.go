@@ -62,10 +62,3 @@ func (g *Game) byFire() bool {
 	}
 	return false
 }
-
-// foodScore ranks food for E: what heals most first (cooked food), raw food
-// last.
-func foodScore(k sim.ItemKind) float64 {
-	d := k.Def()
-	return d.Health*100 + d.Hunger
-}

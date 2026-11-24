@@ -127,6 +127,16 @@ func (g *Game) fruitTreeSprite(e protocol.EntityView) (sprite, float64) {
 	return bare[v%len(bare)], sway
 }
 
+// fruitStumpSize is the size of tree stump a felled fruit tree of kind k
+// leaves: a small one for the slender palms and bananas, a big one for figs
+// and ginkgos.
+func fruitStumpSize(k sim.EntityKind) int {
+	if k == sim.EntityPalm || k == sim.EntityBananaTree {
+		return 0
+	}
+	return 1
+}
+
 // --- icons -------------------------------------------------------------------
 
 // genFruitIcons draws the bag icons of the fruit.
