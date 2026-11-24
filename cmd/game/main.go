@@ -40,7 +40,7 @@ func main() {
 	a := &app{seed: *seed, name: *name, size: *size, savePath: *savePath}
 	a.openMenu()
 
-	ebiten.SetWindowTitle("Sinh Tồn: Thời Khủng Long")
+	ebiten.SetWindowTitle("Dino Isles")
 	ebiten.SetWindowSize(1280, 720)
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowClosingHandled(true)

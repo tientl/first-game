@@ -206,7 +206,7 @@ func (m *Menu) Draw(screen *ebiten.Image) {
 	cx := float64(sw) / 2
 
 	ty := float64(sh)*0.2 - 30
-	drawTitle(screen, cx, ty, 6, color.RGBA{250, 214, 110, 255}, color.RGBA{60, 30, 10, 255})
+	drawTitle(screen, "Dino Isles", cx, ty, 6, color.RGBA{250, 214, 110, 255}, color.RGBA{60, 30, 10, 255})
 	drawText(screen, "Thời Khủng Long", cx+3, ty+81, color.RGBA{60, 30, 10, 255}, text.AlignCenter, 3)
 	drawText(screen, "Thời Khủng Long", cx, ty+78, color.RGBA{214, 120, 72, 255}, text.AlignCenter, 3)
 	drawText(screen, "Một thế giới tiền sử đang chờ bạn", cx, ty+128, color.RGBA{236, 226, 200, 255}, text.AlignCenter, 1)
@@ -357,31 +357,16 @@ func abs(v float64) float64 {
 // drawTitle draws the game's name large. The bitmap font squeezes the two
 // accents of "ồ" into an unreadable blob at this size, so the grave accent
 // is drawn by hand beside the circumflex, as Vietnamese type sets it.
-func drawTitle(dst *ebiten.Image, cx, y, scale float64, fg, shadow color.RGBA) {
-	parts := []string{"Sinh T", "ô", "n"}
-	total := 0.0
-	for _, p := range parts {
-		total += textWidth(p, scale)
-	}
+func drawTitle(dst *ebiten.Image, title string, cx, y, scale float64, fg, shadow color.RGBA) {
+	x := cx - textWidth(title, scale)/2
 	for _, pass := range []struct {
 		d float64
 		c color.RGBA
 	}{{scale * 0.7, shadow}, {0, fg}} {
-		x := cx - total/2 + pass.d
-		for i, p := range parts {
-			op := &text.DrawOptions{}
-			op.GeoM.Scale(scale, scale)
-			op.GeoM.Translate(x, y+pass.d)
-			op.ColorScale.ScaleWithColor(pass.c)
-			text.Draw(dst, p, uiFace, op)
-			w := textWidth(p, scale)
-			if i == 1 {
-				// Grave accent: a short stroke falling to the right, above
-				// and right of the circumflex.
-				gx, gy := x+w*0.7, y+pass.d+scale*1.1
-				vector.StrokeLine(dst, float32(gx), float32(gy), float32(gx+scale*1.3), float32(gy+scale*1.4), float32(scale), pass.c, false)
-			}
-			x += w
-		}
+		op := &text.DrawOptions{}
+		op.GeoM.Scale(scale, scale)
+		op.GeoM.Translate(x+pass.d, y+pass.d)
+		op.ColorScale.ScaleWithColor(pass.c)
+		text.Draw(dst, title, uiFace, op)
 	}
 }

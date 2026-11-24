@@ -1,4 +1,4 @@
-# Sinh Tồn: Thời Khủng Long
+# Dino Isles
 
 Game sinh tồn thời tiền sử 2D góc nhìn 3/4: săn và thuần hóa khủng long, làm đồ đá, mặc đồ da. Viết bằng Go + [Ebitengine](https://ebitengine.org).
 Tên và art đều là tạm; mọi hình vẽ là pixel art dựng bằng code trong `internal/client` (`art.go` cho sprite, `ground.go` cho mặt đất và nước, `pix.go` là bộ vẽ pixel). Riêng khủng long, thằn lằn bay và thằn lằn cổ dài vẽ từ hình trong `internal/client/dinos/`; các tư thế (bước, cúi ăn, gầm, vồ, vỗ cánh) suy ra từ hình đó trong `dinorig.go` và `dinorigs.go`.
