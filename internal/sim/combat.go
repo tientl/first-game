@@ -5,7 +5,8 @@ package sim
 // then a blow lands just right and does half as much again. So a rabbit
 // falls to one punch, a raptor to a few spear thrusts, and a tyrant takes a
 // long fight with a good sword. Tools are weapons too, weaker than a sword
-// of the same stone or metal.
+// of the same stone or metal. A bare fist does little through a dinosaur's
+// scales and next to nothing to a great beast: see FistShare.
 
 // Combat tuning. Health and damage count in the same points.
 const (
@@ -68,11 +69,38 @@ func WeaponDamage(held ItemKind) int {
 // damageWith is what one of p's blows does, before the spread.
 func damageWith(p *Player) int { return WeaponDamage(p.Held()) }
 
-// blow rolls the damage of one of p's blows, and tells p when it is a
-// critical one.
-func (w *World) blow(p *Player) int {
+// Punches is whether a blow with held in hand is a punch: no sword, spear
+// or tool in it.
+func Punches(held ItemKind) bool { return WeaponDamage(held) == FistDamage }
+
+// FistShare is the share of a punch that gets through the hide of a
+// creature of kind k: all of it on small soft things and people, next to
+// nothing through the scales, plates and thick fur of every dinosaur,
+// reptile and great beast.
+func FistShare(k CreatureKind) float64 {
+	switch k {
+	case CreatureRabbit, CreatureSnake, CreatureWorm, CreatureFish, CreatureCrab, CreatureSpider,
+		CreatureMonkey, CreatureTribesman:
+		return 1
+	}
+	return 0.1
+}
+
+// BlowDamage is what one blow with held does to a creature of kind k,
+// before the spread.
+func BlowDamage(held ItemKind, k CreatureKind) int {
+	d := WeaponDamage(held)
+	if Punches(held) {
+		d = max(1, int(float64(d)*FistShare(k)+0.5))
+	}
+	return d
+}
+
+// blow rolls the damage of one of p's blows at a creature of kind k, and
+// tells p when it is a critical one.
+func (w *World) blow(p *Player, k CreatureKind) int {
 	r := w.random()
-	d := float64(damageWith(p)) * (1 + (r.Float64()*2-1)*DamageSpread)
+	d := float64(BlowDamage(p.Held(), k)) * (1 + (r.Float64()*2-1)*DamageSpread)
 	if r.Float64() < CritChance {
 		d *= CritBonus
 		p.notify(NoticeCrit, 0)

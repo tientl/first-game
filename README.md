@@ -30,6 +30,7 @@ Chạy client trên Linux cần cgo và các gói X11/GL dev (xem tài liệu c�
 Mọi âm thanh cũng được tổng hợp bằng code, không có file âm thanh nào:
 
 - `internal/client/sfx.go`: hiệu ứng (chặt, đập đá, nhặt đồ, ăn, lửa, bước chân theo loại đất…) và âm thanh môi trường lặp (sóng biển, lửa, gió, dế).
+- `internal/client/swimsound.go`: tiếng bơi. Nhảy xuống nước thì ùm một tiếng; bơi thì mỗi sải tay một tiếng rẽ nước, giữa hai sải có tiếng đạp chân; đứng nổi một chỗ thì nước óc ách quanh vai; leo lên bờ thì nước chảy ròng và nhỏ giọt. Dưới nước và trên thuyền không có tiếng bước chân.
 - `internal/client/music.go`: ba bản nhạc nền (menu, ban ngày, ban đêm) được soạn và "chơi" bằng code rồi lặp liền mạch; nhạc tự chuyển theo giờ trong game.
 - `internal/client/audio.go`: bộ trộn phần mềm (âm lượng, pan trái/phải, độ cao) đưa ra một luồng Ebitengine.
 - `internal/client/sound_events.go`: server chỉ gửi trạng thái, nên client so hai snapshot liên tiếp để biết khi nào phát tiếng.
@@ -81,13 +82,15 @@ Mỗi sinh vật có máu riêng (cột Máu trong các bảng; thỏ 10, rắn 
 
 | Cầm trên tay | Sát thương mỗi đòn | Mỗi đòn cách nhau |
 | --- | --- | --- |
-| Tay không | 10 | 0,4 giây |
+| Tay không | 10 (khủng long, bò sát, thú lớn: chỉ 1) | 0,4 giây |
 | Cuốc (đá → hắc diện thạch) | 9, 11, 13, 16, 19 | 0,7 giây |
 | Cúp (đá → hắc diện thạch) | 12, 15, 19, 23, 28 | 0,7 giây |
 | Rìu (đá → hắc diện thạch) | 14, 17, 21, 26, 32 | 0,7 giây |
 | Giáo | 20 | 0,6 giây |
 | Giáo ngà | 40 | 0,7 giây |
 | Kiếm (đá lửa → hắc diện thạch) | 30, 42, 55, 75 | 0,5 giây |
+
+**Da dày**: cú đấm tay không chỉ có tác dụng với thỏ, rắn, cua, nhện, khỉ và thổ dân. Với mọi loài khủng long, cá sấu, bò sát biển, hổ răng kiếm, gấu, voi ma mút và bọ cạp, mỗi cú đấm chỉ trừ 1 máu, nên đấm tay gần như vô ích và con thú sẽ đánh trả. Muốn săn chúng thì cần ít nhất giáo hoặc rìu. Trỏ vào con thú khi tay không sẽ thấy ghi "da dày: đấm tay gần như vô ích". Cầm đồ không phải vũ khí (quả mọng, đá…) cũng tính là tay không.
 
 Bẫy, hàng rào chông, sét, cây ăn thịt, thú săn và thú nuôi cắn nhau cũng trừ theo cùng thang máu này.
 

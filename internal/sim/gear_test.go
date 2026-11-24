@@ -126,7 +126,7 @@ func TestBlowsVaryAroundTheWeaponsDamage(t *testing.T) {
 	base := damageWith(p)
 	lo, hi, crits := base*10, 0, 0
 	for range 400 {
-		d := w.blow(p)
+		d := w.blow(p, CreatureRex)
 		lo, hi = min(lo, d), max(hi, d)
 		if float64(d) > float64(base)*(1+DamageSpread)+0.5 {
 			crits++

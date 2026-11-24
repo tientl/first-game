@@ -897,7 +897,7 @@ func (w *World) catch(p *Player, c *Creature) bool {
 	}
 	// What a kill gives falls on the ground (see drops.go), so a full bag
 	// never stops a blow; only a fish comes straight off the line into it.
-	dmg := w.blow(p) // see combat.go
+	dmg := w.blow(p, c.Kind) // see combat.go
 	fits := p.Inv
 	if missing := addAll(&fits, c.Kind.loot()); missing.Valid() && d.onLine {
 		p.notify(NoticeBagFull, uint8(missing))

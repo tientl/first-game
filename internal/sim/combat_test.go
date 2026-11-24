@@ -120,6 +120,10 @@ func TestCombatBalance(t *testing.T) {
 		{CreatureSnake, ItemNone, 0, true},
 		{CreatureRaptor, ItemSpear, 0, true},
 		{CreatureMammoth, ItemNone, 0, false},               // a mammoth is no fistfight
+		{CreatureTrike, ItemNone, 0, false},                 // nor is any dinosaur:
+		{CreatureRaptor, ItemNone, 0, false},                // fists barely get through their hide
+		{CreatureBear, ItemNone, 0, false},
+		{CreatureTribesman, ItemNone, 0, true}, // a man can be fought with bare hands
 		{CreatureRex, SwordItem(TierIron), TierIron, false}, // the tyrant wants the best gear
 		{CreatureRex, SwordItem(TierPlatinum), TierPlatinum, true},
 		{CreatureBear, SwordItem(TierCopper), 0, true},

@@ -73,6 +73,7 @@ func TestKillingACroc(t *testing.T) {
 	w := marshWorld(false) // no water to slip into
 	croc := w.addCreature(CreatureCroc, 17.6, 16.5)
 	id := w.AddPlayer("a")
+	holding(w, id, ItemSpear) // a fist does nothing through its scales
 	w.SetInput(id, Input{Action: true})
 	for range 10 * TicksPerSecond {
 		if w.Step(); croc.gone || len(creatureByKind(w, CreatureCroc)) == 0 {
