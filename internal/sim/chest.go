@@ -21,6 +21,7 @@ const (
 type ChestSave struct {
 	ID    EntityID
 	Slots Inventory
+	Owner string `json:",omitempty"` // a body's: whose it is; see grave.go
 }
 
 // OpenChest is the chest p has open, 0 when none.
@@ -106,7 +107,7 @@ func (w *World) chestCommand(p *Player, cmd Command) {
 func (w *World) saveChests() []ChestSave {
 	var out []ChestSave
 	for id, inv := range w.chests {
-		out = append(out, ChestSave{ID: id, Slots: *inv})
+		out = append(out, ChestSave{ID: id, Slots: *inv, Owner: w.graveOwner[id]})
 	}
 	slices.SortFunc(out, func(a, b ChestSave) int { return int(a.ID) - int(b.ID) })
 	return out
@@ -120,6 +121,12 @@ func (w *World) loadChests(saved []ChestSave) {
 			inv := cs.Slots
 			inv.sanitize()
 			w.chests[cs.ID] = &inv
+			if e.Kind == EntityGrave && cs.Owner != "" {
+				if w.graveOwner == nil {
+					w.graveOwner = make(map[EntityID]string)
+				}
+				w.graveOwner[cs.ID] = cs.Owner
+			}
 		}
 	}
 	for id, e := range w.entities {

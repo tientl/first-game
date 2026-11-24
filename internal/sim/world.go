@@ -12,11 +12,12 @@ type World struct {
 	tiles         []Tile     // row-major, width*height
 	occ           []EntityID // per tile: the entity on it, 0 if none
 
-	tick     uint64
-	entities map[EntityID]*Entity
-	active   map[EntityID]*Entity    // the entities stepEntities looks at; see active.go
-	chests   map[EntityID]*Inventory // what each chest holds; see chest.go
-	nextEnt  EntityID
+	tick       uint64
+	entities   map[EntityID]*Entity
+	active     map[EntityID]*Entity    // the entities stepEntities looks at; see active.go
+	chests     map[EntityID]*Inventory // what each chest holds; see chest.go
+	graveOwner map[EntityID]string     // whose body each body is; see grave.go
+	nextEnt    EntityID
 
 	players     map[PlayerID]*Player
 	playerOrder []PlayerID // ascending; players step in this order
@@ -160,6 +161,7 @@ func (w *World) removeEntity(e *Entity) {
 	delete(w.entities, e.ID)
 	delete(w.active, e.ID)
 	delete(w.chests, e.ID)
+	delete(w.graveOwner, e.ID)
 	w.occ[e.TY*w.width+e.TX] = 0
 }
 

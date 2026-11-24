@@ -13,9 +13,41 @@ import "math"
 // spot something already stands on.
 const graveSearch = 10
 
+// A body is drawn as the player who fell, in their look and colour (packed
+// into the entity's Fuel; see GraveLook). Should they die again before
+// fetching their things, their older bodies are bones by then: Var is
+// GraveBones. Bones are looted the same way.
+
+// GraveBones is the Var of a body that has gone to bones.
+const GraveBones = 1
+
+// packGraveLook packs l and the colour seed col into a body's Fuel.
+func packGraveLook(l Look, col int) int {
+	f := 0
+	if l.Female {
+		f = 1
+	}
+	return f | int(l.Hair&7)<<1 | int(l.HairColor&7)<<4 | int(l.Skin&7)<<7 | (col&15)<<10
+}
+
+// GraveLook unpacks the look of the player whose body has fuel, and the seed
+// of their colour (the client picks the player colour from it as it does
+// from a player's id).
+func GraveLook(fuel int32) (Look, int) {
+	f := int(fuel)
+	l := Look{Female: f&1 == 1, Hair: HairStyle(f >> 1 & 7), HairColor: uint8(f >> 4 & 7), Skin: uint8(f >> 7 & 7)}
+	return l.Sanitized(), f >> 10 & 15
+}
+
 // leaveBody lays p's things down by where p fell and empties p's hands. It
 // reports whether it found ground to leave them on; if not, p keeps them.
+// Any body p left before and never came back for has gone to bones.
 func (w *World) leaveBody(p *Player) bool {
+	for id, owner := range w.graveOwner {
+		if e := w.entities[id]; owner == p.Name && e != nil && e.Kind == EntityGrave {
+			e.Var = GraveBones
+		}
+	}
 	if p.Inv == (Inventory{}) {
 		return true
 	}
@@ -35,8 +67,13 @@ func (w *World) leaveBody(p *Player) bool {
 		return false
 	}
 	e := w.addEntity(EntityGrave, bx, by)
+	e.Fuel = packGraveLook(p.Look, int(p.ID))
 	inv := p.Inv
 	w.chests[e.ID] = &inv
+	if w.graveOwner == nil {
+		w.graveOwner = make(map[EntityID]string)
+	}
+	w.graveOwner[e.ID] = p.Name
 	p.Inv = Inventory{}
 	p.notify(NoticeBodyLeft, 0)
 	return true
