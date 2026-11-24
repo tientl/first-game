@@ -92,6 +92,10 @@ Mỗi sinh vật có máu riêng (cột Máu trong các bảng; thỏ 10, rắn 
 
 **Da dày**: cú đấm tay không chỉ có tác dụng với thỏ, rắn, cua, nhện, khỉ và thổ dân. Với mọi loài khủng long, cá sấu, bò sát biển, hổ răng kiếm, gấu, voi ma mút và bọ cạp, mỗi cú đấm chỉ trừ 1 máu, nên đấm tay gần như vô ích và con thú sẽ đánh trả. Muốn săn chúng thì cần ít nhất giáo hoặc rìu. Trỏ vào con thú khi tay không sẽ thấy ghi "da dày: đấm tay gần như vô ích". Cầm đồ không phải vũ khí (quả mọng, đá…) cũng tính là tay không.
 
+**Đấm tay** (`punch.go`): tay không mà đánh thú thì nhân vật co tay rồi thụt nắm đấm về phía con thú, người hơi nhào theo, trúng đòn lóe tia trắng vàng ở nắm đấm. Hai tay đấm luân phiên (thẳng, rồi móc tay kia). Hái, nhặt, thêm củi thì tay chỉ vươn ra nhẹ, không lóe; đang cầm quả mọng, đá… thì món đó nằm trong nắm tay. Cưỡi thú vẫn đấm được từ trên lưng.
+
+**Giật bắn người** (`jolt.go`): bị thú đánh, ong đốt hoặc sét đánh thì nhân vật giật nảy lên, bật ngược ra sau, hai tay hất ra, người lóe trắng rồi đỏ trong chừng một phần tư giây. Chỉ là hình, không đẩy nhân vật đi. Đói, lạnh, trúng độc, chết đuối thì không giật. Đi bộ, cưỡi thú, bơi hay trên thuyền đều giật. Xem nhanh: `go run ./cmd/shot -punch jab -age 4`, `-punch cross`, `-hurt -age 2`.
+
 Bẫy, hàng rào chông, sét, cây ăn thịt, thú săn và thú nuôi cắn nhau cũng trừ theo cùng thang máu này.
 
 ### Khủng long và bò sát tiền sử
