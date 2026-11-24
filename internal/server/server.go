@@ -40,6 +40,7 @@ type Config struct {
 	Seed           uint64
 	Width, Height  int            // in tiles; 0 means DefaultWorldSize
 	Style          sim.WorldStyle // which generator a new world uses
+	Difficulty     sim.Difficulty // how hard a new world is; a loaded world keeps its own
 	InterestRadius int            // clients receive what is within this many tiles; 0 means default
 
 	// SavePath, if set, is where the world is saved: on request, every
@@ -78,7 +79,7 @@ type peer struct {
 // New generates the world and returns a server ready to Run.
 func New(cfg Config) (*Server, error) {
 	cfg = withDefaults(cfg)
-	w, err := sim.Generate(sim.GenConfig{Seed: cfg.Seed, Width: cfg.Width, Height: cfg.Height, Style: cfg.Style})
+	w, err := sim.Generate(sim.GenConfig{Seed: cfg.Seed, Width: cfg.Width, Height: cfg.Height, Style: cfg.Style, Difficulty: cfg.Difficulty})
 	if err != nil {
 		return nil, err
 	}

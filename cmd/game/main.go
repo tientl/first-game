@@ -23,7 +23,7 @@ const autosaveEvery = time.Minute
 func main() {
 	seed := flag.Uint64("seed", 0, "world seed for a new game (0 = random)")
 	name := flag.String("name", "", "player name: filled in on the character screen, and who \"Chơi tiếp\" continues as")
-	size := flag.Int("size", 0, "world width and height in tiles for a new game (0: ask in the menu)")
+	size := flag.Int("size", 0, "world width and height in tiles for a new game (0: the largest)")
 	savePath := flag.String("save", "", "save file (default: in the user config directory)")
 	flag.Parse()
 
@@ -143,12 +143,13 @@ func (a *app) Update() error {
 		if cfg.Seed == 0 {
 			cfg.Seed = uint64(time.Now().UnixNano())
 		}
-		size := a.menu.NewWorldSize()
+		size := sim.SizeHuge // every new world is the largest
 		if a.size > 0 {
 			size = a.size // -size on the command line wins
 		}
 		cfg.Width, cfg.Height, cfg.Style = size, size, sim.StyleLatest
-		log.Printf("new world, seed %d, %dx%d", cfg.Seed, size, size)
+		cfg.Difficulty = a.menu.NewDifficulty()
+		log.Printf("new world, seed %d, %dx%d, %s", cfg.Seed, size, size, cfg.Difficulty.Name())
 		a.background("Đang tạo thế giới", func() loaded {
 			srv, err := server.New(cfg)
 			return loaded{srv, err, "Không tạo được thế giới"}
@@ -224,6 +225,7 @@ func (a *app) openMenu() {
 		info.Day = sim.DayOf(f.World.Tick)
 		if f.World.Style != sim.StyleIsland {
 			info.Size = f.World.Width
+			info.Difficulty = f.World.Difficulty
 		}
 		if len(f.World.Players) > 0 {
 			info.Name = f.World.Players[0].Name

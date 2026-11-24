@@ -52,6 +52,7 @@ type Player struct {
 	poison    int        // ticks of spider venom left; see cavelife.go
 	webbed    int        // ticks left tangled in web
 	bees      int        // ticks a swarm keeps after them; see jungle.go
+	harm      float64    // beasts' blows on them are multiplied by this: the difficulty; 0 means 1
 	hurtSeq   uint8      // blows taken that make them jolt; see flinch in gear.go
 	beeHive   [2]float64 // where the angry bees came from
 	boat      BoatID     // the boat p is aboard, 0 if none; see boats.go
@@ -128,6 +129,7 @@ func (w *World) AddPlayerWithLook(name string, l Look) PlayerID {
 		name = "Người chơi " + strconv.Itoa(int(id))
 	}
 	p := &Player{ID: id, Name: name, Look: l.Sanitized()}
+	p.harm = w.difficulty.tune().harm
 	p.reset(w.spawnX, w.spawnY)
 	p.explored = NewExplored(w.width, w.height)
 	if ps, ok := w.offline[name]; ok {
@@ -318,7 +320,7 @@ func (w *World) stepPlayer(p *Player) {
 	}
 
 	w.burnTorch(p)
-	p.Hunger = max(0, p.Hunger-HungerPerTick)
+	p.Hunger = max(0, p.Hunger-HungerPerTick*w.difficulty.tune().hunger)
 	w.stepPoison(p) // see cavelife.go
 	w.stepBees(p)   // see jungle.go
 	w.stepSwim(p)   // see boats.go
@@ -329,7 +331,7 @@ func (w *World) stepPlayer(p *Player) {
 		damage += StarveDamagePerTick
 	}
 	if p.Cold {
-		damage += ColdDamagePerTick
+		damage += ColdDamagePerTick * w.difficulty.tune().cold
 	}
 	if damage > 0 {
 		p.Health -= damage

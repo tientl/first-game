@@ -9,12 +9,20 @@ Trên Windows (cần Go 1.25+, không cần cgo):
 
     go run ./cmd/game
     go run ./cmd/game -name Tien            # tên điền sẵn khi tạo nhân vật; "Chơi tiếp" vào bằng tên này (bỏ trống: người chơi trong bản lưu)
-    go run ./cmd/game -seed 42 -size 512    # seed và cỡ thế giới cho "Trò chơi mới" (bỏ -size thì chọn trong menu)
+    go run ./cmd/game -seed 42 -size 512    # seed và cỡ thế giới cho "Trò chơi mới" (bỏ -size thì luôn là 1024, cỡ lớn nhất)
     go run ./cmd/game -save D:\save.json     # dùng file lưu khác
 
-Mở game sẽ vào menu chính: **Chơi tiếp** (nếu đã có bản lưu), **Trò chơi mới** (chọn cỡ thế giới: Vừa 256, Lớn 512, Rất lớn 1024 ô), **Thoát**.
+Mở game sẽ vào menu chính: **Chơi tiếp** (nếu đã có bản lưu), **Trò chơi mới** (thế giới luôn rộng nhất, 1024 × 1024 ô; chỉ chọn **độ khó**), **Thoát**.
 
-Sau khi chọn cỡ thế giới là màn hình **Tạo nhân vật**: gõ tên (tối đa 16 chữ; bỏ trống thì tên là "Người chơi 1"), chọn nam hoặc nữ, kiểu tóc (Ngắn, Mào dựng, Bob tết, Dài, Bím dài, Búi cao), màu tóc (8 màu) và màu da (6 màu: Sáng, Trung bình, Bánh mật, Ngăm, Nâu, Nâu sẫm), hoặc bấm **Ngẫu nhiên**; nhân vật xem trước tự xoay (nhấp vào để xoay tiếp) cho thấy cả bốn hướng. Nhân vật theo kiểu **Viking**. Nam để râu quai nón cùng màu tóc, tết bím có hạt vàng; mặc áo chẽn thắt đai da, quần quấn xà cạp, ủng viền lông, áo choàng lông xám cài trâm tròn. Nữ mặc váy yếm Viking ngoài áo lót sáng màu, cài hai trâm bầu dục nối chuỗi hạt, cổ áo lông. Màu áo, váy theo người chơi. Ngoại hình được lưu cùng người chơi nên **Chơi tiếp** giữ nguyên; bản lưu cũ vẫn là nhân vật nam tóc ngắn nâu như trước. Bản lưu nhận ra người chơi theo tên, nên **Chơi tiếp** vào lại đúng nhân vật đã tạo.
+**Độ khó** (`internal/sim/difficulty.go`), chọn khi tạo thế giới và lưu cùng bản lưu (bản lưu cũ là Thường). Đất đai, thú và máu của thú như nhau ở mọi cấp; chỉ khác những gì thiên nhiên làm với người chơi:
+
+| | Thú đánh | Đói | Lạnh đêm đông | Bầy Troodon quanh mỗi người |
+| --- | --- | --- | --- | --- |
+| Dễ | ×0,5 | chậm ×0,7 | ×0,5 | 1 |
+| Thường | ×1 | ×1 | ×1 | 2 |
+| Khó | ×1,5 | nhanh ×1,3 | ×1,5 | 3 |
+
+Sau khi chọn độ khó là màn hình **Tạo nhân vật**: gõ tên (tối đa 16 chữ; bỏ trống thì tên là "Người chơi 1"), chọn nam hoặc nữ, kiểu tóc (Ngắn, Mào dựng, Bob tết, Dài, Bím dài, Búi cao), màu tóc (8 màu) và màu da (6 màu: Sáng, Trung bình, Bánh mật, Ngăm, Nâu, Nâu sẫm), hoặc bấm **Ngẫu nhiên**; nhân vật xem trước tự xoay (nhấp vào để xoay tiếp) cho thấy cả bốn hướng. Nhân vật theo kiểu **Viking**. Nam để râu quai nón cùng màu tóc, tết bím có hạt vàng; mặc áo chẽn thắt đai da, quần quấn xà cạp, ủng viền lông, áo choàng lông xám cài trâm tròn. Nữ mặc váy yếm Viking ngoài áo lót sáng màu, cài hai trâm bầu dục nối chuỗi hạt, cổ áo lông. Màu áo, váy theo người chơi. Ngoại hình được lưu cùng người chơi nên **Chơi tiếp** giữ nguyên; bản lưu cũ vẫn là nhân vật nam tóc ngắn nâu như trước. Bản lưu nhận ra người chơi theo tên, nên **Chơi tiếp** vào lại đúng nhân vật đã tạo.
 
 Bản lưu nằm ở `%AppData%\SinhTon\save.json`. Game tự lưu mỗi phút, khi về menu và khi
 đóng cửa sổ; trong game nhấn **Esc** để tạm dừng (thời gian trong game đứng yên) và lưu ngay.

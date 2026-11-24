@@ -46,6 +46,7 @@ type World struct {
 	// pyramidPlanned is set while generating, when pyramidAt is chosen
 	// before the pyramid is built, so the villages keep clear of it.
 	pyramidPlanned bool
+	difficulty     Difficulty // see difficulty.go
 
 	genH     int                 // the height the generator was asked for: what a save keeps
 	surfaceH int                 // rows above ground, when the caves lie below; see underground.go

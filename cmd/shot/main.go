@@ -45,7 +45,7 @@ func main() {
 	farm := flag.Bool("farm", false, "put a row of tilled soil and growing sweet potatoes nearby, and a hoe in hand")
 	furnace := flag.Bool("furnace", false, "put a lit furnace and one of each ore nearby, and a copper pickaxe in hand")
 	open := flag.Bool("open", false, "an open world instead of the 96x96 island")
-	sizes := flag.Bool("sizes", false, "with -menu: show the world-size picker")
+	sizes := flag.Bool("sizes", false, "with -menu: show the difficulty picker (it took the place of the world-size picker)")
 	size := flag.Int("size", 256, "open world size")
 	at := flag.String("at", "", "open world: stand at desert, marsh, pond (a swamp with ponds), cave, mountain, ash or lava")
 	female := flag.Bool("female", false, "the player is a woman")
@@ -711,7 +711,7 @@ func main() {
 	if *menu {
 		m := client.NewMenu(client.SaveInfo{Exists: true, Day: 3, Name: "Tien", SavedAt: time.Now(), Size: 512})
 		if *sizes {
-			m.ShowSizePicker()
+			m.ShowDifficultyPicker()
 		}
 		inner = &menuGame{m}
 	}
