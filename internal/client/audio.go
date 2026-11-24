@@ -298,8 +298,8 @@ func (s *soundSystem) setVolume(music bool, v float64) {
 
 // play starts a one-shot sound. vol is 0..1, pan -1..1, rate 1 = as made.
 func (s *soundSystem) play(name string, vol, pan, rate float64) {
-	if s == nil || vol <= 0.001 {
-		return
+	if s == nil || vol <= 0.001 || !(rate > 0.01 && rate < 100) {
+		return // a rate at or below zero would play backwards, off the start of the data
 	}
 	vs := s.sfx[name]
 	if len(vs) == 0 {

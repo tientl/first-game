@@ -367,7 +367,7 @@ func (g *Game) thunderSounds(cur protocol.Snapshot) {
 			continue
 		}
 		g.strikesSeen[k] = true
-		snd.playAt("thunder", float64(s.X), float64(s.Y), 1, 40)
+		callAt("thunder", float64(s.X), float64(s.Y), 1, 1, 40) // heard 40 tiles off; see roar.go
 	}
 	if len(g.strikesSeen) > 64 {
 		clear(g.strikesSeen)
