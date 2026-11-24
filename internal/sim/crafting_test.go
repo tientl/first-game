@@ -82,7 +82,7 @@ func TestBouldersNeedAPickaxe(t *testing.T) {
 
 func TestTorchBurnsWhileHeldAndKeepsWarm(t *testing.T) {
 	w := flatWorld()
-	w.tick = deepNight
+	w.tick = winterNightTick
 	a := w.AddPlayer("a")
 	b := w.AddPlayer("b")
 	w.players[b].X += 2 // within the torch's reach

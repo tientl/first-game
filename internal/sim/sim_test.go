@@ -258,7 +258,7 @@ func TestCampfireBurnsOut(t *testing.T) {
 }
 
 func TestNightColdKillsWithoutFire(t *testing.T) {
-	night := uint64(DayTicks * (NightStart + 0.05))
+	night := uint64(3*SeasonDays*DayTicks) + uint64(DayTicks*(NightStart+0.05)) // a winter night: see winterNight
 
 	w := flatWorld()
 	w.tick = night

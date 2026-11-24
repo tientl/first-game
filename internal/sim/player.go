@@ -323,7 +323,7 @@ func (w *World) stepPlayer(p *Player) {
 	w.stepBees(p)   // see jungle.go
 	w.stepSwim(p)   // see boats.go
 	w.manEaterBites(p)
-	p.Cold = (Ambient(w.tick) < ColdAmbient || w.freezing(p) || w.wintry(p)) && !w.warm(p.X, p.Y) // night, the snow, winter: see iceage.go, weather.go
+	p.Cold = (w.winterNight() || w.freezing(p) || w.wintry(p)) && !w.warm(p.X, p.Y) // a winter night, the snow, winter weather: see iceage.go, weather.go
 	damage := 0.0
 	if p.Hunger == 0 {
 		damage += StarveDamagePerTick

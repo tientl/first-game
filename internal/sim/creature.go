@@ -70,6 +70,9 @@ const (
 
 	// The woods: see jungle.go.
 	CreatureMonkey // a monkey, in troops in the woods; tamed with bananas
+
+	// The night: see nightstalker.go.
+	CreatureTroodon // a small, big-eyed hunter that comes out in packs at night
 	NumCreatureKinds
 )
 
@@ -608,6 +611,7 @@ func (w *World) stepCreatures() {
 	if w.tick%CreatureRespawnTicks == 0 {
 		w.repopulate()
 	}
+	w.stepNightHunters() // see nightstalker.go
 }
 
 func (w *World) stepCreature(c *Creature) {
@@ -692,6 +696,8 @@ func (w *World) stepCreature(c *Creature) {
 		w.stepKraken(c)
 	case CreatureScorpion:
 		w.stepScorpion(c) // see pyramid.go
+	case CreatureTroodon:
+		w.stepTroodon(c) // see nightstalker.go
 	default:
 		w.wander(c)
 	}
