@@ -25,7 +25,9 @@ func main() {
 	name := flag.String("name", "", "player name: filled in on the character screen, and who \"Chơi tiếp\" continues as")
 	size := flag.Int("size", 0, "world width and height in tiles for a new game (0: the largest)")
 	savePath := flag.String("save", "", "save file (default: in the user config directory)")
+	rex3d := flag.Bool("rex3d", false, "a trial: show the tyrant as a 3D model baked to pixel art")
 	flag.Parse()
+	client.SetRex3D(*rex3d)
 
 	if *savePath == "" {
 		p, err := server.DefaultSavePath()

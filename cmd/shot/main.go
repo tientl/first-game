@@ -82,7 +82,9 @@ func main() {
 	victory := flag.Bool("victory", false, "show the game-beaten (Phá đảo!) screen")
 	aimAt := flag.String("aim", "", "dx,dy: hold the mouse pointer this many tiles from the player (the hover brackets, a held torch's ghost)")
 	buildID := flag.Int("build", -1, "recipe id of a structure to place (0 campfire, 8 wall, 9 bed…): build mode with its ghost under -aim, the ingredients given")
+	rex3d := flag.Bool("rex3d", false, "show the tyrant as the 3D model baked to pixel art (a trial; see internal/dino3d)")
 	flag.Parse()
+	client.SetRex3D(*rex3d)
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
 	if *bossesFlag {
