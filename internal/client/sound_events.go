@@ -19,6 +19,7 @@ type soundMemory struct {
 	lastShiver time.Time
 	ocean      float64 // share of water around the listener, refreshed now and then
 	forest     float64
+	swimState  // see swimsound.go
 }
 
 func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
@@ -232,6 +233,7 @@ func (g *Game) frameSounds(alpha float64) {
 	if g.sm.stepFrame == nil {
 		g.sm.stepFrame = make(map[sim.PlayerID]int)
 	}
+	g.sm.swimState.init()
 
 	g.swarmSounds() // see jungleart.go
 	lx, ly := float64(g.width)/2, float64(g.height)/2
@@ -246,6 +248,9 @@ func (g *Game) frameSounds(alpha float64) {
 	for _, p := range g.curr.Players {
 		x, y, moving := g.lerpPlayer(p, alpha)
 		f := -1
+		if g.swimSounds(p, x, y, moving) || p.Boat != 0 { // see swimsound.go
+			moving = false // strokes in the water, no steps; the boat carries them
+		}
 		if moving && !p.Dead {
 			f = (g.frame / 7) % walkFrames
 		}
