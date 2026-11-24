@@ -157,7 +157,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(float64(scale), float64(scale))
-	screen.DrawImage(g.world, op)
+	if postFX && !g.demo {
+		screen.DrawImage(g.applyPost(g.world), op) // see postfx.go
+	} else {
+		screen.DrawImage(g.world, op)
+	}
 
 	vop := &ebiten.DrawImageOptions{}
 	vb := g.art.vignette.Bounds()

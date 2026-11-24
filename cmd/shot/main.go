@@ -63,6 +63,7 @@ func main() {
 	weather := flag.String("weather", "", "the weather: rain, wind, storm, tornado, snow")
 	season := flag.String("season", "", "the season: spring, summer, autumn, winter")
 	zoom := flag.Int("zoom", 0, "the view's zoom, -3 to 3")
+	fx := flag.Bool("fx", false, "turn on the post-processing shaders: glow and colour grading")
 	fight := flag.Bool("fight", false, "show the beasts' health: a few just hurt, with the damage floating up (use with -dinos)")
 	troodon := flag.Bool("troodon", false, "put a pack of night hunters round the player: one stalking, one leaping in, one biting, and two more watching from the dark (use with -time 0.9 for their eyes)")
 	woodsFlag := flag.Bool("woods", false, "put the woods round the player: a giant tree and a tree with beehives, banana trees, a troop of monkeys, and bees after the player")
@@ -83,6 +84,7 @@ func main() {
 	buildID := flag.Int("build", -1, "recipe id of a structure to place (0 campfire, 8 wall, 9 bed…): build mode with its ghost under -aim, the ingredients given")
 	flag.Parse()
 	client.SetZoom(*zoom)
+	client.SetPostFX(*fx)
 	if *bossesFlag {
 		*coast = true
 	}
