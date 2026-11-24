@@ -54,9 +54,24 @@ func (w *World) Pyramid() (tx, ty int, ok bool) {
 }
 
 // raisePyramid stands the pyramid on the biggest desert island away from
-// home, on open sand, with its chest in the doorway and its guards round it.
+// home, on open sand, with its chest in the doorway and its guards round it:
+// where pickIslandVillages planned it, kept clear of villages, or else where
+// pyramidSite finds now.
 func (w *World) raisePyramid(rng *rand.Rand) {
-	sx, sy := w.spawnX, w.spawnY
+	cx, cy, ok := w.pyramidAt[0], w.pyramidAt[1], w.pyramidPlanned
+	if !ok {
+		cx, cy, ok = w.pyramidSite(w.spawnX, w.spawnY)
+	}
+	if !ok {
+		return
+	}
+	w.buildPyramid(cx, cy)
+	_ = rng
+}
+
+// pyramidSite is where the pyramid would stand, by the lie of the land
+// alone: deep in the desert, far from (sx, sy).
+func (w *World) pyramidSite(sx, sy float64) (cx, cy int, ok bool) {
 	fits := func(cx, cy int) bool {
 		// The footprint and a tile round it all desert, and a clear tile in
 		// front of the doorway.
@@ -70,13 +85,13 @@ func (w *World) raisePyramid(rng *rand.Rand) {
 		return true
 	}
 	best, bestScore := -1, math.Inf(-1)
-	for i, t := range w.tiles {
+	for i, t := range w.tiles[:w.width*w.SurfaceHeight()] {
 		if t != TileDesert {
 			continue
 		}
 		cx, cy := i%w.width, i/w.width
 		d := math.Hypot(float64(cx)+0.5-sx, float64(cy)+0.5-sy)
-		if d < float64(max(w.width, w.height))/5 || !fits(cx, cy) {
+		if d < float64(max(w.width, w.SurfaceHeight()))/5 || !fits(cx, cy) {
 			continue
 		}
 		// Deep in the desert: as much desert round it as can be.
@@ -94,9 +109,13 @@ func (w *World) raisePyramid(rng *rand.Rand) {
 		}
 	}
 	if best < 0 {
-		return
+		return 0, 0, false
 	}
-	cx, cy := best%w.width, best/w.width
+	return best % w.width, best / w.width, true
+}
+
+// buildPyramid stands the pyramid with the middle of its front on (cx, cy).
+func (w *World) buildPyramid(cx, cy int) {
 	for ty := cy - PyramidD - 1; ty <= cy+3; ty++ {
 		for tx := cx - PyramidW/2 - 2; tx <= cx+PyramidW/2+2; tx++ {
 			if e := w.entityAt(tx, ty); e != nil {
@@ -117,7 +136,6 @@ func (w *World) raisePyramid(rng *rand.Rand) {
 	chest.Var = pyramidDepth
 	w.pyramidAt = [2]int{cx, cy}
 	w.hasPyramid = true
-	_ = rng
 }
 
 // guardPyramid sets scorpions round the pyramid.

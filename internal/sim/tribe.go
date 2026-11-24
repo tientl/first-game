@@ -52,16 +52,23 @@ func init() {
 
 // Village is one settlement of a tribe.
 type Village struct {
-	X, Y float64 // the post at its heart
-	Folk int     // how many warriors it keeps
+	X, Y  float64 // the post at its heart
+	Folk  int     // how many warriors it keeps
+	Small bool    // a hamlet of a few huts, on a small island; see islandtribes.go
 }
 
 // Villages returns the villages of the world.
 func (w *World) Villages() []Village { return append([]Village(nil), w.villages...) }
 
 // pickVillages chooses where the villages stand: on open meadow or wood,
-// far from the spawn and from each other, with no water or rock close.
+// far from the spawn and from each other, with no water or rock close. In
+// an archipelago every island big enough has its own: see
+// pickIslandVillages.
 func (w *World) pickVillages(rng *rand.Rand, sx, sy int) {
+	if w.style >= StyleSeas {
+		w.pickIslandVillages(rng, sx, sy)
+		return
+	}
 	n := max(w.width, w.height)
 	want := max(2, n/110)
 	minAway := max(float64(villageMinAway), float64(n)/5)
@@ -97,23 +104,27 @@ func (w *World) pickVillages(rng *rand.Rand, sx, sy int) {
 func (w *World) buildVillages(rng *rand.Rand) {
 	for _, v := range w.villages {
 		cx, cy := int(v.X), int(v.Y)
-		for ty := cy - villageRadius; ty <= cy+villageRadius; ty++ {
-			for tx := cx - villageRadius; tx <= cx+villageRadius; tx++ {
-				if e := w.entityAt(tx, ty); e != nil && math.Hypot(float64(tx-cx), float64(ty-cy)) <= villageRadius {
+		R := v.radius()
+		for ty := cy - R; ty <= cy+R; ty++ {
+			for tx := cx - R; tx <= cx+R; tx++ {
+				if e := w.entityAt(tx, ty); e != nil && math.Hypot(float64(tx-cx), float64(ty-cy)) <= float64(R) {
 					w.removeEntity(e)
 				}
-				if w.TileAt(tx, ty) == TileForest && math.Hypot(float64(tx-cx), float64(ty-cy)) <= villageRadius-1 {
+				if w.TileAt(tx, ty) == TileForest && math.Hypot(float64(tx-cx), float64(ty-cy)) <= float64(R-1) {
 					w.tiles[ty*w.width+tx] = TileGrass // a trodden clearing
 				}
 			}
 		}
 		w.addEntity(EntityTotem, cx, cy)
 		w.addEntity(EntityBonfire, cx+2, cy+1)
-		huts := villageHuts + rng.IntN(2)
+		huts, ring := villageHuts+rng.IntN(2), 4.5
+		if v.Small {
+			huts, ring = hamletHuts, 3.0
+		}
 		a0 := rng.Float64() * 2 * math.Pi
 		for i := range huts {
 			a := a0 + 2*math.Pi*float64(i)/float64(huts)
-			d := 4.5 + rng.Float64()*1.2
+			d := ring + rng.Float64()*1.2
 			tx, ty := cx+int(math.Round(math.Cos(a)*d)), cy+int(math.Round(math.Sin(a)*d*0.85))
 			if w.canPlace(tx, ty) && w.TileAt(tx, ty+1).Walkable() {
 				w.addEntity(EntityHut, tx, ty)

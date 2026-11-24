@@ -70,6 +70,7 @@ func main() {
 	armor := flag.Int("armor", 0, "the armour tier the player wears, 0 (none) to 4")
 	punch := flag.String("punch", "", "a blow by hand at a rabbit put in front of the player: jab, or cross for the other hand; nothing is held unless -held says so")
 	hurtFlag := flag.Bool("hurt", false, "the player has just been struck")
+	villageIdx := flag.Int("village", 0, "with -at village: which village to stand in, from 0")
 	blowAge := flag.Int("age", -1, "with -punch or -hurt: how many frames into the blow or the jolt to show")
 	flag.Parse()
 	client.SetZoom(*zoom)
@@ -209,7 +210,8 @@ func main() {
 	}
 	if *at == "village" {
 		if vs := w.Villages(); len(vs) > 0 {
-			sx, sy = vs[0].X, vs[0].Y+3
+			v := vs[min(max(*villageIdx, 0), len(vs)-1)]
+			sx, sy = v.X, v.Y+3
 		}
 		*at = ""
 	}

@@ -23,10 +23,11 @@ const UndergroundGap = 48
 // Underground tuning.
 const (
 	undergroundGap  = UndergroundGap
-	undergroundPad  = 8  // rows of rock under the caves
-	caveMinHall     = 40 // smaller pockets are filled in
-	mouthSpacing    = 14 // tiles at least between two mouths
-	mouthIslandMin  = 160
+	undergroundPad  = 8    // rows of rock under the caves
+	caveMinHall     = 40   // smaller pockets are filled in
+	mouthSpacing    = 14   // tiles at least between two mouths
+	mouthIslandMin  = 60   // islets smaller than this have no cave
+	homeMouthAway   = 16   // tiles from the spawn, on the home island
 	mouthPerTiles   = 1400 // an island gets one mouth, and one more per this many tiles
 	mouthsPerIsland = 3
 	caveLinkReach   = 30                 // a mouth's chamber is joined to the nearest hall this close
@@ -91,8 +92,9 @@ func (w *World) addUnderground(seed uint32) {
 // caveLink is where walking onto a mouth or the way up takes a player.
 type caveLink struct{ x, y float64 }
 
-// digCaveMouths sets cave mouths on the islands (not the home island), each
-// with its way up in the caves below, joined to the halls.
+// digCaveMouths sets cave mouths on every island but the smallest islets,
+// each with its way up in the caves below, joined to the halls. On the home
+// island they keep away from where players start.
 func (w *World) digCaveMouths(rng *rand.Rand) {
 	if w.surfaceH == 0 {
 		return
@@ -102,7 +104,10 @@ func (w *World) digCaveMouths(rng *rand.Rand) {
 	w.links = make(map[[2]int]caveLink)
 	sx, sy := int(w.spawnX), int(w.spawnY)
 	var placed [][2]int
-	good := func(tx, ty int) bool {
+	good := func(tx, ty, margin int) bool {
+		if w.inVillage(tx, ty, margin) {
+			return false // not in a village's clearing; see islandtribes.go
+		}
 		for y := ty - 1; y <= ty+1; y++ {
 			for x := tx - 2; x <= tx+2; x++ {
 				if y >= H || !w.TileAt(x, y).Walkable() || w.TileAt(x, y) == TilePath || w.TileAt(x, y) == TileLava {
@@ -128,23 +133,35 @@ func (w *World) digCaveMouths(rng *rand.Rand) {
 				break
 			}
 		}
-		if home || len(isl) < mouthIslandMin || isl[0]/W >= H {
+		if len(isl) < mouthIslandMin || isl[0]/W >= H {
 			continue
 		}
 		want := min(mouthsPerIsland, 1+len(isl)/mouthPerTiles)
 		spots := append([]int(nil), isl...)
 		rng.Shuffle(len(spots), func(a, b int) { spots[a], spots[b] = spots[b], spots[a] })
-		for _, i := range spots {
-			if want == 0 {
+		// Well clear of the village first; on a small island crowded by it,
+		// at its edge, among the huts if need be.
+		got := 0
+		for k, margin := range []int{3, 0, -hamletRadius} {
+			if want == 0 || k > 0 && got > 0 {
 				break
 			}
-			tx, ty := i%W, i/W
-			if !good(tx, ty) {
-				continue
+			for _, i := range spots {
+				if want == 0 {
+					break
+				}
+				tx, ty := i%W, i/W
+				if home && math.Hypot(float64(tx-sx), float64(ty-sy)) < homeMouthAway {
+					continue
+				}
+				if !good(tx, ty, margin) {
+					continue
+				}
+				w.placeMouth(tx, ty, tx, top+ty)
+				placed = append(placed, [2]int{tx, ty})
+				want--
+				got++
 			}
-			w.placeMouth(tx, ty, tx, top+ty)
-			placed = append(placed, [2]int{tx, ty})
-			want--
 		}
 	}
 }
