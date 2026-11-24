@@ -116,7 +116,7 @@ func (w *World) saveChests() []ChestSave {
 // inventory. Contents of chests that are not in the world are dropped.
 func (w *World) loadChests(saved []ChestSave) {
 	for _, cs := range saved {
-		if e := w.entities[cs.ID]; e != nil && e.Kind == EntityChest {
+		if e := w.entities[cs.ID]; e != nil && (e.Kind == EntityChest || e.Kind == EntityGrave) {
 			inv := cs.Slots
 			inv.sanitize()
 			w.chests[cs.ID] = &inv

@@ -99,6 +99,9 @@ const (
 	EntityBananaTree // a fruit tree: bunches of bananas, picked by hand
 	EntityGiantTree  // a giant of the old forest, standing on the middle of its front edge
 	EntityGiantRoot  // the rest of a giant's foot: blocks the way, drawn with the giant
+
+	// Death at the harder difficulties: see grave.go.
+	EntityGrave // a fallen player's body, holding what they carried
 	NumEntityKinds
 )
 
@@ -159,6 +162,8 @@ var entityNames = [NumEntityKinds]string{
 	EntityBananaTree: "Cây chuối",
 	EntityGiantTree:  "Cây cổ thụ khổng lồ",
 	EntityGiantRoot:  "Cây cổ thụ khổng lồ",
+
+	EntityGrave: "Xác người chơi",
 }
 
 // Name is the display name of k.
@@ -204,6 +209,8 @@ func Interactable(kind EntityKind, ready, hasWood bool) bool {
 	case EntityCorpse, EntityTrophy, EntityDoor, EntityFloor, EntitySpikes, EntityTorchStand,
 		EntityManEater:
 		return true
+	case EntityGrave:
+		return true // see grave.go
 	case EntityTrap, EntityFlower, EntityGlowPlant, EntityTreasure:
 		return ready || kind == EntityTrap // a sprung trap is set again
 	default:

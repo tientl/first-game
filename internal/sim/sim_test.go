@@ -338,7 +338,7 @@ func TestRespawnKeepsHeldInput(t *testing.T) {
 	w.SetInput(id, Input{MoveX: 1})
 	w.Apply(id, Command{Kind: CmdRespawn})
 	p := mustPlayer(t, w, id)
-	if p.Dead || p.Health != MaxHealth || p.Inv != (Inventory{}) || p.X != 16.5 {
+	if p.Dead || p.Health != MaxHealth || p.Inv.Count(ItemWood) != 7 || p.X != 16.5 { // basic difficulty: the wood comes back too
 		t.Fatalf("after respawn: %+v", p)
 	}
 	w.Step()

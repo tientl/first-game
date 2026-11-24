@@ -14,13 +14,15 @@ Trên Windows (cần Go 1.25+, không cần cgo):
 
 Mở game sẽ vào menu chính: **Chơi tiếp** (nếu đã có bản lưu), **Trò chơi mới** (thế giới luôn rộng nhất, 1024 × 1024 ô; chỉ chọn **độ khó**), **Thoát**.
 
-**Độ khó** (`internal/sim/difficulty.go`), chọn khi tạo thế giới và lưu cùng bản lưu (bản lưu cũ là Thường). Đất đai, thú và máu của thú như nhau ở mọi cấp; chỉ khác những gì thiên nhiên làm với người chơi:
+**Độ khó** (`internal/sim/difficulty.go`), chọn khi tạo thế giới và lưu cùng bản lưu (bản lưu cũ là Cơ bản). Đất đai, thú và máu của thú như nhau ở mọi cấp; chỉ khác những gì thiên nhiên làm với người chơi, và cái giá của cái chết:
 
-| | Thú đánh | Đói | Lạnh đêm đông | Bầy Troodon quanh mỗi người |
-| --- | --- | --- | --- | --- |
-| Dễ | ×0,5 | chậm ×0,7 | ×0,5 | 1 |
-| Thường | ×1 | ×1 | ×1 | 2 |
-| Khó | ×1,5 | nhanh ×1,3 | ×1,5 | 3 |
+| | Thú đánh | Đói | Lạnh đêm đông | Bầy Troodon quanh mỗi người | Khi chết |
+| --- | --- | --- | --- | --- | --- |
+| Cơ bản | ×1 | ×1 | ×1 | 2 | giữ nguyên đồ |
+| Thành thạo | ×1,5 | nhanh ×1,3 | ×1,5 | 3 | mất đồ, lấy lại ở xác |
+| Chúa tể | ×2 | nhanh ×1,6 | ×2 | 4 | mất đồ, lấy lại ở xác |
+
+**Xác người chơi** (`internal/sim/grave.go`): ở Thành thạo và Chúa tể, chết rồi hồi sinh thì về tay trắng; mọi thứ đang mang nằm lại trong xác ở chỗ chết (hiện bia mộ). Chết dưới nước hay chỗ có vật cản thì xác nằm ở ô đất trống gần nhất (trong 10 ô). Quay lại, nhấn Space vào xác để lấy lại đồ (túi đầy thì lấy được bao nhiêu hay bấy nhiêu); xác trống thì biến mất. Xác không mục, được lưu cùng game, ai cũng lấy được. Ở Cơ bản, hồi sinh là còn nguyên đồ.
 
 Sau khi chọn độ khó là màn hình **Tạo nhân vật**: gõ tên (tối đa 16 chữ; bỏ trống thì tên là "Người chơi 1"), chọn nam hoặc nữ, kiểu tóc (Ngắn, Mào dựng, Bob tết, Dài, Bím dài, Búi cao), màu tóc (8 màu) và màu da (6 màu: Sáng, Trung bình, Bánh mật, Ngăm, Nâu, Nâu sẫm), hoặc bấm **Ngẫu nhiên**; nhân vật xem trước tự xoay (nhấp vào để xoay tiếp) cho thấy cả bốn hướng. Nhân vật theo kiểu **Viking**. Nam để râu quai nón cùng màu tóc, tết bím có hạt vàng; mặc áo chẽn thắt đai da, quần quấn xà cạp, ủng viền lông, áo choàng lông xám cài trâm tròn. Nữ mặc váy yếm Viking ngoài áo lót sáng màu, cài hai trâm bầu dục nối chuỗi hạt, cổ áo lông. Màu áo, váy theo người chơi. Ngoại hình được lưu cùng người chơi nên **Chơi tiếp** giữ nguyên; bản lưu cũ vẫn là nhân vật nam tóc ngắn nâu như trước. Bản lưu nhận ra người chơi theo tên, nên **Chơi tiếp** vào lại đúng nhân vật đã tạo.
 

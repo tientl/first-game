@@ -491,6 +491,8 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		return g.chestSprite(e), 0
 	case sim.EntityBed:
 		return a.bed, 0
+	case sim.EntityGrave: // a fallen player's body and their things; see sim/grave.go
+		return a.tombstone, 0
 	case sim.EntityPebble:
 		return a.farm.pebbles, 0
 	case sim.EntityFarmland:
@@ -850,6 +852,8 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				} else {
 					label += " — dỡ"
 				}
+			case e.Kind == sim.EntityGrave:
+				label += " — lấy lại đồ"
 			case e.Kind == sim.EntityChest:
 				label += " — mở"
 			case e.Kind == sim.EntityStoneWall:

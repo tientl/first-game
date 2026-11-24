@@ -98,6 +98,8 @@ type Game struct {
 	noticeSeq   uint32
 	autosaved   time.Time // when the last autosave finished, for the corner badge
 
+	difficulty sim.Difficulty // the world's, from the welcome
+
 	sm soundMemory
 
 	paused  bool
@@ -319,6 +321,7 @@ func (g *Game) onMessage(m protocol.ServerMsg) {
 		g.myID, g.width, g.height, g.tiles = w.PlayerID, w.Width, w.Height, w.Tiles
 		g.pondMask = sim.PondMask(w.Width, w.Height, w.Tiles)
 		g.surfaceH = w.SurfaceH
+		g.difficulty = w.Difficulty
 		terr := newTerrain(w.Width, w.Height, w.Tiles)
 		terr.under = g.caveRow()
 		g.ground.reset(terr)
@@ -724,6 +727,10 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		return "Ong đốt! Chạy thật xa hoặc nhảy xuống nước"
 	case sim.NoticeBeesCalm:
 		return "Khói đuốc làm ong hiền lại"
+	case sim.NoticeBodyLeft:
+		return "Đồ của bạn nằm lại ở xác chỗ bạn chết — quay lại lấy"
+	case sim.NoticeBodyLooted:
+		return "Đã lấy lại hết đồ"
 	case sim.NoticeNothingToFeed:
 		return "Đứng sát cây non, luống đất hoặc cây đang mọc lại rồi nhấn V để bón phân"
 	case sim.NoticeHomeSet:

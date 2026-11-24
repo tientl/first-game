@@ -68,10 +68,10 @@ func NewMenu(info SaveInfo) *Menu {
 		info:   info,
 		create: newCharCreator(),
 		yesNo:  buttonList{items: []button{{label: "Bắt đầu mới"}, {label: "Quay lại"}}},
-		diffs: buttonList{sel: 1, items: []button{
-			{label: "Dễ", sub: "thú đánh nhẹ, đói chậm, đêm đông bớt lạnh, ít thú săn đêm"},
-			{label: "Thường", sub: "như thiết kế · nên chọn"},
-			{label: "Khó", sub: "thú đánh đau, đói nhanh, đêm đông rét buốt, nhiều thú săn đêm"},
+		diffs: buttonList{items: []button{
+			{label: "Cơ bản", sub: "x1 · chết không mất đồ"},
+			{label: "Thành thạo", sub: "thú đánh x1,5, đói nhanh hơn · chết mất đồ, lấy lại ở xác"},
+			{label: "Chúa tể", sub: "thú đánh x2, đói, rét gấp bội · chết mất đồ, lấy lại ở xác"},
 			{label: "Quay lại"},
 		}},
 	}
@@ -102,7 +102,7 @@ func NewMenu(info SaveInfo) *Menu {
 }
 
 // difficulties are the levels the picker offers, in its order.
-var difficulties = []sim.Difficulty{sim.DiffEasy, sim.DiffNormal, sim.DiffHard}
+var difficulties = []sim.Difficulty{sim.DiffBasic, sim.DiffSkilled, sim.DiffLord}
 
 // NewDifficulty is the difficulty picked for the new world, after MenuNew.
 // Every new world is the largest size.

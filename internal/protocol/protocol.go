@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 32
+const Version = 34
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -71,9 +71,10 @@ type SaveResult struct {
 type Welcome struct {
 	PlayerID      sim.PlayerID
 	Width, Height int
-	Tiles         []sim.Tile // row-major, Width*Height
-	Explored      []byte     // tiles this player has seen (sim.Explored bytes)
-	SurfaceH      int        // rows above ground; the caves are the rows below, from SurfaceH+sim.UndergroundGap; 0: no caves below
+	Tiles         []sim.Tile     // row-major, Width*Height
+	Explored      []byte         // tiles this player has seen (sim.Explored bytes)
+	SurfaceH      int            // rows above ground; the caves are the rows below, from SurfaceH+sim.UndergroundGap; 0: no caves below
+	Difficulty    sim.Difficulty // the world's difficulty: whether dying costs what you carry
 }
 
 // Snapshot is the state one client needs to draw a frame, sent every tick.

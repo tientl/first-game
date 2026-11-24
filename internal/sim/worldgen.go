@@ -11,7 +11,7 @@ type GenConfig struct {
 	Seed          uint64
 	Width, Height int
 	Style         WorldStyle // StyleIsland (the zero value) or one of the open-world styles
-	Difficulty    Difficulty // DiffNormal (the zero value), DiffEasy or DiffHard; see difficulty.go
+	Difficulty    Difficulty // DiffBasic (the zero value), DiffSkilled or DiffLord; see difficulty.go
 }
 
 // World size limits. The upper bound keeps tile coordinates inside int16 for

@@ -374,6 +374,8 @@ const (
 	NoticeBees          // a swarm of bees is after you
 	NoticeBeesCalm      // the torch smoke calms the bees
 	NoticeCrit          // your blow was a critical one
+	NoticeBodyLeft      // you died; your things lie with your body
+	NoticeBodyLooted    // you took back all your body held
 )
 
 // CommandKind is a discrete player request, as opposed to held input.

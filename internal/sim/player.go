@@ -223,7 +223,14 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 		}
 	case CmdRespawn:
 		if p.Dead {
+			// At the basic difficulty everything comes back with you; at the
+			// harder ones it stays with your body where you fell (grave.go).
+			kept := p.Inv
+			if !w.difficulty.tune().keepItems && w.leaveBody(p) {
+				kept = Inventory{}
+			}
 			p.reset(w.homeBed(p)) // by the last bed slept in, if it stands
+			p.Inv = kept
 		}
 	case CmdPlace:
 		if !p.Dead && !p.Asleep {
@@ -479,6 +486,8 @@ func (w *World) interact(p *Player, e *Entity) bool {
 		return w.pickGlow(p, e)
 	case EntityManEater:
 		return w.cutManEater(p, e)
+	case EntityGrave:
+		return w.lootBody(p, e) // see grave.go
 	case EntityTreasure:
 		return w.openTreasure(p, e)
 	case EntityWall:
