@@ -321,6 +321,7 @@ type Creature struct {
 	village  int // the village a warrior belongs to, 1-based; 0 for everyone else
 	grabHP   int // a giant squid's health when it seized its boat
 	flinchCD int // ticks before a blow can make it flinch again; see combat.go
+	blow     pendingBlow // a blow drawn back, waiting to land; see telegraph.go
 
 	homeX, homeY float64
 	hx, hy       float64 // heading while walking or fleeing, a unit vector
@@ -631,6 +632,7 @@ func (w *World) stepCreature(c *Creature) {
 	if c.flinchCD > 0 {
 		c.flinchCD--
 	}
+	w.stepBlow(c) // see telegraph.go
 	if c.Kind.Boss() {
 		w.stepBoss(c) // no snare holds it, and it eats nobody's food: see bossfight.go
 		return

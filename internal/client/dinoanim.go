@@ -167,6 +167,11 @@ func (g *Game) strikeAge(c protocol.CreatureView) int {
 func blow(species string, side, hit, age int, held sprite) (s sprite, far float64) {
 	fam := poseFamily(species)
 	w, ok := dinoWinds[fam]
+	if k, known := speciesKind[species]; ok && known {
+		// Held drawn back as long as the sim waits before the blow lands
+		// (sim/telegraph.go), so the lunge meets the hit.
+		w.frames = max(w.frames, sim.WindupTicks(k)*60/sim.TicksPerSecond-lungeFrames)
+	}
 	if !ok || age < 0 || age >= w.frames+lungeFrames {
 		return held, 1
 	}
@@ -175,4 +180,11 @@ func blow(species string, side, hit, age int, held sprite) (s sprite, far float6
 	}
 	far = float64(age-w.frames+1) / (lungeFrames + 1)
 	return rigSprite(species, side, lerpPose(w.pose, dinoPoses[fam][hit], far)), far
+}
+
+// speciesKind is the creature kind each drawn species with a wind-up is.
+var speciesKind = map[string]sim.CreatureKind{
+	"rex": sim.CreatureRex, "trike": sim.CreatureTrike, "toro": sim.CreatureToro,
+	"stego": sim.CreatureStego, "dakota": sim.CreatureRaptor, "achero": sim.CreatureAchero,
+	"anzu": sim.CreatureAnzu, "quetzal": sim.CreatureQuetzal, "plesio": sim.CreaturePlesio,
 }
