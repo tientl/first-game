@@ -217,6 +217,10 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 // step, each leg leans forward or back in turn, as drawn. Through a stride
 // (p.cycle) each swings in its own time: back along the ground, then lifted
 // and forward, while the body sinks as the legs spread and rises over them.
+// gaitReach is how much wider a leg swings through a stride than the lean
+// of a standing step.
+const gaitReach = 2.2
+
 func stepLegs(w *canvas, r dinoRig, p rigPose, pad, h, k int) float64 {
 	kf := float64(k)
 	bottom := pad + h - 1
@@ -235,8 +239,9 @@ func stepLegs(w *canvas, r dinoRig, p rigPose, pad, h, k int) float64 {
 				g = r.gait[i]
 			}
 			a := th + 2*math.Pi*g
-			c.dx = p.step * r.stride * kf * math.Sin(a)
-			c.lift = math.Max(0, math.Cos(a)) * math.Abs(p.step) * r.stride * kf * 0.45
+			reach := p.step * r.stride * gaitReach * kf // a long, ground-eating stride
+			c.dx = reach * math.Sin(a)
+			c.lift = math.Max(0, math.Cos(a)) * math.Abs(reach) * 0.4
 		} else {
 			c.dx = p.step * r.stride * kf
 			if i%2 == 1 {
