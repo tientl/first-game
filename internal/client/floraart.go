@@ -165,7 +165,7 @@ var (
 	blackBerry     = mkRamp(0x0c0814, 0x1a1430, 0x30264e, 0x8278b4)
 	aloeRamp       = mkRamp(0x1a4236, 0x28604a, 0x3e805c, 0x5ea074, 0x8cc096, 0xbcdeba)
 	aloeBloom      = mkRamp(0x9c2c14, 0xd04c1c, 0xf07c2c, 0xfcb04c, 0xffe08c)
-	herbRamp       = mkRamp(0x1a4424, 0x2a682e, 0x42903a, 0x64b44a, 0x92d466, 0xc2ec96)
+	herbLeafRamp       = mkRamp(0x1a4424, 0x2a682e, 0x42903a, 0x64b44a, 0x92d466, 0xc2ec96)
 	creamRamp      = mkRamp(0x8c8c74, 0xbcbc9c, 0xe0e0c4, 0xf6f6e4, 0xffffff)
 	mossPadRamp    = mkRamp(0x18341a, 0x285220, 0x3e722a, 0x5e9436, 0x88b44a, 0xb4d46c)
 )
@@ -642,13 +642,13 @@ func genHerbHD(full bool) (*canvas, float64, float64) {
 	if full { // the flowering stems: flat heads of tiny cream flowers
 		for i, s := range [][3]float64{{-4.4, 14.5, -1}, {0.6, 18, 0.2}, {4.8, 13, 1}} {
 			tx, ty := bx+s[0], base-s[1]
-			f.stalk(herbRamp, 0.45, 0.3, -0.12, [2]float64{bx + s[2]*0.6, base - 2}, [2]float64{bx + s[2], base - s[1]*0.5}, [2]float64{tx, ty + 4}, [2]float64{tx, ty}, nil)
-			f.leafAt(lerpf(bx, tx, 0.6), base-s[1]*0.55, 0.7+float64(i), 3.4, 0.9, 0.1, leafSaw, herbRamp, 0, -0.05)
+			f.stalk(herbLeafRamp, 0.45, 0.3, -0.12, [2]float64{bx + s[2]*0.6, base - 2}, [2]float64{bx + s[2], base - s[1]*0.5}, [2]float64{tx, ty + 4}, [2]float64{tx, ty}, nil)
+			f.leafAt(lerpf(bx, tx, 0.6), base-s[1]*0.55, 0.7+float64(i), 3.4, 0.9, 0.1, leafSaw, herbLeafRamp, 0, -0.05)
 			for k := 0; k < 13; k++ { // the head: a low dome of florets on thin rays
 				a := math.Pi * (0.08 + 0.84*float64(k)/12)
 				rr := 2.6 + 0.9*hashf(k, i, 791)
 				x, y := tx-math.Cos(a)*rr*1.25, ty-math.Sin(a)*rr*0.62-0.3
-				f.c.line(tx*fk, (ty+0.8)*fk, x*fk, y*fk, func(px, py int, _ float64) color.RGBA { return herbRamp[2] })
+				f.c.line(tx*fk, (ty+0.8)*fk, x*fk, y*fk, func(px, py int, _ float64) color.RGBA { return herbLeafRamp[2] })
 				f.c.ellipse(x*fk, y*fk, 2.3, 2, func(px, py int, nx, ny float64) color.RGBA {
 					return creamRamp.pick(0.72+lum(nx, ny)*0.4-0.12*float64(k%2), px, py)
 				})
@@ -668,7 +668,7 @@ func genHerbHD(full bool) (*canvas, float64, float64) {
 		if !full {
 			l *= 0.5
 		}
-		f.leafAt(bx+math.Cos(a)*0.8, base-0.4, a, l, 1.9, 0.22-0.2*math.Sin(a), leafSaw, herbRamp, 6, (rng.Float64()-0.5)*0.14)
+		f.leafAt(bx+math.Cos(a)*0.8, base-0.4, a, l, 1.9, 0.22-0.2*math.Sin(a), leafSaw, herbLeafRamp, 6, (rng.Float64()-0.5)*0.14)
 	}
 	return f.done(0.6, bx, base)
 }

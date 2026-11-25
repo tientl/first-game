@@ -338,6 +338,9 @@ func (w *World) placeHeld(p *Player) { w.placeHeldAt(p, false, 0, 0) }
 // a boat is still launched in front. See aim.go.
 func (w *World) placeHeldAt(p *Player, at bool, atX, atY int) {
 	held := p.Held()
+	if w.useCookItem(p, held, at, atX, atY) { // a pot onto the fire, a bowl into the sea; see cooking.go
+		return
+	}
 	if at {
 		if k, soft, ok := PlacedBy(held); ok && !w.buildSpot(p, atX, atY, k, soft) {
 			return

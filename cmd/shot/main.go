@@ -794,6 +794,7 @@ func main() {
 		conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: before}
 		snap.Players[0].HurtSeq++
 	}
+	cookScene(&snap, sx, sy) // see cook.go
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}
 
 	if *audioSettings != "" {

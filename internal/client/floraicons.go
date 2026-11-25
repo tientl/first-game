@@ -166,10 +166,10 @@ func floraIconCanvases() map[sim.ItemKind]*canvas {
 		f.q.flat(aEll(3.1, 13.3, 1.1, 0.8), plain(hex(0xeef8dc)))
 	})
 	mk(sim.ItemHerb, func(f *flo) {
-		f.stalk(herbRamp, 0.5, 0.4, -0.1, [2]float64{7.6, 14.6}, [2]float64{7.8, 11}, [2]float64{8.4, 8}, [2]float64{8.8, 5}, nil)
-		f.leafAt(7.8, 12.6, 2.5, 6.4, 2.1, 0.12, leafSaw, herbRamp, 5, 0)
-		f.leafAt(7.8, 12, 0.6, 6.6, 2.1, 0.12, leafSaw, herbRamp, 5, 0.06)
-		f.leafAt(7.9, 10.6, 1.9, 4.4, 1.5, 0.05, leafSaw, herbRamp, 4, 0.1)
+		f.stalk(herbLeafRamp, 0.5, 0.4, -0.1, [2]float64{7.6, 14.6}, [2]float64{7.8, 11}, [2]float64{8.4, 8}, [2]float64{8.8, 5}, nil)
+		f.leafAt(7.8, 12.6, 2.5, 6.4, 2.1, 0.12, leafSaw, herbLeafRamp, 5, 0)
+		f.leafAt(7.8, 12, 0.6, 6.6, 2.1, 0.12, leafSaw, herbLeafRamp, 5, 0.06)
+		f.leafAt(7.9, 10.6, 1.9, 4.4, 1.5, 0.05, leafSaw, herbLeafRamp, 4, 0.1)
 		for k := 0; k < 9; k++ {
 			a := math.Pi * (0.06 + 0.88*float64(k)/8)
 			f.c.ellipse((8.8-math.Cos(a)*3.6)*fk, (4.4-math.Sin(a)*2)*fk, 3.4, 3, func(px, py int, nx, ny float64) color.RGBA {

@@ -51,6 +51,16 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 		}
 	}
 
+	if id := self.OpenCook(); id != 0 {
+		if c, ok := s.world.CookContents(id); ok {
+			snap.Self.Cook = protocol.CookView{ID: id, Kind: c.Kind, Slots: c.Slots, Dish: c.Dish, State: c.State,
+				Progress: int32(c.Progress), Total: int32(c.Total), Fuel: int32(c.Fuel)}
+		}
+	}
+	for i, t := range self.Buffs() {
+		snap.Self.Cook.Buffs[i] = int32(t)
+	}
+
 	r := float64(s.cfg.InterestRadius)
 	for i := range players {
 		p := &players[i]
@@ -103,6 +113,7 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Stage: uint8(e.GrowthStage(tick)),
 			Fuel:  entityFuel(e, tick),
 			Var:   e.Var,
+			Cook:  e.Cook,
 		})
 	})
 	snap.Season, snap.Weather = sim.SeasonOf(tick), s.world.Weather()

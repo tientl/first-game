@@ -181,6 +181,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		func() { g.drawHDTest(w, cam) }, // the HD trial stones; see hdtest.go
 		func() { g.drawSprites(w, cam, alpha, target) },
 		func() { g.drawLines(w, cam, alpha) },
+		func() { g.drawCookFX(w, cam) },         // steam and smoke; see cookrender.go
 		func() { g.drawSky(w, cam, alpha) },     // flying reptiles overhead
 		func() { g.drawLairSky(w, cam) },        // birds startled near a lair
 		func() { g.drawHearts(w, cam) },         // beasts being fed; see ride.go
@@ -240,6 +241,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.drawBag(ui, uw, uh)
 	case overlayChest:
 		g.drawChest(ui, uw, uh)
+	case overlayCook:
+		g.drawCook(ui, uw, uh) // see cookui.go
 	case overlayCraft:
 		g.drawCraft(ui, uw, uh) // see craftui.go
 	}
@@ -422,6 +425,9 @@ func (g *Game) shadowWidth(e protocol.EntityView) float64 {
 		return w
 	}
 	if w, ok := graveShadow(e); ok {
+		return w
+	}
+	if w, ok := cookShadow(e); ok { // see cookrender.go
 		return w
 	}
 	size := sizeIdx(e.Big)
@@ -632,6 +638,8 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		return a.open.clams, 0
 	case sim.EntityFurnace:
 		return g.furnaceSprite(e), 0
+	case sim.EntityClay, sim.EntityMortar, sim.EntityOven, sim.EntityDryRack:
+		return g.cookSprite(e), 0 // see cookrender.go
 	default:
 		if tier, ok := sim.OreTier(e.Kind); ok {
 			return g.oreRock(e, tier), 0
@@ -654,8 +662,8 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 	case g.floraHidden(e):
 		return // under the ice
 	}
-	g.drawFloraUnder(dst, e, d) // see florarender.go
-	if g.drawTribalEntity(dst, e, d) {
+	g.drawFloraUnder(dst, e, d)                                       // see florarender.go
+	if g.drawTribalEntity(dst, e, d) || g.drawCookEntity(dst, e, d) { // a pot on the fire; see cookrender.go
 		return
 	}
 	s, sway := g.entitySprite(e)
@@ -690,6 +698,7 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 	if hasHive(e) {
 		g.drawHive(dst, e, s, d.sx, d.sy) // see jungleart.go
 	}
+	g.drawOvenFire(dst, e, d) // see cookrender.go
 }
 
 func (g *Game) drawPlayer(dst drawTarget, p protocol.PlayerView, d drawable) {
@@ -988,6 +997,8 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				if g.myHeld() != sim.ItemTorch {
 					col = colBad
 				}
+			case g.cookLabel(e) != "": // see cookrender.go
+				label = g.cookLabel(e)
 			case e.Kind == sim.EntityGiantTree && !g.has(sim.ToolAxe):
 				label, col = label+" — cần rìu, chặt rất lâu", colBad
 			case e.Kind == sim.EntityGiantTree:

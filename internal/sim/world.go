@@ -16,6 +16,7 @@ type World struct {
 	entities   map[EntityID]*Entity
 	active     map[EntityID]*Entity    // the entities stepEntities looks at; see active.go
 	chests     map[EntityID]*Inventory // what each chest holds; see chest.go
+	stations   map[EntityID]*Station   // what each cooking station holds; see cooking.go
 	graveOwner map[EntityID]string     // whose body each body is; see grave.go
 	nextEnt    EntityID
 
@@ -162,6 +163,7 @@ func (w *World) addEntity(kind EntityKind, tx, ty int) *Entity {
 }
 
 func (w *World) removeEntity(e *Entity) {
+	w.spillStation(e) // what was cooking falls on the ground; see cooking.go
 	delete(w.entities, e.ID)
 	delete(w.active, e.ID)
 	delete(w.chests, e.ID)
@@ -189,6 +191,7 @@ func (w *World) Step() {
 		w.stepPlayer(w.players[id])
 	}
 	w.stepEntities()
+	w.stepStations() // see cooking.go
 	w.stepCreatures()
 	w.stepWebs()
 	w.stepBoats()
@@ -209,7 +212,7 @@ func (w *World) stepEntities() {
 		switch e.Kind {
 		case EntityTree, EntityBerryBush, EntityGrassTuft, EntityTwig, EntityPebble, EntityCrop,
 			EntityCactus, EntityReed, EntityMushroom, EntityClam, EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree,
-			EntityFlower, EntityGlowPlant, EntityFlora:
+			EntityFlower, EntityGlowPlant, EntityClay, EntityFlora:
 			w.catchRain(e) // a pitcher plant fills fast in the rain: see flora.go
 			if !e.Ready && w.tick >= e.RegrowAt {
 				if e.FruitStump() {
@@ -229,6 +232,10 @@ func (w *World) stepEntities() {
 				e.Fuel-- // rain: it burns down twice as fast
 			}
 			if e.Fuel <= 0 {
+				if e.Kind == EntityCampfire && e.Var != 0 {
+					e.Fuel = 0 // the hearth under a pot stays, cold; see cooking.go
+					break
+				}
 				w.removeEntity(e) // deleting during range is safe in Go
 			}
 		case EntityCorpse:
@@ -240,7 +247,7 @@ func (w *World) stepEntities() {
 				w.growSapling(e)
 			}
 
-		case EntityFurnace:
+		case EntityFurnace, EntityOven:
 			if e.Fuel > 0 {
 				e.Fuel-- // a cold furnace stays, waiting for fuel
 			}

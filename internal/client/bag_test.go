@@ -23,11 +23,12 @@ func TestRelatedRecipesMakeThenUse(t *testing.T) {
 	if got := recipeIDs(relatedRecipes(sim.ItemAxe)); len(got) != 1 || got[0] != sim.RecipeAxe {
 		t.Errorf("axe lists %v, want just the axe recipe", got)
 	}
-	// Raw meat is used by cooking; cooked meat is made by it.
-	for _, item := range []sim.ItemKind{sim.ItemMeat, sim.ItemCookedMeat} {
-		if got := recipeIDs(relatedRecipes(item)); len(got) != 1 || got[0] != sim.RecipeCookMeat {
-			t.Errorf("%s lists %v, want the cooking recipe", item.Def().Name, got)
-		}
+	// Raw meat is used by cooking (and by salting); cooked meat is made by it.
+	if got := recipeIDs(relatedRecipes(sim.ItemMeat)); len(got) != 2 || got[0] != sim.RecipeCookMeat || got[1] != sim.RecipeSaltMeat {
+		t.Errorf("raw meat lists %v, want the cooking recipe and the salting", got)
+	}
+	if got := recipeIDs(relatedRecipes(sim.ItemCookedMeat)); len(got) != 1 || got[0] != sim.RecipeCookMeat {
+		t.Errorf("cooked meat lists %v, want the cooking recipe", got)
 	}
 	// Everything listed for wood really involves wood.
 	for _, r := range relatedRecipes(sim.ItemWood) {

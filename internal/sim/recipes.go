@@ -54,10 +54,21 @@ const (
 
 	RecipeBattleAxe = RecipeSailboat + 1
 
+	// Cooking gear: see cooking.go.
+	RecipeClayPot  = RecipeBattleAxe + 1
+	RecipeClayBowl = RecipeClayPot + 1
+	RecipeGrill    = RecipeClayBowl + 1
+	RecipeStonePan = RecipeGrill + 1
+	RecipeMortar   = RecipeStonePan + 1
+	RecipeOven     = RecipeMortar + 1
+	RecipeDryRack  = RecipeOven + 1
+	RecipeFlask    = RecipeDryRack + 1
+	RecipeSaltMeat = RecipeFlask + 1
+
 	// The new plants: see flora.go.
-	RecipeRope        = RecipeBattleAxe + 1 // flax fibre twisted into rope
-	RecipeVineRope    = RecipeRope + 1      // or lianas plaited
-	RecipeMossBandage = RecipeVineRope + 1  // moss and flax in place of silk and grass
+	RecipeRope        = RecipeSaltMeat + 1 // flax fibre twisted into rope
+	RecipeVineRope    = RecipeRope + 1     // or lianas plaited
+	RecipeMossBandage = RecipeVineRope + 1 // moss and flax in place of silk and grass
 	RecipeHerbPotion  = RecipeMossBandage + 1
 	RecipeBambooWall  = RecipeHerbPotion + 1
 	RecipeBambooFloor = RecipeBambooWall + 1
@@ -446,8 +457,18 @@ const (
 	NoticeCantToss      // Arg: ItemKind; nowhere dry to throw it: in the water or in a boat
 	NoticeTooFar        // the tile chosen to build on is out of reach; see aim.go
 	NoticeNothingNear   // E found nothing to pick up, open or get on
-	NoticeFoodPoison    // Arg: ItemKind eaten that poisons; see flora.go
-	NoticeCured         // Arg: ItemKind that drew the poison out
+
+	// Cooking: see cooking.go. Arg: ItemKind unless noted.
+	NoticeCantCook     // this is of no use at this station
+	NoticeCookFull     // no room left among the ingredients
+	NoticeCookNotEmpty // a station is only taken down empty; Arg unused
+	NoticeNeedHearth   // a pot, grill or pan goes on a campfire with nothing on it
+	NoticeNoWater      // no water in reach to fill the bowl or flask held
+	NoticeWrongWater   // a bowl is for sea water, a flask for fresh
+	NoticeScooped      // filled: Arg is what it is now
+
+	NoticeFoodPoison // Arg: ItemKind eaten that poisons; see flora.go
+	NoticeCured      // Arg: ItemKind that drew the poison out
 )
 
 // CommandKind is a discrete player request, as opposed to held input.
@@ -470,6 +491,11 @@ const (
 	CmdVictorySeen               // I have closed the game-beaten screen; see bosses.go
 	CmdToss                      // throw Count of the stack in Slot on the ground in front; see toss.go
 	CmdInteract                  // E: pick up a pile, open a chest, get on or off a beast or boat; see aim.go
+	CmdCookPut                   // move Count (0: all) of the stack in my Slot into my open cooking station; see cooking.go
+	CmdCookTake                  // move the stack in the station's Slot into my inventory
+	CmdCookClose                 // close my open station
+	CmdCookTakeDown              // take my open station down, or its gear off the fire; it must be empty
+	CmdCookStoke                 // put a coal or a log on the fire of my open station
 	CmdFeed                      // give the held food to the beast pointed at, or the nearest that eats it; see aim.go
 )
 

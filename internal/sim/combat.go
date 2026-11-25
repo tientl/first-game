@@ -117,7 +117,7 @@ func BlowDamage(held ItemKind, k CreatureKind) int {
 // tells p when it is a critical one.
 func (w *World) blow(p *Player, k CreatureKind) int {
 	r := w.random()
-	d := float64(BlowDamage(p.Held(), k)) * (1 + (r.Float64()*2-1)*DamageSpread)
+	d := float64(BlowDamage(p.Held(), k)) * (1 + (r.Float64()*2-1)*DamageSpread) * p.buffDamage() // see cooking.go
 	if r.Float64() < CritChance {
 		d *= CritBonus
 		p.notify(NoticeCrit, 0)

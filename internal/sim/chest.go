@@ -42,7 +42,7 @@ func (w *World) openChest(p *Player, e *Entity) bool {
 	if w.chests[e.ID] == nil {
 		w.chests[e.ID] = &Inventory{}
 	}
-	p.chest = e.ID
+	p.chest, p.cook.open = e.ID, 0
 	return false
 }
 
