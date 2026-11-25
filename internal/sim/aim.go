@@ -408,7 +408,7 @@ func (w *World) interactKey(p *Player) {
 	usable := func(e *Entity, aimed bool) bool {
 		switch e.Kind {
 		case EntityChest, EntityGrave, EntityTreasure:
-			return e.Kind != EntityTreasure || e.Ready
+			return e.Kind != EntityTreasure || w.treasureLeft(e)
 		case EntityBed:
 			return aimed // a bed only when pointed at: E by the bed is mostly for something else
 		}

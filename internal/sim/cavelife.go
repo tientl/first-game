@@ -337,12 +337,27 @@ func treasureLoot(id EntityID, depth int) []Ingredient {
 	return out
 }
 
-// openTreasure opens an old chest: its hoard spills on the ground, and it
-// stays open and empty.
+// openTreasure opens an old chest. The first time, its hoard is laid out in
+// its slots and it stays open for good; then, and every time after, it opens
+// like a chest for p to take what is inside (and put things in). Before save
+// version 14 the hoard spilled on the ground: those chests open empty.
 func (w *World) openTreasure(p *Player, e *Entity) bool {
-	e.Ready = false
-	e.RegrowAt = math.MaxUint64 // never fills again
-	w.dropAt(float64(e.TX)+0.5, float64(e.TY)+0.9, treasureLoot(e.ID, int(e.Var)))
-	p.notify(NoticeTreasure, 0)
-	return true
+	if e.Ready {
+		e.Ready = false
+		e.RegrowAt = math.MaxUint64 // never fills again
+		inv := &Inventory{}
+		for _, it := range treasureLoot(e.ID, int(e.Var)) {
+			inv.Add(it.Item, it.Count)
+		}
+		w.chests[e.ID] = inv
+		p.notify(NoticeTreasure, 0)
+	}
+	return w.openChest(p, e)
+}
+
+// treasureLeft reports whether old chest e is still worth opening: never
+// opened, or something still lies in it.
+func (w *World) treasureLeft(e *Entity) bool {
+	inv := w.chests[e.ID]
+	return e.Ready || inv != nil && *inv != (Inventory{})
 }

@@ -137,7 +137,7 @@ func (g *Game) drawCombat(screen *ebiten.Image, cam camera, scale, alpha float64
 			size, col, label = 3, color.RGBA{0xff, 0x9a, 0x2a, 0xff}, label+"!"
 		}
 		col.A = uint8(255 * math.Min(1, (1-u)*2.5))
-		g.text(screen, label, sx*scale, (sy-u*14)*scale-10*size, col, text.AlignCenter, size)
+		g.text(screen, label, sx*scale, (sy-u*14)*scale-10*size*uiK(), col, text.AlignCenter, size*uiK())
 	}
 	pops = kept
 }

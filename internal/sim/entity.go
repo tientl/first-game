@@ -211,7 +211,9 @@ func Interactable(kind EntityKind, ready, hasWood bool) bool {
 		return true
 	case EntityGrave:
 		return true // see grave.go
-	case EntityTrap, EntityFlower, EntityGlowPlant, EntityTreasure:
+	case EntityTreasure:
+		return true // opened, it opens again like a chest; see cavelife.go
+	case EntityTrap, EntityFlower, EntityGlowPlant:
 		return ready || kind == EntityTrap // a sprung trap is set again
 	default:
 		return false

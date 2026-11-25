@@ -6,7 +6,7 @@ package sim
 
 const (
 	HotbarSlots = 10
-	BagSlots    = 20
+	BagSlots    = 30 // 20 before save version 14: older inventories load with the last 10 empty
 	NumSlots    = HotbarSlots + BagSlots
 )
 

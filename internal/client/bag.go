@@ -90,16 +90,24 @@ const (
 
 // drawSlot draws one inventory slot and what is in it.
 func (g *Game) drawSlot(dst *ebiten.Image, s sim.Slot, x, y float64, st slotStyle) {
-	fx, fy := float32(x), float32(y)
+	g.drawSlotSized(dst, s, x, y, slotPx, st)
+}
+
+// drawSlotSized draws a slot px across: a sunken well with a lit lower
+// edge, its item's icon as big as fits in whole pixels, and the count.
+func (g *Game) drawSlotSized(dst *ebiten.Image, s sim.Slot, x, y float64, px int, st slotStyle) {
+	fx, fy, p := float32(x), float32(y), float32(px)
 	switch st {
 	case slotHeld, slotFocus:
-		fillRoundRect(dst, fx-3, fy-3, slotPx+6, slotPx+6, 9, colKey)
-		fillRoundRect(dst, fx, fy, slotPx, slotPx, 7, color.RGBA{58, 46, 22, 255})
+		fillRoundRect(dst, fx-3, fy-3, p+6, p+6, 9, colKey)
+		fillRoundRect(dst, fx, fy, p, p, 7, color.RGBA{58, 46, 22, 255})
 	case slotLifted:
-		fillRoundRect(dst, fx-2, fy-2, slotPx+4, slotPx+4, 8, color.RGBA{255, 255, 255, 120})
-		fillRoundRect(dst, fx, fy, slotPx, slotPx, 7, colSlot)
+		fillRoundRect(dst, fx-2, fy-2, p+4, p+4, 8, color.RGBA{255, 255, 255, 120})
+		fillRoundRect(dst, fx, fy, p, p, 7, colSlot)
 	default:
-		fillRoundRect(dst, fx, fy, slotPx, slotPx, 7, colSlot)
+		fillRoundRect(dst, fx, fy, p, p, 7, color.RGBA{70, 74, 92, 235}) // a lit lower edge
+		fillRoundRect(dst, fx, fy, p, p-2, 7, color.RGBA{10, 11, 17, 235})
+		fillRoundRect(dst, fx+1, fy+2, p-2, p-4, 6, color.RGBA{34, 37, 50, 235})
 	}
 	if s.Empty() {
 		return
@@ -108,9 +116,12 @@ func (g *Game) drawSlot(dst *ebiten.Image, s sim.Slot, x, y float64, st slotStyl
 	if st == slotLifted {
 		a = 0.3
 	}
-	drawIcon(dst, g.art.icons[s.Item], x+(slotPx-48)/2, y+(slotPx-48)/2, 3, a)
+	icon := g.art.icons[s.Item]
+	ib := icon.Bounds()
+	k := float64(max(1, (px-8)/max(1, ib.Dx())))
+	drawIcon(dst, icon, x+(float64(px)-float64(ib.Dx())*k)/2, y+(float64(px)-float64(ib.Dy())*k)/2, k, a)
 	if s.Item.MaxCount() > 1 {
-		g.text(dst, fmt.Sprintf("%d", s.Count), x+slotPx-5, y+slotPx-17, colWhite, text.AlignEnd, 1)
+		g.text(dst, fmt.Sprintf("%d", s.Count), x+float64(px)-5, y+float64(px)-17, colWhite, text.AlignEnd, 1)
 	}
 }
 
@@ -297,7 +308,7 @@ func (g *Game) updateBag() {
 		b.scrollCards(1)
 	}
 	if b.drawn {
-		mx, my := ebiten.CursorPosition()
+		mx, my := uiCursor()
 		moved := mx != b.lastMX || my != b.lastMY
 		b.lastMX, b.lastMY = mx, my
 		g.bagMouse(float64(mx), float64(my), moved,
@@ -401,22 +412,29 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 	pw := max(gridW+48, cardCols*cardMinW+(cardCols-1)*12+32)
 	gridH := float64(bagRows*(slotPx+slotGap) - slotGap)
 	// As many rows of cards as the window has room for; the rest scroll.
-	fixedH := 56 + gridH + 26 + slotPx + 18 + 70 + 34 + 64
+	fixedH := 44 + gridH + 24 + slotPx + 14 + 70 + 20 + 52 // fits a 960×540 canvas: Full HD at UI scale 2
 	b.cardRowsShown = max(1, min(cardRows, int((float64(sh)-16-fixedH+cardGap)/(cardH+cardGap))))
 	b.scrollCards(0)
 	cardsH := float64(b.cardRowsShown)*(cardH+cardGap) - cardGap
 	ph := fixedH + cardsH
 	px, py := float64(int((float64(sw)-pw)/2)), float64(int(max(8, (float64(sh)-ph)/2)))
-	panel(screen, float32(px), float32(py), float32(pw), float32(ph))
+	drawFrame(screen, float32(px), float32(py), float32(pw), float32(ph)) // see hud.go
 	b.panelX, b.panelY, b.panelW, b.panelH = px, py, pw, ph
 
-	g.text(screen, "Túi đồ", px+20, py+14, colWhite, text.AlignStart, 2)
-	g.text(screen, fmt.Sprintf("Mỗi ô chứa tối đa %d", sim.MaxStack), px+pw-20, py+22, colMuted, text.AlignEnd, 1)
+	used := 0
+	for _, s := range inv[sim.HotbarSlots:] {
+		if !s.Empty() {
+			used++
+		}
+	}
+	g.text(screen, "Túi đồ", px+20, py+10, colWhite, text.AlignStart, 2)
+	g.text(screen, fmt.Sprintf("%d/%d ô  ·  mỗi ô chứa tối đa %d", used, sim.BagSlots, sim.MaxStack), px+pw-20, py+18, colMuted, text.AlignEnd, 1)
 
 	// Slots: the bag, then the hotbar under it.
-	b.gridX, b.gridY = px+(pw-gridW)/2, py+56
-	b.hotY = b.gridY + gridH + 26
-	g.text(screen, "Ô nhanh — chọn bằng phím 1-0, món ở ô viền vàng là món đang cầm", b.gridX, b.hotY-19, colMuted, text.AlignStart, 1)
+	b.gridX, b.gridY = px+(pw-gridW)/2, py+44
+	b.hotY = b.gridY + gridH + 24
+	vector.FillRect(screen, float32(b.gridX), float32(b.hotY)-21, float32(gridW), 1, fade(colKey, 50), false)
+	g.text(screen, "Ô nhanh — chọn bằng phím 1-0, món ở ô viền vàng là món đang cầm", b.gridX, b.hotY-18, colMuted, text.AlignStart, 1)
 	for i := range sim.NumSlots {
 		x, y := b.slotXY(i)
 		st := slotPlain
@@ -428,7 +446,7 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 		}
 		g.drawSlot(screen, inv[i], x, y, st)
 		if sim.IsHotbar(i) {
-			g.text(screen, hotbarLabel(i), x+5, y+2, colMuted, text.AlignStart, 1)
+			g.drawKeyBadge(screen, hotbarLabel(i), x-3, y-3, i == g.hotSel)
 			if i == g.hotSel {
 				fillRoundRect(screen, float32(x)+14, float32(y)+slotPx+4, slotPx-28, 3, 1.5, colKey)
 			}
@@ -459,7 +477,7 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 
 	// What the pointed-at slot holds.
 	s := inv[b.cursor]
-	dx, dy := px+24, b.hotY+slotPx+18
+	dx, dy := px+24, b.hotY+slotPx+14
 	if s.Empty() {
 		g.text(screen, "Ô trống", dx, dy, colMuted, text.AlignStart, 2)
 		g.text(screen, "Nhấp vào ô có đồ để nhấc lên, rồi nhấp vào ô khác để đặt xuống, gộp hoặc đổi chỗ.", dx, dy+32, colMuted, text.AlignStart, 1)
@@ -492,9 +510,9 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 	}
 
 	// The recipes related to the item last clicked, a few to a row.
-	sy := dy + 82
-	vector.FillRect(screen, float32(px)+20, float32(sy)-10, float32(pw)-40, 1, color.RGBA{255, 255, 255, 30}, false)
-	b.cardX, b.cardY, b.cardW = px+16, sy+22, (pw-32-12*(cardCols-1))/cardCols
+	sy := dy + 72
+	vector.FillRect(screen, float32(px)+20, float32(sy)-10, float32(pw)-40, 1, fade(colWhite, 40), false)
+	b.cardX, b.cardY, b.cardW = px+16, sy+20, (pw-32-12*(cardCols-1))/cardCols
 	switch {
 	case !b.focus.Valid():
 		g.text(screen, "Chế tạo", px+24, sy, colKey, text.AlignStart, 1)
@@ -518,10 +536,10 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 		g.drawRecipeCard(screen, r, x, y, b.cardW, i == b.hoverCard)
 	}
 
-	g.text(screen, "Kéo thả (hoặc nhấp, nhấp): di chuyển  ·  Shift+nhấp: chuyển túi ↔ ô nhanh  ·  1-0: đưa vào ô nhanh  ·  E: ăn  ·  C: bảng chế tạo  ·  Tab / Esc: đóng",
-		px+pw/2, py+ph-28, colMuted, text.AlignCenter, 1)
+	g.text(screen, "Kéo thả: di chuyển  ·  Shift+nhấp: túi ↔ ô nhanh  ·  1-0: vào ô nhanh  ·  E: ăn  ·  C: chế tạo  ·  Tab / Esc: đóng",
+		px+pw/2, py+ph-26, colMuted, text.AlignCenter, 1)
 	g.text(screen, "Vứt xuống đất: kéo ra ngoài túi (cả chồng)  ·  chuột phải hoặc G: vứt 1  ·  Shift+G: vứt cả chồng",
-		px+pw/2, py+ph-46, colMuted, text.AlignCenter, 1)
+		px+pw/2, py+ph-44, colMuted, text.AlignCenter, 1)
 	b.drawn = true
 }
 

@@ -16,7 +16,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Nếu thiếu lượt dùng: **bớt số loài thú trong demo chứ không hạ chất lượng** (ưu tiên các loài ở đảo đầu tiên, rừng rậm, biển).
 - [ ] **Cảm giác đánh nhau** (mục 7): khựng lúc trúng đòn, thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh (hiệu ứng chém, va chạm lấy từ pixelfx); **giơ khiên đỡ**; thú **báo trước đòn** (lấy đà rõ ràng trước khi cắn, quất đuôi, lao).
 - [x] **Chế độ dev** (mục 1) — để test nhanh trước khi phát hành.
-- [ ] **Giao diện** (mục 3): HUD gọn, bỏ ô hướng dẫn (F1), túi 30 ô, rương có ô đồ, chuột phải cắm đuốc.
+- [x] **Giao diện** (mục 3): HUD gọn, bỏ ô hướng dẫn (F1), túi 30 ô, rương có ô đồ, chuột phải cắm đuốc.
 - [x] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
 - [x] **Thời gian** (mục 4): ✅ ngày 16 phút, mùa 12 ngày, ngày và đêm theo mùa; ✅ **cửa hang** (miệng hang quay xuống phía dưới màn hình, xem mục 4).
 - [x] **Chỉ 2 trùm** trong demo: các trùm khác tắt (không sinh ra, không hiện trên bản đồ); màn hình "Phá đảo!" tính theo 2 trùm. Hai trùm có thanh máu và nhạc chiến đấu (mục 8; nhạc ✅ `bossmusic.go`). Trùm được chọn: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu).
@@ -70,16 +70,16 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 ## 3. Giao diện và điều khiển
 
-- [ ] **Chỉnh lại HUD cho hợp lý** (hiện ở 1080p mọi thứ quá nhỏ, bảng phím tắt chiếm nhiều chỗ):
+- [x] **Chỉnh lại HUD cho hợp lý** (hiện ở 1080p mọi thứ quá nhỏ, bảng phím tắt chiếm nhiều chỗ):
   - **Phóng giao diện theo độ phân giải**: ở 1080p giao diện to gấp đôi (vẽ trên khung 960×540 rồi phóng lên), 720p giữ nguyên; chuột trong túi đồ, rương, chế tạo phải khớp theo.
   - **Bỏ ô hướng dẫn (bảng phím tắt) bên trái màn hình.** Nếu cần xem phím thì bấm **F1** để mở; gợi ý theo ngữ cảnh (ví dụ "Chuột phải: cắm đuốc") hiện 1 dòng nhỏ trên thanh công cụ.
   - **Máu / No bụng / (Khát)**: thanh to hơn, có icon, số dạng "72/100" nằm gọn trong thanh, không tràn chữ.
   - **Trạng thái** (lạnh, trúng độc, dính tơ, đói, khát…): thành các ô icon nhỏ dưới thanh máu, kèm chữ ngắn; câu dài chỉ hiện lúc mới bị.
   - **Đồng hồ ngày / mùa / thời tiết** và **bản đồ nhỏ** góc trên phải gộp thành một khối gọn, có icon thời tiết.
   - **Thanh công cụ**: ô to hơn, số phím rõ hơn, tên món đang cầm hiện rõ.
-- [ ] **Túi đồ**: tăng lên 30 ô; thiết kế lại viền túi đồ cho đẹp hơn.
-- [ ] **Rương**: mở rương thì hiện ô chứa đồ trong rương (như túi đồ), không tự rơi đồ ra đất.
-- [ ] **Đuốc**: khi cầm đuốc không hiện ô báo chỗ cắm đuốc nữa, vì đuốc cầm tay đã phát sáng; bấm **chuột phải** để cắm đuốc xuống.
+- [x] **Túi đồ**: tăng lên 30 ô; thiết kế lại viền túi đồ cho đẹp hơn.
+- [x] **Rương**: mở rương thì hiện ô chứa đồ trong rương (như túi đồ), không tự rơi đồ ra đất.
+- [x] **Đuốc**: khi cầm đuốc không hiện ô báo chỗ cắm đuốc nữa, vì đuốc cầm tay đã phát sáng; bấm **chuột phải** để cắm đuốc xuống.
 
 ## 4. Thế giới và môi trường
 

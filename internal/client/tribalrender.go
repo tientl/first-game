@@ -714,7 +714,7 @@ func (g *Game) tribalEntityLabel(e protocol.EntityView, label string, col color.
 		if e.Ready {
 			return label + " — mở", colGood
 		}
-		return label + " (đã mở)", colMuted
+		return label + " (đã mở) — xem", colMuted
 	case sim.EntityTrap:
 		if !e.Ready {
 			return label + " (đã sập) — đặt lại", col

@@ -166,7 +166,7 @@ func (b *buttonList) handle() int {
 	if b.w == 0 {
 		return -1 // not drawn yet
 	}
-	mx, my := ebiten.CursorPosition()
+	mx, my := uiCursor()
 	moved := mx != b.lastMX || my != b.lastMY
 	b.lastMX, b.lastMY = mx, my
 	fx, fy := float64(mx), float64(my)

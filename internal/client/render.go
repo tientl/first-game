@@ -108,7 +108,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		return
 	}
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
-	g.lastScreenH, g.lastScreenW = sh, sw
+	uiScaleNow = uiScaleFor(sh) // world labels' text grows with the interface
 	if !g.ready || !g.hasCurr {
 		msg := "Đang tải…"
 		if g.disconnected {
@@ -166,6 +166,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	g.updateCave() // before anything hides under, or shows from, a cave roof
 	target, far := g.target()
+	g.hudTarget = target
 
 	w := g.world
 	w.begin(canvas, scale, cw, ch, cam)
@@ -215,31 +216,37 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawWorldLabels(screen, cam, float64(scale), target)
 	g.drawAimCues(screen, cam, float64(scale), target, far) // see mouse.go
 	g.drawDigLabel(screen, cam, float64(scale))
-	g.drawFishingLabels(screen, cam, float64(scale), sw, sh)
-	g.drawHUD(screen, sw, sh)
-	g.drawBossBar(screen, sw) // see bossui.go
+	g.drawFishingLabels(screen, cam, float64(scale))
+
+	// The interface, on its own canvas scaled to the screen; see uiscale.go.
+	ui, uw, uh := beginUI(screen)
+	g.lastScreenH, g.lastScreenW = uh, uw
+	g.drawFishingMessage(ui, uw, uh)
+	g.drawHUD(ui, uw, uh)
+	g.drawBossBar(ui, uw) // see bossui.go
 	switch g.overlay {
 	case overlayMap:
-		g.drawMap(screen, sw, sh)
+		g.drawMap(ui, uw, uh)
 	case overlayBag:
-		g.drawBag(screen, sw, sh)
+		g.drawBag(ui, uw, uh)
 	case overlayChest:
-		g.drawChest(screen, sw, sh)
+		g.drawChest(ui, uw, uh)
 	case overlayCraft:
-		g.drawCraft(screen, sw, sh) // see craftui.go
+		g.drawCraft(ui, uw, uh) // see craftui.go
 	}
-	g.drawNotice(screen, sw)      // above the bag, so a failed craft or meal says why
-	g.drawVictory(screen, sw, sh) // every boss has fallen; see bossui.go
-	g.drawDev(screen, sw, sh)     // see devconsole.go
+	g.drawNotice(ui, uw)      // above the bag, so a failed craft or meal says why
+	g.drawVictory(ui, uw, uh) // every boss has fallen; see bossui.go
+	g.drawDev(ui, uw, uh)     // see devconsole.go
 
 	if g.disconnected && !g.paused {
-		g.dim(screen, sw, sh, 0.6)
-		g.text(screen, "Mất kết nối tới máy chủ", float64(sw/2), float64(sh/2-16), colWhite, text.AlignCenter, 2)
-		g.text(screen, "Nhấn Esc để về menu", float64(sw/2), float64(sh/2+20), colMuted, text.AlignCenter, 1)
+		g.dim(ui, uw, uh, 0.6)
+		g.text(ui, "Mất kết nối tới máy chủ", float64(uw/2), float64(uh/2-16), colWhite, text.AlignCenter, 2)
+		g.text(ui, "Nhấn Esc để về menu", float64(uw/2), float64(uh/2+20), colMuted, text.AlignCenter, 1)
 	}
 	if g.paused {
-		g.drawPause(screen, sw, sh)
+		g.drawPause(ui, uw, uh)
 	}
+	endUI(screen, ui)
 }
 
 func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target targetView) {
@@ -1004,7 +1011,7 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			op.GeoM.Translate(sx*scale, topArt*scale)
 			screen.DrawImage(g.art.marker, op)
 		}
-		g.text(screen, label, sx*scale, topArt*scale-18, col, text.AlignCenter, 1)
+		g.text(screen, label, sx*scale, topArt*scale-18*uiK(), col, text.AlignCenter, uiK())
 	}
 	for _, p := range g.curr.Players {
 		wx, wy, _ := g.lerpPlayer(p, alpha)
@@ -1017,12 +1024,12 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			for i := range 2 {
 				ph := math.Mod(float64(g.frame)/90+float64(i)*0.5, 1)
 				zx, zy := (sx-4+ph*6)*scale, (sy-14-ph*12)*scale
-				g.text(screen, "z", zx, zy, color.RGBA{220, 226, 255, uint8(255 * (1 - ph))}, text.AlignCenter, 1+float64(i))
+				g.text(screen, "z", zx, zy, color.RGBA{220, 226, 255, uint8(255 * (1 - ph))}, text.AlignCenter, (1+float64(i))*uiK())
 			}
 		}
 		if p.ID == g.myID {
 			continue
 		}
-		g.text(screen, p.Name, sx*scale, (sy-30)*scale-14, colWhite, text.AlignCenter, 1)
+		g.text(screen, p.Name, sx*scale, (sy-30)*scale-14*uiK(), colWhite, text.AlignCenter, uiK())
 	}
 }

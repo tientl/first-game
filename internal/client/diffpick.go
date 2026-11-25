@@ -167,7 +167,7 @@ func (p *diffPicker) handle() int {
 	if p.scale == 0 {
 		return -1 // not drawn yet
 	}
-	mx, my := ebiten.CursorPosition()
+	mx, my := uiCursor()
 	moved := mx != p.lastMX || my != p.lastMY
 	p.lastMX, p.lastMY = mx, my
 	i := diffHit((float64(mx)-p.ox)/p.scale, (float64(my)-p.oy)/p.scale)

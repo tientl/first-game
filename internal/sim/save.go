@@ -24,7 +24,10 @@ import (
 //   - 11: a beast's health counts in HealthScale units (weapons do damage, not hits).
 //   - 12: the bosses: which have fallen, who has seen their lairs, the victory.
 //   - 13: a day lasts 16 minutes and a season 12 days; older ticks are doubled.
-const SaveVersion = 13
+//   - 14: the bag has 30 slots (it had 20), and so do chests; older inventories
+//     load as they were, with the new slots empty. An old chest in a cave
+//     opened like a chest; one opened before spilled its hoard already.
+const SaveVersion = 14
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
