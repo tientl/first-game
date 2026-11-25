@@ -35,6 +35,8 @@ const craftCols = 4 // recipe cards to a row
 // recipeTab is the tab recipe r is listed under, besides "all".
 func recipeTab(r sim.Recipe) craftTab {
 	switch {
+	case isCookRecipe(r): // pots, grills, ovens, racks; see cookrender.go
+		return tabCook
 	case !r.Gives.Valid() || isBoat(r.Gives):
 		return tabBuild
 	case r.NearFire || r.NearFurnace:

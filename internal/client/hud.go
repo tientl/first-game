@@ -186,7 +186,8 @@ const (
 	statusStarving
 	statusHungry
 	statusBees
-	numStatuses
+	statusBuff  // the first of the buffs of dishes, one for each sim.BuffKind; see cookrender.go
+	numStatuses = statusBuff + statusKind(sim.NumBuffs)
 )
 
 // status is one effect on the player: a chip under the bars, and the long
@@ -234,7 +235,7 @@ func (g *Game) statuses() []status {
 	if me, ok := g.me(); ok && me.Bees {
 		out = append(out, status{statusBees, "Ong đốt", "Bầy ong đang đuổi! Chạy thật xa tổ", colKey})
 	}
-	return out
+	return append(out, g.buffStatuses()...)
 }
 
 // noteStatuses remembers when each status started.
@@ -277,6 +278,8 @@ func (g *Game) drawStatusIcon(dst *ebiten.Image, k statusKind, x, y float32, c c
 		if k == statusStarving {
 			vector.StrokeLine(dst, x-6, y+6, x+6, y-6, 2, colBad, true)
 		}
+	case statusBuff, statusBuff + 1, statusBuff + 2, statusBuff + 3, statusBuff + 4:
+		drawBuffIcon(dst, sim.BuffKind(k-statusBuff), x, y, c)
 	case statusBees: // a bee
 		vector.FillCircle(dst, x-2, y-4, 3, color.RGBA{230, 240, 255, 200}, true)
 		vector.FillCircle(dst, x+2, y-4, 3, color.RGBA{230, 240, 255, 200}, true)

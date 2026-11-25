@@ -49,6 +49,7 @@ const (
 	overlayBag
 	overlayChest // a chest the server has opened for me; see chestui.go
 	overlayCraft // the crafting window; see craftui.go
+	overlayCook  // a cooking station the server has opened for me; see cookui.go
 )
 
 // Game implements ebiten.Game.
@@ -121,6 +122,7 @@ type Game struct {
 	bag     bagView
 	chest   chestView
 	craft   craftView
+	cook    cookView  // the cooking window; see cookui.go
 	ptr     pointer   // the mouse in play; see mouse.go
 	build   buildMode // a structure chosen to build, waiting for a tile
 	wmap    worldMap
@@ -309,6 +311,9 @@ func (g *Game) setOverlay(o overlay) {
 	if g.overlay == overlayChest {
 		g.closeChest()
 	}
+	if g.overlay == overlayCook {
+		g.closeCook()
+	}
 	g.overlay = o
 }
 
@@ -415,6 +420,7 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 		g.entAt[[2]int{int(e.TX), int(e.TY)}] = i
 	}
 	g.syncChest()
+	g.syncCook()
 	if hadOld {
 		g.snapshotSounds(old, s)
 		g.noteBosses(old, s) // see bossui.go
@@ -481,6 +487,8 @@ func (g *Game) handleInput() {
 		g.updateBag() // in the bag the number keys move stacks instead
 	case overlayChest:
 		g.updateChest()
+	case overlayCook:
+		g.updateCook()
 	case overlayCraft:
 		g.updateCraft() // see craftui.go
 	default:
@@ -516,7 +524,7 @@ func (g *Game) updateKeys(dead bool) {
 			}
 		}
 		return
-	case g.overlay == overlayChest:
+	case g.overlay == overlayChest || g.overlay == overlayCook:
 		if inpututil.IsKeyJustPressed(ebiten.KeyE) {
 			g.setOverlay(overlayNone) // E closes the chest it opened
 		}
@@ -817,7 +825,7 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 	case sim.NoticeOutOfCave:
 		return "Đã ra khỏi hang"
 	}
-	return ""
+	return cookNoticeText(kind, arg) // see cookrender.go
 }
 
 // myHeld is the item kind in the hotbar slot this player holds.

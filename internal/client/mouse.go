@@ -346,6 +346,13 @@ func rightClickUse(held sim.ItemKind, slot int, ctx useContext) (cmd sim.Command
 		}
 		return c, ""
 	}
+	if cookPlaced(held) { // a pot onto the fire, a bowl into the sea; see cookrender.go
+		c := sim.Command{Kind: sim.CmdPlace}
+		if ctx.aim {
+			c.At, c.TX, c.TY = true, int16(ctx.aimTX), int16(ctx.aimTY)
+		}
+		return c, ""
+	}
 	if _, _, ok := sim.PlacedBy(held); ok {
 		c := sim.Command{Kind: sim.CmdPlace}
 		if ctx.spot.ok && ctx.spot.valid && held != sim.ItemTorch {
@@ -419,6 +426,8 @@ func useLabel(cmd sim.Command, held sim.ItemKind) string {
 			return "cắm đuốc xuống trước mặt"
 		case sim.IsSeed(held):
 			return "gieo hạt ở chỗ con trỏ"
+		case cookPlaced(held):
+			return cookUseLabel(held)
 		}
 		return "dựng đầu thú lên cọc ở chỗ con trỏ"
 	}
