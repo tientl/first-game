@@ -57,3 +57,9 @@ Việc cần làm, theo thứ tự ưu tiên hiện tại. Làm xong mục nào 
   - **Trạng thái** (lạnh, trúng độc, dính tơ, đói, khát…): thành các ô icon nhỏ dưới thanh máu, kèm chữ ngắn; câu dài chỉ hiện lúc mới bị.
   - **Đồng hồ ngày / mùa / thời tiết** và **bản đồ nhỏ** góc trên phải gộp thành một khối gọn, có icon thời tiết.
   - **Thanh công cụ**: ô to hơn, số phím rõ hơn, tên món đang cầm hiện rõ.
+- [ ] **Thực vật mới** (ưu tiên: tre, bầu, nắp ấm, lanh, thảo dược):
+  - Cho khát nước: **tre** (ống đựng nước, vật liệu xây, thân tên); **cây bầu** (quả khô thành bình nước); **cây nắp ấm** (tự hứng nước mưa, uống được ngay; ở đầm lầy, rừng rậm).
+  - Cho cung tên: **lanh / gai** (sợi bện dây cung, dây thừng); **dây leo rừng** (dây thừng thô, bẫy); **nấm độc, quả độc** như cà dược (tẩm tên độc; ăn nhầm thì ngộ độc).
+  - Chữa bệnh: **lô hội** (chữa bỏng); **thảo dược** (giải độc cóc, nhện, bọ cạp; làm bình máu); **rêu** (đắp vết thương thay băng).
+  - Theo vùng: bờ biển có **cây đước**, **rong biển** ăn được; ao và đầm lầy có **hoa súng**, **sen** (lá cho cóc ngồi, hạt sen ăn được); gần nước có **cỏ đuôi ngựa**; đồng cỏ có **mộc lan**; sa mạc có **bụi gai** làm rào tự nhiên; vùng tuyết có **việt quất tuyết** ăn được mùa đông.
+  - Trồng trọt thêm: **lúa, ngô hoang, bí** (hiện chỉ có khoai lang).
