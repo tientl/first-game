@@ -225,5 +225,5 @@ func (g *Game) drawDigLabel(screen *ebiten.Image, cam camera, scale float64) {
 		return
 	}
 	x, y := cam.toScreen(float64(tx)+0.5, float64(ty))
-	g.text(screen, "Xới đất", x*scale, (y-4)*scale-18, colWhite, text.AlignCenter, 1)
+	g.text(screen, "Xới đất", x*scale, (y-4)*scale-18*uiK(), colWhite, text.AlignCenter, uiK())
 }

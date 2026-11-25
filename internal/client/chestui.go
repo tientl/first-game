@@ -7,15 +7,18 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
 
-// A chest opens when the server says the player has one open (Space beside
-// it), and shows its slots above the player's own: a click on a stack moves
-// it across. Closing it here (Esc, B) tells the server; walking away closes
-// it from the server's side.
+// A chest opens when the server says the player has one open (E or Space
+// beside it, or a click on it), and shows its slots above the player's own
+// bag and hotbar: a click on a stack moves it across. An old chest in a cave
+// (sim.EntityTreasure) opens the same way with its hoard inside. Closing it
+// here (E, B, Esc) tells the server; walking away closes it from the
+// server's side.
 
 // chestView is the chest window's state.
 type chestView struct {
@@ -29,25 +32,34 @@ type chestView struct {
 	btnX, btnY, btnW, btnH float64
 }
 
-const chestRows = (sim.NumSlots + bagCols - 1) / bagCols
+// The chest window's slots are smaller than the bag's, so a chest's rows and
+// all of mine fit on a 960×540 canvas (Full HD at UI scale 2).
+const (
+	chestPx  = 44
+	chestGap = 4
+	chestRow = chestPx + chestGap
+
+	chestRows = (sim.NumSlots + bagCols - 1) / bagCols
+)
 
 func (c *chestView) chestSlotXY(i int) (x, y float64) {
-	return c.chestX + float64(i%bagCols*(slotPx+slotGap)), c.chestY + float64(i/bagCols*(slotPx+slotGap))
+	return c.chestX + float64(i%bagCols*chestRow), c.chestY + float64(i/bagCols*chestRow)
 }
 
 // invSlotXY places my slots like the bag does: the bag rows, then the hotbar.
 func (c *chestView) invSlotXY(i int) (x, y float64) {
 	row, col := slotPos(i)
-	y = c.invY + float64(row*(slotPx+slotGap))
+	y = c.invY + float64(row*chestRow)
 	if row == bagRows {
 		y += 8 // the hotbar sits a little apart
 	}
-	return c.chestX + float64(col*(slotPx+slotGap)), y
+	return c.chestX + float64(col*chestRow), y
 }
 
-// slotAt is the slot under (x, y): chest slots first, then mine.
+// slotAt is the slot under (x, y), in UI pixels: chest slots first, then
+// mine.
 func (c *chestView) slotAt(x, y float64) int {
-	in := func(sx, sy float64) bool { return x >= sx && x < sx+slotPx && y >= sy && y < sy+slotPx }
+	in := func(sx, sy float64) bool { return x >= sx && x < sx+chestPx && y >= sy && y < sy+chestPx }
 	for i := range sim.NumSlots {
 		if in(c.chestSlotXY(i)) {
 			return i
@@ -80,18 +92,35 @@ func (g *Game) closeChest() {
 	g.command(sim.Command{Kind: sim.CmdChestClose})
 }
 
+// openChestKind is the kind of the chest open: a built chest, or an old one
+// from a cave (which cannot be taken down).
+func (g *Game) openChestKind() sim.EntityKind {
+	id := g.curr.Self.Chest
+	for _, e := range g.curr.Entities {
+		if e.ID == id {
+			return e.Kind
+		}
+	}
+	return sim.EntityChest
+}
+
 // updateChest moves stacks between the chest and my inventory on a click.
 func (g *Game) updateChest() {
+	mx, my := uiCursor()
+	g.chestMouse(float64(mx), float64(my), inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft))
+}
+
+// chestMouse is the pointer at (x, y) on the UI canvas over the chest
+// window, pressed or not.
+func (g *Game) chestMouse(x, y float64, press bool) {
 	c := &g.chest
 	c.hover, c.btnHover = -1, false
 	if !c.drawn {
 		return
 	}
-	mx, my := ebiten.CursorPosition()
-	x, y := float64(mx), float64(my)
 	c.hover = c.slotAt(x, y)
 	c.btnHover = c.btnW > 0 && x >= c.btnX && x < c.btnX+c.btnW && y >= c.btnY && y < c.btnY+c.btnH
-	if !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+	if !press {
 		return
 	}
 	switch {
@@ -106,20 +135,32 @@ func (g *Game) updateChest() {
 	}
 }
 
+// layout places the chest window on a canvas sw by sh: its frame, and the
+// first slots of the chest and of my bag.
+func (c *chestView) layout(sw, sh int) (px, py, pw, ph float64) {
+	pw = float64(bagCols*chestRow-chestGap) + 48
+	ph = 40 + chestRows*chestRow + 26 + float64(bagRows+1)*chestRow + 8 + 34 + 26
+	px, py = float64(int((float64(sw)-pw)/2)), float64(int(max(8, (float64(sh)-ph)/2)))
+	c.chestX, c.chestY = px+24, py+40
+	c.invY = c.chestY + chestRows*chestRow + 26
+	return px, py, pw, ph
+}
+
 func (g *Game) drawChest(screen *ebiten.Image, sw, sh int) {
 	g.dim(screen, sw, sh, 0.55)
 	c := &g.chest
 	contents, inv := &g.curr.Self.ChestSlots, &g.curr.Self.Inv
-	rowH := float64(slotPx + slotGap)
-	gridW := float64(bagCols*slotPx + (bagCols-1)*slotGap)
-	pw := gridW + 48
-	ph := 56 + chestRows*rowH + 40 + float64(bagRows+1)*rowH + 8 + 70
-	px, py := float64(int((float64(sw)-pw)/2)), float64(int(max(8, (float64(sh)-ph)/2)))
-	panel(screen, float32(px), float32(py), float32(pw), float32(ph))
+	kind := g.openChestKind()
+	px, py, pw, ph := c.layout(sw, sh)
+	gridW := float64(bagCols*chestRow - chestGap)
+	drawFrame(screen, float32(px), float32(py), float32(pw), float32(ph)) // see hud.go
 
-	g.text(screen, "Rương", px+20, py+14, colWhite, text.AlignStart, 2)
-	g.text(screen, "Nhấp vào một món để chuyển giữa rương và túi", px+pw-20, py+22, colMuted, text.AlignEnd, 1)
-	c.chestX, c.chestY = px+24, py+56
+	title := "Rương"
+	if kind == sim.EntityTreasure {
+		title = "Rương cổ"
+	}
+	g.text(screen, title, px+20, py+10, colWhite, text.AlignStart, 2)
+	g.text(screen, "Nhấp vào một món để chuyển giữa rương và túi", px+pw-20, py+18, colMuted, text.AlignEnd, 1)
 	style := func(i int) slotStyle {
 		if i == c.hover {
 			return slotFocus
@@ -128,21 +169,21 @@ func (g *Game) drawChest(screen *ebiten.Image, sw, sh int) {
 	}
 	for i := range sim.NumSlots {
 		x, y := c.chestSlotXY(i)
-		g.drawSlot(screen, contents[i], x, y, style(i))
+		g.drawSlotSized(screen, contents[i], x, y, chestPx, style(i))
 	}
 
-	c.invY = c.chestY + chestRows*rowH + 34
-	g.text(screen, "Túi đồ", c.chestX, c.invY-24, colKey, text.AlignStart, 1)
+	vector.FillRect(screen, float32(c.chestX), float32(c.invY)-21, float32(gridW), 1, fade(colKey, 50), false)
+	g.text(screen, "Túi đồ", c.chestX, c.invY-18, colKey, text.AlignStart, 1)
 	for i := range sim.NumSlots {
 		x, y := c.invSlotXY(i)
-		g.drawSlot(screen, inv[i], x, y, style(sim.NumSlots+i))
+		g.drawSlotSized(screen, inv[i], x, y, chestPx, style(sim.NumSlots+i))
 		if sim.IsHotbar(i) {
-			g.text(screen, hotbarLabel(i), x+5, y+2, colMuted, text.AlignStart, 1)
+			g.drawKeyBadge(screen, hotbarLabel(i), x-3, y-3, i == g.hotSel)
 		}
 	}
 
 	// What is under the pointer, and the way to take an empty chest down.
-	fy := c.invY + float64(bagRows+1)*rowH + 8 + 12
+	fy := c.invY + float64(bagRows+1)*chestRow + 8 + 10
 	var s sim.Slot
 	switch {
 	case c.hover >= sim.NumSlots:
@@ -158,7 +199,7 @@ func (g *Game) drawChest(screen *ebiten.Image, sw, sh int) {
 		g.text(screen, fmt.Sprintf("%s ×%d  %s", s.Item.Def().Name, s.Count, where), c.chestX, fy, colWhite, text.AlignStart, 1)
 	}
 	c.btnW = 0
-	if *contents == (sim.Inventory{}) {
+	if *contents == (sim.Inventory{}) && kind == sim.EntityChest {
 		label := fmt.Sprintf("Dỡ rương (lấy lại %d gỗ)", sim.ChestRefund)
 		c.btnW, c.btnH = g.textWidth(label)+24, 26
 		c.btnX, c.btnY = px+pw-24-c.btnW, fy-6
@@ -169,7 +210,7 @@ func (g *Game) drawChest(screen *ebiten.Image, sw, sh int) {
 		fillRoundRect(screen, float32(c.btnX), float32(c.btnY), float32(c.btnW), float32(c.btnH), 7, bg)
 		g.text(screen, label, c.btnX+c.btnW/2, c.btnY+5, colKey, text.AlignCenter, 1)
 	}
-	g.text(screen, "B / Esc: đóng  ·  đi xa rương cũng tự đóng", px+pw/2, py+ph-26, colMuted, text.AlignCenter, 1)
+	g.text(screen, "E / B / Esc: đóng  ·  đi xa rương cũng tự đóng", px+pw/2, py+ph-24, colMuted, text.AlignCenter, 1)
 	c.drawn = true
 }
 

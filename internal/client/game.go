@@ -92,7 +92,12 @@ type Game struct {
 	hotSel, sentSel int
 	selKnown        bool
 	selChangedAt    time.Time // for the item name shown above the hotbar
-	wheel           float64   // mouse wheel travel not yet turned into a step
+
+	showHelp  bool              // F1: the full list of keys; see hud.go
+	hudTarget targetView        // what Action works on, for the hint over the hotbar
+	statusOn  [numStatuses]bool // the status effects last drawn
+	statusAt  [numStatuses]int  // when each began, for its long line
+	wheel     float64           // mouse wheel travel not yet turned into a step
 
 	notice      string
 	noticeUntil time.Time
@@ -136,7 +141,7 @@ type Game struct {
 	drawList []drawable
 	frame    int
 
-	lastScreenH int // the screen height last drawn, for mouse hit-testing
+	lastScreenH int // the UI canvas's height last drawn, for mouse hit-testing; see uiscale.go
 	lastScreenW int
 	mapZoom     int // the world map's zoom, 1 = the whole map
 	zoomNoticed int // the zoom last shown in a notice
@@ -206,6 +211,9 @@ func (g *Game) Update() error {
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyF11) {
 		ebiten.SetFullscreen(!ebiten.IsFullscreen())
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyF1) {
+		g.showHelp = !g.showHelp // the full list of keys; see hud.go
 	}
 	if g.demo {
 		g.receive()

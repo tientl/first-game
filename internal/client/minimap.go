@@ -17,7 +17,7 @@ const (
 	miniW, miniH = 188, 141 // the minimap's inside, in screen pixels: 4:3 like a tile
 	miniTiles    = 36       // tiles across the minimap
 	miniPad      = 6
-	miniTop      = 98 // just under the clock
+	miniTop      = 70 // the map's frame, just under the clock in the same block; see hud.go
 )
 
 // miniBottom is the screen y just below the minimap, for what goes under it.
@@ -36,7 +36,8 @@ func miniOrigin(cx, cy float64) (ox, oy float64) {
 	return math.Round(miniW/2 - cx*tw), math.Round(miniH/2 - cy*th)
 }
 
-func (g *Game) drawMinimap(screen *ebiten.Image, sw int) {
+// drawMinimap draws the minimap in the clock's block, whose left is x0.
+func (g *Game) drawMinimap(screen *ebiten.Image, x0 float64) {
 	m := &g.wmap
 	if m.mini == nil {
 		m.mini = ebiten.NewImage(miniW, miniH)
@@ -94,8 +95,6 @@ func (g *Game) drawMinimap(screen *ebiten.Image, sw int) {
 	g.drawHeadMark(c, miniW/2, miniH/2, 1, playerColors[int(g.myID)%len(playerColors)], g.myLook())
 
 	// The frame, then the canvas in it, with the key for the full map.
-	x0 := float64(sw - 12 - miniW - 2*miniPad)
-	panel(screen, float32(x0), miniTop, miniW+2*miniPad, miniH+2*miniPad)
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(x0+miniPad, miniTop+miniPad)
 	screen.DrawImage(c, op)

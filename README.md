@@ -90,21 +90,26 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 | WASD / mũi tên | Di chuyển. Nhân vật quay mặt theo hướng đi, và quay về thứ đang chặt, đào, đánh. Chỉ khi **ngắm** (giữ chuột với món dùng để ngắm trên tay, như cung hay đồ ném sau này) thì nhân vật mới quay theo con trỏ (`sim.AimedItem`). Lúc cưỡi thú hay đi thuyền thì vẫn lái như trước |
 | Chuột trái (nhấp hoặc giữ) | Làm việc với thứ **dưới con trỏ**: chặt cây (cần rìu), đập đá, hái quả, cắt cỏ, nhặt cành, đánh hay bắt thú, thêm củi vào lửa, mổ xác, quăng câu và giật cần. Thứ sẽ bị tác động có khung trắng bao quanh; xa quá tầm với thì khung đỏ và chữ "Xa quá". Dưới con trỏ không có gì trong tầm thì làm thứ gần nhất (ưu tiên phía con trỏ). Nhấp vào ô trên hàng ô nhanh để chọn ô đó |
 | Giữ Space | Như chuột trái, vào thứ gần nhất (chơi bằng bàn phím vẫn được) |
-| Chuột phải | Dùng món đang cầm: đồ ăn, thuốc thì ăn; thịt sống, cá sống… khi đứng cạnh lửa trại đang cháy thì nướng; đuốc, đầu thú, hạt giống thì cắm, dựng, gieo vào ô dưới con trỏ (ô đó không được thì đặt trước mặt, về phía con trỏ); phân thì bón cho cây dưới con trỏ; thuyền thì thả xuống nước về phía con trỏ; cầm thức ăn của thú và trỏ vào nó thì cho nó ăn (thuần hóa). Món khác: không làm gì, có dòng nhắc |
-| E | Tương tác: nhặt đống đồ dưới con trỏ (hoặc gần nhất), mở rương, lục xác, cưỡi thú đã thuần / xuống thú, lên thuyền / xuống thuyền. Lúc mở rương thì E đóng rương |
+| Chuột phải | Dùng món đang cầm: đồ ăn, thuốc thì ăn; thịt sống, cá sống… khi đứng cạnh lửa trại đang cháy thì nướng; đuốc thì cắm xuống ngay trước mặt (cầm đuốc không hiện ô báo chỗ cắm: đuốc trên tay đã soi sáng); đầu thú, hạt giống thì dựng, gieo vào ô dưới con trỏ (ô đó không được thì đặt trước mặt, về phía con trỏ); phân thì bón cho cây dưới con trỏ; thuyền thì thả xuống nước về phía con trỏ; cầm thức ăn của thú và trỏ vào nó thì cho nó ăn (thuần hóa). Món khác: không làm gì, có dòng nhắc |
+| E | Tương tác: nhặt đống đồ dưới con trỏ (hoặc gần nhất), mở rương (cả rương cổ trong hang, kim tự tháp), lục xác, cưỡi thú đã thuần / xuống thú, lên thuyền / xuống thuyền. Rương mở ra một bảng: các ô của rương ở trên (40 ô), túi đồ và ô nhanh của bạn ở dưới; nhấp một món để chuyển qua lại. Rương trống thì có nút "Dỡ rương" (lấy lại gỗ; rương cổ thì không dỡ được). Lúc mở rương thì E, B hoặc Esc đóng rương; đi xa cũng tự đóng |
 | C | Mở/đóng bảng chế tạo: mọi công thức, chia theo thẻ (Tất cả, Dụng cụ & vũ khí, Xây dựng, Nấu & nung, Đồ dùng; A/D hoặc mũi tên đổi thẻ, lăn chuột để cuộn). Món làm được ngay có viền xanh, món còn thiếu bị làm mờ, nguyên liệu thiếu hiện màu đỏ. Nhấp để làm; món xây dựng (lửa trại, tường, giường, rương, cửa…) thì nhấp rồi chọn chỗ đặt bằng chuột (xem "Xây dựng bằng chuột" bên dưới) |
 | 1–9, 0 / lăn chuột | Chọn ô 1–10 trên hàng ô nhanh; món ở ô đó là món đang cầm (người khác cũng thấy) |
-| Tab / I (hoặc B) | Mở/đóng túi đồ: 20 ngăn túi + 10 ô nhanh, mỗi ô chứa một loại (tối đa 40, rìu 1). Nhấp một ô để nhấc lên, nhấp ô khác để đặt, gộp hoặc đổi chỗ (chuột phải để bỏ). Shift+nhấp chuyển nhanh giữa túi và ô nhanh; 1–0 đưa món đang trỏ vào ô nhanh đó; mũi tên/WASD + Enter cũng dùng được; E ăn món đang trỏ. Nhấp vào một món để xem công thức liên quan, nhấp công thức để chế tạo. Vứt đồ: kéo một chồng ra ngoài khung túi rồi thả là vứt cả chồng xuống đất; chuột phải vào một ô (lúc không nhấc gì) hoặc G vứt 1 món ở ô đang trỏ, Shift+G cả chồng |
+| Tab / I (hoặc B) | Mở/đóng túi đồ: 30 ngăn túi (3 hàng) + 10 ô nhanh, mỗi ô chứa một loại (tối đa 40, rìu 1). Nhấp một ô để nhấc lên, nhấp ô khác để đặt, gộp hoặc đổi chỗ (chuột phải để bỏ). Shift+nhấp chuyển nhanh giữa túi và ô nhanh; 1–0 đưa món đang trỏ vào ô nhanh đó; mũi tên/WASD + Enter cũng dùng được; E ăn món đang trỏ. Nhấp vào một món để xem công thức liên quan, nhấp công thức để chế tạo. Vứt đồ: kéo một chồng ra ngoài khung túi rồi thả là vứt cả chồng xuống đất; chuột phải vào một ô (lúc không nhấc gì) hoặc G vứt 1 món ở ô đang trỏ, Shift+G cả chồng |
 | M | Mở/đóng bản đồ: chỉ hiện những nơi bạn đã đi qua (trong vòng khoảng 10 ô quanh nhân vật), phần còn lại phủ sương; bản đồ đã khám phá được lưu theo từng người chơi. Có vị trí của bạn (icon đầu nhân vật), người chơi gần đó, lửa trại đã thấy. Góc trên bên phải màn hình luôn có minimap: vùng quanh bạn, chỉ hiện chỗ đã đi qua |
 | R | Như E với thú cưỡi và thuyền (cưỡi / xuống, lên / xuống thuyền) |
 | R, E hoặc Enter (khi đã chết) | Hồi sinh |
-| V | Như chuột phải với đuốc, đầu thú, hạt giống, phân, thuyền (đặt vào ô dưới con trỏ hoặc trước mặt) — cho người quen dùng bàn phím |
+| V | Như chuột phải với đuốc, đầu thú, hạt giống, phân, thuyền (đuốc cắm trước mặt; món khác đặt vào ô dưới con trỏ hoặc trước mặt) — cho người quen dùng bàn phím |
 | G | Vứt 1 món đang cầm xuống đất ngay trước mặt; Shift+G (hoặc Ctrl+G) vứt cả chồng. Xem "Vứt đồ ra khỏi túi" bên dưới |
 | = / − (hoặc Ctrl + lăn chuột) | Thu phóng: nhìn gần hơn hoặc xa hơn; lưu trong settings.json. Khi mở bản đồ (M): lăn chuột hoặc = / − để phóng to bản đồ quanh chỗ bạn |
 | Esc | Đang xây thì thôi xây; đang mở bảng nào thì đóng bảng đó; không thì tạm dừng: tiếp tục, lưu game, chỉnh âm lượng, về menu, thoát |
+| F1 | Hiện / ẩn bảng phím tắt đầy đủ (góc dưới bên trái); mặc định ẩn |
 | F11 | Toàn màn hình |
 
-Bảng nhỏ góc dưới bên trái màn hình luôn nhắc các phím, và dòng "Chuột phải" đổi theo món đang cầm (ví dụ "ăn quả mọng", "nướng thịt sống", "cắm đuốc xuống chỗ con trỏ").
+**Giao diện** (`internal/client/hud.go`, `uiscale.go`): giao diện (HUD, túi đồ, rương, bảng chế tạo, bản đồ, menu, màn tạo nhân vật, bảng tạm dừng) vẽ trên một khung riêng rồi phóng lên theo độ phân giải với điểm ảnh sắc nét: tự động 1 lần ở 720p, 2 lần ở 1080p và 1440p (khung 960×540), 4 lần ở 4K (chiều cao màn hình chia 540). Chuột được quy đổi theo đúng tỉ lệ đó nên nhấp đâu trúng đó. Chữ trên đầu thú, số sát thương, tên người chơi vẫn nằm trong thế giới nhưng to theo cùng tỉ lệ. Mã có sẵn `client.SetUIScale` (0 là tự động) cho phần cài đặt sau này.
+
+- Góc trên bên trái: thanh **Máu** và **No bụng** có icon, số dạng "72/100" nằm gọn trong thanh (sẵn chỗ cho thanh Khát sau này). Dưới đó là các ô **trạng thái** nhỏ có icon và chữ ngắn: Lạnh, Trúng độc, Dính tơ, Đói, Chết đói, Ong đốt. Câu nhắc dài (ví dụ "Tuyết lạnh cóng! Mặc Áo lông…") chỉ hiện vài giây lúc mới bị.
+- Góc trên bên phải: một khối gồm **đồng hồ** (ngày, buổi, mùa, thời tiết kèm icon thời tiết, thanh ngày có mặt trời / mặt trăng) và **bản đồ nhỏ** ngay dưới.
+- Dưới cùng: **hàng ô nhanh** ô to, số phím trên tab nhỏ ở góc mỗi ô, khung gỗ viền vàng; ngay trên là **tên món đang cầm** (kèm số lượng), và trên nữa là **một dòng gợi ý** theo ngữ cảnh, ví dụ "Chuột phải: cắm đuốc xuống trước mặt", "E: lên Bè", "Chuột trái: chặt cây", "E: nhặt gỗ"; không có gì thì "F1: xem các phím".
 
 **Xây dựng bằng chuột** (`internal/client/mouse.go`, `internal/sim/aim.go`): nhấp một món xây dựng trong bảng chế tạo (C) hoặc trong túi đồ thì bảng đóng lại và một **bóng mờ** của món đó đi theo con trỏ, nằm gọn trên ô dưới con trỏ: **xanh** là đặt được, **đỏ** là không (xa quá tầm với khoảng 2,5 ô, ô đã có thứ khác, nước, ô mình đang đứng, hay tường, hàng rào chắn chỗ người khác đang đứng). Nhấp chuột trái để dựng ở đó; còn nguyên liệu thì vẫn ở chế độ xây để dựng tiếp (tiện xây tường), hết nguyên liệu thì tự thôi. Chuột phải hoặc Esc để thôi xây. Cầm đuốc, đầu thú hay hạt giống thì bóng mờ cũng hiện khi con trỏ ở chỗ đất trống gần bạn (không trỏ vào thứ gì làm được): nhấp chuột trái hay chuột phải là cắm, dựng, gieo ở đó. Máy chủ luôn kiểm tra lại ô được chọn (tầm với, đất trống, không chắn người).
 
@@ -282,7 +287,7 @@ Xem nhanh: `go run ./cmd/shot -open -sea`; bản đồ toàn thế giới: `OPEN
 
 Thế giới mới (kiểu `StyleTribal`) có thêm những thứ dưới đây; bản lưu cũ giữ nguyên địa hình cũ nhưng vẫn có mùa, thời tiết, đồ rơi, xác thú, đồ xây mới.
 
-- **Đồ rơi dưới đất**: chặt cây, đập đá, mổ xác, mở rương cổ thì đồ văng ra đất. Nhấn E (đống dưới con trỏ, không thì đống gần nhất), nhấp chuột vào đống, giữ Space (đống gần nhất trước tiên) hoặc đi ngang qua để nhặt. Chặt cây hay rơi thêm Cành cây, đôi khi Hạt cây; đập đá đôi khi rơi Đá cuội. Đồ nằm đất 5 phút thì mục mất.
+- **Đồ rơi dưới đất**: chặt cây, đập đá, mổ xác thì đồ văng ra đất (rương cổ thì mở ra bảng rương, đồ nằm sẵn trong các ô). Nhấn E (đống dưới con trỏ, không thì đống gần nhất), nhấp chuột vào đống, giữ Space (đống gần nhất trước tiên) hoặc đi ngang qua để nhặt. Chặt cây hay rơi thêm Cành cây, đôi khi Hạt cây; đập đá đôi khi rơi Đá cuội. Đồ nằm đất 5 phút thì mục mất.
 - **Vứt đồ ra khỏi túi** (mọi thế giới; `internal/sim/toss.go`, `internal/client/toss.go`): G vứt 1 món đang cầm, Shift+G (hoặc Ctrl+G) cả chồng; trong túi đồ (Tab) thì kéo một chồng ra ngoài khung túi rồi thả, chuột phải vào một ô, hoặc G / Shift+G với ô đang trỏ. Đồ rơi thành một đống ngay trước mặt (cách chừng 1 ô, theo hướng đang nhìn); phía trước là tường hay nước thì rơi ngay dưới chân. Vứt tiếp cùng loại vào chỗ đó thì dồn vào đống cũ (tối đa một ô túi mỗi đống). Đống vứt ra là đồ rơi như mọi đồ rơi khác: ai cũng nhặt được bằng Space hoặc đi ngang qua, được lưu cùng thế giới, 5 phút thì mục (trừ đồ huyền thoại). Riêng người vứt, đang đứng trên đống đó thì không tự nhặt lại khi đứng yên; bước ra rồi đi vào lại mới nhặt (Space thì nhặt ngay). Đang bơi hay ngồi thuyền thì chỉ vứt được lên bờ trước mặt; ngoài biển thì không vứt được (hiện thông báo, đồ vẫn trong túi) để khỏi mất đồ. Đã chết, đang ngủ hay đang mở rương thì không vứt được. Vứt cây đuốc đang cháy trên tay thì đuốc tắt. Có tiếng "bịch" nhẹ khi vứt.
 - **Xác thú**: hạ thú thì xác nằm lại trên vũng máu (thú bốn chân lật ngửa). Nhấp chuột vào xác để mổ (cầm dao thì nhanh gấp đôi): ra thịt, da, xương, **đầu thú**, và **Da khủng long** nếu là khủng long. Xác để 4 phút thì rữa mất. Xác thổ dân thì lục soát (có khi được giáo).
 - **Đầu thú**: cầm đầu trên tay, nhấp chuột phải (hoặc chuột trái vào chỗ đất trống) để cắm lên cọc ở ô dưới con trỏ làm vật trang trí; nhấp chuột trái vào nó để gỡ xuống.
@@ -305,7 +310,7 @@ Thế giới mới (kiểu `StyleTribal`) có thêm những thứ dưới đây;
 | Sàn gỗ | 1 Gỗ | Lát nền nhà |
 | Hàng rào chông | 2 Gỗ, 3 Cành cây | Chặn đường, đâm thú áp sát |
 | Bẫy thú | 3 Cành cây, 2 Cỏ khô, 1 Đá | Giữ thú đầu tiên giẫm phải 15 giây (thú to 4 giây); nhấp chuột vào bẫy để đặt lại |
-| Đuốc cắm | 1 Đuốc (cầm, nhấp chuột phải vào chỗ muốn cắm) | Cháy 4 phút, sáng và ấm; nhấp chuột vào nó để nhổ lên |
+| Đuốc cắm | 1 Đuốc (cầm, nhấp chuột phải: cắm ngay trước mặt) | Cháy 4 phút, sáng và ấm; nhấp chuột vào nó để nhổ lên |
 | Bình máu | 2 Hoa anh túc đỏ, 1 Quả mọng, 1 Nấm (gần lửa) | +45 máu |
 | Bình máu lớn | 1 Bình máu, 2 Bào tử phát sáng, 1 Hoa lam (gần lửa) | +100 máu, giải độc |
 | Băng tơ nhện | 2 Tơ nhện, 1 Cỏ khô | +20 máu, giải độc |
@@ -411,6 +416,9 @@ Xem nhanh đồ hoạ mà không cần chơi (lưu một khung hình ra PNG):
     go run ./cmd/shot -o create.png -create                     # màn hình tạo nhân vật
     go run ./cmd/shot -o look.png -female -hair 4 -haircolor 4 -skin 2  # ngoại hình người chơi: tóc 0-5, màu tóc 0-7, màu da 0-5
     go run ./cmd/shot -o map.png -overlay map -frames 120   # đợi bản đồ vẽ xong
+    go run ./cmd/shot -o chest.png -chest treasure          # bảng rương mở (chest: rương gỗ, treasure: rương cổ)
+    go run ./cmd/shot -o status.png -status poison,cold     # ô trạng thái: cold, poison, web, starving, hungry, bees
+    go run ./cmd/shot -o hud1080.png -w 1920 -h 1080        # giao diện phóng 2 lần (chạy dưới xvfb-run -s "-screen 0 1920x1080x24")
     go run ./cmd/shot -o bag.png -overlay bag
     go run ./cmd/shot -o dev.png -open -devconsole              # bảng lệnh dev đang mở, vài lệnh đã chạy
 

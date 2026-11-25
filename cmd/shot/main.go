@@ -16,6 +16,7 @@ import (
 	"math"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -87,6 +88,8 @@ func main() {
 	aimAt := flag.String("aim", "", "dx,dy: hold the mouse pointer this many tiles from the player (the hover brackets, a held torch's ghost)")
 	buildID := flag.Int("build", -1, "recipe id of a structure to place (0 campfire, 8 wall, 9 bed…): build mode with its ghost under -aim, the ingredients given")
 	herohd := flag.Bool("herohd", false, "draw the players as the trial hero: bigger, with a run, a sword blow and firelight (a trial; see internal/client/herohd.go)")
+	chestFlag := flag.String("chest", "", "open a chest next to the player, with things in it: chest, or treasure (an old chest from a cave with its hoard)")
+	statusFlag := flag.String("status", "", "status effects on the player, comma-separated: cold, poison, web, starving, hungry, bees")
 	running := flag.Bool("run", false, "the player is on the move (with -herohd: mid-stride)")
 	winW := flag.Int("w", 1280, "window width; run xvfb with a screen at least this big (xvfb-run -s '-screen 0 1920x1080x24')")
 	winH := flag.Int("h", 720, "window height: 720 draws the world at 2 screen pixels per art pixel, 1080 at 3")
@@ -364,6 +367,44 @@ func main() {
 	snap.Players[0].Held = snap.Self.Inv[snap.Self.Selected].Item
 	if *held >= 0 {
 		snap.Players[0].Held = sim.ItemKind(*held)
+	}
+	if *chestFlag != "" {
+		kind := sim.EntityChest
+		if *chestFlag == "treasure" {
+			kind = sim.EntityTreasure
+		}
+		const id = 1<<30 + 77
+		snap.Entities = append(snap.Entities, protocol.EntityView{ID: id, Kind: kind, TX: int16(sx) + 1, TY: int16(sy)})
+		snap.Self.Chest = id
+		c := &snap.Self.ChestSlots
+		c.Add(sim.ItemPotion, 2)
+		c.Add(sim.ItemTorch, 3)
+		c.Add(sim.ItemCoal, 5)
+		c.Add(sim.ItemIronOre, 3)
+		if kind == sim.EntityChest {
+			c.Add(sim.ItemWood, 64)
+			c.Add(sim.ItemStone, 22)
+			c.Add(sim.ItemCookedMeat, 6)
+		} else {
+			c.Add(sim.ItemDiamond, 1)
+			c.Add(sim.ItemGlowSeed, 2)
+		}
+	}
+	for _, st := range strings.Split(*statusFlag, ",") {
+		switch st {
+		case "cold":
+			snap.Self.Cold = true
+		case "poison":
+			snap.Self.Poisoned = true
+		case "web":
+			snap.Self.Webbed = true
+		case "starving":
+			snap.Self.Hunger = 0
+		case "hungry":
+			snap.Self.Hunger = 12
+		case "bees":
+			snap.Players[0].Bees = true
+		}
 	}
 	switch *fishing { // the float 3 tiles below: in the sea with -coast
 	case "wait", "bite":

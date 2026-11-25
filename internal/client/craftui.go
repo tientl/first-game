@@ -116,7 +116,7 @@ func (g *Game) updateCraft() {
 	if !c.drawn {
 		return
 	}
-	mx, my := ebiten.CursorPosition()
+	mx, my := uiCursor()
 	g.craftMouse(float64(mx), float64(my), inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft))
 }
 
