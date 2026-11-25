@@ -27,7 +27,9 @@ import (
 //   - 14: the bag has 30 slots (it had 20), and so do chests; older inventories
 //     load as they were, with the new slots empty. An old chest in a cave
 //     opened like a chest; one opened before spilled its hoard already.
-const SaveVersion = 14
+//   - 15: cooking: clay beds by the water, pots on fires (a campfire's Var),
+//     what stations hold, and the buffs of dishes.
+const SaveVersion = 15
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -53,6 +55,7 @@ type SaveData struct {
 	Boats         []BoatSave   `json:",omitempty"` // boats on the water
 	Difficulty    Difficulty   `json:",omitempty"` // absent: normal; see difficulty.go
 	Bosses        *BossSave    `json:",omitempty"` // the bosses fallen, and the victory; see bosses.go
+	Stations      []CookSave   `json:",omitempty"` // what cooking stations hold; see cooking.go
 }
 
 // PlayerSave is the persistent part of a player.
@@ -68,6 +71,7 @@ type PlayerSave struct {
 	Dead           bool
 	TorchFuel      int      `json:",omitempty"` // ticks left on the torch being burnt
 	Home           EntityID `json:",omitempty"` // the last bed slept in
+	Buffs          []int    `json:",omitempty"` // ticks left of each buff, by BuffKind; see cooking.go
 
 	// Inv is how saves before version 4 kept the inventory: a count per item
 	// kind, indexed by ItemKind. Load turns it into Slots.
@@ -78,7 +82,7 @@ func savePlayer(p *Player) PlayerSave {
 	return PlayerSave{
 		Name: p.Name, Look: p.Look, X: p.X, Y: p.Y, Dir: p.Dir,
 		Health: p.Health, Hunger: p.Hunger, Slots: p.Inv, Selected: p.Selected, Explored: p.explored.Bytes(), Dead: p.Dead,
-		TorchFuel: p.torchFuel, Home: p.home,
+		TorchFuel: p.torchFuel, Home: p.home, Buffs: saveBuffs(p),
 	}
 }
 
@@ -118,6 +122,7 @@ func (w *World) restorePlayer(p *Player, ps PlayerSave) {
 	p.Inv.sanitize()
 	p.explored = ExploredFrom(w.width, w.height, ps.Explored)
 	p.torchFuel = min(TorchBurnTicks, max(0, ps.TorchFuel))
+	loadBuffs(p, ps.Buffs)
 	if b := w.entities[ps.Home]; b != nil && b.Kind == EntityBed {
 		p.home = ps.Home
 	}
@@ -153,6 +158,7 @@ func (w *World) Save() SaveData {
 	d.Pets = w.savePets() // see tame.go
 	d.Boats = w.saveBoats()
 	d.Bosses = w.saveBosses()
+	d.Stations = w.saveStations()
 	for _, dr := range w.drops {
 		if !dr.gone {
 			d.Drops = append(d.Drops, *dr)
@@ -217,7 +223,7 @@ func Load(d SaveData) (*World, error) {
 	var fresh []Entity
 	for _, e := range w.entities {
 		if e.Kind == EntityTwig && d.Version < 2 || e.Kind == EntityPebble && d.Version < 5 ||
-			IsFruitTree(e.Kind) && d.Version < 9 {
+			IsFruitTree(e.Kind) && d.Version < 9 || e.Kind == EntityClay && d.Version < 15 {
 			fresh = append(fresh, *e)
 		}
 	}
@@ -259,12 +265,17 @@ func Load(d SaveData) (*World, error) {
 		}
 		switch e.Kind {
 		case EntityCampfire:
-			if e.Fuel <= 0 {
-				continue
+			if e.Var >= uint8(numGears) {
+				e.Var = 0
 			}
-			e.Fuel = min(e.Fuel, FireMaxFuel)
+			if e.Fuel <= 0 && e.Var == 0 {
+				continue // only a hearth with a pot on it stays, cold
+			}
+			e.Fuel = min(max(e.Fuel, 0), FireMaxFuel)
 		case EntityFurnace:
 			e.Fuel = min(max(e.Fuel, 0), FurnaceMaxFuel)
+		case EntityOven:
+			e.Fuel = min(max(e.Fuel, 0), OvenMaxFuel)
 		}
 		ent := e
 		w.entities[e.ID] = &ent
@@ -272,6 +283,7 @@ func Load(d SaveData) (*World, error) {
 		w.nextEnt = max(w.nextEnt, e.ID)
 	}
 	w.loadChests(d.Chests)
+	w.loadStations(d.Stations)
 	for _, e := range fresh {
 		if w.canPlace(e.TX, e.TY) {
 			w.nextEnt++

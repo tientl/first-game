@@ -221,6 +221,8 @@ func FireReach(kind EntityKind, fuel int) (r float64, ok bool) {
 		return FireRadius(fuel), true
 	case EntityFurnace:
 		return FurnaceRadius, true
+	case EntityOven:
+		return OvenRadius, true // see cooking.go
 	case EntityTorchStand:
 		return TorchStandReach, true
 	case EntityBonfire:
