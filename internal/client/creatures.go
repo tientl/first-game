@@ -58,7 +58,6 @@ type creatureArt struct {
 	brachio     [2][brachPoses]sprite
 	raptor      [2][raptorPoses]sprite
 	rex         [2][rexPoses]sprite
-	rex3        rex3DArt // the 3D trial, when SetRex3D is on; see rex3d.go
 	ptero       [2][pteroPoses]sprite
 	plesio      [2][plesioPoses]sprite
 	mammoth     [2][mammothPoses]sprite // see iceart.go
@@ -108,9 +107,6 @@ func genCreatureArt() creatureArt {
 	}
 	for p := range rexPoses {
 		a.rex[0][p], a.rex[1][p] = sidedPair(genRex(p))
-	}
-	if rex3D {
-		genRex3D(&a)
 	}
 	for p := range pteroPoses {
 		a.ptero[0][p], a.ptero[1][p] = sidedPair(genPtero(p))
@@ -715,12 +711,6 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 			return a.rex[side][rexRoar], 0
 		case c.State == sim.CreatureStrike:
 			return a.rex[side][rexBite], 0
-		case a.rex3.on:
-			period := 22
-			if c.State == sim.CreatureChase {
-				period = 14
-			}
-			return a.rex3DMove(side, t, moving, period), 0
 		case moving && c.State == sim.CreatureChase:
 			return a.rex[side][rexWalkA+(t/7)%2], 0
 		case moving:
