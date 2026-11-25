@@ -98,6 +98,7 @@ func Generate(cfg GenConfig) (*World, error) {
 		w.spawnX, w.spawnY = float64(sx)+0.5, float64(sy)+0.5
 		w.growGiants(rand.New(rand.NewPCG(cfg.Seed, 0x6a17))) // see jungle.go
 		w.clearAround(sx, sy, clearSpawnRadius)
+		w.scatterDeepOres(rand.New(rand.NewPCG(cfg.Seed, 0x1ade)), sx, sy) // jade deep in the caves, flint by the spawn: see orevein.go
 		w.starterKit(rng)
 		w.spawnCreatures()
 		if tribal {
@@ -117,6 +118,7 @@ func Generate(cfg GenConfig) (*World, error) {
 	if err := w.pickSpawn(); err != nil {
 		return nil, err
 	}
+	w.scatterDeepOres(rand.New(rand.NewPCG(cfg.Seed, 0x1ade)), int(w.spawnX), int(w.spawnY))
 	w.starterKit(rng)
 	w.spawnCreatures()
 	return w, nil

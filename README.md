@@ -365,10 +365,12 @@ Mỗi bậc nằm thành mạch trong đá ở một vùng riêng, càng tốt c
 
 | Bậc | Đào ở | Cần cúp | Thành |
 | --- | --- | --- | --- |
-| Đá lửa | Mạch đá lửa trên đồi đá quanh núi | Cúp đá | Lưỡi đá lửa |
-| Ngọc bích | Mạch ngọc bích trong hang (mang đuốc) | Cúp đá lửa | Ngọc bích mài |
-| Mã não | Mạch mã não giữa hoang mạc | Cúp ngọc bích | Mã não mài |
-| Hắc diện thạch | Vùng tro quanh núi lửa | Cúp mã não | (dùng luôn) |
+| Đá lửa | Mạch đá lửa trên đồi đá, mỏm nhỏ trong cỏ và rừng; luôn có vài mạch cách chỗ xuất phát 10–34 ô | Cúp đá | Lưỡi đá lửa |
+| Ngọc bích | Mạch ngọc bích sâu trong hang, xa lối vào (mang đuốc) | Cúp đá lửa | Ngọc bích mài |
+| Mã não | Mạch mã não giữa hoang mạc, hiếm | Cúp ngọc bích | Mã não mài |
+| Hắc diện thạch | Vùng tro quanh núi lửa, hiếm | Cúp mã não | (dùng luôn) |
+
+Quặng nằm thành **mạch** 3–8 khối liền nhau, giữa các mạch là khoảng đất trống (`internal/sim/orevein.go`). Than nằm thành vỉa trong hang và trên vùng tro. Thế giới 1024 × 1024 có khoảng 2.000 khối đá lửa, 1.800 ngọc bích, 350 mã não, 450 hắc diện thạch, 3.400 than.
 
 Giáp may từ đồ săn được; chỉ bộ tốt nhất trong túi có tác dụng, đỡ một phần sức tấn công của thú dữ:
 

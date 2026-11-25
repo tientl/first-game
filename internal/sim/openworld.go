@@ -433,9 +433,9 @@ func (w *World) scatterOpen(rng, sizeRng *rand.Rand) {
 			case TileMarsh:
 				kind = pick(r, chance{EntityReed, 0.14}, chance{EntityMushroom, 0.03}, chance{EntityTree, marshTrees}, chance{EntityGrassTuft, 0.02})
 			case TileCave:
-				kind = pick(r, chance{EntityBoulder, 0.07}, chance{EntityCoal, 0.05}, chance{EntityMushroom, 0.03})
+				kind = pick(r, chance{EntityBoulder, 0.07}, chance{EntityNone, 0.05}, chance{EntityMushroom, 0.03})
 			case TileAsh:
-				kind = pick(r, chance{EntityBoulder, 0.05}, chance{EntityCoal, 0.025})
+				kind = pick(r, chance{EntityBoulder, 0.05}, chance{EntityNone, 0.025}) // coal lies in seams: see orevein.go
 			case TileSnow: // snowy pines, a few rocks and fallen branches, frozen tufts
 				kind = pick(r, chance{EntityTree, 0.1}, chance{EntityBoulder, 0.02}, chance{EntityTwig, 0.02}, chance{EntityGrassTuft, 0.015}, chance{EntityPebble, 0.008})
 			}

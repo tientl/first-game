@@ -131,10 +131,10 @@ func TestOresLieInTheirOwnRegions(t *testing.T) {
 		}
 		count := map[EntityKind]int{}
 		for _, e := range w.entities {
-			if o, ok := oreOf(e.Kind); ok {
+			if _, ok := oreOf(e.Kind); ok {
 				count[e.Kind]++
-				if tile := w.TileAt(e.TX, e.TY); tile != o.home {
-					t.Fatalf("seed %d: %s on tile %d, its home is %d", seed, e.Kind.Name(), tile, o.home)
+				if tile := w.TileAt(e.TX, e.TY); !oreLiesOn(e.Kind, tile) {
+					t.Fatalf("seed %d: %s on tile %d", seed, e.Kind.Name(), tile)
 				}
 			}
 		}
