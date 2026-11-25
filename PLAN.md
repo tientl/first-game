@@ -88,3 +88,15 @@ Việc cần làm, theo thứ tự ưu tiên hiện tại. Làm xong mục nào 
   - Gấp 4 diện tích: đi bộ băng ngang ~8,5 phút, thuyền buồm ~5 phút; nhiều đảo hơn, biển rộng hơn.
   - Chỉ áp dụng cho thế giới tạo mới; thế giới đã lưu giữ cỡ cũ.
   - Kiểm tra: thời gian tạo thế giới, bộ nhớ server, cỡ bản lưu (~4 lần), bản đồ (M) và bản đồ nhỏ vẫn mượt; số thú, làng, hang, trùm, quặng tăng theo diện tích.
+- [ ] **Dụng cụ nấu ăn và món mới** (hiện chỉ nướng từng miếng cạnh lửa trại). Làm trước: nồi đất, giàn phơi, 3–4 món canh/súp có hiệu ứng:
+  - Dụng cụ:
+    - **Nồi đất** (đất sét, nung ở lò): đun sôi nước ao cho sạch (gắn với khát nước); nấu canh, súp, hầm từ nhiều nguyên liệu.
+    - **Xiên nướng / giàn nướng** (gỗ, cành): đặt trên lửa trại, nướng 3–4 miếng cùng lúc.
+    - **Chảo đá**: rán trứng (gắn với trứng khủng long), áp chảo.
+    - **Cối giã** (đá): giã thảo dược thành thuốc, giã hạt thành bột.
+    - **Lò đất nướng bánh** (đá, đất sét): nướng bánh từ bột (gắn với lúa, ngô).
+    - **Giàn phơi / hun khói** (gỗ, dây thừng): thịt khô, cá khô để được lâu.
+    - **Bát, bình nước** (đất nung, quả bầu, da): đựng canh, đựng nước uống.
+  - Món nấu có hiệu ứng tạm thời: canh thịt rau (hồi máu nhanh), súp nóng (chống lạnh), cá nướng thảo mộc (chạy nhanh), thịt hầm khủng long (no lâu, thêm sức đánh), trà thảo dược (giải độc), nước dừa / nước ép quả (đỡ khát, thêm chút máu).
+  - **Muối**: phơi nước biển trên giàn ở bờ biển; ướp thịt để được lâu, nấu món ngon hơn.
+  - **Đồ ăn ôi thiu** (để sau, chỉ ở độ khó Thành thạo và Chúa tể): thịt, cá sống để lâu thì hỏng; thịt khô, muối, hun khói giữ được lâu.
