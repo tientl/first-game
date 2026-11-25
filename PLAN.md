@@ -13,6 +13,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Icon túi đồ, giao diện, hiệu ứng (lửa, chém, va chạm, nước…).
   - **Chuẩn chất lượng**: mỗi nhóm (nhân vật, mặt đất, cây, từng nhóm sinh vật, icon) làm xong thì gửi ảnh so sánh để duyệt; chưa đạt thì làm lại trước khi sang nhóm khác.
   - Nếu thiếu lượt dùng: **bớt số loài thú trong demo chứ không hạ chất lượng** (ưu tiên các loài ở đảo đầu tiên, rừng rậm, biển).
+- [ ] **Cảm giác đánh nhau** (mục 7): khựng lúc trúng đòn, thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh (hiệu ứng chém, va chạm lấy từ pixelfx); **lăn né** (không bị trúng trong lúc lăn) và **giơ khiên đỡ**; thú **báo trước đòn** (lấy đà rõ ràng trước khi cắn, quất đuôi, lao).
 - [ ] **Chế độ dev** (mục 1) — để test nhanh trước khi phát hành.
 - [ ] **Giao diện** (mục 3): HUD gọn, bỏ ô hướng dẫn (F1), túi 30 ô, rương có ô đồ, chuột phải cắm đuốc.
 - [ ] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
@@ -141,6 +142,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 ## 7. Chiến đấu và sự kiện
 
+- [ ] **Cảm giác đánh nhau** (trong demo): khựng lúc trúng đòn (hit-stop), thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh hoặc chí mạng; hiệu ứng chém, va chạm từ pixelfx; lăn né có khoảnh khắc bất tử; giơ khiên đỡ đòn; thú báo trước đòn để người chơi đọc và né; chặn mẹo đánh một đòn rồi lùi.
 - [ ] **Cung tên**: cung, tên thường, tên độc, tên lửa.
 - [ ] **Đêm trăng máu, khủng long tấn công trại**:
   - Vài ngày một lần, đêm đỏ rực và bầy raptor hoặc Troodon kéo tới căn cứ.
@@ -176,9 +178,18 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 ## 9. Khám phá
 
+- [ ] **Nhiệm vụ từ làng thổ dân** (sau demo): "mang 5 da raptor", "dẹp tổ nhện trong hang", "hộ tống thợ săn"…; thưởng đồ, công thức, thiện cảm với làng.
+- [ ] **Sổ hành trình** (sau demo): các cột mốc ("đóng thuyền đầu tiên", "vào được đĩa bay", "hạ Titanoboa"…), cho người mới biết làm gì tiếp.
+- [ ] **Điểm thú vị trên mỗi đảo** (sau demo): xác tàu đắm, tàn tích đá cổ, trại thợ săn bỏ hoang, hang bí mật sau thác nước, **bản đồ kho báu** (dấu X ở đảo khác), đồ hiếm chỉ có ở đó.
+- [ ] **Trao đổi với thổ dân** (sau demo): đổi da, thịt, quặng lấy đồ hiếm, hạt giống lạ, bản đồ; làng có **thiện cảm** (thân thì giúp, thù thì tấn công).
+- [ ] **Nhịp độ**: 10 phút đầu có chuỗi mục tiêu nhỏ (nhặt cành → rìu → lửa → qua đêm đầu tiên); xen kẽ căng và nghỉ (ngày khám phá, đêm nguy hiểm, sự kiện bất ngờ như trăng máu, bão, thú lạ).
 - [ ] **Đĩa bay rơi**:
   - Nằm nghiêng trên mặt đất, có khói và tia điện chập. Đặt ngẫu nhiên trên đảo đầu tiên (đảo người chơi hồi sinh).
   - Cửa bị khoá, cần mật khẩu hoặc chìa khoá. Tìm trong rương ở hang động, chỉ trên đảo đầu tiên, 1 hoặc 2 cái.
   - Vào được thì đổi khung cảnh sang bên trong đĩa bay: máy móc. Có máy quét đồ vật hoặc khoáng sản; quét thì người chơi nhận công thức chế đồ mới dựa vào món đó.
   - Trong đĩa bay có các ô vuông màu đen hiện các con trùm, chỉ thấy viền (bóng) chứ chưa biết là con gì.
   - Vào đó nhặt được một tấm bản đồ: mở ra thì đánh dấu vị trí con trùm đầu tiên trên bản đồ, chỉ hiện "?".
+
+## 11. Chơi chung qua mạng (sau cùng)
+
+- [ ] **Co-op qua mạng**: kết nối TCP giữa client và server (nền server/client đã có); menu "Tạo phòng" / "Vào phòng" (nhập IP); hướng dẫn dùng Tailscale / ZeroTier để chơi qua Internet không cần mở cổng; bản lưu thuộc chủ phòng, người vào lại bằng đúng tên giữ nguyên nhân vật; Windows và Linux chơi chung được. Sau này có thể dùng mạng Steam.
