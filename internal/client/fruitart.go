@@ -60,6 +60,14 @@ func fruitTree(shape treeShape, leaves ramp, tex uint32, seed uint64, rp ramp, n
 			if !leafAt(c, x, y) || !leafAt(c, x+1, y+1) || !leafAt(c, x, y-2) {
 				continue
 			}
+			if c.hd() {
+				if !leafAt(c, x+4, y+4) || !leafAt(c, x-4, y-4) || !leafAt(c, x, y-7) {
+					continue
+				}
+				placed++
+				berryHD(c, float64(x), float64(y), 3.3, rp, leaves[0])
+				continue
+			}
 			placed++
 			c.set(x, y, rp.at(3))
 			c.set(x+1, y, rp.at(2))
@@ -83,8 +91,10 @@ func leafAt(c *canvas, x, y int) bool {
 func genPalm(s float64, seed uint64, coconuts bool) sprite {
 	rng := rand.New(rand.NewPCG(seed, 47))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
-	c := newCanvas(int(math.Ceil(64*s)), int(math.Ceil(66*s)))
-	bx, by := math.Round(float64(c.w)/2), float64(c.h-3)
+	k := hdK()
+	s *= k
+	c := markHD(newCanvas(int(math.Ceil(64*s)), int(math.Ceil(66*s))))
+	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*k
 	lean := math.Copysign(r(5, 9), r(-1, 1)) * s
 	tx, ty := bx+lean, by-r(40, 46)*s
 	trunk := limb{bx, by, bx + lean*0.1, (by + ty) / 2, tx, ty, 2.2 * s, 1.5 * s}
@@ -93,6 +103,10 @@ func genPalm(s float64, seed uint64, coconuts bool) sprite {
 		x, y := trunk.at(t)
 		w := lerpf(trunk.w0, trunk.w1, t)
 		c.line(x-w, y, x+w, y, func(px, py int, _ float64) color.RGBA { return palmTrunk[0] })
+		if c.hd() { // each ring a ridge: dark above, lit below
+			c.line(x-w, y+1, x+w*0.2, y+1, func(px, py int, _ float64) color.RGBA { return palmTrunk[3] })
+			c.line(x-w*0.6, y-1, x+w, y-1, func(px, py int, _ float64) color.RGBA { return palmTrunk[1] })
+		}
 	}
 	n := 8 + rng.IntN(2)
 	for i := range n {
@@ -102,6 +116,9 @@ func genPalm(s float64, seed uint64, coconuts bool) sprite {
 	if coconuts { // hanging in front of the fronds' bases
 		for _, d := range [][2]float64{{-2.2, 2}, {2, 2.2}, {0, 3.6}} {
 			c.ellipse(tx+d[0]*s, ty+d[1]*s, 2.4*s, 2.4*s, func(x, y int, nx, ny float64) color.RGBA {
+				if c.hd() { // the husk's fibres
+					return coconutRamp.pick(lum(nx, ny)+(hashf(x/2, y, 151)-0.5)*0.25, x, y)
+				}
 				return coconutRamp.pick(lum(nx, ny), x, y)
 			})
 		}

@@ -77,8 +77,10 @@ var (
 func genBananaTree(s float64, seed uint64, ripe bool) sprite {
 	rng := rand.New(rand.NewPCG(seed, 0xba7a))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
-	c := newCanvas(int(math.Ceil(70*s)), int(math.Ceil(70*s)))
-	bx, by := math.Round(float64(c.w)/2), float64(c.h-3)
+	k := hdK()
+	s *= k
+	c := markHD(newCanvas(int(math.Ceil(70*s)), int(math.Ceil(70*s))))
+	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*k
 	lean := r(-3, 3) * s
 	tx, ty := bx+lean, by-r(30, 35)*s
 	stem := limb{bx, by, bx + lean*0.2, (by + ty) / 2, tx, ty, 3.2 * s, 2.2 * s}
@@ -128,6 +130,9 @@ func bananaLeaf(c *canvas, x0, y0, a, L, s float64, seed uint32) {
 	}
 	W := 5.2 * s
 	n := int(L*2) + 6
+	if c.hd() {
+		n = int(L*3) + 6
+	}
 	for i := 0; i <= n; i++ {
 		t := float64(i) / float64(n)
 		x, y := at(t)
@@ -155,6 +160,21 @@ func bananaLeaf(c *canvas, x0, y0, a, L, s float64, seed uint32) {
 			if math.Abs(k) < 0.6 {
 				l = 0.85 // the pale midrib
 			}
+			if c.hd() {
+				// Fine parallel veins from the midrib to the edge, the
+				// lower half in the leaf's own shade.
+				if v := math.Mod(t*L/2.2+math.Abs(k)*0.35, 1); v < 0.3 && math.Abs(k) > 1 {
+					l -= 0.1
+				}
+				if k < -1 {
+					l -= 0.08
+				}
+				if math.Abs(k) < 1.2 {
+					l = 0.9
+				} else if math.Abs(k) > w-1 {
+					l -= 0.12
+				}
+			}
 			c.set(int(px), int(py), bananaLeafRamp.pick(l, int(px), int(py)))
 		}
 	}
@@ -181,7 +201,7 @@ func bunch(c *canvas, x, y, s float64) {
 // genHive is a bees' nest hanging from a branch: a papery, banded, golden
 // bulb, dripping honey while it has some.
 func genHive(full bool) sprite {
-	c := newCanvas(14, 18)
+	c := newEnvCanvas(14, 18)
 	c.line(7, 0, 7, 3, func(x, y int, _ float64) color.RGBA { return monkeyRamp.at(1) })
 	rp := hiveRamp
 	if !full {
@@ -189,7 +209,16 @@ func genHive(full bool) sprite {
 	}
 	c.ellipse(7, 9.5, 5.6, 6.8, func(x, y int, nx, ny float64) color.RGBA {
 		l := lum(nx, ny)
-		if y%3 == 0 {
+		if envHD { // the bands of its paper: scalloped layers, each lit on top
+			band := math.Mod(c.ly(y)+0.35*math.Sin(c.lx(x)*1.7)+30, 2.2)
+			switch {
+			case band < 0.35:
+				l -= 0.3
+			case band < 0.8:
+				l += 0.1
+			}
+			l += (hashf(x, y, 193) - 0.5) * 0.08
+		} else if y%3 == 0 {
 			l -= 0.25 // the bands of its paper
 		}
 		return rp.pick(l, x, y)
@@ -200,7 +229,7 @@ func genHive(full bool) sprite {
 		c.set(4, 16, hiveRamp.at(4)) // a drip of honey
 	}
 	c.outline(0.8)
-	return mk(c, 7, 0)
+	return mkUp(c, 7, 0)
 }
 
 // genMonkey is a monkey facing right in the given pose.

@@ -60,17 +60,20 @@ func shell(c *canvas, cx, cy, r float64, rp ramp) {
 
 // genClamBed is a few clams half buried in wet sand.
 func genClamBed() sprite {
-	c := newCanvas(20, 12)
+	c := newEnvCanvas(20, 12)
 	shell(c, 6, 6, 3.4, shellRamp)
 	shell(c, 13.5, 5, 3, mkRamp(0x5e5a6e, 0x7d7890, 0xa29db4, 0xc8c3d8, 0xe8e4f2))
 	shell(c, 10, 8.5, 2.6, shellRamp)
 	c.outline(0.7)
-	return mk(c, 10, 9)
+	return mkUp(c, 10, 9)
 }
 
 // genCactus draws a saguaro with two arms, ribbed and spiny; cut, it is a
 // short stump.
 func genCactus(full bool) sprite {
+	if envHD {
+		return genCactusHD(full)
+	}
 	c := newCanvas(22, 34)
 	const bx, by = 11, 31
 	col := func(x, y int, x0, x1 float64) color.RGBA {
@@ -98,7 +101,7 @@ func genCactus(full bool) sprite {
 		limb(bx-3, bx+3, by-7, by)
 		c.ellipse(bx, by-7, 3, 1.3, func(x, y int, nx, ny float64) color.RGBA { return hex(0xa8c48a) })
 		c.outline(0.75)
-		return mk(c, bx, by)
+		return mkUp(c, bx, by)
 	}
 	limb(bx-3, bx+3, 4, by)
 	limb(3, 7, 10, 17) // left arm, rising
@@ -106,11 +109,14 @@ func genCactus(full bool) sprite {
 	limb(15, 19, 13, 21) // right arm
 	limb(bx+2, 19, 19, 22)
 	c.outline(0.75)
-	return mk(c, bx, by)
+	return mkUp(c, bx, by)
 }
 
 // genReeds draws a clump of tall stems, some topped with brown cattails.
 func genReeds(full bool) sprite {
+	if envHD {
+		return genReedsHD(full)
+	}
 	c := newCanvas(20, 28)
 	const bx, by = 10, 26
 	for i := 0; i < 8; i++ {
@@ -131,19 +137,19 @@ func genReeds(full bool) sprite {
 		}
 	}
 	c.outline(0.5)
-	return mk(c, bx, by)
+	return mkUp(c, bx, by)
 }
 
 // genMushrooms draws a red, white-spotted mushroom beside a smaller brown one.
 func genMushrooms() sprite {
-	c := newCanvas(18, 14)
+	c := newEnvCanvas(18, 14)
 	shroom := func(cx, top, h, r float64, rp ramp, spots bool) {
 		c.rect(int(cx-1), int(top+r*0.5), 2, int(h), solid(mushStem))
 		c.ellipse(cx, top+r*0.6, r, r*0.65, func(x, y int, nx, ny float64) color.RGBA {
 			if ny > 0.35 {
 				return rp[0] // the gills' shade under the rim
 			}
-			if spots && hashf(x, y, 190) < 0.18 {
+			if spots && (!envHD && hashf(x, y, 190) < 0.18 || envHD && vnoise(c.lx(x)*1.3, c.ly(y)*1.6, 190) > 0.66 && ny < 0.2) {
 				return colWhite
 			}
 			return rp.pick(lum(nx, ny), x, y)
@@ -152,13 +158,13 @@ func genMushrooms() sprite {
 	shroom(11.5, 2, 9, 4.5, capRed, true)
 	shroom(5.5, 6, 6, 3.2, capBrown, false)
 	c.outline(0.75)
-	return mk(c, 9, 12)
+	return mkUp(c, 9, 12)
 }
 
 // genCoalSeam is a seam of coal in its rock (see genCoalCanvas).
 func genCoalSeam() sprite {
 	c, ax, ay := genCoalCanvas(0)
-	return mk(c, ax, ay)
+	return mkUp(c, ax, ay)
 }
 
 // genOpenIcons draws the bag icons of cactus flesh, mushrooms and coal.

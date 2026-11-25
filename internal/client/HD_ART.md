@@ -101,3 +101,22 @@ looks, `GroundGreen` and `GroundWarm`, switched with `SetGroundStyle` (kept
 in the settings file as `"ground": "warm"`; `shot -warm`). The shore image
 the surf shader reads stays at density 1, as shaders run at art-pixel
 resolution. `go test ./internal/client -bench BakeChunk` times a bake.
+
+## The environment (trees, plants, rocks, buildings)
+
+`mkUp(c, ax, ay)` makes the sprite of a thing that stands in the world
+(`hdup.go`), by one of three roads, picked from the canvas:
+
+- a canvas marked HD (`hdCanvas(w, h)`, or `markHD(newCanvas(...))` in a
+  generator that works in pixels at a scale `s`, run at `s * hdK()`): the
+  pixels are image pixels and so is the anchor. The brushes are in
+  `hdenv.go` (leaves, bark, fronds), `hdplants.go`, `hdbuild.go`,
+  `hdtrees.go`;
+- `newEnvCanvas(w, h)`: a scaled canvas, for generators made only of
+  `ellipse`, `line`, `polygon` and `rect` calls in art pixels;
+- a plain density-1 canvas: refined by `upscale3` (outline thinned to one
+  image pixel, staircases cut to diagonals, dither redone three times as
+  fine). This is the fallback for what is not redrawn by hand yet.
+
+`cmd/shot -envhd=false` (`SetEnvHD`) gives the original density-1 art back,
+to compare.

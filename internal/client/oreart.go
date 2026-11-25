@@ -618,12 +618,12 @@ func genOreArt() oreArt {
 	for o := range a.rocks {
 		for v := range a.rocks[o] {
 			c, ax, ay := genOreCanvas(o, v)
-			a.rocks[o][v] = mk(c, ax, ay)
+			a.rocks[o][v] = mkUp(c, ax, ay)
 		}
 	}
 	for i, lit := range []bool{false, true} {
 		c, ax, ay := genFurnaceCanvas(lit)
-		a.furnace[i] = mk(c, ax, ay)
+		a.furnace[i] = mkUp(c, ax, ay)
 	}
 	for t, rp := range tierRamps {
 		a.axes[t], a.picks[t], a.hoes[t] = genToolOf(rp), genHeldPickOf(rp), genHeldHoeOf(rp)

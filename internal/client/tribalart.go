@@ -685,7 +685,7 @@ var flowerColors = [sim.NumFlowers]ramp{
 }
 
 func genFlower(f sim.FlowerKind) sprite {
-	c := newCanvas(14, 14)
+	c := newEnvCanvas(14, 14)
 	rp := flowerColors[f]
 	heads := [][2]float64{{4, 6}, {9, 4}, {10, 8.5}, {6, 9.5}}
 	for _, h := range heads {
@@ -696,6 +696,13 @@ func genFlower(f sim.FlowerKind) sprite {
 	for i, h := range heads {
 		switch f {
 		case sim.FlowerPurple: // lavender: a spike of tiny blooms
+			if envHD {
+				for k := range 7 {
+					fk := float64(k)
+					roundShape(c, ell{h[0] + 0.45*float64(k%2*2-1)*(1-fk/8), h[1] + 1.4 - fk*0.55, 0.62 - fk*0.04, 0.5}, rp, 0.15+float64(k%3)*0.12)
+				}
+				continue
+			}
 			for k := range 4 {
 				c.set(int(h[0]), int(h[1])-k+1, rp.at(1+k%3))
 			}
@@ -704,29 +711,33 @@ func genFlower(f sim.FlowerKind) sprite {
 			if i%2 == 1 {
 				r = 1.4
 			}
-			roundShape(c, ell{h[0], h[1], r, r * 0.9}, rp, 0.1)
 			centre := hex(0x3a2408)
 			if f == sim.FlowerWhite || f == sim.FlowerYellow {
 				centre = hex(0xe8a818)
 			}
+			if envHD { // petals round an eye
+				bloomHD(c, h[0], h[1], r*1.25, rp[1:], centre, float64(i)*0.5)
+				continue
+			}
+			roundShape(c, ell{h[0], h[1], r, r * 0.9}, rp, 0.1)
 			c.set(int(h[0]), int(h[1]), centre)
 		}
 	}
 	c.outline(0.6)
-	return mk(c, 7, 13)
+	return mkUp(c, 7, 13)
 }
 
 func genFlowerPicked() sprite {
-	c := newCanvas(10, 8)
+	c := newEnvCanvas(10, 8)
 	for i := range 4 {
 		x := 2 + float64(i)*2
 		c.line(x, 7, x+0.5, 3+float64(i%2), func(x, y int, t float64) color.RGBA { return leafRamps[0].pick(0.45, x, y) })
 	}
-	return mk(c, 5, 7)
+	return mkUp(c, 5, 7)
 }
 
 func genSapling(s sim.SeedKind) sprite {
-	c := newCanvas(12, 12)
+	c := newEnvCanvas(12, 12)
 	leaf := leafRamps[1]
 	tip := leaf.at(4)
 	switch s {
@@ -748,7 +759,7 @@ func genSapling(s sim.SeedKind) sprite {
 		roundShape(c, ell{6, 3.5, 2.4, 2}, leaf, 0.25)
 	}
 	c.outline(0.6)
-	return mk(c, 6, 11)
+	return mkUp(c, 6, 11)
 }
 
 // genGlowPlant draws a plant that glows at night, and a mask of just its
@@ -792,7 +803,10 @@ func genGlowPlant(v int, lit bool) (sprite, sprite) {
 			}
 		}
 	}
-	c, m := newCanvas(w, h), newCanvas(w, h)
+	c, m := newEnvCanvas(w, h), newEnvCanvas(w, h)
+	if v == 2 && envHD {
+		c.lw = 4 // the tree's trunk and boughs
+	}
 	for _, s := range stems {
 		thick := 0.0
 		if v == 2 && s[1] > 20 {
@@ -815,7 +829,7 @@ func genGlowPlant(v int, lit bool) (sprite, sprite) {
 		}
 	}
 	c.outline(0.6)
-	return mk(c, ax, ay), mk(m, ax, ay)
+	return mkUp(c, ax, ay), mkUp(m, ax, ay)
 }
 
 // genManEater draws a man-eating plant: a thick stalk rising from broad
@@ -1176,12 +1190,15 @@ func manEaterCanvas(pose int) (*canvas, float64, float64) {
 
 func genManEater(pose int) sprite {
 	c, ax, ay := manEaterCanvas(pose)
-	return mk(c, ax, ay)
+	return mkUp(c, ax, ay)
 }
 
 // --- building ----------------------------------------------------------------
 
 func genDoor() sprite {
+	if envHD {
+		return genDoorHD()
+	}
 	c := newCanvas(24, 30)
 	// The frame: two posts and a lintel, like the wall's.
 	for _, x := range []int{1, 20} {
@@ -1201,10 +1218,13 @@ func genDoor() sprite {
 	c.line(5, 23, 18, 9, func(x, y int, t float64) color.RGBA { return plankRamp.at(1) })
 	roundShape(c, ell{16, 16, 1.4, 1.4}, bandRamp, 0.2)
 	c.outline(0.7)
-	return mk(c, 12, 26)
+	return mkUp(c, 12, 26)
 }
 
 func genFloor() sprite {
+	if envHD {
+		return genFloorHD()
+	}
 	c := newCanvas(TileW, TileH)
 	for y := 0; y < TileH; y++ {
 		row := y / 3
@@ -1216,7 +1236,7 @@ func genFloor() sprite {
 			c.set(x, y, plankRamp.pick(t, x, y))
 		}
 	}
-	return mk(c, 0, 0)
+	return mkUp(c, 0, 0)
 }
 
 func genSpikes() sprite {
@@ -1230,11 +1250,11 @@ func genSpikes() sprite {
 		c.polygon([]float64{x + lean*2.5 - 0.5, 7, x + lean*2.9 + 0.5, 2, x + lean*2.5 + 1.6, 7}, solid(woodRamp.at(2)))
 	}
 	c.outline(0.7)
-	return mk(c, 13, 24)
+	return mkUp(c, 13, 24)
 }
 
 func genTrap(set bool) sprite {
-	c := newCanvas(22, 16)
+	c := newEnvCanvas(22, 16)
 	rope := func(x, y int, _ float64) color.RGBA { return strawRamp.pick(0.6, x, y) }
 	// Two stakes and a bent branch holding the snare.
 	c.line(4, 14, 4, 7, func(x, y int, t float64) color.RGBA { return trunkRamp.pick(0.6, x, y) })
@@ -1253,19 +1273,22 @@ func genTrap(set bool) sprite {
 		roundShape(c, ell{11, 13, 1.5, 0.8}, strawRamp, 0)
 	}
 	c.outline(0.6)
-	return mk(c, 11, 14)
+	return mkUp(c, 11, 14)
 }
 
 func genTorchStick() sprite {
-	c := newCanvas(6, 20)
+	c := newEnvCanvas(6, 20)
 	c.line(3, 19, 3, 5, func(x, y int, t float64) color.RGBA { return trunkRamp.pick(0.6, x, y) })
 	c.line(2, 19, 2, 5, func(x, y int, t float64) color.RGBA { return trunkRamp.pick(0.35, x, y) })
 	c.rect(1, 3, 4, 3, func(x, y int) color.RGBA { return strawRamp.pick(0.4, x, y) }) // the wrapped head
 	c.outline(0.6)
-	return mk(c, 3, 19)
+	return mkUp(c, 3, 19)
 }
 
 func genTreasure(open bool) sprite {
+	if envHD {
+		return mkUp(chestHD(open, plankRamp, plankRamp, bandRamp, goldRamp, 17), 12*HDDensity, 20*HDDensity)
+	}
 	c := newCanvas(24, 22)
 	const x0, x1, top, base = 2, 22, 10, 20
 	for y := top; y <= base; y++ {
@@ -1286,10 +1309,10 @@ func genTreasure(open bool) sprite {
 		c.set(11, top+3, hex(0x3a2408))
 	}
 	c.outline(0.8)
-	return mk(c, 12, 20)
+	return mkUp(c, 12, 20)
 }
 
-func genHut() sprite { c, ax, ay := hutCanvas(); return mk(c, ax, ay) }
+func genHut() sprite { c, ax, ay := hutCanvas(); return mkUp(c, ax, ay) }
 
 // hutCanvas draws a hut of the tribe: a round wall of lashed poles under a
 // shaggy cone of thatch, a skull over its hide-hung doorway.
@@ -1504,6 +1527,9 @@ func hutCanvas() (*canvas, float64, float64) {
 }
 
 func genTotem() sprite {
+	if envHD {
+		return genTotemHD()
+	}
 	c := newCanvas(16, 46)
 	for y := 6; y < 45; y++ {
 		for x := 4; x < 12; x++ {
@@ -1523,10 +1549,13 @@ func genTotem() sprite {
 	c.polygon([]float64{4, 6, 0, 2, 0, 8}, solid(hex(0xc83020)))
 	c.polygon([]float64{12, 6, 16, 2, 16, 8}, solid(hex(0xc83020)))
 	c.outline(0.8)
-	return mk(c, 8, 44)
+	return mkUp(c, 8, 44)
 }
 
 func genBonfire() sprite {
+	if envHD {
+		return genBonfireHD()
+	}
 	c := newCanvas(40, 24)
 	for i := range 12 {
 		a := 2 * math.Pi * float64(i) / 12
@@ -1538,7 +1567,7 @@ func genBonfire() sprite {
 		}
 	}
 	c.outline(0.7)
-	return mk(c, 20, 14)
+	return mkUp(c, 20, 14)
 }
 
 // --- bodies, heads, weather ----------------------------------------------------
@@ -1570,11 +1599,14 @@ func genBlood(w float64, seed uint32) sprite {
 }
 
 func genPost() sprite {
+	if envHD {
+		return genPostHD()
+	}
 	c := newCanvas(6, 22)
 	c.rect(2, 2, 3, 19, func(x, y int) color.RGBA { return trunkRamp.pick(0.7-float64(x-2)*0.2, x, y) })
 	c.polygon([]float64{2, 2, 3.5, 0, 5, 2}, solid(woodRamp.at(1)))
 	c.outline(0.6)
-	return mk(c, 3, 21)
+	return mkUp(c, 3, 21)
 }
 
 func genWebBlob() sprite {

@@ -148,6 +148,15 @@ type canvas struct {
 	// tx and ty shift the drawing calls by that many design units, to make room
 	// above or beside a design without redrawing it.
 	tx, ty float64
+	// ol marks the pixels outline drew, so that upscale3 (hdup.go) can thin
+	// them; nil until outline is called. dens is HDDensity for a canvas whose
+	// pixels are already HD image pixels although its drawing calls are not
+	// scaled (see mkUp).
+	ol   []bool
+	dens int
+	// lw is how many pixels wide line draws, 0 or 1 for a hairline: a stem
+	// drawn at HD keeps some body.
+	lw int
 }
 
 func newCanvas(w, h int) *canvas { return &canvas{w: w, h: h, px: make([]color.RGBA, w*h)} }
@@ -198,6 +207,9 @@ func (c *canvas) atL(x, y int) color.RGBA {
 func (c *canvas) put(x, y int, col color.RGBA) {
 	if c.in(x, y) {
 		c.px[y*c.w+x] = col
+		if c.ol != nil {
+			c.ol[y*c.w+x] = false
+		}
 	}
 }
 
@@ -298,6 +310,16 @@ func (c *canvas) line(x0, y0, x1, y1 float64, f func(x, y int, t float64) color.
 	for i := 0; i <= n; i++ {
 		t := float64(i) / float64(n)
 		x, y := int(math.Floor(lerpf(x0, x1, t))), int(math.Floor(lerpf(y0, y1, t)))
+		if c.lw > 1 {
+			for dy := 0; dy < c.lw; dy++ {
+				for dx := 0; dx < c.lw; dx++ {
+					if col := f(x+dx-c.lw/2, y+dy-c.lw/2, t); col.A > 0 {
+						c.put(x+dx-c.lw/2, y+dy-c.lw/2, col)
+					}
+				}
+			}
+			continue
+		}
 		if col := f(x, y, t); col.A > 0 {
 			c.put(x, y, col)
 		}
@@ -325,6 +347,10 @@ func (c *canvas) outline(strength float64) {
 			for _, d := range [4][2]int{{0, 1}, {0, -1}, {-1, 0}, {1, 0}} {
 				if n := get(x+d[0], y+d[1]); n.A >= 128 {
 					c.px[y*c.w+x] = mix(withAlpha(n, 255), colInk, strength)
+					if c.ol == nil {
+						c.ol = make([]bool, len(c.px))
+					}
+					c.ol[y*c.w+x] = true
 					break
 				}
 			}
@@ -338,6 +364,12 @@ func (c *canvas) over(o *canvas, dx, dy int) {
 		for x := 0; x < o.w; x++ {
 			if p := o.px[y*o.w+x]; p.A >= 128 {
 				c.put(x+dx, y+dy, p)
+				if c.in(x+dx, y+dy) && (o.ol != nil || c.ol != nil) {
+					if c.ol == nil {
+						c.ol = make([]bool, len(c.px))
+					}
+					c.ol[(y+dy)*c.w+x+dx] = o.ol != nil && o.ol[y*o.w+x]
+				}
 			}
 		}
 	}
@@ -345,9 +377,16 @@ func (c *canvas) over(o *canvas, dx, dy int) {
 
 func (c *canvas) mirrored() *canvas {
 	m := newCanvas(c.w, c.h)
+	m.dens = c.dens
+	if c.ol != nil {
+		m.ol = make([]bool, len(c.ol))
+	}
 	for y := 0; y < c.h; y++ {
 		for x := 0; x < c.w; x++ {
 			m.px[y*c.w+(c.w-1-x)] = c.px[y*c.w+x]
+			if c.ol != nil {
+				m.ol[y*c.w+(c.w-1-x)] = c.ol[y*c.w+x]
+			}
 		}
 	}
 	return m

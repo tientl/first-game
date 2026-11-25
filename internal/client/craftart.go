@@ -130,6 +130,9 @@ func iconRoastBerries() *ebiten.Image {
 
 // genWall is one tile of palisade: sharpened stakes lashed together.
 func genWall() sprite {
+	if envHD {
+		return genWallHD()
+	}
 	c := newCanvas(24, 30)
 	const by = 26
 	for i := 0; i < 5; i++ {
@@ -158,11 +161,14 @@ func genWall() sprite {
 		}
 	}
 	c.outline(0.8)
-	return mk(c, 12, by)
+	return mkUp(c, 12, by)
 }
 
 // genBed is a mattress of dry grass in a log frame, with a rolled pillow.
 func genBed() sprite {
+	if envHD {
+		return genBedHD()
+	}
 	c := newCanvas(30, 20)
 	const cx, by = 15, 16
 	c.rect(1, 6, 28, 11, func(x, y int) color.RGBA { return trunkRamp.pick(0.75-float64(y-6)*0.05, x, y) })
@@ -178,7 +184,7 @@ func genBed() sprite {
 	})
 	c.rect(1, 15, 28, 2, func(x, y int) color.RGBA { return trunkRamp.pick(0.3, x, y) })
 	c.outline(0.8)
-	return mk(c, cx, by)
+	return mkUp(c, cx, by)
 }
 
 // genBlanket is drawn over a sleeping player.
@@ -193,7 +199,7 @@ func genBlanket() sprite {
 		return quilt.pick(l, x, y)
 	})
 	c.outline(0.8)
-	return mk(c, 10, 8)
+	return mkUp(c, 10, 8)
 }
 
 // Held tools are drawn rotated about their grip, like the axe.
