@@ -37,6 +37,9 @@ type sprite struct {
 // mk makes a sprite of c anchored at design point (ax, ay).
 func mk(c *canvas, ax, ay float64) sprite {
 	x, y := c.toPx(ax, ay)
+	if c.dens > 1 { // drawn finer than art pixels (the dinosaurs of dinos/hd): the anchor is still in art pixels
+		return sprite{img: c.image(), ax: x / float64(c.dens), ay: y / float64(c.dens), dens: c.dens}
+	}
 	return sprite{img: c.image(), ax: x, ay: y}
 }
 
