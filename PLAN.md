@@ -107,3 +107,9 @@ Việc cần làm, theo thứ tự ưu tiên hiện tại. Làm xong mục nào 
   - **Đồ theo vùng**: áo choàng / mũ / ủng lông (tuyết); khăn trùm, áo vải lanh, dép (sa mạc); áo tơi lá (mưa); giày da cá sấu (đi nhanh ở đầm lầy); áo ngụy trang lá (thú để ý muộn).
   - **Túi đeo lưng**: thêm ô túi đồ. **Khiên tròn Viking**: giơ lên đỡ đòn. **Mũ sắt Viking**: đỡ đòn vào đầu.
   - Để sau: **nhuộm màu áo** (màu từ hoa, quả); **bộ đồ đủ món** có thêm hiệu ứng (ví dụ đủ bộ da bạo chúa thì thú nhỏ sợ).
+- [ ] **Trùm thứ 7: vượn khổng lồ ở Đảo Khỉ** (không dùng tên "King Kong" vì là nhân vật có bản quyền; dựa trên **Gigantopithecus**, loài vượn khổng lồ có thật thời tiền sử):
+  - **Đảo Khỉ**: một đảo rừng rậm mới, nhiều cây chuối, đàn khỉ đông; giữa đảo là hang ổ trên núi đá có tượng đá, xương thú.
+  - Tên gợi ý: **Gigantopithecus — Chúa Đảo Khỉ**. Cao gấp 3 bạo chúa, lông đen xám, ngực bạc.
+  - Đánh: đấm hai tay xuống đất (sóng chấn động, hất văng mọi người quanh nó), vồ bắt người ném đi, nhổ cây / nhặt tảng đá ném từ xa, đấm ngực gầm lên gọi đàn khỉ tới ném quả và cào. Máu thấp thì leo lên vách đá hồi sức, rồi nhảy xuống đập đất.
+  - Chiến lợi phẩm huyền thoại gợi ý: **Găng tay vượn chúa** (đấm tay không mạnh như vũ khí, mang vác nặng không chậm) hoặc **Bờm vượn chúa** (thú nhỏ không dám lại gần).
+  - Thêm vào màn hình "Phá đảo!" (7 trùm) và vào các ô bóng trùm trong đĩa bay.
