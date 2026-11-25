@@ -98,8 +98,8 @@ func plantSprite(k plantKind, v int) sprite {
 		for kind := range numPlantKinds {
 			for i := 0; i < plantVariants; i++ {
 				c, ax, ay := genPlant(kind, i)
-				plantArt[kind][i] = mk(c, ax, ay)
-				plantArt[kind][i+plantVariants] = mk(c.mirrored(), float64(c.w)-ax, ay)
+				plantArt[kind][i] = mkUp(c, ax, ay)
+				plantArt[kind][i+plantVariants] = mkUp(c.mirrored(), float64(c.w)-ax, ay)
 			}
 		}
 	}
@@ -121,6 +121,20 @@ var (
 // the point where it meets the ground.
 func genPlant(k plantKind, v int) (*canvas, float64, float64) {
 	rng := rand.New(rand.NewPCG(uint64(k)*31+7, uint64(v)*17+3))
+	if envHD { // see hdplants.go
+		switch k {
+		case plantFern:
+			return genFernHD(rng)
+		case plantBroadleaf:
+			return genBigLeavesHD(rng)
+		case plantClump:
+			return genClumpHD(rng, uint32(v))
+		case plantBlades:
+			return genBladesHD(rng)
+		default:
+			return genFlowersHD(rng, petalRamps[v%len(petalRamps)])
+		}
+	}
 	switch k {
 	case plantFern:
 		return genFern(rng)

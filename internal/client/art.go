@@ -189,6 +189,20 @@ type blob struct{ x, y, r float64 }
 // leafCluster shades a union of round blobs as one volume lit from the
 // top-left, with a clumpy leaf texture.
 func leafCluster(c *canvas, blobs []blob, cx, cy, rx, ry float64, rp ramp, seed uint32) {
+	if c.hd() { // single leaves; see hdenv.go
+		look, big := leafFine, 0.0
+		for _, b := range blobs {
+			big = max(big, b.r)
+		}
+		switch {
+		case big >= 17:
+			look = leafBroad
+		case big >= 8:
+			look = leafSmall
+		}
+		leafClusterHD(c, blobs, cx, cy, rx, ry, rp, seed, look)
+		return
+	}
 	minX, minY, maxX, maxY := math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)
 	for _, b := range blobs {
 		minX, maxX = math.Min(minX, b.x-b.r), math.Max(maxX, b.x+b.r)
@@ -247,6 +261,9 @@ func isTrunk(col color.RGBA) bool {
 }
 
 func genStump(s float64) sprite {
+	if envHD {
+		return genStumpHD(s)
+	}
 	c := newCanvas(int(math.Ceil(16*s)), int(math.Ceil(12*s)))
 	cx, rx := math.Round(float64(c.w)/2), 6*s
 	base := math.Round(9 * s) // ground point
@@ -270,20 +287,22 @@ func genStump(s float64) sprite {
 		}
 	})
 	c.outline(0.75)
-	return mk(c, cx, base)
+	return mkUp(c, cx, base)
 }
 
 func genBoulder(variant int, s float64) sprite {
 	c, ax, ay := boulderCanvas(variant, s)
-	return mk(c, ax, ay)
+	return mkUp(c, ax, ay)
 }
 
 // boulderCanvas draws boulder variant at scale s, and gives its ground point.
 func boulderCanvas(variant int, s float64) (*canvas, float64, float64) {
 	rng := rand.New(rand.NewPCG(uint64(variant)+7, 3))
-	c := newCanvas(int(math.Ceil(30*s)), int(math.Ceil(24*s)))
-	cx, cy := math.Round(15*s), 13*s
-	ground := math.Round(cy + 8*s)
+	k := hdK() // at HD: three times the size, in image pixels (see markHD)
+	c := markHD(newCanvas(int(math.Ceil(30*s))*int(k), int(math.Ceil(24*s))*int(k)))
+	cx, cy := math.Round(15*s)*k, 13*s*k
+	ground := math.Round(13*s+8*s) * k
+	s *= k
 	ells := []struct{ x, y, rx, ry float64 }{
 		{cx, cy, (10 + rng.Float64()*2) * s, (8 + rng.Float64()) * s},
 		{cx - (6+rng.Float64()*2)*s, cy + 3*s, (5 + rng.Float64()*2) * s, 4.5 * s},
@@ -308,32 +327,67 @@ func boulderCanvas(variant int, s float64) (*canvas, float64, float64) {
 			if !inside || py > ground+0.5 {
 				continue
 			}
-			best, bd := seeds[0], math.Inf(1)
+			best, bd, bd2 := seeds[0], math.Inf(1), math.Inf(1)
 			for _, s := range seeds {
 				if d := math.Hypot(px-s.x, (py-s.y)*1.3); d < bd {
-					best, bd = s, d
+					best, bd, bd2 = s, d, bd
+				} else if d < bd2 {
+					bd2 = d
 				}
 			}
 			gx, gy := (px-cx)/(13*s), (py-cy+2*s)/(11*s)
 			fx, fy := (best.x-cx)/(13*s), (best.y-cy+2*s)/(11*s)
-			l := lum(0.4*gx+0.6*fx, 0.4*gy+0.6*fy) + (vnoise(px*0.5, py*0.5, 140)-0.5)*0.2
+			l := lum(0.4*gx+0.6*fx, 0.4*gy+0.6*fy) + (vnoise(px*0.5/k, py*0.5/k, 140)-0.5)*0.2
 			if py > cy+6*s {
 				l -= 0.2
 			}
+			mossy := gy < -0.35 && vnoise(px*0.35/k, py*0.5/k, 141+uint32(variant)) > 0.45
+			if c.hd() {
+				// The grain of the stone, pits, and the creases where two
+				// faces meet: dark, with a lit edge on the face below.
+				l += (hashf(x, y, 142) - 0.5) * 0.09
+				l += (vnoise(px*0.45, py*0.45, 143) - 0.5) * 0.12
+				if hashf(x/2, y/2, 144) < 0.025 {
+					l -= 0.22
+				}
+				switch edge := bd2 - bd; {
+				case edge < 1.3:
+					l -= 0.2
+				case edge < 3 && best.y > py:
+					l += 0.1
+				}
+				// Moss with a ragged edge, in tufts.
+				m := vnoise(px*0.35/k, py*0.5/k, 141+uint32(variant)) + (vnoise(px*0.5, py*0.5, 145)-0.5)*0.25
+				mossy = gy < -0.3+(hashf(x, y, 146)-0.5)*0.12 && m > 0.45
+				if mossy {
+					l += (vnoise(px*0.7, py*0.7, 147)-0.5)*0.5 + 0.05
+				} else if m > 0.38 && gy < -0.25 {
+					l -= 0.15 // the damp shade at the moss's edge
+				} else if vnoise(px*0.3, py*0.3, 148+uint32(variant)) > 0.8 && gy > -0.2 {
+					l += 0.12 // a patch of pale lichen
+				}
+			}
 			col := stoneRamp.pick(l, x, y)
-			if gy < -0.35 && vnoise(px*0.35, py*0.5, 141+uint32(variant)) > 0.45 {
+			if mossy {
 				col = mossRamp.pick(l, x, y)
 			}
-			c.set(x, y, col)
+			c.put(x, y, col)
 		}
 	}
 	// A crack running down from the top.
 	x, y := cx+(-2+rng.Float64()*4)*s, cy-6*s
 	for i := 0; i < int(math.Round(7*s)); i++ {
 		if c.opaque(int(x), int(y)) {
-			c.set(int(x), int(y), stoneRamp[1])
+			c.put(int(x), int(y), stoneRamp[1])
+			if c.hd() && c.opaque(int(x)+1, int(y)) && i%3 != 0 {
+				c.put(int(x)+1, int(y), stoneRamp[4]) // its lit lip
+			}
 		}
-		x += rng.Float64()*2 - 1
+		if c.hd() {
+			x += (rng.Float64()*2 - 1) * 0.6
+		} else {
+			x += rng.Float64()*2 - 1
+		}
 		y++
 	}
 	c.outline(0.8)
@@ -341,6 +395,9 @@ func boulderCanvas(variant int, s float64) (*canvas, float64, float64) {
 }
 
 func genBush(berries bool) sprite {
+	if envHD {
+		return genBushHD(berries)
+	}
 	c := newCanvas(28, 22)
 	rp := bushRamp
 	if !berries {
@@ -358,10 +415,13 @@ func genBush(berries bool) sprite {
 		}
 	}
 	c.outline(0.75)
-	return mk(c, 14, 19)
+	return mkUp(c, 14, 19)
 }
 
 func genTuft(full bool) sprite {
+	if envHD {
+		return genTuftHD(full)
+	}
 	rng := rand.New(rand.NewPCG(11, 12))
 	c := newCanvas(22, 20)
 	const bx, by = 11, 18
@@ -394,12 +454,15 @@ func genTuft(full bool) sprite {
 		return color.RGBA{}
 	})
 	c.outline(0.35)
-	return mk(c, bx, by)
+	return mkUp(c, bx, by)
 }
 
 // --- campfire ---------------------------------------------------------------
 
 func genCampfire() (back, front sprite) {
+	if envHD {
+		return genCampfireHD()
+	}
 	const cx, cy = 15.0, 10.0
 	b, f := newCanvas(30, 18), newCanvas(30, 18)
 	stones := func(c *canvas, wantFront bool) {
@@ -438,7 +501,7 @@ func genCampfire() (back, front sprite) {
 	stones(f, true)
 	b.outline(0.7)
 	f.outline(0.7)
-	return mk(b, cx, cy), mk(f, cx, cy)
+	return mkUp(b, cx, cy), mkUp(f, cx, cy)
 }
 
 func genFlame(frame int) sprite {
@@ -479,7 +542,7 @@ func genTombstone() sprite {
 		c.set(g[0], g[1]+1, grassRamp[2])
 	}
 	c.outline(0.75)
-	return mk(c, 8, 17)
+	return mkUp(c, 8, 17)
 }
 
 // --- player -----------------------------------------------------------------
@@ -584,6 +647,9 @@ func genMarker() *ebiten.Image {
 
 // genTwig is a fallen, forked branch lying in the grass with a few leaves.
 func genTwig() sprite {
+	if envHD {
+		return genTwigHD()
+	}
 	c := newCanvas(24, 14)
 	stick := func(x0, y0, x1, y1 float64, lit float64) {
 		c.line(x0, y0, x1, y1, func(x, y int, t float64) color.RGBA { return trunkRamp.pick(lit+0.15, x, y) })
@@ -598,7 +664,7 @@ func genTwig() sprite {
 	}
 	c.set(2, 9, woodRamp[2]) // the broken end
 	c.outline(0.75)
-	return mk(c, 12, 9)
+	return mkUp(c, 12, 9)
 }
 
 // --- icons ------------------------------------------------------------------

@@ -26,7 +26,7 @@ const (
 func genDesertArt() desertArt {
 	var a desertArt
 	c, ax, ay := pyramidCanvas()
-	a.pyramid = mk(c, ax, ay)
+	a.pyramid = mkUp(c, ax, ay)
 	for p := range scorpionPoses {
 		c, ax, ay := scorpionCanvas(p)
 		a.scorpion[p] = mk(c, ax, ay)

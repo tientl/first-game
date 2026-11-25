@@ -13,6 +13,9 @@ import (
 
 // genStoneWall is a stretch of wall of stacked, squared stones.
 func genStoneWall() (*canvas, float64, float64) {
+	if envHD {
+		return genStoneWallHD()
+	}
 	c := newCanvas(24, 30)
 	const by = 26
 	// Battlements: a few stones higher than the rest.
@@ -149,7 +152,7 @@ type gearArt struct {
 func genGearArt() gearArt {
 	var a gearArt
 	c, ax, ay := genStoneWall()
-	a.stoneWall = mk(c, ax, ay)
+	a.stoneWall = mkUp(c, ax, ay)
 	for t := sim.TierCopper; t < sim.NumTiers; t++ {
 		c, ax, ay := genHeldSwordOf(tierRamps[t])
 		a.swords[t] = mk(c, ax, ay)

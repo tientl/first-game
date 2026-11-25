@@ -55,12 +55,15 @@ func stones(c *canvas, ss []struct{ x, y, rx, ry, l float64 }) {
 }
 
 func genPebbles() sprite {
+	if envHD {
+		return genPebblesHD()
+	}
 	c := newCanvas(16, 10)
 	stones(c, []struct{ x, y, rx, ry, l float64 }{
 		{8, 4.5, 2.2, 1.8, 1}, {5, 6.5, 3, 2.3, 0.9}, {10.5, 7, 2.6, 2, 0.75},
 	})
 	c.outline(0.7)
-	return mk(c, 8, 8)
+	return mkUp(c, 8, 8)
 }
 
 func iconPebbles() *ebiten.Image {
@@ -90,7 +93,7 @@ func genFarmland() sprite {
 		}
 	}
 	c.outline(0.35)
-	return mk(c, 11, 8)
+	return mkUp(c, 11, 8)
 }
 
 // genCrop is a sweet potato plant, without its soil: stage 0 to
@@ -102,6 +105,9 @@ func genCrop(stage int) sprite {
 	}{{12, 9, 2.2}, {16, 12, 3.1}, {20, 15, 4}, {22, 17, 4.4}}
 	sz := sizes[stage]
 	ripe := stage == sim.CropStages
+	if envHD {
+		return genCropHD(stage, sz.w, sz.h, sz.r, ripe)
+	}
 	c := newCanvas(sz.w, sz.h)
 	cx, base := math.Round(float64(sz.w)/2), float64(sz.h-3)
 	rng := rand.New(rand.NewPCG(uint64(stage)+31, 7))
@@ -128,7 +134,7 @@ func genCrop(stage int) sprite {
 		}
 	}
 	c.outline(0.7)
-	return mk(c, cx, base)
+	return mkUp(c, cx, base)
 }
 
 func iconPotato(roast bool) *ebiten.Image {
