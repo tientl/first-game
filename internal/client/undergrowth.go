@@ -288,7 +288,7 @@ func genFlowers(rng *rand.Rand, petals ramp) (*canvas, float64, float64) {
 
 // drawUndergrowth draws the canopy's shade and the plants on the ground in
 // view, before anything that stands on it.
-func (g *Game) drawUndergrowth(dst *ebiten.Image, cam camera) {
+func (g *Game) drawUndergrowth(dst drawTarget, cam camera) {
 	if g.tiles == nil {
 		return
 	}
@@ -336,7 +336,7 @@ const (
 
 // drawCanopy darkens the forest floor, fading at the edges of the woods, and
 // by day lets a few spots of sunlight through, drifting as the leaves move.
-func (g *Game) drawCanopy(dst *ebiten.Image, cam camera) {
+func (g *Game) drawCanopy(dst drawTarget, cam camera) {
 	w, h := dst.Bounds().Dx(), dst.Bounds().Dy()
 	tx0, ty0, ok := g.tileMask(&g.canopy, cam, w, h, func(t sim.Tile) bool { return t == sim.TileForest })
 	if !ok {

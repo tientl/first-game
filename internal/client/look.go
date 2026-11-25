@@ -110,7 +110,7 @@ func (a *art) body(l sim.Look) *bodyArt {
 
 // drawBody draws a standing or walking player at (x, y), the feet, scaled
 // by s. The body bobs up by bob art pixels on step frames.
-func drawBody(dst *ebiten.Image, b *bodyArt, dir sim.Dir, frame int, x, y, s, bob float64, tint color.Color) {
+func drawBody(dst drawTarget, b *bodyArt, dir sim.Dir, frame int, x, y, s, bob float64, tint color.Color) {
 	drawAt(dst, b.back[dir][frame], x, y-bob*s, s, s, 0, nil)
 	drawAt(dst, b.legs[dir][frame], x, y, s, s, 0, nil)
 	drawAt(dst, b.shirt[dir][frame], x, y-bob*s, s, s, 0, tint)

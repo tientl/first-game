@@ -310,7 +310,7 @@ func hasHive(e protocol.EntityView) bool {
 
 // drawHive hangs the hive on tree e drawn as s at (sx, sy), with its bees
 // about it.
-func (g *Game) drawHive(dst *ebiten.Image, e protocol.EntityView, s sprite, sx, sy float64) {
+func (g *Game) drawHive(dst drawTarget, e protocol.EntityView, s sprite, sx, sy float64) {
 	a := woodsArtOf()
 	h := a.hive
 	if e.Fuel > 0 {
@@ -335,7 +335,7 @@ func (g *Game) drawHive(dst *ebiten.Image, e protocol.EntityView, s sprite, sx, 
 var bee [2]*ebiten.Image
 
 // drawBees draws n bees buzzing round (x, y) within r pixels.
-func (g *Game) drawBees(dst *ebiten.Image, x, y float64, n int, r float64, seed uint32) {
+func (g *Game) drawBees(dst drawTarget, x, y float64, n int, r float64, seed uint32) {
 	if bee[0] == nil {
 		bee[0], bee[1] = ebiten.NewImage(1, 1), ebiten.NewImage(1, 1)
 		bee[0].Fill(color.RGBA{0xf2, 0xc8, 0x2a, 0xff})
@@ -356,7 +356,7 @@ func (g *Game) drawBees(dst *ebiten.Image, x, y float64, n int, r float64, seed 
 }
 
 // drawSwarm draws the bees round a player they are after.
-func (g *Game) drawSwarm(dst *ebiten.Image, p protocol.PlayerView, sx, sy float64) {
+func (g *Game) drawSwarm(dst drawTarget, p protocol.PlayerView, sx, sy float64) {
 	if p.Bees {
 		g.drawBees(dst, sx, sy-14, 12, 11, uint32(p.ID))
 	}

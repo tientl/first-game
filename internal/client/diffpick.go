@@ -538,7 +538,7 @@ func (p *diffPicker) drawScene(view *ebiten.Image, i, x, y int, sel bool) {
 		op.GeoM.Scale(2, 2)
 		op.GeoM.Translate(float64(x)+ax*2, float64(y)+ay*2)
 		op.ColorScale.Scale(r, g, b, 1)
-		view.DrawImage(s.img, op)
+		drawSprite(view, s, op)
 	}
 	t := 0
 	if sel {

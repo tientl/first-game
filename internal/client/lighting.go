@@ -16,7 +16,7 @@ var colCaveDark = color.RGBA{4, 6, 12, 255} // the dark underground
 // drawLighting darkens the scene by time of day and lets campfires cut holes
 // in the darkness. The light radius is sim.FireRadius, the same radius the
 // server uses for warmth, so "inside the light" means "safe from the cold".
-func (g *Game) drawLighting(screen *ebiten.Image, cam camera) {
+func (g *Game) drawLighting(screen drawTarget, cam camera) {
 	amb := sim.Ambient(g.curr.Tick)
 	night := (1 - amb) * maxDarkness
 	cave := g.caveDarkness() // inside a cave it is dark at any hour
@@ -113,7 +113,7 @@ func (g *Game) torches(cam camera) []torchLight {
 			continue
 		}
 		x, y, _ := g.lerpPlayer(p, alpha)
-		sx, sy := cam.toScreen(x, y)
+		sx, sy := cam.toScreenFine(x, y)
 		out = append(out, torchLight{sx, sy - 12, uint32(p.ID) * 7919})
 	}
 	return out
@@ -164,7 +164,7 @@ func (g *Game) ownLight(dark *ebiten.Image, cam camera) {
 			continue
 		}
 		x, y, _ := g.lerpPlayer(p, g.alpha())
-		sx, sy := cam.toScreen(x, y)
+		sx, sy := cam.toScreenFine(x, y)
 		op := g.lightOpAt(sx, sy-6, ownLightRadius)
 		op.ColorScale.ScaleAlpha(0.8)
 		op.Blend = ebiten.BlendDestinationOut

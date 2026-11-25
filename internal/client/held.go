@@ -52,14 +52,14 @@ func heldBehind(dir sim.Dir) bool { return dir == sim.DirUp }
 
 // drawHeld draws item k in the hand of a player standing at (sx, sy) in art
 // pixels. bob is how far the body is lifted this frame.
-func (g *Game) drawHeld(dst *ebiten.Image, k sim.ItemKind, dir sim.Dir, sx, sy, bob float64, step int) {
+func (g *Game) drawHeld(dst drawTarget, k sim.ItemKind, dir sim.Dir, sx, sy, bob float64, step int) {
 	hx, hy := handAt(dir, step)
 	g.drawHeldAt(dst, k, dir, sx+hx, sy+hy-bob)
 }
 
 // drawHeldAt draws item k in a hand at (hx, hy) in art pixels, of a player
 // facing dir.
-func (g *Game) drawHeldAt(dst *ebiten.Image, k sim.ItemKind, dir sim.Dir, hx, hy float64) {
+func (g *Game) drawHeldAt(dst drawTarget, k sim.ItemKind, dir sim.Dir, hx, hy float64) {
 	if !k.Valid() {
 		return
 	}

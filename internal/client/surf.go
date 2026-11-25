@@ -38,7 +38,9 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 		return vec4(0)
 	}
 	s := d.r*(1.4+0.45) - 1.4
-	w := Origin + srcPos
+	// srcPos is in the atlas the shore image sits in; from its own corner it
+	// is the same wherever the atlas put it.
+	w := Origin + srcPos - imageSrc0Origin()
 	// Each stretch of coast has its own rhythm, so the waves do not march
 	// in lockstep along the whole beach.
 	j := sin(w.x*0.021+w.y*0.013)*0.5 + sin(w.x*0.0071-w.y*0.017)*0.5
@@ -102,7 +104,7 @@ func shoreByte(s float64) (byte, bool) {
 
 // drawSurf draws the waves over one chunk whose top-left is at (x, y) on
 // dst and at world pixel (wx, wy).
-func drawSurf(dst, shore *ebiten.Image, x, y, wx, wy float64, frame int) {
+func drawSurf(dst drawTarget, shore *ebiten.Image, x, y, wx, wy float64, frame int) {
 	sh := getSurfShader()
 	if sh == nil || shore == nil {
 		return

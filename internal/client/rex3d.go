@@ -33,7 +33,7 @@ type rex3DArt struct {
 // poses too, so that whatever shows a tyrant shows this one.
 func genRex3D(a *creatureArt) {
 	baked := dino3d.BakeRex(dino3d.DirRight, dino3d.DirLeft)
-	conv := func(s r3d.Sprite) sprite { return sprite{ebiten.NewImageFromImage(s.Img), s.AX, s.AY} }
+	conv := func(s r3d.Sprite) sprite { return sprite{img: ebiten.NewImageFromImage(s.Img), ax: s.AX, ay: s.AY} }
 	for side, dir := range [2]int{dino3d.DirRight, dino3d.DirLeft} {
 		f := &baked.Frames[dir]
 		for _, s := range f[dino3d.RexWalk] {

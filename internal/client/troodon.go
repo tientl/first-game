@@ -4,9 +4,6 @@ import (
 	"image/color"
 	"math"
 
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
-
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
@@ -184,7 +181,7 @@ func troodonLabel(c protocol.CreatureView) (string, color.RGBA, bool) {
 // small points of amber-gold, the near eye and the far one beyond it,
 // brighter the darker it is, and blinking now and then. It is drawn after
 // the lighting, so in the black of night the eyes are all that shows.
-func (g *Game) drawEyeshine(dst *ebiten.Image, cam camera, alpha, dark float64) {
+func (g *Game) drawEyeshine(dst drawTarget, cam camera, alpha, dark float64) {
 	k := (dark - 0.2) / 0.45
 	if k <= 0 {
 		return
@@ -214,12 +211,13 @@ func (g *Game) drawEyeshine(dst *ebiten.Image, cam camera, alpha, dark float64) 
 		if eye == ([2]float64{}) {
 			continue
 		}
-		sx, sy := cam.toScreen(x, y)
+		sx, sy := cam.toScreenFine(x, y)
+		align(dst, sx, sy) // on the beast's own grid, as drawSprites drew it
 		if c.State == sim.CreatureHurt {
 			sx += math.Round(math.Sin(float64(g.frame) * 1.3)) // as drawCreature flinches it
 		}
-		ex := float32(math.Floor(sx + eye[0]))
-		ey := float32(math.Floor(sy - bob + eye[1]))
+		ex := float32(sx + math.Floor(eye[0])) // whole art pixels from the beast's own point; see align
+		ey := float32(sy + math.Floor(eye[1]-bob))
 		shimmer := 0.88 + 0.12*math.Sin(float64(t)*0.11)
 		glint(dst, ex, ey, k*shimmer)
 		glint(dst, ex+float32(dir*4), ey, k*shimmer*0.75) // the far eye, past the snout
@@ -228,10 +226,10 @@ func (g *Game) drawEyeshine(dst *ebiten.Image, cam camera, alpha, dark float64) 
 
 // glint draws one shining eye at pixel (x, y): a bright point in a faint
 // cross of light.
-func glint(dst *ebiten.Image, x, y float32, k float64) {
+func glint(dst drawTarget, x, y float32, k float64) {
 	px := func(dx, dy float32, c color.RGBA, a float64) {
 		a = math.Max(0, math.Min(1, a))
-		vector.FillRect(dst, x+dx, y+dy, 1, 1, color.RGBA{
+		fillRect(dst, x+dx, y+dy, 1, 1, color.RGBA{
 			uint8(float64(c.R) * a), uint8(float64(c.G) * a), uint8(float64(c.B) * a), uint8(255 * a),
 		}, false)
 	}

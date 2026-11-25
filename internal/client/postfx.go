@@ -8,8 +8,8 @@ import (
 	"survivalgame/internal/sim"
 )
 
-// Post-processing: the world canvas goes through shaders before it is
-// scaled to the screen. Bright things (fire, torches, glowing plants,
+// Post-processing: the world canvas goes through shaders before it goes
+// on the screen. Bright things (fire, torches, glowing plants,
 // lava, the sun on sand and foam) bleed a soft glow around them (bloom),
 // and the colours are graded like a film: a little more contrast and
 // colour, shadows leaning cool, highlights warm, and the whole picture
@@ -100,7 +100,8 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 
 type postShaders struct {
 	bright, blur, grade *ebiten.Shader
-	a, b, out           *ebiten.Image
+	small, a, b, c      *ebiten.Image // art-pixel size, for the glow
+	glow, out           *ebiten.Image // canvas size
 }
 
 var post *postShaders
@@ -144,40 +145,53 @@ func abs64(x float64) float64 {
 	return x
 }
 
-// applyPost runs world through the shaders and returns what to scale to
-// the screen.
-func (g *Game) applyPost(world *ebiten.Image) *ebiten.Image {
+// applyPost runs the full-resolution world canvas through the shaders and
+// returns what to draw on the screen. The glow is worked out at art-pixel
+// size (the canvas shrunk scale times), as it was when the world was drawn
+// small, then spread back over the canvas for the grade.
+func (g *Game) applyPost(canvas *ebiten.Image, scale int) *ebiten.Image {
 	p := getPost()
 	if p == nil {
-		return world
+		return canvas
 	}
-	b := world.Bounds()
-	w, h := b.Dx(), b.Dy()
-	if p.out == nil || p.out.Bounds() != b {
-		for _, im := range []*ebiten.Image{p.a, p.b, p.out} {
+	cb := canvas.Bounds()
+	w, h := (cb.Dx()+scale-1)/scale, (cb.Dy()+scale-1)/scale
+	if p.out == nil || p.out.Bounds() != cb || p.a.Bounds().Dx() != w || p.a.Bounds().Dy() != h {
+		for _, im := range []*ebiten.Image{p.small, p.a, p.b, p.c, p.glow, p.out} {
 			if im != nil {
 				im.Deallocate()
 			}
 		}
-		p.a, p.b, p.out = ebiten.NewImage(w, h), ebiten.NewImage(w, h), ebiten.NewImage(w, h)
+		p.small, p.a, p.b, p.c = ebiten.NewImage(w, h), ebiten.NewImage(w, h), ebiten.NewImage(w, h), ebiten.NewImage(w, h)
+		p.glow, p.out = ebiten.NewImage(cb.Dx(), cb.Dy()), ebiten.NewImage(cb.Dx(), cb.Dy())
 	}
+	// The canvas at art-pixel size: each art pixel's colour, for the glow.
+	sop := &ebiten.DrawImageOptions{Filter: ebiten.FilterLinear}
+	sop.GeoM.Scale(1/float64(scale), 1/float64(scale))
+	p.small.Clear()
+	p.small.DrawImage(canvas, sop)
 	pass := func(dst *ebiten.Image, sh *ebiten.Shader, u map[string]any, srcs ...*ebiten.Image) {
 		op := &ebiten.DrawRectShaderOptions{Uniforms: u}
 		copy(op.Images[:], srcs)
-		dst.DrawRectShader(w, h, sh, op)
+		b := dst.Bounds()
+		dst.DrawRectShader(b.Dx(), b.Dy(), sh, op)
 	}
 	night := 1 - sim.Ambient(g.curr.Tick)
 	threshold := float32(0.66 - 0.04*night)
-	pass(p.a, p.bright, map[string]any{"Dir": []float32{1, 0}, "Threshold": threshold}, world)
+	pass(p.a, p.bright, map[string]any{"Dir": []float32{1, 0}, "Threshold": threshold}, p.small)
 	pass(p.b, p.blur, map[string]any{"Dir": []float32{0, 1}}, p.a)
-	pass(p.a, p.bright, map[string]any{"Dir": []float32{2, 0}, "Threshold": threshold}, world) // a wider halo
-	pass(p.out, p.blur, map[string]any{"Dir": []float32{0, 2}}, p.a)
-	p.b.DrawImage(p.out, &ebiten.DrawImageOptions{Blend: ebiten.BlendLighter})
+	pass(p.a, p.bright, map[string]any{"Dir": []float32{2, 0}, "Threshold": threshold}, p.small) // a wider halo
+	pass(p.c, p.blur, map[string]any{"Dir": []float32{0, 2}}, p.a)
+	p.b.DrawImage(p.c, &ebiten.DrawImageOptions{Blend: ebiten.BlendLighter})
+	gop := &ebiten.DrawImageOptions{Filter: ebiten.FilterLinear}
+	gop.GeoM.Scale(float64(scale), float64(scale))
+	p.glow.Clear()
+	p.glow.DrawImage(p.b, gop)
 	t := hourTint(g.curr.Tick)
 	pass(p.out, p.grade, map[string]any{
 		"Tint":  []float32{t[0], t[1], t[2]},
 		"Bloom": float32(0.5 + 0.2*night),
-		"Size":  []float32{float32(w), float32(h)},
-	}, world, p.b)
+		"Size":  []float32{float32(cb.Dx()), float32(cb.Dy())},
+	}, canvas, p.glow)
 	return p.out
 }

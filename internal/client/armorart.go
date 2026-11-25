@@ -247,7 +247,7 @@ func armorLayersPose(t sim.Tier, female bool, d sim.Dir, frame int, whole bool) 
 // then the head, hands and hanging hair over it, and any headgear on top.
 // Under the skull cap, hair that stands up (spikes, a bun) is drawn as short
 // hair: the cap covers it.
-func (g *Game) drawArmored(dst *ebiten.Image, p protocol.PlayerView, dir sim.Dir, frame int, x, y, bob float64, tint color.Color) {
+func (g *Game) drawArmored(dst drawTarget, p protocol.PlayerView, dir sim.Dir, frame int, x, y, bob float64, tint color.Color) {
 	l := p.Look
 	if p.Armor >= sim.TierDiamond && (l.Hair == sim.HairSpiky || l.Hair == sim.HairBun) {
 		l.Hair = sim.HairShort

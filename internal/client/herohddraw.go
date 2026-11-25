@@ -227,7 +227,7 @@ func (g *Game) heroStands(p protocol.PlayerView) bool {
 
 // drawHeroShadow is the hero's contact shadow: a soft dark ellipse under
 // the feet with a darker heart, pushed away from the nearest fire.
-func (g *Game) drawHeroShadow(dst *ebiten.Image, sx, sy float64) {
+func (g *Game) drawHeroShadow(dst drawTarget, sx, sy float64) {
 	_, _, _, shx, shy := g.heroLights(sx, sy, false)
 	for _, s := range [2]struct{ w, h, a, push float64 }{{27, 10, 0.3, 3.5}, {17, 6, 0.42, 1.5}} {
 		op := &ebiten.DrawImageOptions{}
@@ -242,7 +242,7 @@ func (g *Game) drawHeroShadow(dst *ebiten.Image, sx, sy float64) {
 
 // drawHeroHD draws p, who is up and on land, as the trial hero with the
 // feet at d's point.
-func (g *Game) drawHeroHD(dst *ebiten.Image, p protocol.PlayerView, d drawable) {
+func (g *Game) drawHeroHD(dst drawTarget, p protocol.PlayerView, d drawable) {
 	h := g.heroHD()
 	tint := playerColors[int(p.ID)%len(playerColors)]
 	armed := isSword(p.Held)

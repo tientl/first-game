@@ -62,7 +62,7 @@ var fly *ebiten.Image
 
 // drawFlies draws two or three flies buzzing about a heap of dung at
 // (sx, sy) in the art canvas.
-func (g *Game) drawFlies(dst *ebiten.Image, sx, sy float64, seed uint32) {
+func (g *Game) drawFlies(dst drawTarget, sx, sy float64, seed uint32) {
 	if fly == nil {
 		fly = ebiten.NewImage(1, 1)
 		fly.Fill(color.RGBA{0x14, 0x14, 0x18, 0xff})
