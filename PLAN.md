@@ -51,7 +51,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 - [x] Giai đoạn 0: nền tảng vẽ ở độ phân giải màn hình (`internal/client/hd.go`, `HD_ART.md`).
 - [x] Giai đoạn 1: nhân vật (8 khung đi, giáp, đấm, bơi, ngủ, màn hình tạo nhân vật) và mặt đất (cả hai kiểu: cỏ xanh và đất ấm; `SetGroundStyle`, lưu trong cài đặt).
 - [x] Giai đoạn 2: cây, cỏ, hoa, đá, công trình (vẽ lại ở HD). Còn tinh chỉnh tự động, cần vẽ tay sau: quặng, lò nung, lều, cây ăn thịt, chông, kim tự tháp, cửa hang. Lửa, thuyền, icon vẫn hình cũ.
-- [ ] Giai đoạn 3: khủng long và các sinh vật.
+- [ ] Giai đoạn 3: khủng long và các sinh vật. **Xong phần khủng long** (16 loài vẽ từ PNG, 8 khung đi/chạy, 8 khung vỗ cánh, lấy đà trước đòn — hình HD tạo tự động từ hình cũ, chưa vẽ tay). Còn: thú vẽ bằng code (thỏ, rắn, cua, cá sấu, voi ma mút, hổ răng kiếm, gấu, nhện, thổ dân, khỉ, bọ cạp, cá, giun), quái biển, 6 trùm; và sim phải trì hoãn đòn đánh để lấy đà là báo trước thật (hiện trúng đòn ngay khi bắt đầu lấy đà).
 - [ ] Giai đoạn 4: icon, giao diện, hiệu ứng (có thể lấy hiệu ứng từ pixelfx, giấy phép MIT).
 
 ### Tỉ lệ và hoạt ảnh
