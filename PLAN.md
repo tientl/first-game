@@ -147,6 +147,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Nuôi từ bé gắn bó hơn thuần thú bằng cho ăn, và cho người chơi lý do quay về căn cứ.
   - **Chỉ thuần hoá được bằng cách ấp trứng** (bỏ cách thuần bằng cho ăn như hiện nay).
 - [ ] **Sinh vật mới**: cóc xanh có độc; cóc phát sáng vào ban đêm.
+- [ ] **Thú non**: mọi loài có con non (voi ma mút con, hổ răng kiếm con, khủng long con, thỏ con, gấu con…), nhỏ hơn, đầu to, chân ngắn, chạy lon ton theo mẹ trong đàn. Đánh con non thì thú mẹ nổi giận lao vào. Con non lớn dần thành con trưởng thành sau vài ngày. Khủng long con nở từ trứng (mục trên) dùng chung hình con non.
 
 ## 7. Chiến đấu và sự kiện
 
