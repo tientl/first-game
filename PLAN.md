@@ -2,6 +2,15 @@
 
 Việc cần làm, theo thứ tự ưu tiên hiện tại. Làm xong mục nào thì đánh dấu `[x]` và cập nhật cẩm nang.
 
+## Làm đầu tiên
+
+- [ ] **Chế độ dev** (cờ `-dev` cho `cmd/game`), để test nhanh mọi tính năng:
+  - Bỏ qua menu, vào thẳng thế giới mới (nhỏ, seed cố định, bản lưu riêng).
+  - Bất tử, không đói, không khát, không lạnh (bật/tắt được).
+  - Bảng lệnh (phím `~`): `give <đồ> <số>`, `tp <làng|trùm N|hang|kim tự tháp|x y>`, `spawn <thú>`, `time <giờ|đêm|ngày>`, `season <mùa>`, `weather <thời tiết>`, `speed <hệ số>`, `kill` (thú quanh), `heal`.
+  - Hiện hết bản đồ (bỏ vùng chưa khám phá).
+  - Không bao giờ bật trong bản phát hành: chỉ khi chạy với `-dev`.
+
 ## Đồ hoạ Full HD (đang làm)
 
 - [x] Giai đoạn 0: nền tảng vẽ ở độ phân giải màn hình (`internal/client/hd.go`, `HD_ART.md`).
