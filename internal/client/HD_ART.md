@@ -84,3 +84,13 @@ taken that way should match the old ones pixel for pixel (bar +-1 rounding),
 except what you redrew. Look at both 1080p (crisp, 1:1) and 720p (scaled
 down smoothly) for every sprite you change, and at a crop of it:
 `-crop x,y,w,h` keeps a region, enlarged 4x.
+
+## The ground
+
+The ground is baked at `groundDens` (= `HDDensity`): a chunk of 8 x 8 tiles
+is a 576 x 432 image, coloured image pixel by image pixel (`groundhd.go`
+bakes, `groundart.go` holds the look of each kind of ground). It has two
+looks, `GroundGreen` and `GroundWarm`, switched with `SetGroundStyle` (kept
+in the settings file as `"ground": "warm"`; `shot -warm`). The shore image
+the surf shader reads stays at density 1, as shaders run at art-pixel
+resolution. `go test ./internal/client -bench BakeChunk` times a bake.

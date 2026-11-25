@@ -161,7 +161,8 @@ func (m *mixer) Read(p []byte) (int, error) {
 type audioSettings struct {
 	Music   float64 `json:"music"`
 	Effects float64 `json:"effects"`
-	Zoom    int     `json:"zoom,omitempty"` // the view's zoom; see render.go
+	Zoom    int     `json:"zoom,omitempty"`   // the view's zoom; see render.go
+	Ground  string  `json:"ground,omitempty"` // the look of the ground: "" (green) or "warm"; see groundhd.go
 }
 
 // --- sound system -----------------------------------------------------------
@@ -225,6 +226,9 @@ func InitAudio(settingsPath string) {
 			s.settings.Effects = clamp01(st.Effects)
 			s.settings.Zoom = max(minZoom, min(maxZoom, st.Zoom))
 			viewZoom = s.settings.Zoom
+			if s.settings.Ground = st.Ground; st.Ground == "warm" {
+				groundStyle = GroundWarm
+			}
 		}
 	}
 
@@ -436,6 +440,19 @@ func approach(cur, want, step float64) float64 {
 		return max(want, cur-step)
 	}
 	return cur
+}
+
+// saveGround keeps the look of the ground with the settings.
+func (s *soundSystem) saveGround(g GroundStyle) {
+	name := ""
+	if g == GroundWarm {
+		name = "warm"
+	}
+	if s == nil || s.settings.Ground == name {
+		return
+	}
+	s.settings.Ground = name
+	s.saveSettings()
 }
 
 // saveZoom keeps the view's zoom with the settings.

@@ -258,10 +258,10 @@ func main() {
 	if *at != "" {
 		want := map[string]sim.Tile{"desert": sim.TileDesert, "marsh": sim.TileMarsh, "cave": sim.TileCave,
 			"mountain": sim.TileMountain, "ash": sim.TileAsh, "lava": sim.TileLava, "mouth": sim.TileCave, "snow": sim.TileSnow,
-			"pond": sim.TileMarsh}[*at]
+			"pond": sim.TileMarsh, "forest": sim.TileForest, "rocky": sim.TileRocky}[*at]
 		// Desert and marsh: stand well inside, where they fill the screen.
 		deep := 0.0
-		if *at == "desert" || *at == "marsh" || *at == "snow" || *at == "pond" {
+		if *at == "desert" || *at == "marsh" || *at == "snow" || *at == "pond" || *at == "forest" {
 			deep = 0.75
 		}
 		share := func(tx, ty int) float64 {

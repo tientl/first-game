@@ -42,21 +42,6 @@ const (
 	sabrePoses
 )
 
-// snowGround colours a pixel of snow: soft drifts, blue in their hollows,
-// and a few glints.
-func snowGround(px, py int, u, v float64) color.RGBA {
-	n := fbm2(u*0.25, v*0.32, 171, 3)
-	i := snowRamp.idx(0.62+(n-0.5)*0.8, px, py)
-	r := math.Sin((v*1.1 + u*0.25 + fbm2(u*0.35, v*0.45, 172, 2)*2.5) * 2 * math.Pi)
-	if r > 0.94 && hashf(px, py, 176) < 0.7 {
-		i-- // the shadowed lee of a drift, faint and broken
-	}
-	if hashf(px, py, 173) < 0.012 {
-		return snowRamp[5] // a glint
-	}
-	return snowRamp.at(i)
-}
-
 // --- painting fur -----------------------------------------------------------
 
 // The mammoth and the sabre-tooth are painted pixel for pixel rather than
