@@ -100,7 +100,7 @@ func TestHeroHDSheet(t *testing.T) {
 	}
 	// the old figure, at the same zoom
 	for r, d := range dirs {
-		for fr := range walkFrames {
+		for fr := range 4 {
 			lookCell(img, sim.Look{}, d, fr, color.RGBA{tint.R, tint.G, tint.B, 255}, (6*cw+10+fr*26)*k, (r*ch+ch-6-bodyFeet-2)*k, k)
 		}
 	}

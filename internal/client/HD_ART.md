@@ -66,10 +66,17 @@ it and pick one with a flag, or make both from the same code with
 - UI (bag icons, the character screen) draws on the screen: `drawSprite`
   sizes HD sprites right there too. Item icons are plain `*ebiten.Image`s,
   not sprites: they need their own density handling when redrawn.
-- Not density-aware yet: `jolt.go` draws a struck figure through an
-  art-pixel scratch image (an HD hero would lose detail for those few
-  frames), the trophy head crop in `tribalrender.go` (`headOf`), and the
-  sprite export in `export.go`.
+- A figure drawn through a scratch image (struck in `jolt.go`, cut off at
+  the water in `searender.go`) uses a `fineBuf` (`hd.go`): a drawTarget in
+  art pixels on an image HDDensity times finer, put on the world with
+  `drawImageD(dst, buf.img, op, HDDensity)`.
+- The player is HD (`lookhd.go`, `lookhd_head.go`, `armorhd.go`, drawn with
+  the shapes and shaders of `hdfig.go`); `playerHD = false` brings back the
+  density-1 figure of `look.go`.
+- Not density-aware yet: the trophy head crop in `tribalrender.go`
+  (`headOf`), the sprite export in `export.go`, the fallen body
+  (`bodyart.go`) and the map's head marker, which still use the density-1
+  figure.
 
 ## Checking
 

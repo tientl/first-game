@@ -96,8 +96,12 @@ func drawImageD(dst drawTarget, img *ebiten.Image, op *ebiten.DrawImageOptions, 
 	m.Scale(1/float64(density), 1/float64(density))
 	m.Concat(op.GeoM)
 	o.GeoM = m
-	if w, ok := dst.(*worldDst); ok {
-		w.drawFine(img, &o)
+	switch d := dst.(type) {
+	case *worldDst:
+		d.drawFine(img, &o)
+		return
+	case *fineBuf:
+		d.drawFine(img, &o)
 		return
 	}
 	pickFilter(&o, op.Filter)
@@ -453,12 +457,97 @@ func (wd *worldDst) drawFine(img *ebiten.Image, op *ebiten.DrawImageOptions) {
 	wd.canvas.DrawImage(img, &o)
 }
 
+// fineBuf is a scratch drawTarget in art pixels on an image HDDensity times
+// finer, so a figure drawn in it and put on the world afterwards (thrown
+// back by a blow, cut off at the water) keeps its HD detail. Put it on
+// another target with drawImageD(dst, b.img, op, HDDensity).
+type fineBuf struct {
+	img  *ebiten.Image
+	w, h int // in art pixels
+}
+
+func newFineBuf(w, h int) *fineBuf {
+	return &fineBuf{ebiten.NewImage(w*HDDensity, h*HDDensity), w, h}
+}
+
+func (b *fineBuf) Bounds() image.Rectangle { return image.Rect(0, 0, b.w, b.h) }
+
+// DrawImage draws density-1 art, in art pixels.
+func (b *fineBuf) DrawImage(img *ebiten.Image, op *ebiten.DrawImageOptions) {
+	var o ebiten.DrawImageOptions
+	if op != nil {
+		o = *op
+	}
+	snapGeoM(&o.GeoM, o.Filter)
+	o.GeoM.Scale(HDDensity, HDDensity)
+	b.img.DrawImage(img, &o)
+}
+
+func (b *fineBuf) drawFine(img *ebiten.Image, op *ebiten.DrawImageOptions) {
+	o := *op
+	o.GeoM.Scale(HDDensity, HDDensity)
+	pickFilter(&o, op.Filter)
+	b.img.DrawImage(img, &o)
+}
+
+func (b *fineBuf) DrawRectShader(w, h int, s *ebiten.Shader, op *ebiten.DrawRectShaderOptions) {
+	o := *op
+	o.GeoM.Scale(HDDensity, HDDensity)
+	b.img.DrawRectShader(w, h, s, &o)
+}
+
+func (b *fineBuf) DrawTriangles(vs []ebiten.Vertex, is []uint16, img *ebiten.Image, op *ebiten.DrawTrianglesOptions) {
+	scaled := make([]ebiten.Vertex, len(vs))
+	for i, v := range vs {
+		v.DstX, v.DstY = v.DstX*HDDensity, v.DstY*HDDensity
+		scaled[i] = v
+	}
+	b.img.DrawTriangles(scaled, is, img, op)
+}
+
+// vec runs a vector drawing call on the buffer, scaled up.
+func (b *fineBuf) vec(draw func(img *ebiten.Image, k float32)) { draw(b.img, HDDensity) }
+
+// drawColorMD is drawColorM for an image at the given density, such as a
+// fineBuf's.
+func drawColorMD(dst drawTarget, img *ebiten.Image, cm colorm.ColorM, op *colorm.DrawImageOptions, density int) {
+	if density <= 1 {
+		drawColorM(dst, img, cm, op)
+		return
+	}
+	o := *op
+	var m ebiten.GeoM
+	m.Scale(1/float64(density), 1/float64(density))
+	m.Concat(op.GeoM)
+	o.GeoM = m
+	o.Filter = ebiten.FilterLinear
+	switch d := dst.(type) {
+	case *ebiten.Image:
+		colorm.DrawImage(d, img, cm, &o)
+	case *fineBuf:
+		o.GeoM.Scale(HDDensity, HDDensity)
+		colorm.DrawImage(d.img, img, cm, &o)
+	case *worldDst:
+		d.flush()
+		o.GeoM.Scale(d.r, d.r)
+		if whole(o.GeoM.Element(0, 0)) && whole(o.GeoM.Element(1, 1)) && o.GeoM.Element(0, 1) == 0 && o.GeoM.Element(1, 0) == 0 {
+			o.Filter = ebiten.FilterNearest
+			tx, ty := o.GeoM.Element(0, 2), o.GeoM.Element(1, 2)
+			o.GeoM.Translate(math.Round(tx)-tx, math.Round(ty)-ty)
+		}
+		colorm.DrawImage(d.canvas, img, cm, &o)
+	}
+}
+
 // The vector calls the world code makes, on any drawTarget.
 
 func fillRect(dst drawTarget, x, y, w, h float32, clr color.Color, aa bool) {
 	switch d := dst.(type) {
 	case *ebiten.Image:
 		vector.FillRect(d, x, y, w, h, clr, aa)
+	case *fineBuf:
+		X, Y := snapRect(x, y, aa)
+		d.vec(func(img *ebiten.Image, k float32) { vector.FillRect(img, X*k, Y*k, w*k, h*k, clr, aa) })
 	case *worldDst:
 		d.vec(float64(x), float64(y), float64(x+w), float64(y+h), func(img *ebiten.Image, dx, dy float32) {
 			X, Y := snapRect(x+dx, y+dy, aa)
@@ -471,6 +560,9 @@ func strokeRect(dst drawTarget, x, y, w, h, sw float32, clr color.Color, aa bool
 	switch d := dst.(type) {
 	case *ebiten.Image:
 		vector.StrokeRect(d, x, y, w, h, sw, clr, aa)
+	case *fineBuf:
+		X, Y := snapRect(x, y, aa)
+		d.vec(func(img *ebiten.Image, k float32) { vector.StrokeRect(img, X*k, Y*k, w*k, h*k, sw*k, clr, aa) })
 	case *worldDst:
 		d.vec(float64(x-sw), float64(y-sw), float64(x+w+sw), float64(y+h+sw), func(img *ebiten.Image, dx, dy float32) {
 			X, Y := snapRect(x+dx, y+dy, aa)
@@ -483,6 +575,8 @@ func strokeLine(dst drawTarget, x0, y0, x1, y1, sw float32, clr color.Color, aa 
 	switch d := dst.(type) {
 	case *ebiten.Image:
 		vector.StrokeLine(d, x0, y0, x1, y1, sw, clr, aa)
+	case *fineBuf:
+		d.vec(func(img *ebiten.Image, k float32) { vector.StrokeLine(img, x0*k, y0*k, x1*k, y1*k, sw*k, clr, aa) })
 	case *worldDst:
 		d.vec(float64(min(x0, x1)-sw), float64(min(y0, y1)-sw), float64(max(x0, x1)+sw), float64(max(y0, y1)+sw), func(img *ebiten.Image, dx, dy float32) {
 			vector.StrokeLine(img, x0+dx, y0+dy, x1+dx, y1+dy, sw, clr, aa)
@@ -494,6 +588,8 @@ func fillCircle(dst drawTarget, cx, cy, r float32, clr color.Color, aa bool) {
 	switch d := dst.(type) {
 	case *ebiten.Image:
 		vector.FillCircle(d, cx, cy, r, clr, aa)
+	case *fineBuf:
+		d.vec(func(img *ebiten.Image, k float32) { vector.FillCircle(img, cx*k, cy*k, r*k, clr, aa) })
 	case *worldDst:
 		d.vec(float64(cx-r), float64(cy-r), float64(cx+r), float64(cy+r), func(img *ebiten.Image, dx, dy float32) {
 			vector.FillCircle(img, cx+dx, cy+dy, r, clr, aa)
@@ -505,6 +601,8 @@ func strokeCircle(dst drawTarget, cx, cy, r, sw float32, clr color.Color, aa boo
 	switch d := dst.(type) {
 	case *ebiten.Image:
 		vector.StrokeCircle(d, cx, cy, r, sw, clr, aa)
+	case *fineBuf:
+		d.vec(func(img *ebiten.Image, k float32) { vector.StrokeCircle(img, cx*k, cy*k, r*k, sw*k, clr, aa) })
 	case *worldDst:
 		d.vec(float64(cx-r-sw), float64(cy-r-sw), float64(cx+r+sw), float64(cy+r+sw), func(img *ebiten.Image, dx, dy float32) {
 			vector.StrokeCircle(img, cx+dx, cy+dy, r, sw, clr, aa)
@@ -526,6 +624,11 @@ func drawColorM(dst drawTarget, img *ebiten.Image, cm colorm.ColorM, op *colorm.
 	switch d := dst.(type) {
 	case *ebiten.Image:
 		colorm.DrawImage(d, img, cm, op)
+	case *fineBuf:
+		o := *op
+		snapGeoM(&o.GeoM, o.Filter)
+		o.GeoM.Scale(HDDensity, HDDensity)
+		colorm.DrawImage(d.img, img, cm, &o)
 	case *worldDst:
 		o := *op
 		b := img.Bounds()

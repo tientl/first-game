@@ -3,8 +3,6 @@ package client
 import (
 	"image/color"
 
-	"github.com/hajimehoshi/ebiten/v2"
-
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
@@ -43,8 +41,13 @@ func (a *art) armor(tier sim.Tier, female bool) *armorArt {
 		}
 	}
 	for f := range walkFrames {
-		B, _ := armorLayersPose(k.tier, female, sim.DirRight, f, true)
-		s.whole[sim.DirRight][f] = mk(B, 9, bodyFeet)
+		if playerHD {
+			B, _ := armorLayersHD(k.tier, female, sim.DirRight, f, true)
+			s.whole[sim.DirRight][f] = figSprite(B)
+		} else {
+			B, _ := armorLayersPose(k.tier, female, sim.DirRight, legacyFrame(f), true)
+			s.whole[sim.DirRight][f] = mk(B, 9, bodyFeet)
+		}
 		s.whole[sim.DirLeft][f] = mirrorSprite(s.whole[sim.DirRight][f])
 		for _, d := range []sim.Dir{sim.DirDown, sim.DirUp} {
 			s.whole[d][f] = s.body[d][f]
@@ -59,7 +62,7 @@ func (a *art) armor(tier sim.Tier, female bool) *armorArt {
 
 // drawArmor draws armour over a body drawn by drawBody with the same
 // arguments.
-func drawArmor(dst *ebiten.Image, a *armorArt, dir sim.Dir, frame int, x, y, s, bob float64) {
+func drawArmor(dst drawTarget, a *armorArt, dir sim.Dir, frame int, x, y, s, bob float64) {
 	drawAt(dst, a.body[dir][frame], x, y-bob*s, s, s, 0, nil)
 	drawAt(dst, a.helmet[dir][frame], x, y-bob*s, s, s, 0, nil)
 }
@@ -72,7 +75,11 @@ func genArmor(t sim.Tier, female bool, d sim.Dir, frame int) (body, helmet sprit
 		b, h := genArmor(t, female, sim.DirRight, frame)
 		return mirrorSprite(b), mirrorSprite(h)
 	}
-	B, H := armorLayers(t, female, d, frame)
+	if playerHD { // see armorhd.go
+		B, H := armorLayersHD(t, female, d, frame, false)
+		return figSprite(B), figSprite(H)
+	}
+	B, H := armorLayers(t, female, d, legacyFrame(frame))
 	return mk(B, 9, bodyFeet), mk(H, 9, bodyFeet)
 }
 

@@ -109,15 +109,16 @@ func (g *Game) drawSwimmer(dst drawTarget, p protocol.PlayerView, d drawable) {
 	// Only what is above the water: draw into a strip and cut it off.
 	const above = 22
 	if g.swimBuf == nil {
-		g.swimBuf = ebiten.NewImage(48, 48)
+		g.swimBuf = newFineBuf(48, 48) // at HD density: see hd.go
 	}
-	g.swimBuf.Clear()
+	g.swimBuf.img.Clear()
 	drawBody(g.swimBuf, b, dir, 0, 24, 40, 1, 0, tint)
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(d.sx-24, y-40)
-	sub := g.swimBuf.SubImage(imageRect(0, 40-above-14, 48, 40-14)).(*ebiten.Image)
+	const k = HDDensity
+	sub := g.swimBuf.img.SubImage(imageRect(0, (40-above-14)*k, 48*k, (40-14)*k)).(*ebiten.Image)
 	op.GeoM.Translate(0, float64(40-above-14))
-	dst.DrawImage(sub, op)
+	drawImageD(dst, sub, op, HDDensity)
 	for k := range 2 {
 		ph := math.Mod(float64(g.frame)/70+float64(k)*0.5, 1)
 		r, a := 5+ph*7, uint8(170*(1-ph))
