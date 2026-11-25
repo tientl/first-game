@@ -417,7 +417,7 @@ func TestWaterPlantsAndCropsSurviveASave(t *testing.T) {
 	}
 
 	// A world saved before the plants existed gets them on loading.
-	d.Version = 14
+	d.Version = 15
 	d.Entities = slices.DeleteFunc(d.Entities, func(e Entity) bool { return e.Kind == EntityFlora })
 	w3, err := Load(d)
 	if err != nil {

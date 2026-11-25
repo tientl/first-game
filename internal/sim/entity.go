@@ -103,6 +103,9 @@ const (
 	// Death at the harder difficulties: see grave.go.
 	EntityGrave // a fallen player's body, holding what they carried
 
+	// A boss's lair: see lair.go.
+	EntityLairProp // part of a lair's scene; Var is which (LairNest...); nothing stops at it
+
 	// The new plants: see flora.go.
 	EntityFlora // a wild plant picked for what it gives; Var is its FloraKind
 	NumEntityKinds
@@ -166,8 +169,9 @@ var entityNames = [NumEntityKinds]string{
 	EntityGiantTree:  "Cây cổ thụ khổng lồ",
 	EntityGiantRoot:  "Cây cổ thụ khổng lồ",
 
-	EntityGrave: "Xác người chơi",
-	EntityFlora: "Cây dại",
+	EntityGrave:    "Xác người chơi",
+	EntityLairProp: "Dấu vết của trùm",
+	EntityFlora:    "Cây dại",
 }
 
 // Name is the display name of k.

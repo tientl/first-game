@@ -73,7 +73,7 @@ var bossTunes = [NumBosses]bossTune{
 	{sight: 9, reach: 3.2, bite: 34, biteCD: 56, knock: 1.5, specialCD: 8 * TicksPerSecond, leash: bossLeash, epithet: "Chúa xứ tuyết"},
 	{sight: 10, reach: 2.8, bite: 38, biteCD: 46, specialCD: 6 * TicksPerSecond, leash: bossLeash, epithet: "Chúa sa mạc"},
 	{sight: 10, reach: 3.0, bite: 46, biteCD: 54, specialCD: 7 * TicksPerSecond, leash: bossLeash, epithet: "Chúa núi lửa"},
-	{sight: 16, reach: 2.6, bite: 24, biteCD: 44, specialCD: 14 * TicksPerSecond, leash: 34, epithet: "Chúa biển sâu"},
+	{sight: 8, reach: 2.6, bite: 24, biteCD: 44, specialCD: 14 * TicksPerSecond, leash: 34, epithet: "Chúa biển sâu"}, // asleep it lets a boat come near enough to see its water
 }
 
 var (
@@ -198,6 +198,17 @@ type bossLair struct {
 	hx, hy  float64  // a charge's heading; where a leap lands
 	act     int      // ticks into what it is doing: circling, out of the water
 	stuck   int      // ticks it has been unable to get home
+
+	// Its lair: see lair.go.
+	arena      bool       // the way out is shut
+	opened     bool       // it was opened again in this fight, and stays so
+	arenaT     int        // ticks the arena has been shut
+	calm       int        // ticks its foe has been well away from it
+	idle       int        // ticks since it last hunted (Titanoboa) or snapped at a fish (Megalodon)
+	prey       CreatureID // the small animal Titanoboa is after
+	huntT      int        // ticks it will keep after it
+	bar        bool       // the Megalodon: a sandbar was raised near by...
+	barX, barY int        // ...its middle tile
 }
 
 // placeBosses looks for a lair for each boss and raises it there. A world
@@ -217,8 +228,12 @@ func (w *World) placeBosses() {
 		l.x, l.y, l.ok = w.bossLairSite(BossKind(i))
 		if l.ok {
 			w.raiseBoss(i)
+			if BossKind(i) == CreatureMegalodon {
+				w.raiseSandbar(l) // see lair.go
+			}
 		}
 	}
+	w.dressLairs()
 }
 
 // raiseBoss puts boss i at its lair, asleep and whole.
@@ -231,7 +246,7 @@ func (w *World) raiseBoss(i int) {
 	if k == CreatureSpino || k == CreatureMegalodon {
 		c.State = CreatureLurk
 	}
-	*l = bossLair{x: l.x, y: l.y, ok: true, c: c, hp: c.HP}
+	*l = bossLair{x: l.x, y: l.y, ok: true, c: c, hp: c.HP, bar: l.bar, barX: l.barX, barY: l.barY}
 	if k == CreatureMammothKing { // its herd grazes round it
 		for _, o := range [][2]float64{{-3.2, 1.6}, {3.0, 2.2}, {0.5, -3.4}} {
 			if x, y := l.x+o[0], l.y+o[1]; w.creatureFits(CreatureMammoth, x, y) {
@@ -337,7 +352,17 @@ func (w *World) lairScore(k CreatureKind, tx, ty int, offshore []uint8, need flo
 	switch k {
 	case CreatureTitanoboa:
 		n, _ := count(TileForest)
-		return float64(n), t == TileForest && enough(n, 30)
+		score := float64(n)
+		if t == TileForest && enough(n, 30) { // the deepest of the woods: far from any edge of them
+			for y := ty - 15; y <= ty+15; y += 3 {
+				for x := tx - 18; x <= tx+18; x += 3 {
+					if w.TileAt(x, y) == TileForest {
+						score += 0.5
+					}
+				}
+			}
+		}
+		return score, t == TileForest && enough(n, 30)
 	case CreatureSpino: // in a pond of the marsh, not the sea
 		marsh, sand := count(TileMarsh)
 		water, _ := count(TileWater)
@@ -390,6 +415,7 @@ func (w *World) stepBosses() {
 				w.raiseBoss(i)
 			}
 		}
+		w.stepArena(l, BossKind(i)) // see lair.go
 	}
 	if w.tick%10 == 0 {
 		w.noteBossesSeen()
@@ -403,7 +429,7 @@ func (w *World) bossFell(i int) {
 	l := &b.lairs[i]
 	c := l.c
 	w.bossLetGo(c, l)
-	l.c, l.defeated, l.awake = nil, true, false
+	l.c, l.defeated, l.awake, l.arena = nil, true, false, false
 	w.dropAt(c.X, c.Y, []Ingredient{{Item: LegendaryItem(c.Kind), Count: 1}})
 	for _, o := range b.lairs {
 		if o.ok && !o.defeated {

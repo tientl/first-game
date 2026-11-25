@@ -27,9 +27,10 @@ import (
 //   - 14: the bag has 30 slots (it had 20), and so do chests; older inventories
 //     load as they were, with the new slots empty. An old chest in a cave
 //     opened like a chest; one opened before spilled its hoard already.
-//   - 15: the wild plants of flora.go (some stand in the water) and crops of
+//   - 15: the bosses' lairs are dressed (see lair.go); older worlds get theirs on loading.
+//   - 16: the wild plants of flora.go (some stand in the water) and crops of
 //     four kinds; an older world keeps the plants a fresh one would grow.
-const SaveVersion = 15
+const SaveVersion = 16
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -219,7 +220,7 @@ func Load(d SaveData) (*World, error) {
 	var fresh []Entity
 	for _, e := range w.entities {
 		if e.Kind == EntityTwig && d.Version < 2 || e.Kind == EntityPebble && d.Version < 5 ||
-			IsFruitTree(e.Kind) && d.Version < 9 || e.Kind == EntityFlora && d.Version < 15 {
+			IsFruitTree(e.Kind) && d.Version < 9 || e.Kind == EntityFlora && d.Version < 16 {
 			fresh = append(fresh, *e)
 		}
 	}
@@ -283,6 +284,9 @@ func Load(d SaveData) (*World, error) {
 		w.nextEnt = max(w.nextEnt, e.ID)
 	}
 	w.loadChests(d.Chests)
+	if d.Version < 15 {
+		w.dressLairs() // the bones, the nest and the ruin of each lair: see lair.go
+	}
 	for _, e := range fresh {
 		if w.canHold(e.Kind, e.Var, e.TX, e.TY) {
 			w.nextEnt++

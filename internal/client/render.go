@@ -87,6 +87,7 @@ type drawable struct {
 	sx, sy   float64
 	moving   bool
 	wx, wy   float64 // a player's place in tiles, for its stride; see limbdraw.go
+	extra    bool    // part of a boss's lair that is not an entity: idx is into lair.extras; see lairrender.go
 }
 
 // layer orders things standing on the same row: entities, then animals,
@@ -154,7 +155,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 	}
 	if !g.demo {
-		sx, sy := shake(g.frame) // a tyrant roaring close by; see rexroar.go
+		cx, cy = g.introCamera(cx, cy) // a boss waking: see bossintro.go
+		sx, sy := shake(g.frame)       // a tyrant roaring close by; see rexroar.go
 		cx, cy = cx+sx, cy+sy
 	}
 	sub := 1
@@ -173,12 +175,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	w.begin(canvas, scale, cw, ch, cam)
 	for _, stage := range []func(){
 		func() { g.ground.draw(w, cam.ox, cam.oy, g.frame) },
+		func() { g.drawLairWater(w, cam, alpha) }, // the shark's deep: see lairrender.go
 		func() { g.drawFish(w, cam, alpha) },
 		func() { g.drawUndergrowth(w, cam) },
 		func() { g.drawHDTest(w, cam) }, // the HD trial stones; see hdtest.go
 		func() { g.drawSprites(w, cam, alpha, target) },
 		func() { g.drawLines(w, cam, alpha) },
 		func() { g.drawSky(w, cam, alpha) },     // flying reptiles overhead
+		func() { g.drawLairSky(w, cam) },        // birds startled near a lair
 		func() { g.drawHearts(w, cam) },         // beasts being fed; see ride.go
 		func() { g.drawSnowfall(w, cam) },       // over the frozen north; see iceart.go
 		func() { g.drawWeather(w, cam, alpha) }, // rain, snow, wind, tornadoes, webs; see tribalrender.go
@@ -218,12 +222,15 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawAimCues(screen, cam, float64(scale), target, far) // see mouse.go
 	g.drawDigLabel(screen, cam, float64(scale))
 	g.drawFishingLabels(screen, cam, float64(scale))
+	g.drawBossIntro(screen, sw, sh) // letterbox and title card; see bossintro.go
 
 	// The interface, on its own canvas scaled to the screen; see uiscale.go.
 	ui, uw, uh := beginUI(screen)
 	g.lastScreenH, g.lastScreenW = uh, uw
 	g.drawFishingMessage(ui, uw, uh)
-	g.drawHUD(ui, uw, uh)
+	if _, intro := g.introT(); !intro {
+		g.drawHUD(ui, uw, uh) // hidden while a boss's title card is up
+	}
 	g.drawBossBar(ui, uw) // see bossui.go
 	switch g.overlay {
 	case overlayMap:
@@ -300,6 +307,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		sx, sy := cam.toScreenFine(wx, wy)
 		list = append(list, drawable{y: wy, id: uint32(p.ID), isPlayer: true, idx: i, sx: sx, sy: sy, moving: moving, wx: wx, wy: wy})
 	}
+	list = g.lairDrawables(list, cam, float64(dst.Bounds().Dx()), float64(dst.Bounds().Dy())) // see lairrender.go
 	slices.SortFunc(list, func(a, b drawable) int {
 		if c := cmp.Compare(a.y, b.y); c != 0 {
 			return c
@@ -316,6 +324,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 	}
 	g.drawSoil(dst, list)
 	g.drawFloors(dst, cam) // see tribalrender.go
+	g.drawLairGround(dst, cam)
 	g.drawDigSpot(dst, cam)
 	// Each thing is drawn on the art-pixel grid through its own ground
 	// point, so a moving one keeps its pixel art whole between art pixels;
@@ -326,7 +335,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		switch {
 		case d.drop:
 			w = 7
-		case d.boat:
+		case d.boat, d.extra:
 			w = 0
 		case d.isPlayer && g.curr.Players[d.idx].Swimming:
 			w = 0
@@ -365,6 +374,10 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 			g.drawBoat(dst, g.curr.Boats[d.idx], d.sx, d.sy)
 			continue
 		}
+		if d.extra {
+			g.drawLairExtra(dst, d)
+			continue
+		}
 		if d.isPlayer {
 			g.drawPlayer(dst, g.curr.Players[d.idx], d)
 			g.drawSwarm(dst, g.curr.Players[d.idx], d.sx, d.sy) // see jungleart.go
@@ -399,6 +412,9 @@ func shadowWidth(e protocol.EntityView) float64 {
 		return 14 * stumpScale[fruitStumpSize(e.Kind)]
 	}
 	if w, ok := woodsShadow(e); ok {
+		return w
+	}
+	if w, ok := lairShadow(e); ok {
 		return w
 	}
 	if w, ok := tribalShadow(e); ok {
@@ -624,6 +640,9 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		return // flat: drawn with the soil, under everything
 	case e.Kind == sim.EntityGiantRoot:
 		return // part of the giant, drawn whole from its front
+	case e.Kind == sim.EntityLairProp:
+		g.drawLairProp(dst, e, d) // see lairrender.go
+		return
 	}
 	if g.drawTribalEntity(dst, e, d) {
 		return
@@ -776,7 +795,7 @@ func (g *Game) drawAilments(dst drawTarget, p protocol.PlayerView, d drawable) {
 		if g.curr.Self.Poisoned && (g.frame/8)%3 == 0 {
 			for k := range 3 {
 				ph := math.Mod(float64(g.frame)/40+float64(k)*0.33, 1)
-				fillRect(dst, float32(math.Round(d.sx-5+float64(k)*5)), float32(math.Round(d.sy-30-ph*10)), 2, 2, color.RGBA{120, 220, 80, uint8(220 * (1 - ph))}, false)
+				fillRect(dst, float32(math.Round(d.sx-5+float64(k)*5)), float32(math.Round(d.sy-playerTop-ph*10)), 2, 2, color.RGBA{120, 220, 80, uint8(220 * (1 - ph))}, false)
 			}
 		}
 	}
@@ -791,7 +810,9 @@ func (g *Game) drawSleeper(dst drawTarget, p protocol.PlayerView, d drawable) {
 	fx, fy := d.sx+10, d.sy-6
 	b := g.art.body(p.Look)
 	if playerHD && playerJointed { // see limbdraw.go
-		drawFig(dst, figDraw{b: b, up: upKey{dir: sim.DirDown, anim: upAsleep}, tint: tint, rot: -math.Pi / 2}, fx, fy)
+		// The tall figure is longer than the bed: its legs are under the
+		// blanket, and only the rest of it is drawn.
+		drawFig(dst, figDraw{b: b, up: upKey{dir: sim.DirDown, anim: upAsleep}, tint: tint, rot: -math.Pi / 2, abed: true}, fx+9, fy)
 		b = nil
 	}
 	if b != nil {
@@ -1050,6 +1071,6 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 		if p.ID == g.myID {
 			continue
 		}
-		g.text(screen, p.Name, sx*scale, (sy-30)*scale-14*uiK(), colWhite, text.AlignCenter, uiK())
+		g.text(screen, p.Name, sx*scale, (sy-playerTop)*scale-14*uiK(), colWhite, text.AlignCenter, uiK())
 	}
 }

@@ -59,6 +59,9 @@ func (w *World) warm(x, y float64) bool {
 
 // blocked reports whether a structure on tile (tx, ty) blocks the way.
 func (w *World) blocked(tx, ty int) bool {
+	if w.arenaBlocks(tx, ty) {
+		return true // the roots round a boss's arena: see lair.go
+	}
 	e := w.entityAt(tx, ty)
 	return e != nil && blocksPlayers(e.Kind)
 }

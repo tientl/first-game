@@ -30,7 +30,7 @@ var DevHelp = []string{
 	"weather <clear|rain|wind|storm|tornado|snow|auto>",
 	"speed <hệ số>         tốc độ đi (1 là thường)",
 	"kill [bán kính]       giết thú hoang quanh mình (mặc định 12 ô)",
-	"heal   god [on|off]   reveal   pos   list items|beasts [lọc]   help",
+	"heal   god [on|off]   reveal   pos   boat (thuyền dưới chân)   list items|beasts [lọc]   help",
 }
 
 // devCommands maps each command's folded names to its canonical one.
@@ -49,6 +49,7 @@ var devCommands = map[string]string{
 	"help": "help", "trogiup": "help", "?": "help",
 	"list": "list", "ds": "list", "danhsach": "list",
 	"pos": "pos", "where": "pos", "odau": "pos",
+	"boat": "boat", "thuyen": "boat",
 }
 
 // DevCommand runs one console line for player id.
@@ -130,6 +131,18 @@ func (w *World) DevCommand(id PlayerID, line string) DevResult {
 		w.DevReveal(id)
 		r.Revealed = true
 		r.say("Đã mở toàn bộ bản đồ")
+	case "boat":
+		switch {
+		case p.boat != 0:
+			r.say("Đang ở trên thuyền rồi")
+		case !w.boatFits(BoatSail, p.X, p.Y):
+			r.say("Phải ở giữa nước mới thả thuyền được")
+		default:
+			w.nextBoat++
+			w.boats = append(w.boats, &Boat{ID: w.nextBoat, Kind: BoatSail, X: p.X, Y: p.Y, HP: BoatSail.MaxHP(), Rider: p.ID})
+			p.boat, p.swim = w.nextBoat, 0
+			r.say("Đã lên %s", BoatSail.Name())
+		}
 	case "pos":
 		r.say("Đang ở %.1f %.1f, ngày %d, %s, %s", p.X, p.Y, DayOf(w.tick), w.Season().Name(), w.Weather().Name())
 	case "list":
