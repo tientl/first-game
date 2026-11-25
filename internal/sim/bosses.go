@@ -211,6 +211,9 @@ func (w *World) placeBosses() {
 	}
 	for i := range b.lairs {
 		l := &b.lairs[i]
+		if !bossActive(BossKind(i)) {
+			continue // not in the demo: see demo.go
+		}
 		l.x, l.y, l.ok = w.bossLairSite(BossKind(i))
 		if l.ok {
 			w.raiseBoss(i)

@@ -316,6 +316,8 @@ Xem nhanh: `go run ./cmd/shot -open -tribal`, `-at village`, `-at path`, `-weath
 
 Mỗi thế giới mở có sáu con trùm, mỗi vùng đất hoang một con (`internal/sim/bosses.go`, `bossfight.go`). Trùm sống ở hang ổ sâu trong vùng của nó, xa chỗ xuất phát, và không bao giờ đi xa hang quá 18 ô (Megalodon 34 ô). Nó ngủ cho tới khi có người tới gần, rồi gầm lên và đánh. Ai bỏ đi thì nó về hang và hồi máu. Còn dưới nửa máu thì nó **nổi giận**: gầm lên lần nữa, đánh nhanh hơn và chạy nhanh hơn. Mọi đòn đều có báo trước: trùm há miệng (hoặc chồm lên, cúi đầu, vung đuôi) chừng nửa giây rồi đòn mới tới, nên lùi kịp thì tránh được. Trùm đã hạ thì không bao giờ sống lại (được lưu); bản lưu cũ khi mở sẽ có đủ trùm.
 
+**Bản demo** chỉ có hai trùm: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu). Bốn trùm kia không sinh ra, không có hang ổ trên bản đồ, và hạ xong hai con là "Phá đảo!" (`internal/sim/demo.go`). Bật bằng `go run ./cmd/game -demo`, hoặc build sẵn bằng `go build -tags demo` / `make build-windows-demo`.
+
 | Trùm | Ở đâu | Đánh thế nào | Máu |
 | --- | --- | --- | --- |
 | Titanoboa — Chúa rừng rậm | Rừng rậm sâu nhất | Nằm cuộn trong bụi rậm. Cắn (36 máu); thỉnh thoảng quấn lấy người: bị giữ chặt, mỗi giây bị siết 14 máu tới 5 giây. Giữ phím di chuyển để vùng ra nhanh gấp đôi, hoặc đánh nó đủ đau thì nó nhả | 16500 |
