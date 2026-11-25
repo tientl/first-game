@@ -54,6 +54,7 @@ Chạy client trên Linux cần cgo và các gói X11/GL dev (xem tài liệu c�
 | `give <đồ> [số]` | cho đồ vào túi |
 | `tp <làng\|trùm N\|hang\|kim tự tháp\|spawn\|x y>` | dịch chuyển tới làng, hang gần nhất, trùm N (1 Titanoboa … 6 Megalodon), kim tự tháp, chỗ hồi sinh hay toạ độ |
 | `spawn <thú> [số]` | gọi thú ra quanh mình (trùm thì không) |
+| `boat` | thả một thuyền buồm ngay dưới chân và lên luôn (đang bơi giữa biển, ví dụ sau `tp trùm 6`); `tp x y` từ thuyền ra chỗ nước khác thì thuyền đi theo |
 | `time <0-1\|day\|dusk\|night>` | vặn đồng hồ tới lúc đó (chỉ đi tới, không lùi) |
 | `season <xuân\|hạ\|thu\|đông>` | sang đầu mùa đó |
 | `weather <clear\|rain\|wind\|storm\|tornado\|snow\|auto>` | giữ trời theo ý (không lưu); `auto` trả lại tự nhiên |
@@ -318,6 +319,17 @@ Xem nhanh: `go run ./cmd/shot -open -tribal`, `-at village`, `-at path`, `-weath
 Mỗi thế giới mở có sáu con trùm, mỗi vùng đất hoang một con (`internal/sim/bosses.go`, `bossfight.go`). Trùm sống ở hang ổ sâu trong vùng của nó, xa chỗ xuất phát, và không bao giờ đi xa hang quá 18 ô (Megalodon 34 ô). Nó ngủ cho tới khi có người tới gần, rồi gầm lên và đánh. Ai bỏ đi thì nó về hang và hồi máu. Còn dưới nửa máu thì nó **nổi giận**: gầm lên lần nữa, đánh nhanh hơn và chạy nhanh hơn. Mọi đòn đều có báo trước: trùm há miệng (hoặc chồm lên, cúi đầu, vung đuôi) chừng nửa giây rồi đòn mới tới, nên lùi kịp thì tránh được. Trùm đã hạ thì không bao giờ sống lại (được lưu); bản lưu cũ khi mở sẽ có đủ trùm.
 
 **Bản demo** chỉ có hai trùm: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu). Bốn trùm kia không sinh ra, không có hang ổ trên bản đồ, và hạ xong hai con là "Phá đảo!" (`internal/sim/demo.go`). Bật bằng `go run ./cmd/game -demo`, hoặc build sẵn bằng `go build -tags demo` / `make build-windows-demo`.
+
+**Gặp trùm** (bản demo: Titanoboa và Megalodon; `internal/sim/lair.go`, `internal/client/lairart.go`, `lairrender.go`, `bossintro.go`):
+
+- **Hang ổ**: Titanoboa nằm cuộn trên ổ lá dưới gốc một cây cổ thụ ở chỗ rừng sâu nhất, giữa mấy trụ đá phế tích phủ rêu; quanh ổ có xương, da rắn lột, cây gãy, và vết trườn dẫn ra tới 30 ô. Megalodon giữ một vùng nước sâu tối màu có cột buồm tàu đắm nhô lên, xác tàu dưới đáy, và một cồn cát gần đó có bộ xương cá voi. Thế giới cũ khi mở sẽ được dựng hang ổ (bản lưu phiên bản 14).
+- **Dấu hiệu**: lại gần hang rắn thì chim bay tán loạn khỏi ngọn cây, thú nhỏ trong 9 ô quanh con rắn bỏ chạy; ngoài biển thì cá tản ra, cá nhảy, mặt nước gợn vòng, vây cá mập thấp thoáng.
+- **Ẩn mình**: Titanoboa ngủ dưới một lùm dương xỉ và rễ cây, chỉ thấy đôi mắt vàng; Megalodon chỉ là một bóng đen lượn vòng dưới nước (nó chỉ nhận ra thuyền trong 8 ô).
+- **Màn ra mắt**: lúc trùm thức, trong 2,6 giây màn hình có hai dải đen, camera kéo về phía trùm đang gầm, hiện chữ lớn "TITANOBOA — Chúa rừng rậm" / "MEGALODON — Chúa biển sâu", nhạc chiến đấu nổi lên; giây đầu không nhận phím (trùm cũng chỉ gầm). Cùng một trùm thì 50 giây sau mới chiếu lại.
+- **Đấu trường**: trận bắt đầu thì rễ gai mọc thành vòng quanh hang rắn (bán kính 12 ô, không đi qua được); quanh cá mập là vòng nước xoáy (20 ô) đẩy thuyền và người bơi trở vào. Vòng mở khi trùm chết, khi trùm ngủ lại (người chơi chết hay biến mất), khi người chơi giữ khoảng cách hơn 14 ô với trùm suốt 20 giây, và muộn nhất sau 2 phút rưỡi — không ai bị nhốt mãi.
+- **Lúc rảnh**: chừng nửa phút một lần Titanoboa trườn ra săn một con thú nhỏ trong 13 ô quanh hang rồi về cuộn lại; Megalodon lượn vòng và thỉnh thoảng trồi lên đớp cá. Chỉ diễn ra khi có người chơi trong 40 ô.
+
+Chụp thử cả một lần gặp trùm (game thật, lệnh dev làm chân): `xvfb-run -a -s '-screen 0 1920x1080x24' go run ./cmd/shot -encounter titan -w 1920 -h 1080 -o /tmp/enc` (hoặc `shark`; thêm `-encgif` để ghi các khung của màn ra mắt).
 
 | Trùm | Ở đâu | Đánh thế nào | Máu |
 | --- | --- | --- | --- |

@@ -16,6 +16,7 @@ import (
 	"math"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -83,6 +84,8 @@ func main() {
 	bossPose := flag.Int("bosspose", 0, "with -bosses: shift which pose each boss shows")
 	bossAge := flag.Int("bossage", -1, "how many frames into its state each boss and sea monster is shown (-1: as many as -frames)")
 	flag.BoolVar(&demoBosses, "demobosses", false, "with -bosses: only Titanoboa and the Megalodon, the bar showing Titanoboa's health")
+	encounterFlag := flag.String("encounter", "", "play a real meeting with a boss of the demo, titan or shark, and write its stills as <o>_approach.png, _lair.png, _intro.png and _arena.png; see encounter.go")
+	encGIF := flag.Bool("encgif", false, "with -encounter: also write every fourth frame of the entrance as <o>_gif_NNN.png")
 	victory := flag.Bool("victory", false, "show the game-beaten (Phá đảo!) screen")
 	aimAt := flag.String("aim", "", "dx,dy: hold the mouse pointer this many tiles from the player (the hover brackets, a held torch's ghost)")
 	buildID := flag.Int("build", -1, "recipe id of a structure to place (0 campfire, 8 wall, 9 bed…): build mode with its ghost under -aim, the ingredients given")
@@ -108,6 +111,10 @@ func main() {
 		*coast = true
 	}
 	client.SetBossAge(*bossAge)
+	if *encounterFlag != "" {
+		runEncounter(*encounterFlag, strings.TrimSuffix(*out, ".png"), *seed, *size, *winW, *winH, *dayFrac, *encGIF)
+		return
+	}
 
 	N := 96
 	style := sim.StyleIsland

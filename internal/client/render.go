@@ -86,6 +86,7 @@ type drawable struct {
 	idx      int     // index into curr.Players, curr.Creatures, curr.Drops or curr.Entities
 	sx, sy   float64
 	moving   bool
+	extra    bool // part of a boss's lair that is not an entity: idx is into lair.extras; see lairrender.go
 }
 
 // layer orders things standing on the same row: entities, then animals,
@@ -153,7 +154,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 	}
 	if !g.demo {
-		sx, sy := shake(g.frame) // a tyrant roaring close by; see rexroar.go
+		cx, cy = g.introCamera(cx, cy) // a boss waking: see bossintro.go
+		sx, sy := shake(g.frame)       // a tyrant roaring close by; see rexroar.go
 		cx, cy = cx+sx, cy+sy
 	}
 	sub := 1
@@ -171,12 +173,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	w.begin(canvas, scale, cw, ch, cam)
 	for _, stage := range []func(){
 		func() { g.ground.draw(w, cam.ox, cam.oy, g.frame) },
+		func() { g.drawLairWater(w, cam, alpha) }, // the shark's deep: see lairrender.go
 		func() { g.drawFish(w, cam, alpha) },
 		func() { g.drawUndergrowth(w, cam) },
 		func() { g.drawHDTest(w, cam) }, // the HD trial stones; see hdtest.go
 		func() { g.drawSprites(w, cam, alpha, target) },
 		func() { g.drawLines(w, cam, alpha) },
 		func() { g.drawSky(w, cam, alpha) },     // flying reptiles overhead
+		func() { g.drawLairSky(w, cam) },        // birds startled near a lair
 		func() { g.drawHearts(w, cam) },         // beasts being fed; see ride.go
 		func() { g.drawSnowfall(w, cam) },       // over the frozen north; see iceart.go
 		func() { g.drawWeather(w, cam, alpha) }, // rain, snow, wind, tornadoes, webs; see tribalrender.go
@@ -217,7 +221,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawDigLabel(screen, cam, float64(scale))
 	g.drawFishingLabels(screen, cam, float64(scale), sw, sh)
 	g.drawHUD(screen, sw, sh)
-	g.drawBossBar(screen, sw) // see bossui.go
+	g.drawBossIntro(screen, sw, sh) // see bossintro.go
+	g.drawBossBar(screen, sw)       // see bossui.go
 	switch g.overlay {
 	case overlayMap:
 		g.drawMap(screen, sw, sh)
@@ -292,6 +297,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		sx, sy := cam.toScreenFine(wx, wy)
 		list = append(list, drawable{y: wy, id: uint32(p.ID), isPlayer: true, idx: i, sx: sx, sy: sy, moving: moving})
 	}
+	list = g.lairDrawables(list, cam, float64(dst.Bounds().Dx()), float64(dst.Bounds().Dy())) // see lairrender.go
 	slices.SortFunc(list, func(a, b drawable) int {
 		if c := cmp.Compare(a.y, b.y); c != 0 {
 			return c
@@ -308,6 +314,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 	}
 	g.drawSoil(dst, list)
 	g.drawFloors(dst, cam) // see tribalrender.go
+	g.drawLairGround(dst, cam)
 	g.drawDigSpot(dst, cam)
 	// Each thing is drawn on the art-pixel grid through its own ground
 	// point, so a moving one keeps its pixel art whole between art pixels;
@@ -318,7 +325,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		switch {
 		case d.drop:
 			w = 7
-		case d.boat:
+		case d.boat, d.extra:
 			w = 0
 		case d.isPlayer && g.curr.Players[d.idx].Swimming:
 			w = 0
@@ -357,6 +364,10 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 			g.drawBoat(dst, g.curr.Boats[d.idx], d.sx, d.sy)
 			continue
 		}
+		if d.extra {
+			g.drawLairExtra(dst, d)
+			continue
+		}
 		if d.isPlayer {
 			g.drawPlayer(dst, g.curr.Players[d.idx], d)
 			g.drawSwarm(dst, g.curr.Players[d.idx], d.sx, d.sy) // see jungleart.go
@@ -391,6 +402,9 @@ func shadowWidth(e protocol.EntityView) float64 {
 		return 14 * stumpScale[fruitStumpSize(e.Kind)]
 	}
 	if w, ok := woodsShadow(e); ok {
+		return w
+	}
+	if w, ok := lairShadow(e); ok {
 		return w
 	}
 	if w, ok := tribalShadow(e); ok {
@@ -616,6 +630,9 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		return // flat: drawn with the soil, under everything
 	case e.Kind == sim.EntityGiantRoot:
 		return // part of the giant, drawn whole from its front
+	case e.Kind == sim.EntityLairProp:
+		g.drawLairProp(dst, e, d) // see lairrender.go
+		return
 	}
 	if g.drawTribalEntity(dst, e, d) {
 		return
