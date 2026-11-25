@@ -20,7 +20,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 - [x] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
 - [x] **Thời gian** (mục 4): ✅ ngày 16 phút, mùa 12 ngày, ngày và đêm theo mùa; ✅ **cửa hang** (miệng hang quay xuống phía dưới màn hình, xem mục 4).
 - [x] **Chỉ 2 trùm** trong demo: các trùm khác tắt (không sinh ra, không hiện trên bản đồ); màn hình "Phá đảo!" tính theo 2 trùm. Hai trùm có thanh máu và nhạc chiến đấu (mục 8; nhạc ✅ `bossmusic.go`). Trùm được chọn: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu).
-- [ ] **Gặp trùm phải ấn tượng** (hiện trùm đứng trơ trọi ngoài trời, gặp thì nhạt):
+- [x] **Gặp trùm phải ấn tượng** (trước đây trùm đứng trơ trọi ngoài trời, gặp thì nhạt):
   - **Hang ổ thật**: Titanoboa nằm cuộn trong một hố rễ cây khổng lồ / phế tích đá giữa rừng rậm, quanh có xương thú, da rắn lột, cây đổ; Megalodon ở một vùng biển sâu tối màu có xác tàu, xương cá voi, đàn cá tản ra.
   - **Dấu hiệu khi lại gần**: xương, vết trườn, cây gãy, chim bay tán loạn, thú nhỏ bỏ chạy; với Megalodon là vây thấp thoáng, mặt nước gợn, cá nhảy.
   - **Trùm ẩn mình** cho tới khi tới gần: Titanoboa nằm im lẫn trong lá, chỉ thấy mắt; Megalodon chỉ là bóng tối dưới nước.
@@ -147,6 +147,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Nuôi từ bé gắn bó hơn thuần thú bằng cho ăn, và cho người chơi lý do quay về căn cứ.
   - **Chỉ thuần hoá được bằng cách ấp trứng** (bỏ cách thuần bằng cho ăn như hiện nay).
 - [ ] **Sinh vật mới**: cóc xanh có độc; cóc phát sáng vào ban đêm.
+- [ ] **Thú non**: mọi loài có con non (voi ma mút con, hổ răng kiếm con, khủng long con, thỏ con, gấu con…), nhỏ hơn, đầu to, chân ngắn, chạy lon ton theo mẹ trong đàn. Đánh con non thì thú mẹ nổi giận lao vào. Con non lớn dần thành con trưởng thành sau vài ngày. Khủng long con nở từ trứng (mục trên) dùng chung hình con non.
 
 ## 7. Chiến đấu và sự kiện
 

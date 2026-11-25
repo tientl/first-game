@@ -87,8 +87,8 @@ func TestPlayerStanceFeetStayPlanted(t *testing.T) {
 					}
 				}
 			}
-			if low < figFeet-1 || low > figFeet {
-				t.Errorf("%s frame %d: the lowest pixel is on row %d, the ground is %d", name, f, low, figFeet)
+			if low < limbGround-1 || low > limbGround {
+				t.Errorf("%s frame %d: the lowest pixel is on row %d, the ground is %d", name, f, low, limbGround)
 			}
 		}
 	}
@@ -142,12 +142,12 @@ func limbShot(img *image.RGBA, l sim.Look, up upKey, lo loKey, heads headCache, 
 	if up.dir == sim.DirRight {
 		skew = math.Tan(lp.lean)
 	}
-	const hip = figFeet - hipHeight*HDDensity
+	const hip = limbGround - hipHeight*HDDensity
 	set := func(x, y float64, c color.RGBA) {
 		if mir {
 			x = float64(limbAX*HDDensity)*2 - 1 - x
 		}
-		px, py := fx+(int(math.Round(x))-limbAX*HDDensity)*k, fy+(int(math.Round(y))-figFeet)*k
+		px, py := fx+(int(math.Round(x))-limbAX*HDDensity)*k, fy+(int(math.Round(y))-limbGround)*k
 		for dy := 0; dy < k; dy++ {
 			for dx := 0; dx < k; dx++ {
 				if image.Pt(px+dx, py+dy).In(img.Rect) {
@@ -168,7 +168,7 @@ func limbShot(img *image.RGBA, l sim.Look, up upKey, lo loKey, heads headCache, 
 				}
 				xx, yy := float64(x), float64(y)
 				if upper {
-					xx += skew * float64(hip-y)
+					xx += skew * (hip - float64(y))
 					yy += lp.drop
 				}
 				set(xx, yy, q)
@@ -293,7 +293,7 @@ func TestDumpLimbAnim(t *testing.T) {
 		{Female: true, Hair: sim.HairPonytail, HairColor: 3, Skin: 1},
 	}
 	dirs := []sim.Dir{sim.DirDown, sim.DirRight, sim.DirUp, sim.DirLeft}
-	const k, cell, foot = 2, 104 * 2, 104*2 - 34
+	const k, cell, foot = 2, 150 * 2, 150*2 - 44
 	heads := []headCache{{}, {}}
 	// row draws both looks in every facing along row y of img.
 	row := func(img *image.RGBA, y int, up func(d sim.Dir) upKey, lo func(d sim.Dir) loKey, tool func(d sim.Dir) float64, length float64) {

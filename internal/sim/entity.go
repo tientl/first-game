@@ -103,6 +103,9 @@ const (
 	// Death at the harder difficulties: see grave.go.
 	EntityGrave // a fallen player's body, holding what they carried
 
+	// A boss's lair: see lair.go.
+	EntityLairProp // part of a lair's scene; Var is which (LairNest...); nothing stops at it
+
 	// Cooking: see cooking.go. (A pot, grill or pan is a campfire's Var.)
 	EntityClay    // a bed of clay by the water, dug by hand
 	EntityMortar  // built: grinds herbs and grain
@@ -169,7 +172,8 @@ var entityNames = [NumEntityKinds]string{
 	EntityGiantTree:  "Cây cổ thụ khổng lồ",
 	EntityGiantRoot:  "Cây cổ thụ khổng lồ",
 
-	EntityGrave: "Xác người chơi",
+	EntityGrave:    "Xác người chơi",
+	EntityLairProp: "Dấu vết của trùm",
 
 	EntityClay:    "Bãi đất sét",
 	EntityMortar:  "Cối giã",

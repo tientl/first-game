@@ -34,6 +34,10 @@ func seat(k sim.CreatureKind) (back, height float64) {
 // riderLegs is how far a rider's feet hang below the mount's back.
 const riderLegs = 5
 
+// riderLegsTall is the same for the tall figure of limbs.go, whose hips are
+// higher above its feet.
+const riderLegsTall = 11
+
 var saddleRamp = mkRamp(0x4a2a18, 0x6e4224, 0x925c34, 0xb57a48)
 
 // drawRider draws p on the back of its mount c, drawn at d.
@@ -59,6 +63,9 @@ func (g *Game) drawRider(dst drawTarget, p protocol.PlayerView, c protocol.Creat
 		ride += float64((g.frame / 6) % 2) // jogged along
 	}
 	fy := y + riderLegs - ride
+	if playerHD && playerJointed {
+		fy += riderLegsTall - riderLegs
+	}
 	// The rider: punching from the saddle (punch.go), or thrown back by a
 	// blow (jolt.go).
 	rider := func(dst drawTarget, x, fy float64) {

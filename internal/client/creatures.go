@@ -1000,6 +1000,10 @@ func (g *Game) drawFish(dst drawTarget, cam camera, alpha float64) {
 			}
 			continue
 		}
+		if g.sharkAsleep(c) {
+			g.drawSleepingShark(dst, cam, c, alpha) // see lairrender.go
+			continue
+		}
 		if c.State == sim.CreatureLurk {
 			if !g.underIce(c) {
 				g.drawLurker(dst, cam, c)

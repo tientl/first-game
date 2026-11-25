@@ -20,7 +20,7 @@ func needsTick(e *Entity) bool {
 	case EntityMortar, EntityDryRack:
 		return false
 	case EntityTreasure, EntityTrap, EntityBonfire, EntityTotem, EntityHut, EntityManEater, EntityPyramid, EntityPyramidStone, EntityCaveMouth, EntityCaveExit, EntityCaveRock,
-		EntityGiantTree, EntityGiantRoot:
+		EntityGiantTree, EntityGiantRoot, EntityLairProp:
 		return false // an open chest or a sprung snare waits for a player
 	}
 	return !e.Ready

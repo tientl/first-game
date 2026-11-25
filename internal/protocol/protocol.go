@@ -110,6 +110,7 @@ type Snapshot struct {
 	Boss      BossView    // the boss this player is fighting, for the big bar; see boss.go
 	BossMarks []BossMark  // the boss lairs this player has seen, for the map
 	Victory   VictoryView // every boss has fallen: the game-beaten screen
+	Lairs     []LairView  // the boss lairs near by: their arenas, and whether their bosses sleep
 }
 
 // BoatView is a boat on the water.

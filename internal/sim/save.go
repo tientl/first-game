@@ -27,9 +27,10 @@ import (
 //   - 14: the bag has 30 slots (it had 20), and so do chests; older inventories
 //     load as they were, with the new slots empty. An old chest in a cave
 //     opened like a chest; one opened before spilled its hoard already.
-//   - 15: cooking: clay beds by the water, pots on fires (a campfire's Var),
+//   - 15: the bosses' lairs are dressed (see lair.go); older worlds get theirs on loading.
+//   - 16: cooking: clay beds by the water, pots on fires (a campfire's Var),
 //     what stations hold, and the buffs of dishes.
-const SaveVersion = 15
+const SaveVersion = 16
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -223,7 +224,7 @@ func Load(d SaveData) (*World, error) {
 	var fresh []Entity
 	for _, e := range w.entities {
 		if e.Kind == EntityTwig && d.Version < 2 || e.Kind == EntityPebble && d.Version < 5 ||
-			IsFruitTree(e.Kind) && d.Version < 9 || e.Kind == EntityClay && d.Version < 15 {
+			IsFruitTree(e.Kind) && d.Version < 9 || e.Kind == EntityClay && d.Version < 16 {
 			fresh = append(fresh, *e)
 		}
 	}
@@ -284,6 +285,9 @@ func Load(d SaveData) (*World, error) {
 	}
 	w.loadChests(d.Chests)
 	w.loadStations(d.Stations)
+	if d.Version < 15 {
+		w.dressLairs() // the bones, the nest and the ruin of each lair: see lair.go
+	}
 	for _, e := range fresh {
 		if w.canPlace(e.TX, e.TY) {
 			w.nextEnt++

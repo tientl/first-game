@@ -105,24 +105,32 @@ func (g *Game) drawSwimmer(dst drawTarget, p protocol.PlayerView, d drawable) {
 	dir := p.Dir & 3
 	tint := playerColors[int(p.ID)%len(playerColors)]
 	bob := math.Round(math.Sin(float64(g.frame)*0.12+float64(p.ID)) * 1)
-	y := d.sy + 14 + bob // sunk to the chest
+	// Sunk to the chest: sink art pixels of the figure are under the water,
+	// and its feet are at (ax, ay) of the strip it is drawn into.
+	sink, ax, ay := 14.0, 24.0, 40.0
+	if playerHD && playerJointed {
+		sink, ax, ay = 21, 32, 56
+	}
+	y := d.sy + sink + bob
 	// Only what is above the water: draw into a strip and cut it off.
 	const above = 22
 	if g.swimBuf == nil {
-		g.swimBuf = newFineBuf(48, 48) // at HD density: see hd.go
+		g.swimBuf = newFineBuf(64, 64) // at HD density: see hd.go
 	}
 	g.swimBuf.img.Clear()
 	if playerHD && playerJointed { // paddling; see limbdraw.go
-		drawFig(g.swimBuf, figDraw{b: b, up: upKey{dir, upSwim, uint8(g.frame / 12 % 4)}, tint: tint}, 24, 40)
+		drawFig(g.swimBuf, figDraw{b: b, up: upKey{dir, upSwim, uint8(g.frame / 12 % 4)}, tint: tint}, ax, ay)
 	} else {
-		drawBody(g.swimBuf, b, dir, 0, 24, 40, 1, 0, tint)
+		drawBody(g.swimBuf, b, dir, 0, ax, ay, 1, 0, tint)
 	}
 	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(d.sx-24, y-40)
+	op.GeoM.Translate(d.sx-ax, y-ay)
 	const k = HDDensity
-	sub := g.swimBuf.img.SubImage(imageRect(0, (40-above-14)*k, 48*k, (40-14)*k)).(*ebiten.Image)
-	op.GeoM.Translate(0, float64(40-above-14))
+	top := int(ay - above - sink)
+	sub := g.swimBuf.img.SubImage(imageRect(0, top*k, 64*k, int(ay-sink)*k)).(*ebiten.Image)
+	op.GeoM.Translate(0, float64(top))
 	drawImageD(dst, sub, op, HDDensity)
+	y -= sink - 13 // the rings lie on the water
 	for k := range 2 {
 		ph := math.Mod(float64(g.frame)/70+float64(k)*0.5, 1)
 		r, a := 5+ph*7, uint8(170*(1-ph))
