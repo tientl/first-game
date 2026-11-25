@@ -228,7 +228,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	ui, uw, uh := beginUI(screen)
 	g.lastScreenH, g.lastScreenW = uh, uw
 	g.drawFishingMessage(ui, uw, uh)
-	g.drawHUD(ui, uw, uh)
+	if _, intro := g.introT(); !intro {
+		g.drawHUD(ui, uw, uh) // hidden while a boss's title card is up
+	}
 	g.drawBossBar(ui, uw) // see bossui.go
 	switch g.overlay {
 	case overlayMap:
