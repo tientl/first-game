@@ -189,6 +189,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		func() { g.drawClouds(w, cam) },
 		func() { g.drawLighting(w, cam) },
 		func() { g.drawGlowMasks(w, cam, g.darknessNow()) },
+		func() { g.drawToadGlow(w, cam, g.darknessNow()) },        // see toadart.go
 		func() { g.drawEyeshine(w, cam, alpha, g.darknessNow()) }, // the night hunters' eyes; see troodon.go
 		func() { g.drawLightning(w, cam) },
 		func() { g.drawEmbers(w, cam) },
@@ -344,7 +345,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		case d.creature:
 			w = creatureShadow(g.curr.Creatures[d.idx].Kind)
 		default:
-			w = shadowWidth(g.curr.Entities[d.idx])
+			w = g.shadowWidth(g.curr.Entities[d.idx])
 		}
 		if heroHD && d.isPlayer && w > 0 && g.heroStands(g.curr.Players[d.idx]) {
 			g.drawHeroShadow(dst, d.sx, d.sy)
@@ -407,7 +408,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 	alignCamera(dst)
 }
 
-func shadowWidth(e protocol.EntityView) float64 {
+func (g *Game) shadowWidth(e protocol.EntityView) float64 {
 	if sim.IsFruitStump(e.Kind, e.Var) {
 		return 14 * stumpScale[fruitStumpSize(e.Kind)]
 	}
@@ -456,6 +457,8 @@ func shadowWidth(e protocol.EntityView) float64 {
 		return 0
 	case sim.EntityCrop:
 		return 8 + 4*float64(e.Stage)
+	case sim.EntityFlora:
+		return g.floraShadow(e)
 	case sim.EntityDen:
 		return 28
 	case sim.EntityCactus:
@@ -598,7 +601,12 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 	case sim.EntityFarmland:
 		return a.farm.farmland, 0
 	case sim.EntityCrop:
+		if s, ok := newCropSprite(e); ok {
+			return s, 0.05 // rice, corn, squash: see floracrop.go
+		}
 		return g.cropSprite(e), 0.05
+	case sim.EntityFlora:
+		return floraEntitySprite(e) // see florarender.go
 	case sim.EntityBurrow:
 		return a.beasts.burrow, 0
 	case sim.EntityDen:
@@ -643,7 +651,10 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 	case e.Kind == sim.EntityLairProp:
 		g.drawLairProp(dst, e, d) // see lairrender.go
 		return
+	case g.floraHidden(e):
+		return // under the ice
 	}
+	g.drawFloraUnder(dst, e, d) // see florarender.go
 	if g.drawTribalEntity(dst, e, d) {
 		return
 	}
@@ -967,7 +978,7 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			sx, sy = cam.toScreen(float64(e.TX)+0.5, float64(e.TY)+0.5)
 			s, _ := g.entitySprite(e)
 			top = sy - s.ay
-			label = e.Kind.Name()
+			label = sim.EntityLabel(e.Kind, e.Var)
 			if e.Kind.Sized() {
 				label += [2]string{" nhỏ", " lớn"}[sizeIdx(e.Big)]
 			}
@@ -1022,17 +1033,10 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			case !g.canMine(e.Kind):
 				need, _ := orePick(e.Kind)
 				label, col = label+" — cần "+sim.ToolItem(sim.ToolPickaxe, need).Def().Name, colBad
-			case e.Kind == sim.EntityFarmland:
-				if e.Big {
-					label += " (đã bón phân)"
-				}
-				if g.curr.Self.Inv.Count(sim.ItemPotato) > 0 {
-					label += " — trồng khoai"
-				} else {
-					label, col = label+" — cần khoai lang để trồng", colBad
-				}
-			case e.Kind == sim.EntityCrop:
-				label += " — đào khoai"
+			case e.Kind == sim.EntityFarmland, e.Kind == sim.EntityCrop:
+				label, col = g.farmLabel(e, label, col) // see florarender.go
+			case e.Kind == sim.EntityFlora:
+				label, col = g.floraLabel(e, label, col)
 			case sim.IsFruitTree(e.Kind) && e.Ready:
 				label += " — hái quả"
 			case sim.IsFruitTree(e.Kind) && !g.has(sim.ToolAxe):

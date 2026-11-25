@@ -702,8 +702,12 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		return "Chậm tay rồi — cá ăn mất " + strings.ToLower(sim.ItemKind(arg).Def().Name)
 	case sim.NoticeCaught:
 		return "Câu được 1 " + sim.ItemKind(arg).Def().Name + "!"
+	case sim.NoticeFoodPoison:
+		return sim.ItemKind(arg).Def().Name + " có độc — bạn trúng độc! (nhai Thảo dược để giải)"
+	case sim.NoticeCured:
+		return sim.ItemKind(arg).Def().Name + " đã giải độc"
 	case sim.NoticeNeedSeed:
-		return "Cần " + sim.ItemKind(arg).Def().Name + " để trồng — xới đất bằng cuốc đôi khi đào được"
+		return "Cần giống để trồng: khoai lang, thóc, ngô hoặc hạt bí"
 	case sim.NoticeChestFull:
 		return "Rương đầy rồi — không cất thêm " + strings.ToLower(sim.ItemKind(arg).Def().Name) + " được"
 	case sim.NoticeChestNotEmpty:
@@ -766,6 +770,8 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 			verb = " siết!"
 		case sim.CreatureScorpion:
 			verb = " kẹp và chích!"
+		case sim.CreatureToad:
+			return "Chạm phải cóc độc — trúng độc! (nhai Thảo dược để giải)"
 		}
 		return "Bị " + strings.ToLower(sim.CreatureKind(arg).Name()) + verb
 	case sim.NoticeNeedFire:

@@ -597,6 +597,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 	if s, bob, ok := g.seaSprite(c); ok {
 		return s, bob // see searender.go
 	}
+	if s, bob, ok := g.toadSprite(c, side, t); ok {
+		return s, bob // see toadart.go
+	}
 	if s, bob, ok := g.critterSprite(c, moving, side, t); ok {
 		return s, bob // the code-drawn animals in motion: see critterhd.go
 	}
@@ -847,6 +850,8 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 		return 20
 	case sim.CreatureRabbit, sim.CreatureMonkey:
 		return 12
+	case sim.CreatureToad, sim.CreatureGlowToad:
+		return 10
 	case sim.CreatureSnake:
 		return 20
 	case sim.CreatureCrab:

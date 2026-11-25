@@ -23,7 +23,7 @@ var (
 	mangroveBark   = mkRamp(0x2a221e, 0x443830, 0x625244, 0x82705a, 0xa29076, 0xbeae94)
 	mangroveLeaf   = mkRamp(0x143626, 0x1e502e, 0x2c6c36, 0x448a42, 0x66a852, 0x94c66e)
 	horsetailRamp  = mkRamp(0x1c4628, 0x2c6634, 0x448c42, 0x66b056, 0x92d074, 0xbce89c)
-	waterShade     = color.RGBA{8, 30, 48, 110}  // the shadow a floating leaf casts into the water
+	waterShade     = color.RGBA{8, 30, 48, 110}     // the shadow a floating leaf casts into the water
 	rippleCol      = color.RGBA{214, 240, 246, 120} // a ring of ripples; too thin to be outlined
 )
 
@@ -132,6 +132,25 @@ func genLilyHD(full bool) (*canvas, float64, float64) {
 	return f.done(0.55, bx, by)
 }
 
+// genLilyRaftHD is a small raft of lily pads adrift on a swamp pond: only
+// to look at (see swampart.go). Variant 1 has no flower.
+func genLilyRaftHD(rng *rand.Rand, v int) (*canvas, float64, float64) {
+	f := newFlo(24, 14)
+	n := 2 + v
+	var fx, fy float64
+	for i := 0; i < n; i++ {
+		x, y, r := 6+rng.Float64()*12, 5+rng.Float64()*5, 2.4+rng.Float64()*1.3
+		f.pad(x, y, r, rng.Float64()*2*math.Pi, padRamp, (rng.Float64()-0.5)*0.12, 870+uint32(v*7+i))
+		if i == 0 {
+			fx, fy = x-0.6, y-0.8
+		}
+	}
+	if v != 1 {
+		f.bloom(fx, fy, 2.6, 0.9, lilyPetalRamp, 2)
+	}
+	return f.done(0.5, 12, 8)
+}
+
 // --- the lotus ---------------------------------------------------------------------------
 
 // lotusLeaf is a lotus leaf held above the water at art point (cx, cy): a
@@ -209,7 +228,7 @@ func (f *flo) kelp(x0, y0, ang, L, r float64, under bool, seed uint32) *ctube {
 	ph := float64(seed%11) * 0.6
 	for i := 0; i <= 24; i++ {
 		t := float64(i) / 24
-		w := math.Sin(t*6.4+ph) * 1.5 * (0.25 + 0.75*t)
+		w := math.Sin(t*7+ph) * 2.3 * (0.25 + 0.75*t)
 		pts = append(pts, tpt{x0 + ux*L*t - uy*w, y0 + uy*L*t + ux*w*padYK, r * (0.45 + 0.55*math.Sin(math.Pi*math.Min(1, 0.12+t*0.92)))})
 	}
 	tb := newCTube(pts)
@@ -239,18 +258,23 @@ func genSeaweedHD(full bool) (*canvas, float64, float64) {
 	// the bottom. What lies under the surface is always there.
 	x0, y0 := bx-11.0, by+1.0
 	for i := 0; i < 7; i++ {
-		a := -0.75 + float64(i)*0.25 + rng.Float64()*0.1
+		a := -1.0 + float64(i)*0.33 + rng.Float64()*0.1
 		f.kelp(x0+rng.Float64()*3, y0+(rng.Float64()-0.5)*4, a, 20+rng.Float64()*8, 1.5, true, 850+uint32(i))
 	}
-	if full { // and the fronds that reach the top, with their floats
-		for i := 0; i < 6; i++ {
-			a := -0.62 + float64(i)*0.25 + rng.Float64()*0.08
-			tb := f.kelp(x0+2+rng.Float64()*3, y0+(rng.Float64()-0.5)*3, a, 14+rng.Float64()*9, 1.15, false, 860+uint32(i))
-			for j := 5 + i%3; j < len(tb.p)-2; j += 6 { // air bladders, shining
-				p := tb.p[j]
-				bl := aEll(p.x, p.y-0.2, 0.95, 0.8)
-				f.q.fill(bl, shd(kelpRamp, bl, 0.9, 0.26))
-				f.q.dot(p.x-0.3, p.y-0.5, 0, 0, colWhite)
+	if full { // and the blades that reach the top: long, frilled ribbons, with their floats
+		kelpForm := leafForm(func(t float64) float64 {
+			return math.Min(1, t*5) * math.Pow(1-t, 0.3) * (0.78 + 0.22*math.Sin(t*34))
+		})
+		for i, b := range [][4]float64{{0.62, 15, 0.3, 0}, {-0.5, 17, 0.02, -0.1}, {0.3, 21, 0.16, 0.04}, {-0.2, 14, -0.02, -0.04}, {0.05, 19, 0.1, 0.08}, {0.95, 10, 0.2, -0.08}} {
+			bx0, by0 := x0+2+rng.Float64()*2.5, y0+(rng.Float64()-0.5)*3
+			f.leafAt(bx0, by0, b[0]*padYK, b[1], 1.5, b[2], kelpForm, kelpRamp, 0, b[3])
+			for k := 0; k < 2; k++ { // air bladders along the midrib, shining
+				t := 0.3 + 0.3*float64(k) + 0.1*float64(i%2)
+				px := bx0 + math.Cos(b[0]*padYK)*b[1]*t
+				py := by0 - math.Sin(b[0]*padYK)*b[1]*t + b[2]*b[1]*t*t
+				bl := aEll(px, py, 0.8, 0.66)
+				f.q.flat(bl, shd(kelpRamp, bl, 0.9, 0.3))
+				f.q.dot(px-0.2, py-0.3, 0, 0, colWhite)
 			}
 		}
 	}

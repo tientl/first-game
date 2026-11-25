@@ -97,7 +97,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 			snd.playAt("chop", x, y, 0.6, 0.08)
 		case sim.EntityCoal, sim.EntityCopperOre, sim.EntityIronOre, sim.EntityPlatinumOre, sim.EntityDiamondOre, sim.EntityStoneWall:
 			snd.playAt("pick_hit", x, y, 0.6, 0.06)
-		case sim.EntityReed, sim.EntityMushroom, sim.EntityClam:
+		case sim.EntityReed, sim.EntityMushroom, sim.EntityClam, sim.EntityFlora:
 			snd.playAt("rustle", x, y, 0.4, 0.12)
 		case sim.EntityBerryBush, sim.EntityGrassTuft:
 			snd.playAt("rustle", x, y, 0.5, 0.1)
@@ -179,7 +179,13 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		sim.ItemPebble: "pick_stone", sim.ItemPotato: "pick_grass",
 		sim.ItemFig: "pick_berry", sim.ItemGinkgoNut: "pick_berry", sim.ItemCoconut: "pick_wood",
 		sim.ItemCactus: "pick_grass", sim.ItemMushroom: "pick_berry", sim.ItemCoal: "pick_stone",
-		sim.ItemClam: "pick_stone",
+		sim.ItemClam:   "pick_stone",
+		sim.ItemBamboo: "pick_wood", sim.ItemGourd: "pick_berry", sim.ItemPitcherWater: "pick_berry",
+		sim.ItemFlax: "pick_grass", sim.ItemVine: "pick_grass", sim.ItemPoisonMushroom: "pick_berry",
+		sim.ItemNightshade: "pick_berry", sim.ItemAloe: "pick_grass", sim.ItemHerb: "pick_grass",
+		sim.ItemMoss: "pick_grass", sim.ItemSeaweed: "pick_grass", sim.ItemLily: "pick_berry",
+		sim.ItemLotusSeed: "pick_berry", sim.ItemHorsetail: "pick_grass", sim.ItemRice: "pick_grass",
+		sim.ItemCorn: "pick_berry", sim.ItemSquash: "pick_berry",
 	}
 	wasN, nowN := was.Inv.Counts(), now.Inv.Counts()
 	for k, name := range pickups {

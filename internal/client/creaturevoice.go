@@ -273,6 +273,10 @@ func voicesOf(k sim.CreatureKind) kindVoices {
 		return kindVoices{alarm: say("scorpion_click", 0.55, 1), hurt: say("scorpion_click", 0.5, 1.25), death: say("scorpion_click", 0.5, 0.8)}
 	case sim.CreatureMonkey:
 		return kindVoices{alarm: say("monkey_screech", 0.5, 1), hurt: say("monkey_screech", 0.55, 1.05), death: say("monkey_screech", 0.5, 0.85)}
+	case sim.CreatureToad:
+		return kindVoices{hurt: say("croak", 0.4, 1.9), death: say("croak", 0.45, 1.5)}
+	case sim.CreatureGlowToad:
+		return kindVoices{hurt: say("croak", 0.35, 2.3), death: say("croak", 0.4, 1.9)}
 	case sim.CreatureMosa:
 		return kindVoices{alarm: say("mosa_rumble", 0.85, 1), hurt: say("mosa_rumble", 0.6, 1.3), death: say("mosa_rumble", 0.85, 0.8)}
 	case sim.CreatureKraken:

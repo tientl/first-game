@@ -654,6 +654,15 @@ func (g *Game) targetHint(tg targetView) (key, s string) {
 		return "Chuột trái:", "hái quả mọng"
 	case sim.EntityTwig, sim.EntityPebble, sim.EntityMushroom, sim.EntityClam, sim.EntityReed, sim.EntityFlower:
 		return "Chuột trái:", "nhặt " + name
+	case sim.EntityFlora:
+		f := sim.FloraKind(e.Var)
+		if f.NeedsAxe() {
+			if !g.has(sim.ToolAxe) {
+				return "", ""
+			}
+			return "Chuột trái:", "chặt " + strings.ToLower(f.Name())
+		}
+		return "Chuột trái:", "hái " + strings.ToLower(f.Name())
 	case sim.EntityChest, sim.EntityTreasure:
 		return "E:", "mở " + name
 	case sim.EntityCampfire:

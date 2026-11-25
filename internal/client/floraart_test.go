@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -110,7 +111,34 @@ func floraSheet() []sheetRow {
 			beds.cells = append(beds.cells, sheetCell{cv, ax, ay})
 		}
 	}
-	return append(rows, beds)
+	rows = append(rows, beds)
+	for _, kind := range []struct {
+		glow, mask bool
+		bg         color.RGBA
+	}{{false, false, sheetGrass}, {true, false, sheetGrass}, {true, true, color.RGBA{10, 14, 30, 255}}} {
+		r := sheetRow{bg: kind.bg}
+		add := func(pose, f int) {
+			c, ax, ay := toadHD(kind.glow, kind.mask, pose, f)
+			r.cells = append(r.cells, sheetCell{c, ax * HDDensity, ay * HDDensity})
+		}
+		add(toadSit, 0)
+		add(toadSit, 1)
+		for f := 1; f <= toadHopFrames; f++ {
+			add(toadHop, f)
+		}
+		add(toadPuff, 0)
+		rows = append(rows, r)
+	}
+	ic := sheetRow{bg: color.RGBA{0x2a, 0x24, 0x20, 255}}
+	cs := floraIconCanvases()
+	for k := sim.ItemBamboo; k <= sim.ItemGlowGland; k++ {
+		big := newCanvas(48, 48) // as the bag shows it: three times its size
+		for i := range big.px {
+			big.px[i] = cs[k].px[(i/48/3)*16+(i%48)/3]
+		}
+		ic.cells = append(ic.cells, sheetCell{big, 0, 47})
+	}
+	return append(rows, ic)
 }
 
 // FLORA_DUMP=dir go test ./internal/client -run DumpFlora -v writes the
@@ -125,6 +153,54 @@ func TestDumpFlora(t *testing.T) {
 		if err := writeSheet(filepath.Join(dir, name), floraSheet(), k); err != nil {
 			t.Fatal(err)
 		}
+	}
+	// The hop, as the game plays it: both toads leaping across the grass,
+	// one frame of the drawing to three of the screen, to put together as a
+	// GIF (toad_hop_NN.png).
+	const k, W, H = 4, 150, 44
+	n := 0
+	for step := 0; step < 3*12; step++ {
+		f := step % 12 // 0, 1: sitting; 2 to 9: the hop; 10, 11: settled
+		hops := float64(step / 12)
+		pose, fr, along := toadSit, 0, 0.0
+		switch {
+		case f >= 2 && f <= 9:
+			pose, fr, along = toadHop, f-1, float64(f-2)/7
+		case f > 9:
+			pose, fr, along = toadHop, toadHopFrames, 1
+		}
+		img := image.NewRGBA(image.Rect(0, 0, W*k, H*k))
+		draw.Draw(img, img.Bounds(), &image.Uniform{sheetGrass}, image.Point{}, draw.Src)
+		for i, glow := range []bool{false, true} {
+			c, ax, ay := toadHD(glow, false, pose, fr)
+			x := 14 + (hops+along)*20.4 + float64(i)*52 // a hop is sim.ToadHop of a tile: about 20 art pixels
+			y := 34.0 - toadHopBob[fr]
+			big := image.NewRGBA(image.Rect(0, 0, c.w*k/HDDensity, c.h*k/HDDensity))
+			for py := 0; py < big.Bounds().Dy(); py++ {
+				for px := 0; px < big.Bounds().Dx(); px++ {
+					p := c.px[(py*HDDensity/k)*c.w+px*HDDensity/k]
+					big.SetRGBA(px, py, color.RGBA{uint8(int(p.R) * int(p.A) / 255), uint8(int(p.G) * int(p.A) / 255), uint8(int(p.B) * int(p.A) / 255), p.A})
+				}
+			}
+			// its shadow stays on the ground
+			for sx := -5 * k; sx <= 5*k; sx++ {
+				for sy := -k; sy <= k; sy++ {
+					if float64(sx*sx)/float64(25*k*k)+float64(sy*sy)/float64(k*k) <= 1 {
+						img.SetRGBA(int(x*k)+sx, 35*k+sy, color.RGBA{0x46, 0x70, 0x30, 255})
+					}
+				}
+			}
+			draw.Draw(img, big.Bounds().Add(image.Pt(int((x-ax)*k), int((y-ay)*k))), big, image.Point{}, draw.Over)
+		}
+		fp, err := os.Create(filepath.Join(dir, fmt.Sprintf("toad_hop_%02d.png", n)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := png.Encode(fp, img); err != nil {
+			t.Fatal(err)
+		}
+		fp.Close()
+		n++
 	}
 }
 
@@ -171,5 +247,49 @@ func TestEveryPlantIsDrawn(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// A toad has every frame of its hop, each different from the last, and its
+// glow mask only ever lights what the toad itself covers.
+func TestToadHopFrames(t *testing.T) {
+	for _, glow := range []bool{false, true} {
+		var last *canvas
+		for f := 1; f <= toadHopFrames; f++ {
+			c, _, _ := toadHD(glow, false, toadHop, f)
+			if last != nil {
+				same := true
+				for i := range c.px {
+					same = same && c.px[i] == last.px[i]
+				}
+				if same {
+					t.Errorf("glow %v: hop frame %d is frame %d again", glow, f, f-1)
+				}
+			}
+			last = c
+			for x := 0; x < c.w; x++ {
+				if c.px[x].A > 0 || c.px[(c.h-1)*c.w+x].A > 0 {
+					t.Errorf("glow %v: hop frame %d is cut off by its canvas", glow, f)
+					break
+				}
+			}
+			m, _, _ := toadHD(glow, true, toadHop, f)
+			lit := 0
+			for i, p := range m.px {
+				if p.A == 0 {
+					continue
+				}
+				lit++
+				if c.px[i].A == 0 {
+					t.Fatalf("glow %v: frame %d's mask shines outside the toad", glow, f)
+				}
+			}
+			if glow && lit < 40 {
+				t.Errorf("the glow toad's frame %d has %d shining pixels", f, lit)
+			}
+		}
+	}
+	if toadHopBob[0] != 0 || toadHopBob[toadHopFrames] != 0 {
+		t.Error("a hop does not start and end on the ground")
 	}
 }

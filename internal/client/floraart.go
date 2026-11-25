@@ -167,7 +167,7 @@ var (
 	aloeBloom      = mkRamp(0x9c2c14, 0xd04c1c, 0xf07c2c, 0xfcb04c, 0xffe08c)
 	herbRamp       = mkRamp(0x1a4424, 0x2a682e, 0x42903a, 0x64b44a, 0x92d466, 0xc2ec96)
 	creamRamp      = mkRamp(0x8c8c74, 0xbcbc9c, 0xe0e0c4, 0xf6f6e4, 0xffffff)
-	mossPadRamp       = mkRamp(0x18341a, 0x285220, 0x3e722a, 0x5e9436, 0x88b44a, 0xb4d46c)
+	mossPadRamp    = mkRamp(0x18341a, 0x285220, 0x3e722a, 0x5e9436, 0x88b44a, 0xb4d46c)
 )
 
 // --- bamboo ----------------------------------------------------------------------
@@ -479,8 +479,8 @@ func genVineHD(full bool) (*canvas, float64, float64) {
 	if full {
 		vines = append(vines,
 			f.liana(0.85, [2]float64{26, 12.6}, [2]float64{28.5, 30}, [2]float64{18.5, 30}, [2]float64{bx + 1.2, 13.5}), // a loop hanging from the right limb
-			f.liana(0.7, [2]float64{6.8, 16.6}, [2]float64{2.5, 24}, [2]float64{7, 29}, [2]float64{4.5, base + 0.6}),  // down from the left limb to the ground
-			f.liana(0.6, [2]float64{23, 12}, [2]float64{24.5, 18}, [2]float64{21, 21}, [2]float64{23.5, 24.5}),         // a loose end, curling
+			f.liana(0.7, [2]float64{6.8, 16.6}, [2]float64{2.5, 24}, [2]float64{7, 29}, [2]float64{4.5, base + 0.6}),    // down from the left limb to the ground
+			f.liana(0.6, [2]float64{23, 12}, [2]float64{24.5, 18}, [2]float64{21, 21}, [2]float64{23.5, 24.5}),          // a loose end, curling
 			f.liana(0.7, [2]float64{bx - 0.5, 7.4}, [2]float64{bx + 6, 2}, [2]float64{24, 6}, [2]float64{26.8, 12}))
 	}
 	for i, tb := range vines {

@@ -247,25 +247,28 @@ func toadHD(glow, mask bool, pose, f int) (*canvas, float64, float64) {
 	return q.done(0.72, 8, 12)
 }
 
-func toadKind(glow bool) string {
-	if glow {
-		return "glowtoad"
-	}
-	return "toad"
+type toadKey struct {
+	glow, mask    bool
+	side, pose, f int
 }
 
-func init() {
-	anim := map[int]int{toadSit: 1, toadHop: toadHopFrames}
-	for _, glow := range []bool{false, true} {
-		for _, mask := range []bool{false, true} {
-			name := toadKind(glow)
-			if mask {
-				name += "glow"
-			}
-			hd := func(p, f int) (*canvas, float64, float64) { return toadHD(glow, mask, p, f) }
-			critKinds[name] = &critKind{poses: toadPoses, old: func(p int) (*canvas, float64, float64) { return hd(p, 0) }, hd: hd, anim: anim}
-		}
+var toadCache = map[toadKey]sprite{}
+
+// toadArt is frame f of pose of a toad facing side (1: left), or with mask
+// the light of it, drawn the first time it is wanted.
+func toadArt(glow, mask bool, side, pose, f int) sprite {
+	key := toadKey{glow, mask, side, pose, f}
+	if s, ok := toadCache[key]; ok {
+		return s
 	}
+	var s sprite
+	if side == 1 {
+		s = mirrorSprite(toadArt(glow, mask, 0, pose, f))
+	} else {
+		s = critSprite(toadHD(glow, mask, pose, f))
+	}
+	toadCache[key] = s
+	return s
 }
 
 // toadFrame is the pose and frame a toad is shown in, and how high off
@@ -296,7 +299,7 @@ func (g *Game) toadSprite(c protocol.CreatureView, side, t int) (sprite, float64
 		return sprite{}, 0, false
 	}
 	pose, f, bob := g.toadFrame(c, t)
-	return critter(toadKind(c.Kind == sim.CreatureGlowToad), side, pose, f), bob, true
+	return toadArt(c.Kind == sim.CreatureGlowToad, false, side, pose, f), bob, true
 }
 
 // toadGlows draws the light of the glow toads over the night: with punch,
@@ -315,10 +318,10 @@ func (g *Game) toadGlows(dst drawTarget, cam camera, punch bool, dark float64) {
 		pulse := 1 + 0.12*math.Sin(float64(g.frame)*0.05+float64(c.ID)*1.7)
 		op := g.lightOpAt(sx, sy-3, sim.ToadGlowRadius*pulse)
 		if punch {
-			op.ColorScale.ScaleAlpha(0.6)
+			op.ColorScale.ScaleAlpha(0.4)
 			op.Blend = ebiten.BlendDestinationOut
 		} else {
-			k := float32(0.3 * dark * pulse)
+			k := float32(0.22 * dark * pulse)
 			op.ColorScale.Scale(k*0.3, k, k*0.72, k)
 			op.Blend = ebiten.BlendLighter
 		}
@@ -347,7 +350,7 @@ func (g *Game) drawToadGlow(dst drawTarget, cam camera, dark float64) {
 			side = 1
 		}
 		pose, f, bob := g.toadFrame(c, g.frame+int(c.ID)*7)
-		m := critter("glowtoadglow", side, pose, f)
+		m := toadArt(true, true, side, pose, f)
 		k := float32(math.Min(1, dark*1.3) * (0.8 + 0.2*math.Sin(float64(g.frame)*0.05+float64(c.ID)*1.7)))
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(sx-m.ax, sy-bob-m.ay)

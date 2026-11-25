@@ -103,7 +103,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - **Quặng hồi lại** (hiện đào hết là mất vĩnh viễn, kể cả tảng đá lớn):
     - Đá, than, đá lửa: **hồi ở chỗ cũ** sau vài ngày trong game (ví dụ 5–10 ngày), chỉ khi không có người đứng gần.
     - Ngọc bích, mã não, hắc diện thạch, kim cương: game giữ tổng số mạch mỗi loại; mạch bị đào thì **mọc mạch mới ở chỗ khác** trong đúng vùng của nó, xa người chơi (như thú vật hồi lại). Càng quý càng hồi chậm.
-- [ ] **Thực vật mới** (ưu tiên: tre, bầu, nắp ấm, lanh, thảo dược):
+- [x] **Thực vật mới** (ưu tiên: tre, bầu, nắp ấm, lanh, thảo dược). ✅ 18 loài vẽ HD (`floraart.go`, `florawet.go`, `floracrop.go`; sim `flora.go`): tre, bầu, nắp ấm, lanh, dây leo, nấm độc, cà độc, lô hội, thảo dược, rêu, đước, rong biển, hoa súng, sen, cỏ đuôi ngựa, lúa / ngô / bí (mọc hoang và trồng được). Đã dùng được: ăn, hồi máu, giải độc, bện dây thừng, băng rêu, tường / sàn / bè tre, bình máu thảo dược, nướng ngô / bí / cốm. Còn chờ hệ thống khác: khát nước (ống tre, bình bầu, nước nắp ấm), cung tên (dây cung, tên độc). **Chưa làm**: mộc lan, bụi gai sa mạc, việt quất tuyết.
   - Cho khát nước: **tre** (ống đựng nước, vật liệu xây, thân tên); **cây bầu** (quả khô thành bình nước); **cây nắp ấm** (tự hứng nước mưa, uống được ngay; ở đầm lầy, rừng rậm).
   - Cho cung tên: **lanh / gai** (sợi bện dây cung, dây thừng); **dây leo rừng** (dây thừng thô, bẫy); **nấm độc, quả độc** như cà dược (tẩm tên độc; ăn nhầm thì ngộ độc).
   - Chữa bệnh: **lô hội** (chữa bỏng); **thảo dược** (giải độc cóc, nhện, bọ cạp; làm bình máu); **rêu** (đắp vết thương thay băng).
@@ -146,7 +146,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Lấy trộm trứng trong tổ là bị cả đàn đuổi. Mang về ấp cạnh lửa, nở ra khủng long con đi theo bạn và lớn dần thành thú cưỡi.
   - Nuôi từ bé gắn bó hơn thuần thú bằng cho ăn, và cho người chơi lý do quay về căn cứ.
   - **Chỉ thuần hoá được bằng cách ấp trứng** (bỏ cách thuần bằng cho ăn như hiện nay).
-- [ ] **Sinh vật mới**: cóc xanh có độc; cóc phát sáng vào ban đêm.
+- [x] **Sinh vật mới**: cóc xanh có độc; cóc phát sáng vào ban đêm. ✅ `sim/toad.go`, `client/toadart.go`: sống ở đầm lầy và ven ao, nhảy 8 khung, ngồi trên lá súng / lá sen; chạm vào cóc xanh (hoặc đấm tay không) là trúng độc, rơi da cóc và tuyến độc; cóc phát sáng toả sáng ban đêm, rơi tuyến phát sáng.
 - [ ] **Thú non**: mọi loài có con non (voi ma mút con, hổ răng kiếm con, khủng long con, thỏ con, gấu con…), nhỏ hơn, đầu to, chân ngắn, chạy lon ton theo mẹ trong đàn. Đánh con non thì thú mẹ nổi giận lao vào. Con non lớn dần thành con trưởng thành sau vài ngày. Khủng long con nở từ trứng (mục trên) dùng chung hình con non.
 
 ## 7. Chiến đấu và sự kiện

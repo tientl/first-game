@@ -95,6 +95,7 @@ func main() {
 	running := flag.Bool("run", false, "the player is on the move (with -herohd: mid-stride)")
 	winW := flag.Int("w", 1280, "window width; run xvfb with a screen at least this big (xvfb-run -s '-screen 0 1920x1080x24')")
 	winH := flag.Int("h", 720, "window height: 720 draws the world at 2 screen pixels per art pixel, 1080 at 3")
+	floraFlag := flag.String("flora", "", "set the new plants and the toads round the player: pond (with -open -at pond), coast (with -coast) or land")
 	hdTest := flag.Bool("hdtest", false, "set down the HD trial: a mossy stone drawn as the old pixel art (left of the player) and at HD density (right); see internal/client/HD_ART.md")
 	envHD := flag.Bool("envhd", true, "the HD art of trees, plants, rocks and buildings (false: the original density-1 art, to compare)")
 	devCon := flag.Bool("devconsole", false, "open the dev console (as with -dev in cmd/game), with a few commands run on the world; see dev.go")
@@ -534,6 +535,9 @@ func main() {
 			snap.Players[0].Held = sim.ItemDung
 			snap.Self.Inv.Add(sim.ItemDung, 4)
 		}
+	}
+	if *floraFlag != "" {
+		addFlora(&snap, w, sx, sy, *floraFlag) // see flora.go
 	}
 	if *woodsFlag {
 		addWoods(&snap, sx, sy)
