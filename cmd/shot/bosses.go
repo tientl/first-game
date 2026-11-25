@@ -5,6 +5,9 @@ import (
 	"survivalgame/internal/sim"
 )
 
+// demoBosses leaves only the two bosses of the demo in addBosses.
+var demoBosses bool
+
 // addBosses puts the six bosses round the player standing on a beach, the
 // sea below: the land ones on the sand and grass, the Megalodon and a
 // lurking Spinosaurus in the water. pose shifts which state each shows, so
@@ -13,6 +16,9 @@ import (
 func addBosses(snap *protocol.Snapshot, sx, sy float64, pose int) {
 	states := []sim.CreatureState{sim.CreatureIdle, sim.CreatureChase, sim.CreatureStrike, sim.CreatureSpecial, sim.CreatureRoar}
 	put := func(i int, k sim.CreatureKind, dx, dy float64, st sim.CreatureState, left bool) {
+		if demoBosses && k != sim.CreatureTitanoboa && k != sim.CreatureMegalodon {
+			return
+		}
 		hp := int16(min(k.MaxHP(), 32767))
 		snap.Creatures = append(snap.Creatures, protocol.CreatureView{
 			ID: sim.CreatureID(1<<23 + i), Kind: k, X: float32(sx + dx), Y: float32(sy + dy),
@@ -32,6 +38,10 @@ func addBosses(snap *protocol.Snapshot, sx, sy float64, pose int) {
 		put(6, sim.CreatureSpino, 1.5, 3.2, sim.CreatureSpecial, true)
 	}
 	snap.Boss = protocol.BossView{ID: 1<<23 + 4, Kind: sim.CreatureGiganoto, HP: 6200, MaxHP: int32(sim.CreatureGiganoto.MaxHP()), Enraged: true}
+	if demoBosses {
+		hp := int32(sim.CreatureTitanoboa.MaxHP())
+		snap.Boss = protocol.BossView{ID: 1 << 23, Kind: sim.CreatureTitanoboa, HP: hp * 2 / 5, MaxHP: hp, Enraged: pose%2 == 1}
+	}
 	for i := range sim.NumBosses {
 		snap.BossMarks = append(snap.BossMarks, protocol.BossMark{Kind: sim.BossKind(i),
 			X: float32(sx) + float32(i%3-1)*30, Y: float32(sy) + float32(i/3*2-1)*25, Defeated: i%2 == 0})

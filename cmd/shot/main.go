@@ -81,6 +81,8 @@ func main() {
 	bodies := flag.Bool("bodies", false, "put a fallen player's body and its bag next to the player, and another's gone to bones")
 	bossesFlag := flag.Bool("bosses", false, "put the six bosses round the player on a beach (the Megalodon and a lurking Spinosaurus in the sea), the boss bar up and the lairs on the map; see -bosspose")
 	bossPose := flag.Int("bosspose", 0, "with -bosses: shift which pose each boss shows")
+	bossAge := flag.Int("bossage", -1, "how many frames into its state each boss and sea monster is shown (-1: as many as -frames)")
+	flag.BoolVar(&demoBosses, "demobosses", false, "with -bosses: only Titanoboa and the Megalodon, the bar showing Titanoboa's health")
 	victory := flag.Bool("victory", false, "show the game-beaten (Phá đảo!) screen")
 	aimAt := flag.String("aim", "", "dx,dy: hold the mouse pointer this many tiles from the player (the hover brackets, a held torch's ghost)")
 	buildID := flag.Int("build", -1, "recipe id of a structure to place (0 campfire, 8 wall, 9 bed…): build mode with its ghost under -aim, the ingredients given")
@@ -103,6 +105,7 @@ func main() {
 	if *bossesFlag {
 		*coast = true
 	}
+	client.SetBossAge(*bossAge)
 
 	N := 96
 	style := sim.StyleIsland
