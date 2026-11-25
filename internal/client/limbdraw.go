@@ -78,7 +78,7 @@ func (b *bodyArt) upper(k upKey) *upperArt {
 		for i, a := range c.arm {
 			u.hand[i] = handInfo{
 				x:     a.hx/HDDensity - 9,
-				y:     a.hy/HDDensity - bodyFeet,
+				y:     a.hy/HDDensity - limbFeet,
 				swing: a.swing,
 				over:  a.layer == armOver,
 				size:  a.size / HDDensity,
@@ -122,13 +122,18 @@ type figDraw struct {
 	s     float64 // scale; 0 is 1
 	rot   float64
 	push  float64 // how far the body leans into a blow, in art pixels
+	abed  bool    // under a blanket: the legs are not drawn
 	// item draws what the hand holds, the hand at (hx, hy), its forearm
 	// turned swing towards the facing.
 	item func(dst drawTarget, hx, hy, swing float64)
 }
 
+// playerTop is how far above a player's feet their name goes, in art
+// pixels: just over the head.
+const playerTop = 35
+
 // hipHeight is how far above the feet the body leans from, in art pixels.
-const hipHeight = 9
+const hipHeight = (limbGround - hipY) / HDDensity
 
 // drawFig draws f standing at (x, y), the feet, and returns where the upper
 // half's point ended up and how it leans (see handAt).
@@ -139,6 +144,9 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 	}
 	dir := f.up.dir
 	f.lo.dir = dir
+	if f.lo.anim == loSit {
+		f.up.frame |= upSit
+	}
 	u, lo := f.b.upper(f.up), f.b.lower(f.lo)
 	side := facingSide(dir)
 	dx, dy := dir.Delta()
@@ -193,7 +201,9 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 	}
 	layer(upFar)
 	layer(upBack)
-	put(lo.legs, nil, false)
+	if !f.abed {
+		put(lo.legs, nil, false)
+	}
 	layer(upShirt)
 	if f.armor != nil {
 		put(f.armor.whole[dir][0], nil, true)

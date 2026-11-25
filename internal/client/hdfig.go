@@ -370,11 +370,17 @@ func furShade(r ramp, a shape, round, bias float64, seed uint32) shader {
 // out over the skull and hang straight below it, a groove here and there
 // between them, and a band of shine across them on the lit side.
 func hairShade(r ramp, a shape, round, cx, cy float64, seed uint32) shader {
+	return hairShadeK(r, a, round, cx, cy, seed, 1)
+}
+
+// hairShadeK is hairShade for a head k times the size: the strands and the
+// shine are as much finer.
+func hairShadeK(r ramp, a shape, round, cx, cy float64, seed uint32, k float64) shader {
 	n := len(r)
 	return func(x, y int, _ float64) color.RGBA {
 		i := int(a.lum(x, y, round)*float64(n)*0.74) + 1
 		i = max(1, min(n-2, i))
-		fx, fy := float64(x)+0.5-cx, float64(y)+0.5-cy
+		fx, fy := (float64(x)+0.5-cx)/k, (float64(y)+0.5-cy)/k
 		const fan = 13.0
 		u := fx*fan/math.Max(1.5, math.Min(fy, fan))/2.4 + 200
 		k := math.Floor(u)

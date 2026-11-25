@@ -776,7 +776,7 @@ func (g *Game) drawAilments(dst drawTarget, p protocol.PlayerView, d drawable) {
 		if g.curr.Self.Poisoned && (g.frame/8)%3 == 0 {
 			for k := range 3 {
 				ph := math.Mod(float64(g.frame)/40+float64(k)*0.33, 1)
-				fillRect(dst, float32(math.Round(d.sx-5+float64(k)*5)), float32(math.Round(d.sy-30-ph*10)), 2, 2, color.RGBA{120, 220, 80, uint8(220 * (1 - ph))}, false)
+				fillRect(dst, float32(math.Round(d.sx-5+float64(k)*5)), float32(math.Round(d.sy-playerTop-ph*10)), 2, 2, color.RGBA{120, 220, 80, uint8(220 * (1 - ph))}, false)
 			}
 		}
 	}
@@ -791,7 +791,9 @@ func (g *Game) drawSleeper(dst drawTarget, p protocol.PlayerView, d drawable) {
 	fx, fy := d.sx+10, d.sy-6
 	b := g.art.body(p.Look)
 	if playerHD && playerJointed { // see limbdraw.go
-		drawFig(dst, figDraw{b: b, up: upKey{dir: sim.DirDown, anim: upAsleep}, tint: tint, rot: -math.Pi / 2}, fx, fy)
+		// The tall figure is longer than the bed: its legs are under the
+		// blanket, and only the rest of it is drawn.
+		drawFig(dst, figDraw{b: b, up: upKey{dir: sim.DirDown, anim: upAsleep}, tint: tint, rot: -math.Pi / 2, abed: true}, fx+9, fy)
 		b = nil
 	}
 	if b != nil {
@@ -1050,6 +1052,6 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 		if p.ID == g.myID {
 			continue
 		}
-		g.text(screen, p.Name, sx*scale, (sy-30)*scale-14*uiK(), colWhite, text.AlignCenter, uiK())
+		g.text(screen, p.Name, sx*scale, (sy-playerTop)*scale-14*uiK(), colWhite, text.AlignCenter, uiK())
 	}
 }

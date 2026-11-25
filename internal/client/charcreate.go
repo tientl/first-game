@@ -359,7 +359,7 @@ func (c *charCreator) drawPreview(dst *ebiten.Image, k int) {
 	fillRoundRect(dst, float32(b.x-2), float32(b.y-2), float32(b.w+4), float32(b.h+4), 12, colPanelEdge)
 	fillRoundRect(dst, float32(b.x), float32(b.y), float32(b.w), float32(b.h), 10, color.RGBA{14, 16, 26, 210})
 	a := getArt()
-	s := float64(int(min((b.w-40*f)/18, (b.h-80*f)/30)))
+	s := float64(int(min((b.w-40*f)/18, (b.h-80*f)/38)))
 	if playerHD {
 		s = max(HDDensity, math.Floor(s/HDDensity)*HDDensity) // a whole number of screen pixels to each of the HD art's
 	}
@@ -381,7 +381,7 @@ func (c *charCreator) drawPreview(dst *ebiten.Image, k int) {
 
 	// The name above the head, as other players will see it.
 	if name := c.nameText(); name != "" {
-		drawText(dst, name, fx, fy-31*s-24*f, colWhite, text.AlignCenter, 2*f)
+		drawText(dst, name, fx, fy-34*s-24*f, colWhite, text.AlignCenter, 2*f)
 	}
 }
 
