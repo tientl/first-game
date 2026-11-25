@@ -44,7 +44,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 ### Full HD (đang làm)
 
 - [x] Giai đoạn 0: nền tảng vẽ ở độ phân giải màn hình (`internal/client/hd.go`, `HD_ART.md`).
-- [ ] Giai đoạn 1: nhân vật và mặt đất (cả hai kiểu: cỏ xanh và đất ấm). Đang dở, đã dừng.
+- [x] Giai đoạn 1: nhân vật (8 khung đi, giáp, đấm, bơi, ngủ, màn hình tạo nhân vật) và mặt đất (cả hai kiểu: cỏ xanh và đất ấm; `SetGroundStyle`, lưu trong cài đặt).
 - [ ] Giai đoạn 2: cây, cỏ, hoa, đá, công trình. Đang dở, đã dừng.
 - [ ] Giai đoạn 3: khủng long và các sinh vật.
 - [ ] Giai đoạn 4: icon, giao diện, hiệu ứng (có thể lấy hiệu ứng từ pixelfx, giấy phép MIT).
