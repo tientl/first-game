@@ -18,7 +18,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 - [x] **Chế độ dev** (mục 1) — để test nhanh trước khi phát hành.
 - [ ] **Giao diện** (mục 3): HUD gọn, bỏ ô hướng dẫn (F1), túi 30 ô, rương có ô đồ, chuột phải cắm đuốc.
 - [x] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
-- [ ] **Thời gian** (mục 4): ✅ ngày 16 phút, mùa 12 ngày, ngày và đêm theo mùa; còn **cửa hang** (chờ làm rõ "lối vào nằm ở phía dưới").
+- [ ] **Thời gian** (mục 4): ✅ ngày 16 phút, mùa 12 ngày, ngày và đêm theo mùa; còn **cửa hang** (miệng hang quay xuống phía dưới màn hình, xem mục 4).
 - [x] **Chỉ 2 trùm** trong demo: các trùm khác tắt (không sinh ra, không hiện trên bản đồ); màn hình "Phá đảo!" tính theo 2 trùm. Hai trùm có thanh máu và nhạc chiến đấu (mục 8; nhạc ✅ `bossmusic.go`). Trùm được chọn: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu).
 - [ ] **Hướng dẫn chơi** vài phút đầu.
 - [ ] **Menu cài đặt**: âm lượng nhạc / tiếng, và phần **Hiển thị**:
@@ -88,7 +88,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Biển: giông bão mạnh hơn, sóng lớn ảnh hưởng thuyền.
   - Đồng cỏ: theo mùa như hiện nay.
   - Khi đi từ vùng này sang vùng khác thì thời tiết chuyển dần, không đổi đột ngột.
-- [ ] **Cửa hang**: sửa lại cửa vào hang, lối vào nằm ở phía dưới.
+- [ ] **Cửa hang**: miệng hang **quay xuống phía dưới màn hình** (về phía người nhìn): một ụ đá / vách đá có mặt đứng hướng xuống dưới, ở chân vách là vòm cửa tối có lối đất dẫn ra; chỉ đi vào được từ phía dưới (hai bên và phía sau là đá chặn). Hiện tại trông như một cái hố nhìn từ trên xuống.
 - [ ] **Sửa phân bố quặng** (hiện mỗi ô của vùng có cùng một tỉ lệ ra quặng, nên quặng rải lẻ tẻ đều khắp vùng, không thành mạch):
   - Quặng mọc thành **mạch / cụm** 3–8 khối liền nhau, giữa các cụm là khoảng trống lớn.
   - Gắn với địa hình: sát vách đá, chân núi, trong hang; càng sâu trong hang càng nhiều và càng hiếm.
