@@ -52,7 +52,7 @@ func (w *World) keepChest(p *Player) {
 		return
 	}
 	e := w.entities[p.chest]
-	if p.Dead || p.Asleep || e == nil || e.Kind != EntityChest ||
+	if p.Dead || p.Asleep || e == nil || e.Kind != EntityChest && e.Kind != EntityTreasure ||
 		math.Hypot(float64(e.TX)+0.5-p.X, float64(e.TY)+0.5-p.Y) > ChestReach {
 		p.chest = 0
 	}
@@ -89,6 +89,9 @@ func (w *World) chestCommand(p *Player, cmd Command) {
 	case CmdChestClose:
 		p.chest = 0
 	case CmdChestTakeDown:
+		if e := w.entities[p.chest]; e == nil || e.Kind != EntityChest {
+			return // an old chest in a cave stays where it is
+		}
 		if *chest != (Inventory{}) {
 			p.notify(NoticeChestNotEmpty, 0)
 			return
@@ -117,7 +120,7 @@ func (w *World) saveChests() []ChestSave {
 // inventory. Contents of chests that are not in the world are dropped.
 func (w *World) loadChests(saved []ChestSave) {
 	for _, cs := range saved {
-		if e := w.entities[cs.ID]; e != nil && (e.Kind == EntityChest || e.Kind == EntityGrave) {
+		if e := w.entities[cs.ID]; e != nil && (e.Kind == EntityChest || e.Kind == EntityGrave || e.Kind == EntityTreasure) {
 			inv := cs.Slots
 			inv.sanitize()
 			w.chests[cs.ID] = &inv
