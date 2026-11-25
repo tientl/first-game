@@ -34,3 +34,11 @@ Việc cần làm, theo thứ tự ưu tiên hiện tại. Làm xong mục nào 
   - Vài ngày một lần, đêm đỏ rực và bầy raptor hoặc Troodon kéo tới căn cứ.
   - Hàng rào chông, bẫy, tường, đuốc và thú nuôi đã có nhưng chưa có lý do thật để xây; sự kiện này biến chúng thành thứ sống còn.
 - [ ] **Cửa hang**: sửa lại cửa vào hang, lối vào nằm ở phía dưới.
+- [ ] **Thời tiết theo vùng** (hiện thời tiết chung cho cả thế giới):
+  - Sa mạc: không mưa, không tuyết; có bão cát (che tầm nhìn, đi chậm), nắng nóng ban ngày (khát nhanh), đêm lạnh.
+  - Vùng tuyết: tuyết và bão tuyết quanh năm, lạnh hơn.
+  - Đầm lầy, rừng rậm: mưa nhiều hơn, sương mù.
+  - Núi lửa: mưa tro, không tuyết.
+  - Biển: giông bão mạnh hơn, sóng lớn ảnh hưởng thuyền.
+  - Đồng cỏ: theo mùa như hiện nay.
+  - Khi đi từ vùng này sang vùng khác thì thời tiết chuyển dần, không đổi đột ngột.
