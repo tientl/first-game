@@ -142,7 +142,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 ## 7. Chiến đấu và sự kiện
 
-- [ ] **Cảm giác đánh nhau** (trong demo): khựng lúc trúng đòn (hit-stop), thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh hoặc chí mạng; hiệu ứng chém, va chạm từ pixelfx; giơ khiên đỡ đòn; thú báo trước đòn để người chơi đọc và né; chặn mẹo đánh một đòn rồi lùi.
+- [ ] **Cảm giác đánh nhau** (trong demo): khựng lúc trúng đòn (hit-stop), thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh hoặc chí mạng; hiệu ứng từ pixelfx: `melee/claw-swipe` (vết cào) cho raptor, gấu, hổ răng kiếm, khỉ, vượn chúa; `melee/sword-slash`, `thrust`, `spear-sweep`, `heavy-cleave` cho kiếm, giáo, rìu; `impacts/hit-spark`, `crit-hit`, `hit-flash` khi trúng đòn và chí mạng; `water/splash` cho Megalodon; giơ khiên đỡ đòn; thú báo trước đòn để người chơi đọc và né; chặn mẹo đánh một đòn rồi lùi.
 - [ ] **Cung tên**: cung, tên thường, tên độc, tên lửa.
 - [ ] **Đêm trăng máu, khủng long tấn công trại**:
   - Vài ngày một lần, đêm đỏ rực và bầy raptor hoặc Troodon kéo tới căn cứ.
