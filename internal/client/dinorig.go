@@ -13,7 +13,9 @@ import (
 // species in dinos/, made at the size the game shows it. Every other pose is
 // worked from that drawing by a simple rig, so the art stays the artist's:
 //
-//   - legs step: each leg's pixels lean forward or back, more at the foot;
+//   - legs step: each leg is cut into thigh, shin and foot, which turn about
+//     its hip, knee and ankle so the foot goes where the stride puts it
+//     (dinolegs.go); a leg with no joints measured leans whole instead;
 //   - the head and neck turn about the base of the neck (to eat, call or
 //     strike), with the joint filled so it never comes apart;
 //   - the jaw opens about the corner of the mouth, showing the mouth and,
@@ -35,8 +37,24 @@ var dinoHD = true
 
 type rigPt struct{ x, y float64 }
 
-// rigLimb is a leg: columns x0 to x1, from row top down to the feet.
-type rigLimb struct{ x0, x1, top int }
+// rigLimb is a leg: columns x0 to x1, from row top down to the feet. j is
+// its joints when it has them measured (see dinolegs.go): hip, knee, ankle,
+// the ball of the foot for one that walks on its toes, and the tip of the
+// toes. fore marks a foreleg, whose elbow bends back. r is how far around
+// the thigh bone the flank above top moves with the thigh; 0: half the
+// thigh's length.
+type rigLimb struct {
+	x0, x1, top int
+	j           []rigPt
+	fore        bool
+	r           float64
+}
+
+// hind is a hind leg with its joints, fore a foreleg.
+func hind(x0, x1, top int, j ...rigPt) rigLimb { return rigLimb{x0: x0, x1: x1, top: top, j: j} }
+func fore(x0, x1, top int, j ...rigPt) rigLimb {
+	return rigLimb{x0: x0, x1: x1, top: top, j: j, fore: true}
+}
 
 // rigPart is a piece that turns about a joint: the pixels on the far side of
 // the line through pivot whose normal points along dir (radians), and above
@@ -75,6 +93,7 @@ type dinoRig struct {
 	ax, ay float64 // the ground point, in pixels of the drawing; 0, 0: under the feet
 	legs   []rigLimb
 	stride float64 // how far a foot moves in a step, in pixels
+	runner bool    // light enough to leave the ground between footfalls at a run
 	// gait is when in a stride each leg steps, in strides; nil: each leg half
 	// a stride after the one before. far marks the legs on the far side
 	// (bit i for legs[i]), which are drawn behind the near ones.
@@ -166,7 +185,11 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 
 	bob := 0.0 // how far the body has sunk on its legs, in canvas pixels
 	if (p.step != 0 || p.cycle != 0) && len(r.legs) > 0 {
-		bob = stepLegs(w, r, p, pad, base.h, k)
+		if r.jointed() {
+			bob = stepJoints(w, r, p, pad, k)
+		} else {
+			bob = stepLegs(w, r, p, pad, base.h, k) // no joints measured: the legs lean whole
+		}
 	}
 	off := func(q rigPt) rigPt { return rigPt{q.x*kf + float64(pad), q.y*kf + float64(pad) + bob} }
 	shift := func(pr rigPart) rigPart {
@@ -212,7 +235,8 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 	return c, ax, ay, ok
 }
 
-// stepLegs moves the legs of rig r on working canvas w for pose p, and
+// stepLegs moves the legs of a rig with no joints measured (stepJoints
+// moves the others) on working canvas w for pose p, and
 // returns how far the body sank between them, in canvas pixels. Held at a
 // step, each leg leans forward or back in turn, as drawn. Through a stride
 // (p.cycle) each swings in its own time: back along the ground, then lifted

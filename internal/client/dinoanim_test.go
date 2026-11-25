@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -103,5 +104,57 @@ func TestDumpDinoAnim(t *testing.T) {
 		}
 		t.Logf("%-8s %2d frames, %6.1f ms each to draw, %5.1f MB of pixels for both sides", species, n,
 			float64(took.Microseconds())/1000/float64(n), float64(2*bytes)/(1<<20))
+	}
+}
+
+// TestStanceFeetStayPlanted walks and runs every jointed rig through a
+// stride: a foot on the ground stays on it, moving back under the body at a
+// steady speed, and every knee bends forward, every elbow back.
+func TestStanceFeetStayPlanted(t *testing.T) {
+	for species, r := range dinoRigs {
+		if !r.jointed() {
+			continue
+		}
+		rigCanvas(r, rigPose{step: 1}) // cuts its legs
+		k := 1
+		if dinoHD {
+			k = HDDensity
+		}
+		kf := float64(k)
+		cuts := legCuts[legKey{r.file, k}]
+		if cuts == nil {
+			t.Fatalf("%s: no legs cut", species)
+		}
+		for _, amp := range []float64{1, 1.3} {
+			const steps = 64
+			_, duty, _ := gaitTiming(r, amp)
+			want := 2 * amp * r.stride * gaitReach * kf / steps / duty
+			last := make([]float64, len(cuts))
+			was := make([]bool, len(cuts))
+			for s := 1; s <= 2*steps; s++ {
+				p := rigPose{step: amp, cycle: float64((s-1)%steps+1) / steps}
+				feet, drop := legPoses(r, p, cuts, kf)
+				for i := range cuts {
+					c := &cuts[i]
+					J, _ := c.solve(feet[i], drop)
+					n := len(J) - 1
+					cross := (J[1].x-J[0].x)*(J[2].y-J[0].y) - (J[1].y-J[0].y)*(J[2].x-J[0].x)
+					if math.Abs(cross) > 0.01 && (cross > 0) == c.fore {
+						t.Errorf("%s leg %d at %.2f: the knee bends the wrong way", species, i, p.cycle)
+					}
+					if !feet[i].stance {
+						was[i] = false
+						continue
+					}
+					if off := math.Abs(J[n].y - c.P[n].y); off > kf {
+						t.Errorf("%s x%.1f leg %d at %.2f: its foot is %.1f px off the ground", species, amp, i, p.cycle, off/kf)
+					}
+					if got := last[i] - J[n].x; was[i] && math.Abs(got-want) > 0.4*kf {
+						t.Errorf("%s x%.1f leg %d at %.2f: its foot slid %.2f px, not %.2f", species, amp, i, p.cycle, got/kf, want/kf)
+					}
+					last[i], was[i] = J[n].x, true
+				}
+			}
+		}
 	}
 }

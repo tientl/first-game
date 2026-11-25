@@ -12,9 +12,11 @@ import (
 // The frames between are poses of the same rig (dinorig.go) worked out here
 // and drawn the first time each is shown:
 //
-//   - a stride of gaitFrames frames, each leg swinging in its own time with
-//     the foot lifted on the way forward, the body sinking and rising, the
-//     head nodding against it and the tail swaying behind;
+//   - a stride of gaitFrames frames, each leg stepping in its own time: the
+//     foot planted and carried back under the body, the heel rising as it
+//     pushes off, the knee and ankle folding to bring it forward; the body
+//     sinking onto each footfall and rising over the leg, the head nodding
+//     against it and the tail swaying behind;
 //   - a wingbeat of as many frames;
 //   - a blow that is wound up first: the beast draws back (rears its head,
 //     drops its horns, coils its tail, crouches) and only then lunges into
@@ -70,7 +72,7 @@ func rigFrameOf(species string, side int, p rigPose) rigFrame {
 }
 
 // stridePose is frame f of a stride amp wide (1: a walk), on top of pose
-// base: what the legs do is the rig's (stepLegs); the head nods against the
+// base: what the legs do is the rig's (stepJoints); the head nods against the
 // body's bob, twice a stride, and the tail sways once, a little behind.
 func stridePose(base rigPose, f int, amp float64) rigPose {
 	p := base
