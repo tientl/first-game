@@ -28,6 +28,11 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Giới hạn khung hình: 30 / 60 / 120 / không giới hạn, kèm VSync.
   - Thu phóng camera (đã có phím = / −) đưa vào menu.
   - Mặc định tự động: độ phân giải màn hình, toàn màn hình, chất lượng Cao, cỡ giao diện Tự động. Cài đặt được lưu lại.
+- [ ] **Chạy thử dài (soak test)** — làm ngay sau Full HD: để game chạy 1–2 giờ tự động (nhân vật đi lang thang, nhiều ngày trong game), ghi bộ nhớ và thời gian khung hình; bộ nhớ không được tăng dần, khung hình không chậm dần.
+- [ ] **Chạy lại một ván cố định sau mỗi tính năng** — làm ngay sau Full HD: cùng seed, cùng chuỗi thao tác, chụp ảnh ở các mốc bằng `cmd/shot`, so với lần trước để phát hiện thay đổi ngoài ý muốn.
+- [ ] **Kiểm tra cân bằng tiến trình**: test tự động cho thời gian lên từng bậc công cụ, tài nguyên đủ cho từng bậc (như phát hiện đá lửa hiếm hơn hắc diện thạch); cùng bảng đấu tay đôi đã có.
+- [ ] **Phiếu góp ý cho người chơi thử**: chỗ bị kẹt, chỗ chán, chỗ khó hiểu, chơi bao lâu thì bỏ, thích nhất gì.
+- [ ] **Checklist phát hành**: build sạch Windows và Linux, test qua hết; chế độ dev tắt hẳn, không còn giá trị test hay log gỡ lỗi; lưu/tải được ở mọi tình huống (bơi, cưỡi, đánh trùm, trong hang); hướng dẫn chơi đã thử với người mới; chữ đã soát; màn hình ghi công kèm giấy phép (Ebitengine, pixelfx…); lỗi văng thì ghi file log; đánh số phiên bản và gắn tag Git.
 - [ ] **Chơi thử, sửa lỗi**, build `.exe` cho Windows và bản Linux.
 
 ## 1. Công cụ dev (làm đầu tiên)
