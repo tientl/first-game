@@ -8,7 +8,6 @@ import (
 	"unicode"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -58,8 +57,8 @@ func (a *art) headOf(k sim.CreatureKind) sprite {
 	if right < 0 {
 		return s
 	}
-	cw := max(10, int(float64(w)*0.36))
-	if w < 22 {
+	cw := max(10*s.density(), int(float64(w)*0.36))
+	if w < 22*s.density() {
 		cw = w // small animals: the whole of them
 	}
 	left := max(0, right-cw+1)
@@ -79,22 +78,23 @@ func (a *art) headOf(k sim.CreatureKind) sprite {
 	sub := s.img.SubImage(image.Rect(b.Min.X+left, b.Min.Y+top, b.Min.X+right+1, b.Min.Y+bottom+1)).(*ebiten.Image)
 	img := ebiten.NewImage(right-left+1, bottom-top+1)
 	img.DrawImage(sub, nil)
-	return sprite{img, float64(right-left+1) / 2, float64(bottom - top + 1)}
+	dn := float64(s.density()) // the cut is in image pixels, the anchor in art pixels
+	return sprite{img: img, ax: float64(right-left+1) / 2 / dn, ay: float64(bottom-top+1) / dn, dens: s.dens}
 }
 
 // iconOf fits s in a 16x16 bag icon.
 func iconOf(s sprite) *ebiten.Image {
 	icon := ebiten.NewImage(16, 16)
-	b := s.img.Bounds()
-	k := min(1, 15/math.Max(float64(b.Dx()), float64(b.Dy())))
+	w, h := s.w(), s.h()
+	k := min(1, 15/math.Max(w, h))
 	if k < 1 {
 		k = math.Max(k, 0.25)
 	}
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(k, k)
-	op.GeoM.Translate((16-float64(b.Dx())*k)/2, (16-float64(b.Dy())*k)/2)
+	op.GeoM.Translate((16-w*k)/2, (16-h*k)/2)
 	op.Filter = ebiten.FilterLinear
-	icon.DrawImage(s.img, op)
+	drawSprite(icon, s, op)
 	return icon
 }
 
@@ -294,7 +294,7 @@ func tribalShadow(e protocol.EntityView) (float64, bool) {
 
 // drawTribalEntity draws the entities that need more than one sprite, and
 // reports whether it drew e.
-func (g *Game) drawTribalEntity(dst *ebiten.Image, e protocol.EntityView, d drawable) bool {
+func (g *Game) drawTribalEntity(dst drawTarget, e protocol.EntityView, d drawable) bool {
 	a := &g.art.tribal
 	switch e.Kind {
 	case sim.EntityFloor, sim.EntityPyramidStone, sim.EntityCaveRock:
@@ -305,8 +305,7 @@ func (g *Game) drawTribalEntity(dst *ebiten.Image, e protocol.EntityView, d draw
 	case sim.EntityTrophy:
 		drawAt(dst, a.post, d.sx, d.sy, 1, 1, 0, nil)
 		if h, ok := g.art.heads[sim.CreatureKind(e.Var)]; ok {
-			b := h.img.Bounds()
-			k := min(1, 22/float64(max(b.Dx(), b.Dy())))
+			k := min(1, 22/max(h.w(), h.h()))
 			drawAt(dst, h, d.sx, d.sy-a.post.ay+5, k, k, 0, nil)
 		}
 		return true
@@ -328,7 +327,7 @@ func (g *Game) drawTribalEntity(dst *ebiten.Image, e protocol.EntityView, d draw
 
 // drawBody draws a kill lying in its blood: a beast on its back, legs in
 // the air; a person on their side.
-func (g *Game) drawBody(dst *ebiten.Image, e protocol.EntityView, d drawable) {
+func (g *Game) drawBody(dst drawTarget, e protocol.EntityView, d drawable) {
 	k := sim.CreatureKind(e.Var)
 	pool := 1
 	switch w := creatureShadow(k); {
@@ -353,11 +352,11 @@ func (g *Game) drawBody(dst *ebiten.Image, e protocol.EntityView, d drawable) {
 		op.GeoM.Translate(d.sx, d.sy-s.ay*squash+3)
 	}
 	op.ColorScale.Scale(0.78, 0.72, 0.72, 1) // the colour gone out of it
-	dst.DrawImage(s.img, op)
+	drawSprite(dst, s, op)
 }
 
 // drawFloors draws wooden floors flat on the ground, under everything.
-func (g *Game) drawFloors(dst *ebiten.Image, cam camera) {
+func (g *Game) drawFloors(dst drawTarget, cam camera) {
 	for _, e := range g.curr.Entities {
 		if e.Kind != sim.EntityFloor {
 			continue
@@ -365,7 +364,7 @@ func (g *Game) drawFloors(dst *ebiten.Image, cam camera) {
 		sx, sy := cam.toScreen(float64(e.TX), float64(e.TY))
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(sx, sy)
-		dst.DrawImage(g.art.tribal.floor.img, op)
+		drawSprite(dst, g.art.tribal.floor, op)
 	}
 }
 
@@ -385,7 +384,7 @@ func (g *Game) dropPos(d protocol.DropView) (x, y, lift float64) {
 	return x, y, 10 * math.Sin(t*math.Pi)
 }
 
-func (g *Game) drawDrop(dst *ebiten.Image, d protocol.DropView, sx, sy, lift float64) {
+func (g *Game) drawDrop(dst drawTarget, d protocol.DropView, sx, sy, lift float64) {
 	icon := g.art.icons[d.Item]
 	if icon == nil {
 		return
@@ -500,7 +499,7 @@ func (g *Game) weatherDim() float64 {
 
 // drawWeather draws rain, snow and blowing leaves over the world, the
 // tornadoes, and webs in flight. Inside a cave there is no weather.
-func (g *Game) drawWeather(dst *ebiten.Image, cam camera, alpha float64) {
+func (g *Game) drawWeather(dst drawTarget, cam camera, alpha float64) {
 	a := &g.art.tribal
 	for _, t := range g.curr.Tornadoes {
 		sx, sy := cam.toScreen(float64(t.X), float64(t.Y))
@@ -509,14 +508,14 @@ func (g *Game) drawWeather(dst *ebiten.Image, cam camera, alpha float64) {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(sx-s.ax, sy-s.ay)
 		op.ColorScale.ScaleAlpha(0.88)
-		dst.DrawImage(s.img, op)
+		drawSprite(dst, s, op)
 		// Debris whirling round it.
 		for k := range 10 {
 			ph := float64(g.frame)*0.12 + float64(k)*0.63
 			r := 6 + float64(k%4)*4
 			x := sx + math.Cos(ph)*r
 			y := sy - 6 - float64(k)*5 + math.Sin(ph)*r*0.3
-			vector.FillRect(dst, float32(math.Round(x)), float32(math.Round(y)), 2, 1, color.RGBA{70, 58, 40, 220}, false)
+			fillRect(dst, float32(math.Round(x)), float32(math.Round(y)), 2, 1, color.RGBA{70, 58, 40, 220}, false)
 		}
 	}
 	for _, w := range g.curr.Webs {
@@ -549,7 +548,7 @@ func (g *Game) drawWeather(dst *ebiten.Image, cam camera, alpha float64) {
 				x += W
 			}
 			col := color.RGBA{170, 196, 230, 150}
-			vector.StrokeLine(dst, float32(x), float32(fall), float32(x-4*slant), float32(fall-6), 1, col, false)
+			strokeLine(dst, float32(x), float32(fall), float32(x-4*slant), float32(fall-6), 1, col, false)
 		}
 	case g.curr.Weather == sim.WeatherSnow:
 		n := int(W * H / 700)
@@ -561,7 +560,7 @@ func (g *Game) drawWeather(dst *ebiten.Image, cam camera, alpha float64) {
 			if h3 > 0.8 {
 				size = 2
 			}
-			vector.FillRect(dst, float32(math.Round(x)), float32(math.Round(y)), size, size, color.RGBA{246, 248, 255, 230}, false)
+			fillRect(dst, float32(math.Round(x)), float32(math.Round(y)), size, size, color.RGBA{246, 248, 255, 230}, false)
 		}
 	}
 	if windy {
@@ -576,14 +575,14 @@ func (g *Game) drawWeather(dst *ebiten.Image, cam camera, alpha float64) {
 			if g.curr.Season == sim.Winter {
 				c = color.RGBA{240, 244, 255, 220}
 			}
-			vector.FillRect(dst, float32(math.Round(x)), float32(math.Round(y)), 2, 1, c, false)
+			fillRect(dst, float32(math.Round(x)), float32(math.Round(y)), 2, 1, c, false)
 		}
 	}
 }
 
 // drawLightning draws the bolts of the last moments and the flash they
 // light the world with. It goes after the darkness, so night lights up.
-func (g *Game) drawLightning(dst *ebiten.Image, cam camera) {
+func (g *Game) drawLightning(dst drawTarget, cam camera) {
 	if len(g.curr.Strikes) == 0 || g.caveIn() > 0.5 {
 		return
 	}
@@ -607,22 +606,22 @@ func (g *Game) drawLightning(dst *ebiten.Image, cam camera) {
 			if ny >= sy {
 				nx = sx
 			}
-			vector.StrokeLine(dst, float32(x), float32(y), float32(nx), float32(ny), 3, color.RGBA{140, 170, 255, 120}, false)
-			vector.StrokeLine(dst, float32(x), float32(y), float32(nx), float32(ny), 1, color.RGBA{250, 252, 255, 255}, false)
+			strokeLine(dst, float32(x), float32(y), float32(nx), float32(ny), 3, color.RGBA{140, 170, 255, 120}, false)
+			strokeLine(dst, float32(x), float32(y), float32(nx), float32(ny), 1, color.RGBA{250, 252, 255, 255}, false)
 			x, y = nx, ny
 		}
-		vector.FillCircle(dst, float32(sx), float32(sy), 5, color.RGBA{255, 255, 255, 200}, false)
+		fillCircle(dst, float32(sx), float32(sy), 5, color.RGBA{255, 255, 255, 200}, false)
 	}
 	if flash > 0 {
 		b := dst.Bounds()
 		a := uint8(105 * flash)
-		vector.FillRect(dst, 0, 0, float32(b.Dx()), float32(b.Dy()), color.RGBA{a, a, a, a}, false)
+		fillRect(dst, 0, 0, float32(b.Dx()), float32(b.Dy()), color.RGBA{a, a, a, a}, false)
 	}
 }
 
 // glowLights adds the light of the plants that glow at night: holes in the
 // darkness when punch is set, else a coloured glow over the scene.
-func (g *Game) glowLights(dst *ebiten.Image, cam camera, punch bool, dark float64) {
+func (g *Game) glowLights(dst drawTarget, cam camera, punch bool, dark float64) {
 	if dark < 0.05 {
 		return
 	}
@@ -650,7 +649,7 @@ func (g *Game) glowLights(dst *ebiten.Image, cam camera, punch bool, dark float6
 }
 
 // drawGlowMasks draws the glowing parts of the plants bright over the dark.
-func (g *Game) drawGlowMasks(dst *ebiten.Image, cam camera, dark float64) {
+func (g *Game) drawGlowMasks(dst drawTarget, cam camera, dark float64) {
 	if dark < 0.05 {
 		return
 	}
@@ -668,7 +667,7 @@ func (g *Game) drawGlowMasks(dst *ebiten.Image, cam camera, dark float64) {
 		k := float32(math.Min(1, dark*1.2) * (0.85 + 0.15*math.Sin(float64(g.frame)*0.03+float64(e.ID))))
 		op.ColorScale.Scale(k, k, k, k)
 		op.Blend = ebiten.BlendLighter
-		dst.DrawImage(m.img, op)
+		drawSprite(dst, m, op)
 	}
 }
 

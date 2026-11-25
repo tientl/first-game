@@ -177,6 +177,9 @@ func (g *Game) drawChest(screen *ebiten.Image, sw, sh int) {
 
 // genChest is a wooden chest bound with iron, its lid shut or thrown open.
 func genChest(open bool) sprite {
+	if envHD {
+		return mkUp(chestHD(open, woodRamp[:3], trunkRamp, ironRamp, ironRamp, 27), 12*HDDensity, 20*HDDensity)
+	}
 	c := newCanvas(22, 22)
 	const x0, x1, top, base = 2, 20, 9, 19
 	// The box: planks lit from the left, two iron bands.

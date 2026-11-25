@@ -59,6 +59,7 @@ type Player struct {
 	boat      BoatID     // the boat p is aboard, 0 if none; see boats.go
 	swim      int        // ticks spent swimming without rest
 	travelCD  int        // ticks before a cave mouth takes p again
+	dev       devPlayer  // dev mode: god mode and speed, never saved; see dev.go
 }
 
 // Acting reports whether the player did an action recently enough to show
@@ -278,12 +279,12 @@ func (w *World) stepPlayer(p *Player) {
 		// riding: the mount carries p; see tame.go
 	} else if mx, my := float64(p.input.MoveX), float64(p.input.MoveY); moving {
 		l := math.Hypot(mx, my)
-		sp := PlayerSpeed * w.speedAt(p.X, p.Y)
+		sp := PlayerSpeed * w.speedAt(p.X, p.Y) * p.dev.speedFactor()
 		if p.webbed > 0 {
 			sp *= WebSlow
 		}
 		if swims && w.inWater(p.X, p.Y) {
-			sp = PlayerSpeed * SwimSpeed * swimBoost(&p.Inv) // see legendary.go
+			sp = PlayerSpeed * SwimSpeed * swimBoost(&p.Inv) * p.dev.speedFactor() // see legendary.go
 		}
 		dx, dy := mx/l*sp, my/l*sp
 		can := w.standable
@@ -326,6 +327,7 @@ func (w *World) stepPlayer(p *Player) {
 	w.stepSwim(p)   // see boats.go
 	w.manEaterBites(p)
 	p.Cold = (w.winterNight() || w.freezing(p) || w.wintry(p)) && !w.warm(p.X, p.Y) && !NeverCold(&p.Inv) // a winter night, the snow, winter weather: see iceage.go, weather.go, legendary.go
+	p.devNeeds()                                                                                          // god mode: see dev.go
 	damage := 0.0
 	if p.Hunger == 0 {
 		damage += StarveDamagePerTick

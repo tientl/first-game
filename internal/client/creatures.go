@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -661,24 +660,28 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 		switch {
 		case feeding(c):
 			return a.trike[side][trikeEatA+chew(c, t)], 0
-		case c.State == sim.CreatureStrike, calling(c): // a gore, or a bellow with the head thrown up
+		case c.State == sim.CreatureStrike: // a gore: the horns dropped, then tossed up
+			s, _ := blow("trike", side, trikeGore, g.strikeAge(c), a.trike[side][trikeGore])
+			return s, 0
+		case calling(c): // a bellow with the head thrown up
 			return a.trike[side][trikeGore], 0
 		case c.State == sim.CreatureChase && moving: // a pounding charge
-			return a.trike[side][trikeCharge], float64((t / 4) % 2)
+			return stride("trike", side, dinoPoses["trike"][trikeCharge], 1.4, t, 4), 0
 		case c.State == sim.CreatureChase:
 			return a.trike[side][trikeCharge], 0
 		case moving:
-			return a.trike[side][trikeWalkA+(t/12)%2], 0
+			return stride("trike", side, rigPose{}, 1, t, 12), 0
 		}
 		return a.trike[side][trikeWalkA], 0
 	case sim.CreatureStego:
 		switch {
 		case feeding(c):
 			return a.stego[side][stegoEatA+chew(c, t)], 0
-		case c.State == sim.CreatureStrike:
-			return a.stego[side][stegoSwipe], 0
+		case c.State == sim.CreatureStrike: // the tail coiled low, then swung
+			s, _ := blow("stego", side, stegoSwipe, g.strikeAge(c), a.stego[side][stegoSwipe])
+			return s, 0
 		case moving:
-			return a.stego[side][stegoWalkA+(t/14)%2], 0
+			return stride("stego", side, rigPose{}, 1, t, 14), 0
 		}
 		return a.stego[side][stegoWalkA], 0
 	case sim.CreatureBrachio:
@@ -686,21 +689,22 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 			return a.brachio[side][brachEatA+chew(c, t)], 0
 		}
 		if moving {
-			return a.brachio[side][brachWalkA+(t/16)%2], 0
+			return stride("brachio", side, rigPose{}, 1, t, 16), 0
 		}
 		return a.brachio[side][brachWalkA], 0
 	case sim.CreatureRaptor:
 		switch {
 		case feeding(c):
 			return a.raptor[side][raptorEatA+chew(c, t)], 0
-		case c.State == sim.CreatureStrike:
-			return a.raptor[side][raptorPounce], 3
+		case c.State == sim.CreatureStrike: // a crouch, then the spring
+			s, far := blow("dakota", side, raptorPounce, g.strikeAge(c), a.raptor[side][raptorPounce])
+			return s, 3 * far
 		case c.State == sim.CreatureCower:
 			return a.raptor[side][raptorCower], 0
 		case moving && (c.State == sim.CreatureChase || c.State == sim.CreatureFlee):
-			return a.raptor[side][raptorRunA+(t/4)%2], 0
+			return stride("dakota", side, raptorRun, 1.25, t, 4), 0
 		case moving:
-			return a.raptor[side][raptorRunA+(t/8)%2], 0
+			return stride("dakota", side, rigPose{}, 1, t, 8), 0
 		}
 		return a.raptor[side][raptorStand], 0
 	case sim.CreatureRex:
@@ -709,26 +713,26 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 			return a.rex[side][rexEatA+chew(c, t)], 0
 		case c.State == sim.CreatureRoar, calling(c):
 			return a.rex[side][rexRoar], 0
-		case c.State == sim.CreatureStrike:
-			return a.rex[side][rexBite], 0
+		case c.State == sim.CreatureStrike: // the head reared back, then the bite
+			s, _ := blow("rex", side, rexBite, g.strikeAge(c), a.rex[side][rexBite])
+			return s, 0
 		case moving && c.State == sim.CreatureChase:
-			return a.rex[side][rexWalkA+(t/7)%2], 0
+			return stride("rex", side, rigPose{tilt: 0.05, open: 0.12}, 1.3, t, 7), 0
 		case moving:
-			return a.rex[side][rexWalkA+(t/11)%2], 0
+			return stride("rex", side, rigPose{}, 1, t, 11), 0
 		}
 		return a.rex[side][rexWalkA], 0
 	case sim.CreaturePtero:
-		flap := [4]int{pteroUp, pteroGlide, pteroDown, pteroGlide}
 		switch c.State {
 		case sim.CreatureIdle:
 			return a.ptero[side][pteroPerch], 0
 		case sim.CreatureSoar:
-			if (t/90)%3 == 0 { // now and then it flaps; mostly it glides
-				return a.ptero[side][flap[(t/6)%4]], pteroSoarAlt
+			if (t/96)%3 == 0 { // now and then it flaps; mostly it glides
+				return rigSprite("pteroFly", side, flapPose(t/3)), pteroSoarAlt
 			}
 			return a.ptero[side][pteroGlide], pteroSoarAlt
 		case sim.CreatureFlee:
-			return a.ptero[side][flap[(t/4)%4]], pteroClimbAlt
+			return rigSprite("pteroFly", side, flapPose(t/2)), pteroClimbAlt
 		case sim.CreatureStrike:
 			return a.ptero[side][pteroGlide], pteroDiveAlt - 3
 		}
@@ -737,8 +741,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 		switch c.State {
 		case sim.CreatureLurk:
 			return a.plesio[side][plesioUnder], 0
-		case sim.CreatureStrike:
-			return a.plesio[side][plesioStrike], 0
+		case sim.CreatureStrike: // the neck reared, then the lunge
+			s, _ := blow("plesio", side, plesioStrike, g.strikeAge(c), a.plesio[side][plesioStrike])
+			return s, 0
 		}
 		return a.plesio[side][plesioUp], 0
 	case sim.CreatureMammoth:
@@ -787,7 +792,7 @@ func inTheSky(c protocol.CreatureView) bool {
 
 // drawSky draws the flying reptiles high overhead, after everything on the
 // ground, with their shadows far below. Inside a cave there is no sky.
-func (g *Game) drawSky(dst *ebiten.Image, cam camera, alpha float64) {
+func (g *Game) drawSky(dst drawTarget, cam camera, alpha float64) {
 	if g.caveIn() > 0.5 {
 		return
 	}
@@ -796,7 +801,8 @@ func (g *Game) drawSky(dst *ebiten.Image, cam camera, alpha float64) {
 			continue
 		}
 		x, y, moving := g.lerpCreature(c, alpha)
-		sx, sy := cam.toScreen(x, y)
+		sx, sy := cam.toScreenFine(x, y)
+		align(dst, sx, sy) // see hd.go
 		s, alt := g.creatureSprite(c, moving)
 		sh := &ebiten.DrawImageOptions{}
 		sh.GeoM.Translate(sx-g.art.beasts.pteroShadow.ax, sy-g.art.beasts.pteroShadow.ay)
@@ -806,11 +812,11 @@ func (g *Game) drawSky(dst *ebiten.Image, cam camera, alpha float64) {
 			sh.GeoM.Translate(sx, sy)
 		}
 		sh.ColorScale.ScaleAlpha(0.6)
-		dst.DrawImage(g.art.beasts.pteroShadow.img, sh)
+		drawSprite(dst, g.art.beasts.pteroShadow, sh)
 		alt += math.Round(math.Sin(float64(g.frame)*0.05+float64(c.ID)) * 1.5)
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(sx-s.ax, sy-alt-s.ay)
-		dst.DrawImage(s.img, op)
+		drawSprite(dst, s, op)
 	}
 }
 
@@ -861,7 +867,7 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 	}
 }
 
-func (g *Game) drawCreature(dst *ebiten.Image, c protocol.CreatureView, d drawable) {
+func (g *Game) drawCreature(dst drawTarget, c protocol.CreatureView, d drawable) {
 	if c.State == sim.CreatureLurk {
 		return // only its eyes show, drawn with the water by drawFish
 	}
@@ -870,7 +876,7 @@ func (g *Game) drawCreature(dst *ebiten.Image, c protocol.CreatureView, d drawab
 	if c.Kind == sim.CreaturePtero && bob > 0 { // swooping low: its shadow right under it
 		sh := &ebiten.DrawImageOptions{}
 		sh.GeoM.Translate(d.sx-g.art.beasts.pteroShadow.ax, d.sy-g.art.beasts.pteroShadow.ay)
-		dst.DrawImage(g.art.beasts.pteroShadow.img, sh)
+		drawSprite(dst, g.art.beasts.pteroShadow, sh)
 	}
 	op := &ebiten.DrawImageOptions{}
 	if c.State == sim.CreatureHurt {
@@ -885,7 +891,7 @@ func (g *Game) drawCreature(dst *ebiten.Image, c protocol.CreatureView, d drawab
 		op.ColorScale.Scale(0.72, 0.86, 0.95, 1) // wading: seen through the shallows
 	}
 	op.GeoM.Translate(x-s.ax, d.sy-bob-s.ay)
-	dst.DrawImage(s.img, op)
+	drawSprite(dst, s, op)
 	if c.State == sim.CreatureSleep {
 		g.drawZzz(dst, d.sx+2, d.sy-10, float64(c.ID))
 	}
@@ -895,20 +901,20 @@ func (g *Game) drawCreature(dst *ebiten.Image, c protocol.CreatureView, d drawab
 }
 
 // drawZzz floats two little z's up from a sleeper.
-func (g *Game) drawZzz(dst *ebiten.Image, x, y, seed float64) {
+func (g *Game) drawZzz(dst drawTarget, x, y, seed float64) {
 	z := [7][2]float32{{0, 0}, {1, 0}, {2, 0}, {1, 1}, {0, 2}, {1, 2}, {2, 2}}
 	for i := range 2 {
 		ph := math.Mod(float64(g.frame)/110+float64(i)*0.5+seed*0.13, 1)
 		a := uint8(220 * (1 - ph))
 		zx, zy := float32(math.Round(x+ph*5)), float32(math.Round(y-ph*10))
 		for _, p := range z {
-			vector.FillRect(dst, zx+p[0], zy+p[1], 1, 1, color.RGBA{a, a, a, a}, false)
+			fillRect(dst, zx+p[0], zy+p[1], 1, 1, color.RGBA{a, a, a, a}, false)
 		}
 	}
 }
 
 // drawBubbles sends a few bubbles up from a crab that went under.
-func (g *Game) drawBubbles(dst *ebiten.Image, cam camera, c protocol.CreatureView) {
+func (g *Game) drawBubbles(dst drawTarget, cam camera, c protocol.CreatureView) {
 	sx, sy := cam.toScreen(float64(c.X), float64(c.Y))
 	for i := range 3 {
 		ph := math.Mod(float64(g.frame)/50+float64(i)*0.37+float64(c.ID)*0.11, 1)
@@ -918,60 +924,60 @@ func (g *Game) drawBubbles(dst *ebiten.Image, cam camera, c protocol.CreatureVie
 		a := uint8(200 * (1 - ph/0.6))
 		x := math.Round(sx + float64(i*3-3) + math.Sin(ph*9)*1.2)
 		y := math.Round(sy - 2 - ph*6)
-		vector.FillRect(dst, float32(x), float32(y), 1, 1, color.RGBA{a, a, a, a}, false)
+		fillRect(dst, float32(x), float32(y), 1, 1, color.RGBA{a, a, a, a}, false)
 	}
 }
 
 // drawLurker draws a crocodile waiting under water: its eyes and nostrils
 // riding the surface, bobbing a little, with a faint ring around them.
-func (g *Game) drawLurker(dst *ebiten.Image, cam camera, c protocol.CreatureView) {
+func (g *Game) drawLurker(dst drawTarget, cam camera, c protocol.CreatureView) {
 	sx, sy := cam.toScreen(float64(c.X), float64(c.Y))
 	s, _ := g.creatureSprite(c, false)
 	bob := math.Round(math.Sin(float64(g.frame)*0.04 + float64(c.ID)))
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(sx-s.ax, sy+bob-s.ay)
 	op.ColorScale.Scale(0.85, 0.92, 0.95, 1)
-	dst.DrawImage(s.img, op)
+	drawSprite(dst, s, op)
 	if ph := math.Mod(float64(g.frame)/200+float64(c.ID)*0.29, 1); ph < 0.25 {
 		r, a := 4+ph/0.25*6, uint8(110*(1-ph/0.25))
 		for k := range 24 {
 			ang := 2 * math.Pi * float64(k) / 24
 			px, py := math.Round(sx+r*math.Cos(ang)*1.4), math.Round(sy-1+r*0.45*math.Sin(ang))
-			vector.FillRect(dst, float32(px), float32(py), 1, 1, color.RGBA{a, a, a, a}, false)
+			fillRect(dst, float32(px), float32(py), 1, 1, color.RGBA{a, a, a, a}, false)
 		}
 	}
 }
 
 // drawSeaReptile draws a sea reptile in the water: a dark shape gliding
 // below the surface, or reared up with rings spreading round its neck.
-func (g *Game) drawSeaReptile(dst *ebiten.Image, cam camera, c protocol.CreatureView, alpha float64) {
+func (g *Game) drawSeaReptile(dst drawTarget, cam camera, c protocol.CreatureView, alpha float64) {
 	x, y, moving := g.lerpCreature(c, alpha)
-	sx, sy := cam.toScreen(x, y)
+	sx, sy := cam.toScreenFine(x, y)
 	s, _ := g.creatureSprite(c, moving)
 	bob := math.Round(math.Sin(float64(g.frame)*0.05 + float64(c.ID)))
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(sx-s.ax, sy+bob-s.ay)
 	if c.State == sim.CreatureLurk {
 		op.ColorScale.ScaleAlpha(0.45) // seen through the water
-		dst.DrawImage(s.img, op)
+		drawSprite(dst, s, op)
 		return
 	}
 	if c.State == sim.CreatureHurt {
 		op.ColorScale.Scale(1, 0.55, 0.55, 1)
 	}
-	dst.DrawImage(s.img, op)
+	drawSprite(dst, s, op)
 	ph := math.Mod(float64(g.frame)/90+float64(c.ID)*0.31, 1)
 	r, a := 5+ph*9, uint8(130*(1-ph))
 	for k := range 28 {
 		ang := 2 * math.Pi * float64(k) / 28
 		px, py := math.Round(sx+r*math.Cos(ang)*1.3), math.Round(sy+r*0.4*math.Sin(ang))
-		vector.FillRect(dst, float32(px), float32(py), 1, 1, color.RGBA{a, a, a, a}, false)
+		fillRect(dst, float32(px), float32(py), 1, 1, color.RGBA{a, a, a, a}, false)
 	}
 }
 
 // drawFish draws the fish under the water's surface, before anything that
 // stands on land.
-func (g *Game) drawFish(dst *ebiten.Image, cam camera, alpha float64) {
+func (g *Game) drawFish(dst drawTarget, cam camera, alpha float64) {
 	for _, c := range g.curr.Creatures {
 		if c.Kind == sim.CreatureCrab && c.State == sim.CreatureHidden {
 			g.drawBubbles(dst, cam, c) // a crab gone under
@@ -997,14 +1003,15 @@ func (g *Game) drawFish(dst *ebiten.Image, cam camera, alpha float64) {
 			continue
 		}
 		x, y, moving := g.lerpCreature(c, alpha)
-		sx, sy := cam.toScreen(x, y)
+		sx, sy := cam.toScreenFine(x, y)
+		align(dst, sx, sy) // see hd.go
 		s, _ := g.creatureSprite(c, moving)
 		bob := math.Round(math.Sin(float64(g.frame)*0.05 + float64(c.ID)))
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(sx-s.ax, sy+bob-s.ay)
 		op.ColorScale.Scale(0.86, 0.94, 1, 1) // seen through the water, colours and all
 		op.ColorScale.ScaleAlpha(0.9)
-		dst.DrawImage(s.img, op)
+		drawSprite(dst, s, op)
 
 		// Now and then a ring spreads on the surface above it.
 		ph := math.Mod(float64(g.frame)/170+float64(c.ID)*0.37, 1)
@@ -1017,7 +1024,7 @@ func (g *Game) drawFish(dst *ebiten.Image, cam camera, alpha float64) {
 		for k := range n {
 			ang := 2 * math.Pi * float64(k) / float64(n)
 			px, py := math.Round(sx+r*math.Cos(ang)), math.Round(sy-3+r*0.45*math.Sin(ang))
-			vector.FillRect(dst, float32(px), float32(py), 1, 1, color.RGBA{a, a, a, a}, false)
+			fillRect(dst, float32(px), float32(py), 1, 1, color.RGBA{a, a, a, a}, false)
 		}
 	}
 }

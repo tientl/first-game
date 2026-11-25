@@ -5,7 +5,6 @@ import (
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/sim"
 )
@@ -88,7 +87,7 @@ func fireflyAt(tx, ty int, t sim.Tile, f, secs float64) (firefly, bool) {
 }
 
 // drawFireflies draws the fireflies in view, over the darkness so they glow.
-func (g *Game) drawFireflies(dst *ebiten.Image, cam camera) {
+func (g *Game) drawFireflies(dst drawTarget, cam camera) {
 	if g.caveIn() > 0.5 || g.tiles == nil {
 		return // underground: no fireflies
 	}
@@ -122,7 +121,7 @@ func (g *Game) drawFireflies(dst *ebiten.Image, cam camera) {
 			}
 			// ...around a bright one-pixel body.
 			a := min(1, 0.25+k)
-			vector.FillRect(dst, float32(sx), float32(sy), 1, 1,
+			fillRect(dst, float32(sx), float32(sy), 1, 1,
 				color.RGBA{uint8(225 * a), uint8(255 * a), uint8(130 * a), uint8(255 * a)}, false)
 		}
 	}

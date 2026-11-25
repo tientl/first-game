@@ -14,21 +14,22 @@ import (
 
 // handAt is where the hand that holds things is, in art pixels from the
 // player sprite's anchor (between the feet), for the facing and the walk
-// step (-1, 0 or 1, as genPlayer swings the arms). It matches genPlayer:
+// step (-1 to 1, as genPlayer swings the arms: walkSwing). It matches genPlayer:
 // facing down or up it is the hand on the right of the screen, sideways the
 // near hand.
-func handAt(dir sim.Dir, step int) (dx, dy float64) {
+func handAt(dir sim.Dir, step float64) (dx, dy float64) {
 	switch dir {
 	case sim.DirRight:
-		return float64(-2 * step), -5.5
+		return -2 * step, -5.5
 	case sim.DirLeft:
-		return float64(2 * step), -5.5
+		return 2 * step, -5.5
 	default:
-		return 4.5, -5.5 + float64(step)
+		return 4.5, -5.5 + step
 	}
 }
 
-// walkStep is the arm swing genPlayer draws for walk frame f.
+// walkStep is the arm swing genPlayer draws for its walk frame f (of four;
+// the HD figure's is walkSwing).
 func walkStep(f int) int {
 	switch f {
 	case 1:
@@ -52,14 +53,14 @@ func heldBehind(dir sim.Dir) bool { return dir == sim.DirUp }
 
 // drawHeld draws item k in the hand of a player standing at (sx, sy) in art
 // pixels. bob is how far the body is lifted this frame.
-func (g *Game) drawHeld(dst *ebiten.Image, k sim.ItemKind, dir sim.Dir, sx, sy, bob float64, step int) {
+func (g *Game) drawHeld(dst drawTarget, k sim.ItemKind, dir sim.Dir, sx, sy, bob, step float64) {
 	hx, hy := handAt(dir, step)
 	g.drawHeldAt(dst, k, dir, sx+hx, sy+hy-bob)
 }
 
 // drawHeldAt draws item k in a hand at (hx, hy) in art pixels, of a player
 // facing dir.
-func (g *Game) drawHeldAt(dst *ebiten.Image, k sim.ItemKind, dir sim.Dir, hx, hy float64) {
+func (g *Game) drawHeldAt(dst drawTarget, k sim.ItemKind, dir sim.Dir, hx, hy float64) {
 	if !k.Valid() {
 		return
 	}

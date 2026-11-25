@@ -74,18 +74,21 @@ const (
 // drawJolted draws a figure standing at (x, y) age frames into a jolt: draw
 // is called to draw it at the place it is given in a scratch image, which is
 // then put on dst thrown back, with the flash over it.
-func (g *Game) drawJolted(dst *ebiten.Image, age int, dir sim.Dir, x, y float64, draw func(buf *ebiten.Image, x, y float64)) {
+func (g *Game) drawJolted(dst drawTarget, age int, dir sim.Dir, x, y float64, draw func(buf drawTarget, x, y float64)) {
 	if g.joltBuf == nil {
-		g.joltBuf = ebiten.NewImage(joltBufSize, joltBufSize)
+		g.joltBuf = newFineBuf(joltBufSize, joltBufSize) // at HD density: see hd.go
 	}
-	g.joltBuf.Clear()
-	fx, fy := x-math.Floor(x), y-math.Floor(y)
+	g.joltBuf.img.Clear()
+	// The part of (x, y) between art pixels, measured from the grid dst
+	// draws on (see align), goes into the scratch image.
+	gx, gy := gridOf(dst)
+	fx, fy := x-gx-math.Floor(x-gx), y-gy-math.Floor(y-gy)
 	draw(g.joltBuf, joltBufX+fx, joltBufY+fy)
 	dx, dy := joltShift(age, dir)
-	ox, oy := math.Floor(x)-joltBufX+dx, math.Floor(y)-joltBufY+dy
+	ox, oy := x-fx-joltBufX+dx, y-fy-joltBufY+dy
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(ox, oy)
-	dst.DrawImage(g.joltBuf, op)
+	drawImageD(dst, g.joltBuf.img, op, HDDensity)
 
 	// The flash: the figure's shape in one colour over it.
 	r, gr, b, a := 1.0, 1.0, 1.0, 0.0
@@ -105,5 +108,5 @@ func (g *Game) drawJolted(dst *ebiten.Image, age int, dir sim.Dir, x, y float64,
 	cm.Translate(r, gr, b, 0)
 	cop := &colorm.DrawImageOptions{}
 	cop.GeoM.Translate(ox, oy)
-	colorm.DrawImage(dst, g.joltBuf, cm, cop)
+	drawColorMD(dst, g.joltBuf.img, cm, cop, HDDensity)
 }

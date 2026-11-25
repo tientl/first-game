@@ -4,9 +4,6 @@ import (
 	"image/color"
 	"math"
 
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
-
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
@@ -44,7 +41,7 @@ func slashAngle(k float64) float64 {
 }
 
 // drawSlash draws p's held sword in the middle of a blow, and its arc.
-func (g *Game) drawSlash(dst *ebiten.Image, p protocol.PlayerView, d drawable, bob float64) {
+func (g *Game) drawSlash(dst drawTarget, p protocol.PlayerView, d drawable, bob float64) {
 	tier, ok := sim.SwordTier(p.Held)
 	if !ok {
 		return
@@ -77,7 +74,7 @@ func (g *Game) drawSlash(dst *ebiten.Image, p protocol.PlayerView, d drawable, b
 				x := gx + math.Sin(b)*r*side
 				y := gy - math.Cos(b)*r
 				c := mix(rp[len(rp)-1], colWhite, 0.5)
-				vector.FillRect(dst, float32(math.Round(x)), float32(math.Round(y)), 1, 1, premul(c, alpha*(r-slashReach+4)/4.5), false)
+				fillRect(dst, float32(math.Round(x)), float32(math.Round(y)), 1, 1, premul(c, alpha*(r-slashReach+4)/4.5), false)
 			}
 		}
 	}

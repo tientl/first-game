@@ -37,6 +37,33 @@ Icon của game (khủng long cổ dài trên đảo dừa, cỡ 16 đến 256) 
 
 Chạy client trên Linux cần cgo và các gói X11/GL dev (xem tài liệu cài đặt của Ebitengine).
 
+## Chế độ dev
+
+Để thử nhanh mọi tính năng (chỉ bật khi chạy với cờ `-dev`; chạy thường thì không có gì trong đây):
+
+    go run ./cmd/game -dev                  # thế giới mới 256 × 256, seed cố định 20240601
+    go run ./cmd/game -dev -seed 7 -size 512
+
+- Bỏ qua menu, vào thẳng thế giới mới với nhân vật mặc định tên "Dev" (hoặc theo `-name`). Bản lưu riêng `dev-save.json` cạnh bản lưu thường (hoặc theo `-save`).
+- Bất tử (không mất máu, không đói, không lạnh), hiện hết bản đồ ngay từ đầu, góc trên có nhãn **DEV**.
+- Phím `` ` `` (hoặc **F12**) mở bảng lệnh ở dưới màn hình; ↑/↓ gọi lại lệnh cũ, Enter chạy, Esc hoặc `` ` `` đóng. Lệnh gửi tới server; server chỉ chạy khi được mở ở chế độ dev, ngoài ra thì từ chối.
+- Tên đồ, tên thú, tên nơi gõ không dấu, không phân biệt hoa thường (`go` là Gỗ, `riu da lua` là Rìu đá lửa), gõ số thứ tự hay tên tiếng Anh thông dụng (`wood`, `rex`, `raptor`…) cũng được; tên có dấu cách thì để trong ngoặc kép hoặc gõ liền.
+
+| Lệnh | Việc |
+| --- | --- |
+| `give <đồ> [số]` | cho đồ vào túi |
+| `tp <làng\|trùm N\|hang\|kim tự tháp\|spawn\|x y>` | dịch chuyển tới làng, hang gần nhất, trùm N (1 Titanoboa … 6 Megalodon), kim tự tháp, chỗ hồi sinh hay toạ độ |
+| `spawn <thú> [số]` | gọi thú ra quanh mình (trùm thì không) |
+| `time <0-1\|day\|dusk\|night>` | vặn đồng hồ tới lúc đó (chỉ đi tới, không lùi) |
+| `season <xuân\|hạ\|thu\|đông>` | sang đầu mùa đó |
+| `weather <clear\|rain\|wind\|storm\|tornado\|snow\|auto>` | giữ trời theo ý (không lưu); `auto` trả lại tự nhiên |
+| `speed <hệ số>` | tốc độ đi và bơi (0,1 tới 8) |
+| `kill [bán kính]` | giết thú hoang trong 12 ô (thú nuôi thì không) |
+| `heal`, `god [on\|off]`, `reveal`, `pos` | hồi đầy máu và no; bật/tắt bất tử; mở hết bản đồ; xem toạ độ |
+| `list items [lọc]`, `list beasts [lọc]`, `help` | danh sách đồ, thú; các lệnh |
+
+Mã ở `internal/sim/dev.go` (các việc), `internal/sim/devcmd.go` (đọc lệnh), `internal/server/dev.go`, `internal/client/devconsole.go`, `cmd/game/dev.go`. Bất tử, tốc độ và thời tiết ép không bao giờ vào bản lưu. Xem nhanh bảng lệnh: `go run ./cmd/shot -open -devconsole`.
+
 ## Âm thanh
 
 Mọi âm thanh cũng được tổng hợp bằng code, không có file âm thanh nào:
@@ -381,5 +408,6 @@ Xem nhanh đồ hoạ mà không cần chơi (lưu một khung hình ra PNG):
     go run ./cmd/shot -o look.png -female -hair 4 -haircolor 4 -skin 2  # ngoại hình người chơi: tóc 0-5, màu tóc 0-7, màu da 0-5
     go run ./cmd/shot -o map.png -overlay map -frames 120   # đợi bản đồ vẽ xong
     go run ./cmd/shot -o bag.png -overlay bag
+    go run ./cmd/shot -o dev.png -open -devconsole              # bảng lệnh dev đang mở, vài lệnh đã chạy
 
 `SIM_DUMP=1 go test ./internal/sim -run Dump -v` in map ra ASCII để chỉnh thông số sinh map.

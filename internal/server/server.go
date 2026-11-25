@@ -47,6 +47,11 @@ type Config struct {
 	// AutosaveEvery, and when Run returns.
 	SavePath      string
 	AutosaveEvery time.Duration // 0 means no autosave
+
+	// Dev runs the dev console's commands (ClientDev) and puts every player
+	// who joins in god mode with the whole map seen; see dev.go. Without it
+	// the server refuses dev commands.
+	Dev bool
 }
 
 // Server owns the world and the connected clients. All game state is touched
@@ -251,6 +256,7 @@ func (s *Server) handle(p *peer, m protocol.ClientMsg) bool {
 		}
 		p.player = s.world.AddPlayerWithLook(m.Hello.Name, m.Hello.Look)
 		p.joined = true
+		s.devJoin(p) // see dev.go
 		w, h := s.world.Size()
 		// Nothing was sent to p before, so the buffered channel has room.
 		return s.send(p, protocol.ServerMsg{
@@ -267,6 +273,11 @@ func (s *Server) handle(p *peer, m protocol.ClientMsg) bool {
 			return false
 		}
 		s.world.Apply(p.player, m.Command)
+	case protocol.ClientDev:
+		if !p.joined {
+			return false
+		}
+		s.devCommand(p, m.Dev) // see dev.go
 	case protocol.ClientSave:
 		if !p.joined {
 			return false

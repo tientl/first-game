@@ -9,7 +9,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -40,19 +39,39 @@ var viewZoom int
 // already shows the most the server sends.
 func worldScale(sh int) int { return max(1, pixelScale(sh)+viewZoom) }
 
-// camera maps world coordinates (tiles) to whole art pixels, so nothing
-// shimmers while scrolling.
-type camera struct{ ox, oy float64 }
+// camera maps world coordinates (tiles) to art pixels on screen, rounded to
+// whole canvas pixels (1/r art pixel; see hd.go) so nothing shimmers while
+// scrolling. r is 0 or 1 for whole art pixels.
+type camera struct{ ox, oy, r float64 }
 
-func newCamera(cx, cy float64, w, h int) camera {
-	return camera{
-		ox: math.Round(cx*TileW) - float64(w/2),
-		oy: math.Round(cy*TileH) - float64(h/2),
-	}
+func newCamera(cx, cy float64, w, h, r int) camera {
+	c := camera{r: float64(r)}
+	c.ox = c.round(cx*TileW) - float64(w/2)
+	c.oy = c.round(cy*TileH) - float64(h/2)
+	return c
 }
 
+// round rounds v, in art pixels, to the camera's canvas pixels.
+func (c camera) round(v float64) float64 {
+	if c.r <= 1 {
+		return math.Round(v)
+	}
+	return math.Round(v*c.r) / c.r
+}
+
+// toScreen maps a world point to art pixels on screen, on the ground's
+// art-pixel grid: whole art pixels from the world's origin, as before HD
+// art, for everything that stands still (and for anything whose place is
+// worked out from noise, so it lands where it always did).
 func (c camera) toScreen(x, y float64) (float64, float64) {
 	return math.Round(x*TileW) - c.ox, math.Round(y*TileH) - c.oy
+}
+
+// toScreenFine is toScreen for things on the move (players, beasts,
+// boats, piles in the air): rounded to canvas pixels, so they glide in
+// steps of 1/R art pixel. Draw them after align(dst, sx, sy); see hd.go.
+func (c camera) toScreenFine(x, y float64) (float64, float64) {
+	return c.round(x*TileW) - c.ox, c.round(y*TileH) - c.oy
 }
 
 // drawable is one upright thing in the depth-sorted pass.
@@ -99,17 +118,26 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	// The world is drawn in art pixels on its own canvas, then scaled up.
+	// The world is laid out in art pixels and drawn on a canvas the size of
+	// the screen, scale canvas pixels to an art pixel: see hd.go.
 	scale := pixelScale(sh)
 	if !g.demo {
 		scale = worldScale(sh)
 	}
 	cw, ch := (sw+scale-1)/scale, (sh+scale-1)/scale
-	if g.world == nil || g.world.Bounds().Dx() != cw || g.world.Bounds().Dy() != ch {
-		if g.world != nil {
-			g.world.Deallocate()
+	canvas := screen
+	if postFX && !g.demo {
+		if g.worldHi == nil || g.worldHi.Bounds() != screen.Bounds() {
+			if g.worldHi != nil {
+				g.worldHi.Deallocate()
+			}
+			g.worldHi = ebiten.NewImage(sw, sh)
 		}
-		g.world = ebiten.NewImage(cw, ch)
+		g.worldHi.Fill(color.RGBA{14, 18, 28, 255})
+		canvas = g.worldHi
+	}
+	if g.world == nil {
+		g.world = &worldDst{}
 	}
 
 	alpha := g.alpha()
@@ -128,36 +156,50 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		sx, sy := shake(g.frame) // a tyrant roaring close by; see rexroar.go
 		cx, cy = cx+sx, cy+sy
 	}
-	cam := newCamera(cx, cy, cw, ch)
+	sub := 1
+	if subPixel {
+		sub = scale
+	}
+	cam := newCamera(cx, cy, cw, ch, sub)
 	if !g.demo {
 		g.ptr.cam, g.ptr.scale, g.ptr.sw, g.ptr.sh, g.ptr.drawn = cam, float64(scale), sw, sh, true // see mouse.go
 	}
 	g.updateCave() // before anything hides under, or shows from, a cave roof
 	target, far := g.target()
 
-	g.ground.draw(g.world, cam.ox, cam.oy, g.frame)
-	g.drawFish(g.world, cam, alpha)
-	g.drawUndergrowth(g.world, cam)
-	g.drawSprites(g.world, cam, alpha, target)
-	g.drawLines(g.world, cam, alpha)
-	g.drawSky(g.world, cam, alpha)     // flying reptiles overhead
-	g.drawHearts(g.world, cam)         // beasts being fed; see ride.go
-	g.drawSnowfall(g.world, cam)       // over the frozen north; see iceart.go
-	g.drawWeather(g.world, cam, alpha) // rain, snow, wind, tornadoes, webs; see tribalrender.go
-	g.drawClouds(g.world, cam)
-	g.drawLighting(g.world, cam)
-	g.drawGlowMasks(g.world, cam, g.darknessNow())
-	g.drawEyeshine(g.world, cam, alpha, g.darknessNow()) // the night hunters' eyes; see troodon.go
-	g.drawLightning(g.world, cam)
-	g.drawEmbers(g.world, cam)
-	g.drawFireflies(g.world, cam)
-	if !g.demo {
-		g.drawGhost(g.world, cam) // what a left click would build; see mouse.go
+	w := g.world
+	w.begin(canvas, scale, cw, ch, cam)
+	for _, stage := range []func(){
+		func() { g.ground.draw(w, cam.ox, cam.oy, g.frame) },
+		func() { g.drawFish(w, cam, alpha) },
+		func() { g.drawUndergrowth(w, cam) },
+		func() { g.drawHDTest(w, cam) }, // the HD trial stones; see hdtest.go
+		func() { g.drawSprites(w, cam, alpha, target) },
+		func() { g.drawLines(w, cam, alpha) },
+		func() { g.drawSky(w, cam, alpha) },     // flying reptiles overhead
+		func() { g.drawHearts(w, cam) },         // beasts being fed; see ride.go
+		func() { g.drawSnowfall(w, cam) },       // over the frozen north; see iceart.go
+		func() { g.drawWeather(w, cam, alpha) }, // rain, snow, wind, tornadoes, webs; see tribalrender.go
+		func() { g.drawClouds(w, cam) },
+		func() { g.drawLighting(w, cam) },
+		func() { g.drawGlowMasks(w, cam, g.darknessNow()) },
+		func() { g.drawEyeshine(w, cam, alpha, g.darknessNow()) }, // the night hunters' eyes; see troodon.go
+		func() { g.drawLightning(w, cam) },
+		func() { g.drawEmbers(w, cam) },
+		func() { g.drawFireflies(w, cam) },
+		func() {
+			if !g.demo {
+				g.drawGhost(w, cam) // what a left click would build; see mouse.go
+			}
+		},
+	} {
+		alignCamera(w)
+		stage()
 	}
-
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Scale(float64(scale), float64(scale))
-	screen.DrawImage(g.world, op)
+	w.end()
+	if canvas != screen {
+		screen.DrawImage(g.applyPost(canvas, scale), nil) // see postfx.go
+	}
 
 	vop := &ebiten.DrawImageOptions{}
 	vb := g.art.vignette.Bounds()
@@ -188,6 +230,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	g.drawNotice(screen, sw)      // above the bag, so a failed craft or meal says why
 	g.drawVictory(screen, sw, sh) // every boss has fallen; see bossui.go
+	g.drawDev(screen, sw, sh)     // see devconsole.go
 
 	if g.disconnected && !g.paused {
 		g.dim(screen, sw, sh, 0.6)
@@ -199,7 +242,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 }
 
-func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target targetView) {
+func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target targetView) {
 	list := g.drawList[:0]
 	for i, e := range g.curr.Entities {
 		wx, wy := float64(e.TX)+0.5, float64(e.TY)+0.5
@@ -211,7 +254,7 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 	}
 	for i, b := range g.curr.Boats {
 		wx, wy := g.lerpBoat(b, alpha)
-		sx, sy := cam.toScreen(wx, wy)
+		sx, sy := cam.toScreenFine(wx, wy)
 		list = append(list, drawable{y: wy, id: uint32(b.ID), boat: true, idx: i, sx: sx, sy: sy})
 	}
 	for i, d := range g.curr.Drops {
@@ -219,7 +262,7 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		if g.hiddenInCave(wx, wy) {
 			continue
 		}
-		sx, sy := cam.toScreen(wx, wy)
+		sx, sy := cam.toScreenFine(wx, wy)
 		list = append(list, drawable{y: wy, id: uint32(d.ID), drop: true, idx: i, sx: sx, sy: sy, lift: lift})
 	}
 	for i, c := range g.curr.Creatures {
@@ -230,7 +273,7 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		if g.hiddenInCave(wx, wy) {
 			continue
 		}
-		sx, sy := cam.toScreen(wx, wy)
+		sx, sy := cam.toScreenFine(wx, wy)
 		list = append(list, drawable{y: wy, id: uint32(c.ID), creature: true, idx: i, sx: sx, sy: sy, moving: moving})
 	}
 	riders := g.riders[:0] // players astride a beast: drawn on its back, see ride.go
@@ -246,7 +289,7 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		if g.hiddenInCave(wx, wy) {
 			continue
 		}
-		sx, sy := cam.toScreen(wx, wy)
+		sx, sy := cam.toScreenFine(wx, wy)
 		list = append(list, drawable{y: wy, id: uint32(p.ID), isPlayer: true, idx: i, sx: sx, sy: sy, moving: moving})
 	}
 	slices.SortFunc(list, func(a, b drawable) int {
@@ -260,10 +303,17 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 	})
 	g.drawList = list
 
+	if heroHD {
+		g.noteHeroLights(cam) // see herohddraw.go
+	}
 	g.drawSoil(dst, list)
 	g.drawFloors(dst, cam) // see tribalrender.go
 	g.drawDigSpot(dst, cam)
+	// Each thing is drawn on the art-pixel grid through its own ground
+	// point, so a moving one keeps its pixel art whole between art pixels;
+	// see align in hd.go.
 	for _, d := range list {
+		align(dst, d.sx, d.sy)
 		var w float64
 		switch {
 		case d.drop:
@@ -278,6 +328,10 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 			w = creatureShadow(g.curr.Creatures[d.idx].Kind)
 		default:
 			w = shadowWidth(g.curr.Entities[d.idx])
+		}
+		if heroHD && d.isPlayer && w > 0 && g.heroStands(g.curr.Players[d.idx]) {
+			g.drawHeroShadow(dst, d.sx, d.sy)
+			continue
 		}
 		if w > 0 {
 			g.drawShadow(dst, d.sx, d.sy, w)
@@ -294,6 +348,7 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		}
 	}
 	for _, d := range list {
+		align(dst, d.sx, d.sy)
 		if d.drop {
 			g.drawDrop(dst, g.curr.Drops[d.idx], d.sx, d.sy, d.lift)
 			continue
@@ -328,6 +383,7 @@ func (g *Game) drawSprites(dst *ebiten.Image, cam camera, alpha float64, target 
 		}
 		g.drawEntity(dst, e, d)
 	}
+	alignCamera(dst)
 }
 
 func shadowWidth(e protocol.EntityView) float64 {
@@ -397,7 +453,7 @@ func shadowWidth(e protocol.EntityView) float64 {
 }
 
 // drawShadow draws a soft ground shadow, pushed a little away from the sun.
-func (g *Game) drawShadow(dst *ebiten.Image, sx, sy, w float64) {
+func (g *Game) drawShadow(dst drawTarget, sx, sy, w float64) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(-shadowSize/2, -shadowSize/2)
 	op.GeoM.Scale(w/shadowSize, w*0.42/shadowSize)
@@ -408,7 +464,7 @@ func (g *Game) drawShadow(dst *ebiten.Image, sx, sy, w float64) {
 }
 
 // drawAt draws s with its anchor at (x, y), scaled and rotated about the anchor.
-func drawAt(dst *ebiten.Image, s sprite, x, y, scaleX, scaleY, rot float64, tint color.Color) {
+func drawAt(dst drawTarget, s sprite, x, y, scaleX, scaleY, rot float64, tint color.Color) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(-s.ax, -s.ay)
 	op.GeoM.Scale(scaleX, scaleY)
@@ -419,16 +475,16 @@ func drawAt(dst *ebiten.Image, s sprite, x, y, scaleX, scaleY, rot float64, tint
 	if tint != nil {
 		op.ColorScale.ScaleWithColor(tint)
 	}
-	dst.DrawImage(s.img, op)
+	drawSprite(dst, s, op)
 }
 
 // drawSwaying draws s leaning sideways about its anchor, for wind.
-func drawSwaying(dst *ebiten.Image, s sprite, x, y, skew float64) {
+func drawSwaying(dst drawTarget, s sprite, x, y, skew float64) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(-s.ax, -s.ay)
 	op.GeoM.Skew(skew, 0)
 	op.GeoM.Translate(x, y)
-	dst.DrawImage(s.img, op)
+	drawSprite(dst, s, op)
 }
 
 // entitySprite returns the sprite for e and how much it sways in the wind.
@@ -552,7 +608,7 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 	}
 }
 
-func (g *Game) drawEntity(dst *ebiten.Image, e protocol.EntityView, d drawable) {
+func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 	switch {
 	case (e.Kind == sim.EntityTwig || e.Kind == sim.EntityPebble || e.Kind == sim.EntityMushroom && !g.onLog(e) || e.Kind == sim.EntityClam) && !e.Ready:
 		return // picked up; another will turn up here in time
@@ -577,7 +633,7 @@ func (g *Game) drawEntity(dst *ebiten.Image, e protocol.EntityView, d drawable) 
 		op.GeoM.Skew(sway, 0)
 		op.GeoM.Translate(d.sx, d.sy)
 		op.ColorScale.ScaleWithColor(tint)
-		dst.DrawImage(s.img, op)
+		drawSprite(dst, s, op)
 	} else {
 		drawSwaying(dst, s, d.sx, d.sy, sway)
 	}
@@ -598,7 +654,7 @@ func (g *Game) drawEntity(dst *ebiten.Image, e protocol.EntityView, d drawable) 
 	}
 }
 
-func (g *Game) drawPlayer(dst *ebiten.Image, p protocol.PlayerView, d drawable) {
+func (g *Game) drawPlayer(dst drawTarget, p protocol.PlayerView, d drawable) {
 	if p.Dead {
 		drawAt(dst, g.art.tombstone, d.sx, d.sy, 1, 1, 0, nil)
 		return
@@ -608,7 +664,7 @@ func (g *Game) drawPlayer(dst *ebiten.Image, p protocol.PlayerView, d drawable) 
 		return
 	}
 	if age, ok := g.jolting(p.ID); ok { // struck: thrown back, flashing; see jolt.go
-		g.drawJolted(dst, age, p.Dir&3, d.sx, d.sy, func(buf *ebiten.Image, x, y float64) {
+		g.drawJolted(dst, age, p.Dir&3, d.sx, d.sy, func(buf drawTarget, x, y float64) {
 			at := d
 			at.sx, at.sy = x, y
 			g.drawStanding(buf, p, at)
@@ -630,28 +686,30 @@ func (g *Game) backpedalling(p protocol.PlayerView) bool {
 }
 
 // drawStanding draws a player who is up: swimming, standing or walking.
-func (g *Game) drawStanding(dst *ebiten.Image, p protocol.PlayerView, d drawable) {
+func (g *Game) drawStanding(dst drawTarget, p protocol.PlayerView, d drawable) {
 	if p.Swimming {
 		g.drawSwimmer(dst, p, d) // see searender.go
 		return
 	}
+	if heroHD {
+		g.drawHeroHD(dst, p, d) // the trial hero; see herohddraw.go
+		return
+	}
 	frame, bob := 0, 0.0
 	if d.moving {
-		frame = (g.frame / 7) % walkFrames
+		frame = walkFrameAt(g.frame)
 		if g.backpedalling(p) {
 			frame = (walkFrames - frame) % walkFrames // facing the pointer and walking away from it: the steps run backwards
 		}
-		if frame%2 == 1 {
-			bob = 1
-		}
+		bob = walkBob(frame)
 	} else if (g.frame/40)%2 == 0 {
 		bob = 0 // idle: breathing would go here
 	}
 	dir := p.Dir & 3
 	tint := playerColors[int(p.ID)%len(playerColors)]
-	step := 0
+	step := 0.0
 	if d.moving {
-		step = walkStep(frame)
+		step = walkSwing(frame)
 	}
 
 	// The hand: while working, the tool the job takes, swung in time with the
@@ -697,7 +755,7 @@ func (g *Game) drawStanding(dst *ebiten.Image, p protocol.PlayerView, d drawable
 		if g.curr.Self.Poisoned && (g.frame/8)%3 == 0 {
 			for k := range 3 {
 				ph := math.Mod(float64(g.frame)/40+float64(k)*0.33, 1)
-				vector.FillRect(dst, float32(math.Round(d.sx-5+float64(k)*5)), float32(math.Round(d.sy-30-ph*10)), 2, 2, color.RGBA{120, 220, 80, uint8(220 * (1 - ph))}, false)
+				fillRect(dst, float32(math.Round(d.sx-5+float64(k)*5)), float32(math.Round(d.sy-30-ph*10)), 2, 2, color.RGBA{120, 220, 80, uint8(220 * (1 - ph))}, false)
 			}
 		}
 	}
@@ -705,7 +763,7 @@ func (g *Game) drawStanding(dst *ebiten.Image, p protocol.PlayerView, d drawable
 
 // drawSleeper draws p lying in bed, head on the pillow, under a blanket.
 // The server snaps a sleeper onto the bed's tile, so the bed is at (sx, sy).
-func (g *Game) drawSleeper(dst *ebiten.Image, p protocol.PlayerView, d drawable) {
+func (g *Game) drawSleeper(dst drawTarget, p protocol.PlayerView, d drawable) {
 	tint := playerColors[int(p.ID)%len(playerColors)]
 	// Turned a quarter left: the feet anchor goes to the foot of the bed and
 	// the head to the pillow. Breathing lifts the blanket a pixel.
@@ -725,7 +783,7 @@ func (g *Game) drawSleeper(dst *ebiten.Image, p protocol.PlayerView, d drawable)
 // drawTool draws the tool s swinging in p's hand.
 
 // drawClouds drifts soft cloud shadows over the land by day.
-func (g *Game) drawClouds(dst *ebiten.Image, cam camera) {
+func (g *Game) drawClouds(dst drawTarget, cam camera) {
 	amb := sim.Ambient(g.curr.Tick)
 	if amb < 0.3 {
 		return
@@ -758,7 +816,7 @@ func (g *Game) drawClouds(dst *ebiten.Image, cam camera) {
 
 // drawEmbers draws sparks rising from every burning campfire. They are a
 // pure function of time, so there is no particle state to keep.
-func (g *Game) drawEmbers(dst *ebiten.Image, cam camera) {
+func (g *Game) drawEmbers(dst drawTarget, cam camera) {
 	t := float64(g.frame)
 	for _, e := range g.curr.Entities {
 		if e.Kind != sim.EntityCampfire || e.Fuel <= 0 {
@@ -776,7 +834,7 @@ func (g *Game) drawEmbers(dst *ebiten.Image, cam camera) {
 				col = fireRamp[2]
 			}
 			a := uint8(255 * (1 - ph) * (1 - ph))
-			vector.FillRect(dst, float32(math.Round(x)), float32(math.Round(y)), 1, 1,
+			fillRect(dst, float32(math.Round(x)), float32(math.Round(y)), 1, 1,
 				color.RGBA{uint8(int(col.R) * int(a) / 255), uint8(int(col.G) * int(a) / 255), uint8(int(col.B) * int(a) / 255), a}, false)
 		}
 	}
@@ -844,7 +902,7 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 		col := colWhite
 		if tg.drop {
 			x, y, lift := g.dropPos(tg.d)
-			sx, sy = cam.toScreen(x, y)
+			sx, sy = cam.toScreenFine(x, y)
 			top = sy - lift - 14
 			label = "Nhặt " + tg.d.Item.Def().Name
 			if tg.d.Count > 1 {
@@ -852,7 +910,7 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			}
 		} else if tg.creature {
 			x, y, moving := g.lerpCreature(tg.c, alpha)
-			sx, sy = cam.toScreen(x, y)
+			sx, sy = cam.toScreenFine(x, y)
 			s, bob := g.creatureSprite(tg.c, moving)
 			top = sy - bob - s.ay
 			label, col = g.creatureLabel(tg.c)
@@ -953,7 +1011,7 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 		if g.hiddenInCave(wx, wy) {
 			continue
 		}
-		sx, sy := cam.toScreen(wx, wy)
+		sx, sy := cam.toScreenFine(wx, wy)
 		if p.Asleep {
 			// Two z's drifting up from the pillow.
 			for i := range 2 {

@@ -3,8 +3,6 @@ package client
 import (
 	"math"
 
-	"github.com/hajimehoshi/ebiten/v2"
-
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
@@ -155,7 +153,7 @@ func (g *Game) whatSwing(old protocol.Snapshot, oldAt map[[2]int]protocol.Entity
 }
 
 // drawSwing draws what p swings in the middle of a blow.
-func (g *Game) drawSwing(dst *ebiten.Image, p protocol.PlayerView, d drawable, bob float64, step int) {
+func (g *Game) drawSwing(dst drawTarget, p protocol.PlayerView, d drawable, bob, step float64) {
 	w := g.swingWhat[p.ID]
 	age := float64(g.frame - g.swingAt[p.ID])
 	side := 1.0

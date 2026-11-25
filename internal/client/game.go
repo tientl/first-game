@@ -77,7 +77,7 @@ type Game struct {
 	swingAt       map[sim.PlayerID]int       // frame each player's latest blow began; see slash.go
 	swingWhat     map[sim.PlayerID]swingInfo // what that blow was at, and with what; see swing.go
 	hurtAt        map[sim.PlayerID]int       // frame each player was last struck; see jolt.go
-	joltBuf       *ebiten.Image              // scratch for drawing a struck player
+	joltBuf       *fineBuf                   // scratch for drawing a struck player
 	heldAge       int                        // see HoldBlows in punch.go
 	prevCreatures map[sim.CreatureID]protocol.CreatureView
 	hearts        []heartFX      // floating up from beasts being fed; see ride.go
@@ -126,8 +126,10 @@ type Game struct {
 
 	art      *art
 	ground   *groundCache
-	world    *ebiten.Image // the scene in art pixels, scaled up to the screen
+	world    *worldDst     // the world pass: art pixels on a full-resolution canvas; see hd.go
+	worldHi  *ebiten.Image // the canvas when post-processing needs it apart from the screen
 	darkness *ebiten.Image
+	hd       *heroHDState  // the trial hero's frames and lights; see herohddraw.go
 	caveMask *ebiten.Image // one pixel per tile in view: where it is always dark
 	lavaMask *ebiten.Image // one pixel per tile in view: where lava glows
 	canopy   *ebiten.Image // one pixel per tile in view: where the woods shade the ground
@@ -140,8 +142,9 @@ type Game struct {
 	zoomNoticed int // the zoom last shown in a notice
 	strikesSeen map[[2]float32]bool
 	prevBoats   map[sim.BoatID]protocol.BoatView
-	swimBuf     *ebiten.Image // scratch for drawing a swimmer cut off at the water
-	boss        bossUI        // the boss bar and the victory screen; see bossui.go
+	swimBuf     *fineBuf    // scratch for drawing a swimmer cut off at the water
+	boss        bossUI      // the boss bar and the victory screen; see bossui.go
+	dev         *devConsole // the dev console, only with -dev; see devconsole.go
 }
 
 // New returns a game that plays over conn under the given player name.
@@ -211,6 +214,11 @@ func (g *Game) Update() error {
 	defer func() { g.frameSounds(g.alpha()) }()
 	if g.disconnected {
 		g.setOverlay(overlayNone)
+	}
+	if g.updateDev() { // the dev console has the keyboard; see devconsole.go
+		g.receive()
+		g.wmap.collect()
+		return nil
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		if g.build.on && g.overlay == overlayNone && !g.paused {
@@ -358,6 +366,8 @@ func (g *Game) onMessage(m protocol.ServerMsg) {
 			return
 		}
 		g.onSnapshot(m.Snapshot)
+	case protocol.ServerDev:
+		g.onDev(m.Dev) // see devconsole.go
 	}
 }
 

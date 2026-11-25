@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 37
+const Version = 38
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -26,6 +26,7 @@ const (
 	ClientInput
 	ClientCommand
 	ClientSave // ask the server to save the world now
+	ClientDev  // a dev console line; only a server started in dev mode runs it
 )
 
 // ClientMsg is a message from a client to the server.
@@ -34,6 +35,7 @@ type ClientMsg struct {
 	Hello   Hello
 	Input   sim.Input
 	Command sim.Command
+	Dev     string // ClientDev: the line typed
 }
 
 // Hello must be the first message on a connection.
@@ -50,6 +52,7 @@ const (
 	ServerWelcome ServerMsgKind = iota + 1
 	ServerSnapshot
 	ServerSaved // the outcome of a save
+	ServerDev   // the answer to a ClientDev
 )
 
 // ServerMsg is a message from the server to one client.
@@ -58,6 +61,7 @@ type ServerMsg struct {
 	Welcome  Welcome
 	Snapshot Snapshot
 	Saved    SaveResult
+	Dev      DevReply
 }
 
 // SaveResult reports a save, requested by this client or automatic.
@@ -65,6 +69,13 @@ type SaveResult struct {
 	OK    bool
 	Auto  bool
 	Error string
+}
+
+// DevReply answers a dev console line.
+type DevReply struct {
+	Lines    []string
+	Rejected bool   // the server is not in dev mode: nothing was done
+	Explored []byte // the player's whole explored map, when the command changed it; nil otherwise
 }
 
 // Welcome answers Hello with the client's player id and the static map.

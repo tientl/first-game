@@ -7,8 +7,6 @@ import (
 	"math/rand/v2"
 	"slices"
 
-	"github.com/hajimehoshi/ebiten/v2"
-
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
@@ -134,73 +132,15 @@ func (t *terrain) pondTile(tx, ty int) bool {
 	return t.pond != nil && t.tile(tx, ty) == sim.TileWater && tx >= 0 && ty >= 0 && tx < t.w && ty < t.h && t.pond[ty*t.w+tx] > 0
 }
 
-// swampBank darkens land at the edge of a pond (s tiles from the water,
-// 0 <= s < 0.22) into wet mud.
-func swampBank(c color.RGBA, px, py int, s float64) color.RGBA {
-	return mix(c, swampMud.pick(0.6, px, py), 0.75*(1-s/0.22))
-}
-
-// swampWater colours a pixel of a pond, s (< 0) tiles out from the bank: a
-// lip of mud, then a band of algae along the edge, then still, murky water
-// speckled with duckweed. It is nearly opaque: a pond barely ripples.
-func (t *terrain) swampWater(px, py int, u, v, s float64) color.RGBA {
-	// Below a bank on the north shore the mud drops a few pixels to the water.
-	for k := 1; k <= 3; k++ {
-		if t.coast(u, v-float64(k)/TileH) >= 0 {
-			return swampMud.at(3 - k)
-		}
-	}
-	if s > -0.08-(vnoise(u*4, v*4, 150)-0.5)*0.1 {
-		return swampMud.pick(0.35, px, py)
-	}
-	edge := fbm2(u*1.6+3, v*1.9+5, 151, 2)
-	if s > -0.55 && edge > 0.5 && hashf(px, py, 152) < 0.35+(edge-0.5)*2 {
-		return algaeRamp.pick(0.35+(edge-0.5)*1.2+(hashf(px, py, 153)-0.5)*0.5, px, py)
-	}
-	if hashf(px/2, py, 154) < 0.012 {
-		return algaeRamp.at(3) // duckweed
-	}
-	d := clamp01(-s / 3)
-	c := pondRamp.pick(0.85-d*0.75+(vnoise(u*0.8, v*0.9, 155)-0.5)*0.3, px, py)
-	return withAlpha(c, 232)
-}
-
-// marshGround colours a pixel of swamp mud: olive, blotched darker where it
-// is wetter, with puddles ringed by brown mud.
-func marshGround(px, py int, u, v float64) color.RGBA {
-	n := fbm2(u*0.35, v*0.45, 111, 3)
-	blot := fbm2(u*0.55+3, v*0.7+7, 115, 3)
-	l := 0.6 + (n-0.5)*0.6
-	if blot < 0.45 {
-		l -= (0.45 - blot) * 2.2 // wet, dark patches
-	}
-	switch h := hashf(px, py, 114); {
-	case h < 0.035:
-		l += 0.2 // a lit blade of sedge
-	case h < 0.06:
-		l -= 0.2
-	}
-	// Puddles of standing water with a muddy rim.
-	m := fbm2(u*1.3+5, v*1.7+9, 112, 2)
-	switch {
-	case m > 0.71:
-		if hashf(px, py, 113) < 0.03 {
-			return puddleRamp.at(3) // a glint
-		}
-		return puddleRamp.pick(0.15+(0.78-m)*6, px, py)
-	case m > 0.68:
-		return swampMud.pick(0.55+(m-0.68)*5, px, py)
-	case m > 0.665:
-		l -= 0.25 // the mud darkens towards a puddle
-	}
-	return marshRamp.pick(l, px, py)
-}
-
 // --- trees ---------------------------------------------------------------------
 
 // drawBark paints l as bark of ramp rp, lit from the left, with streaks
 // running along it.
 func drawBark(c *canvas, l limb, rp ramp) {
+	if c.hd() {
+		drawLimbHD(c, l, rp, 0.85, 160)
+		return
+	}
 	n := int(math.Hypot(l.x1-l.x0, l.y1-l.y0)*2) + 2
 	for i := 0; i <= n; i++ {
 		t := float64(i) / float64(n)
@@ -229,9 +169,10 @@ func drawBark(c *canvas, l limb, rp ramp) {
 func genCypress(variant int, s float64) sprite {
 	rng := rand.New(rand.NewPCG(uint64(variant)*41+3, 161))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
-	s *= 1.12
-	c := newCanvas(int(math.Ceil(66*s)), int(math.Ceil(86*s)))
-	bx, by := math.Round(float64(c.w)/2), float64(c.h-3)
+	hk := hdK()
+	s *= 1.12 * hk
+	c := markHD(newCanvas(int(math.Ceil(66*s)), int(math.Ceil(86*s))))
+	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*hk
 	girth := 2.9 * s
 	top := by - r(54, 62)*s
 	tx := bx + r(-2.5, 2.5)*s
@@ -247,7 +188,7 @@ func genCypress(variant int, s float64) sprite {
 		f := 0.42 + 0.48*float64(i)/float64(n-1) + r(-0.03, 0.03)
 		x0, y0 := trunk.at(f)
 		x1, y1 := x0+side*r(7, 12)*s, y0-r(2, 5)*s
-		limbs = append(limbs, limb{x0, y0, (x0 + x1) / 2, (y0+y1)/2 + s, x1, y1, max(0.8, girth*0.35), 0.6})
+		limbs = append(limbs, limb{x0, y0, (x0 + x1) / 2, (y0+y1)/2 + s, x1, y1, max(0.8*hk, girth*0.35), 0.6 * hk})
 		crowns = append(crowns, flatCrown(x1, y1-s, r(6, 9)*s, 5*s, rng))
 		side = -side
 	}
@@ -275,12 +216,21 @@ func genCypress(variant int, s float64) sprite {
 			if hashf(x, y/4, 160) < 0.2 {
 				k--
 			}
+			if c.hd() {
+				col := barkAt(cypressBark, dx/lobe, lobe, float64(y)*1.2, x, y, 0.85, 160)
+				if f > 0.3 && math.Abs(math.Sin(wave)) < 0.2 {
+					col = cypressBark.at(0)
+				}
+				c.put(x, y, col)
+				continue
+			}
 			c.put(x, y, cypressBark.at(k))
 		}
 	}
 
 	// The needles go on their own layer, so the moss can hang from them.
 	leaves := newCanvas(c.w, c.h)
+	leaves.dens = c.dens
 	slices.SortStableFunc(crowns, func(a, b crown) int { return cmp.Compare(a.cy, b.cy) })
 	for i, cr := range crowns {
 		leafCluster(leaves, cr.blobs, cr.cx, cr.cy, cr.rx, cr.ry, cypressLeaf, 170+uint32(variant)*13+uint32(i)*7)
@@ -304,7 +254,7 @@ func genCypress(variant int, s float64) sprite {
 	}
 	for range len(cols)/6 + 2 {
 		x := cols[rng.IntN(len(cols))]
-		half := 1 + rng.IntN(2)
+		half := (1 + rng.IntN(2)) * int(hk)
 		L := r(5, 13) * s
 		for dx := -half; dx <= half; dx++ {
 			px := x + dx
@@ -313,8 +263,8 @@ func genCypress(variant int, s float64) sprite {
 			}
 			ln := int(L * (1 - math.Abs(float64(dx))/float64(half+1)) * r(0.6, 1))
 			for i := range ln {
-				if i > ln*2/3 && hashf(px, i, 172) < 0.45 {
-					continue
+				if i > ln*2/3 && hashf(px, i, 172) < 0.45 || c.hd() && hashf(px, 0, 173) < 0.3 {
+					continue // wispy at the end; and at HD, air between the strands
 				}
 				py := under[px] + 1 + i
 				l := 0.85 - float64(i)/float64(max(ln, 1))*0.45 + (hashf(px, py, 171)-0.5)*0.3
@@ -330,31 +280,32 @@ func genCypress(variant int, s float64) sprite {
 func genSnag(variant int, s float64) sprite {
 	rng := rand.New(rand.NewPCG(uint64(variant)*53+11, 181))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
-	s *= 1.1
-	c := newCanvas(int(math.Ceil(40*s)), int(math.Ceil(64*s)))
-	bx, by := math.Round(float64(c.w)/2), float64(c.h-3)
+	hk := hdK()
+	s *= 1.1 * hk
+	c := markHD(newCanvas(int(math.Ceil(40*s)), int(math.Ceil(64*s))))
+	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*hk
 	girth := 2.4 * s
 	top := by - r(38, 46)*s
 	tx := bx + r(-2, 2)*s
 	trunk := limb{bx, by, bx + (tx-bx)*0.4, (by + top) / 2, tx, top, girth, girth * 0.75}
 	limbs := []limb{trunk}
 	for _, side := range []float64{-1, 1} {
-		limbs = append(limbs, limb{bx, by - 4*s, bx + side*girth, by - s, bx + side*r(3, 5)*s, by, girth * 0.7, 0.6})
+		limbs = append(limbs, limb{bx, by - 4*s, bx + side*girth, by - s, bx + side*r(3, 5)*s, by, girth * 0.7, 0.6 * hk})
 	}
 	side := float64(1 - 2*rng.IntN(2))
 	for range 2 + variant%2 {
 		x0, y0 := trunk.at(r(0.45, 0.85))
 		x1, y1 := x0+side*r(4, 8)*s, y0-r(3, 8)*s
-		limbs = append(limbs, limb{x0, y0, (x0 + x1) / 2, (y0 + y1) / 2, x1, y1, max(0.6, girth*0.45), 0.5})
+		limbs = append(limbs, limb{x0, y0, (x0 + x1) / 2, (y0 + y1) / 2, x1, y1, max(0.6*hk, girth*0.45), 0.5 * hk})
 		side = -side
 	}
 	for _, l := range limbs {
 		drawBark(c, l, snagRamp)
 	}
 	// The snapped top: a few jagged teeth of wood.
-	for i := -2; i <= 2; i++ {
+	for i := -2 * int(hk); i <= 2*int(hk); i++ {
 		x := int(math.Floor(tx)) + i
-		for k := range 1 + int(hashf(i, variant, 182)*3*s) {
+		for k := range 1 + int(hashf(i/int(hk), variant, 182)*3*s*(1-0.3*float64((i+60)%int(hk)))) {
 			c.put(x, int(math.Floor(top))-1-k, snagRamp.at(2+i%2))
 		}
 	}
@@ -367,6 +318,15 @@ func genSnag(variant int, s float64) sprite {
 		}
 		for dx := 0.0; dx < 3.5*s; dx++ {
 			px, py := int(math.Floor(fx+dx)), int(math.Floor(y))
+			if c.hd() { // a shelf: pale on top, banded and gilled below
+				edge := int(1.5 * (1 - math.Abs(dx/(3.5*s)*2-1)))
+				for j := -edge; j < 2; j++ {
+					c.put(px, py+j, fungusRamp.at(3-(j+edge)/2))
+				}
+				c.put(px, py+2, fungusRamp.at(1+int(dx)%2))
+				c.put(px, py+3, fungusRamp.at(int(dx)%2))
+				continue
+			}
 			c.put(px, py, fungusRamp.at(3))
 			c.put(px, py+1, fungusRamp.at(1+int(dx)%2))
 		}
@@ -474,7 +434,7 @@ func genMushroomLog(full bool) sprite {
 		}
 	}
 	c.outline(0.7)
-	return mk(c, 17, cy+rad)
+	return mkUp(c, 17, cy+rad)
 }
 
 // --- on the ponds ------------------------------------------------------------------
@@ -571,7 +531,7 @@ func genFloater(k floaterKind, v int) sprite {
 			c.put(fx, fy, hex(0xf6d860))
 		}
 		c.outline(0.45)
-		return mk(c, 11, 8)
+		return mkUp(c, 11, 8)
 	case floatAlgae:
 		c := newCanvas(20, 10)
 		for y := range c.h {
@@ -584,7 +544,7 @@ func genFloater(k floaterKind, v int) sprite {
 				}
 			}
 		}
-		return mk(c, 10, 6)
+		return mkUp(c, 10, 6)
 	default:
 		c := newCanvas(18, 8)
 		y0, y1 := 3+rng.Float64()*2, 3+rng.Float64()*2
@@ -598,12 +558,12 @@ func genFloater(k floaterKind, v int) sprite {
 			return color.RGBA{}
 		})
 		c.outline(0.4)
-		return mk(c, 9, 5)
+		return mkUp(c, 9, 5)
 	}
 }
 
 // drawFloaters draws what floats on tile (tx, ty) if it is a swamp pond.
-func (g *Game) drawFloaters(dst *ebiten.Image, cam camera, tx, ty int) {
+func (g *Game) drawFloaters(dst drawTarget, cam camera, tx, ty int) {
 	if g.ground == nil || g.ground.terr == nil || !g.ground.terr.pondTile(tx, ty) {
 		return
 	}

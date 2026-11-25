@@ -13,7 +13,9 @@ import (
 // species in dinos/, made at the size the game shows it. Every other pose is
 // worked from that drawing by a simple rig, so the art stays the artist's:
 //
-//   - legs step: each leg's pixels lean forward or back, more at the foot;
+//   - legs step: each leg is cut into thigh, shin and foot, which turn about
+//     its hip, knee and ankle so the foot goes where the stride puts it
+//     (dinolegs.go); a leg with no joints measured leans whole instead;
 //   - the head and neck turn about the base of the neck (to eat, call or
 //     strike), with the joint filled so it never comes apart;
 //   - the jaw opens about the corner of the mouth, showing the mouth and,
@@ -24,13 +26,35 @@ import (
 // A pose that reaches past the drawing's edges gets a larger canvas, with its
 // anchor (the ground point) moved to match.
 
-//go:embed dinos/*.png
+//go:embed dinos/*.png dinos/hd/*.png
 var dinoFiles embed.FS
+
+// dinoHD draws the dinosaurs from the drawings of dinos/hd, redrawn
+// HDDensity times as fine (see dinos/hd/gen.py); false brings back the
+// density-1 drawings. A rig is measured in the pixels of the density-1
+// drawing whichever is used, and so are its poses.
+var dinoHD = true
 
 type rigPt struct{ x, y float64 }
 
-// rigLimb is a leg: columns x0 to x1, from row top down to the feet.
-type rigLimb struct{ x0, x1, top int }
+// rigLimb is a leg: columns x0 to x1, from row top down to the feet. j is
+// its joints when it has them measured (see dinolegs.go): hip, knee, ankle,
+// the ball of the foot for one that walks on its toes, and the tip of the
+// toes. fore marks a foreleg, whose elbow bends back. r is how far around
+// the thigh bone the flank above top moves with the thigh; 0: half the
+// thigh's length.
+type rigLimb struct {
+	x0, x1, top int
+	j           []rigPt
+	fore        bool
+	r           float64
+}
+
+// hind is a hind leg with its joints, fore a foreleg.
+func hind(x0, x1, top int, j ...rigPt) rigLimb { return rigLimb{x0: x0, x1: x1, top: top, j: j} }
+func fore(x0, x1, top int, j ...rigPt) rigLimb {
+	return rigLimb{x0: x0, x1: x1, top: top, j: j, fore: true}
+}
 
 // rigPart is a piece that turns about a joint: the pixels on the far side of
 // the line through pivot whose normal points along dir (radians), and above
@@ -40,6 +64,17 @@ type rigPart struct {
 	dir   float64
 	maxY  float64
 	all   bool // the whole drawing
+}
+
+// tester is has with the trigonometry done once, for a loop over pixels.
+func (p rigPart) tester() func(x, y float64) bool {
+	if p.all {
+		return func(x, y float64) bool { return true }
+	}
+	ux, uy := math.Cos(p.dir), math.Sin(p.dir)
+	return func(x, y float64) bool {
+		return y < p.maxY && (x-p.pivot.x)*ux+(y-p.pivot.y)*uy > 0
+	}
 }
 
 func (p rigPart) has(x, y float64) bool {
@@ -58,17 +93,24 @@ type dinoRig struct {
 	ax, ay float64 // the ground point, in pixels of the drawing; 0, 0: under the feet
 	legs   []rigLimb
 	stride float64 // how far a foot moves in a step, in pixels
-	head   rigPart
-	neck   rigPart  // the root of a long neck, which bends there too; the zero value when none
-	jaw    [2]rigPt // the corner of the mouth and the tip of the snout
-	teeth  bool
-	tail   rigPart // the zero value when it has none to swing
-	wings  [2]rigPart
+	runner bool    // light enough to leave the ground between footfalls at a run
+	// gait is when in a stride each leg steps, in strides; nil: each leg half
+	// a stride after the one before. far marks the legs on the far side
+	// (bit i for legs[i]), which are drawn behind the near ones.
+	gait  []float64
+	far   uint
+	head  rigPart
+	neck  rigPart  // the root of a long neck, which bends there too; the zero value when none
+	jaw   [2]rigPt // the corner of the mouth and the tip of the snout
+	teeth bool
+	tail  rigPart // the zero value when it has none to swing
+	wings [2]rigPart
 }
 
 // rigPose is one pose worked from a rig.
 type rigPose struct {
 	step   float64 // legs: -1 back, +1 forward, 0 as drawn
+	cycle  float64 // 0: the legs held at step. Otherwise how far through a stride, in (0, 1]: the legs swing step wide, feet lifting, the body bobbing
 	head   float64 // radians, + = nose down
 	neck   float64 // radians, + = the whole neck down, after the head
 	open   float64 // the jaw, radians
@@ -85,15 +127,20 @@ var (
 	dinoMu     sync.Mutex
 )
 
-// dinoImage loads drawing name from dinos/, or nil if it is not there.
-func dinoImage(name string) *canvas {
+// dinoImage loads drawing name from dinos/ (hd: from dinos/hd, HDDensity
+// times as fine), or nil if it is not there.
+func dinoImage(name string, hd bool) *canvas {
 	dinoMu.Lock()
 	defer dinoMu.Unlock()
-	if c, ok := dinoImages[name]; ok {
+	path := "dinos/" + name + ".png"
+	if hd {
+		path = "dinos/hd/" + name + ".png"
+	}
+	if c, ok := dinoImages[path]; ok {
 		return c
 	}
 	var c *canvas
-	if f, err := dinoFiles.Open("dinos/" + name + ".png"); err == nil {
+	if f, err := dinoFiles.Open(path); err == nil {
 		if im, _, err := image.Decode(f); err == nil {
 			b := im.Bounds()
 			c = newCanvas(b.Dx(), b.Dy())
@@ -106,40 +153,52 @@ func dinoImage(name string) *canvas {
 		}
 		f.Close()
 	}
-	dinoImages[name] = c
+	dinoImages[path] = c
 	return c
 }
 
-// rigCanvas draws pose p of rig r, with its anchor in pixels. ok is false
-// when the drawing is missing, so the caller can draw its own.
+// rigCanvas draws pose p of rig r, with its anchor in the canvas's pixels.
+// The canvas is at density c.dens (HDDensity when dinoHD), which mk turns
+// into a sprite of that density. ok is false when the drawing is missing, so
+// the caller can draw its own.
 func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
-	base := dinoImage(r.file)
-	if base == nil {
+	low := dinoImage(r.file, false)
+	if low == nil {
 		return nil, 0, 0, false
 	}
-	const pad = 48 // room for a pose to reach past the drawing
-	w := newCanvas(base.w+2*pad, base.h+2*pad)
-	w.over(base, pad, pad)
-	off := func(q rigPt) rigPt { return rigPt{q.x + pad, q.y + pad} }
-	shift := func(pr rigPart) rigPart { pr.pivot = off(pr.pivot); pr.maxY += pad; return pr }
-	ax0, ay0 := r.ax, r.ay
-	if ax0 == 0 && ay0 == 0 {
-		ax0, ay0 = underFeet(base)
-	}
-	gx, gy := ax0+pad, ay0+pad
-	joint := max(4, float64(base.h)/12) // how deep a band of the neck fills its joint
-
-	if p.step != 0 {
-		for i, l := range r.legs {
-			sign := 1.0
-			if i%2 == 1 {
-				sign = -1
-			}
-			stepLeg(w, l.x0+pad, l.x1+pad, l.top+pad, pad+base.h-1, p.step*sign*r.stride)
+	base, k := low, 1
+	if dinoHD {
+		if hd := dinoImage(r.file, true); hd != nil && hd.w == low.w*HDDensity && hd.h == low.h*HDDensity {
+			base, k = hd, HDDensity
 		}
 	}
+	kf := float64(k)
+	pad := 48 * k // room for a pose to reach past the drawing
+	w := newCanvas(base.w+2*pad, base.h+2*pad)
+	w.over(base, pad, pad)
+	ax0, ay0 := r.ax, r.ay
+	if ax0 == 0 && ay0 == 0 {
+		ax0, ay0 = underFeet(low) // from the density-1 drawing: the anchor is the same at any density
+	}
+	gx, gy := ax0*kf+float64(pad), ay0*kf+float64(pad)
+	joint := max(4, float64(low.h)/12) * kf // how deep a band of the neck fills its joint
+
+	bob := 0.0 // how far the body has sunk on its legs, in canvas pixels
+	if (p.step != 0 || p.cycle != 0) && len(r.legs) > 0 {
+		if r.jointed() {
+			bob = stepJoints(w, r, p, pad, k)
+		} else {
+			bob = stepLegs(w, r, p, pad, base.h, k) // no joints measured: the legs lean whole
+		}
+	}
+	off := func(q rigPt) rigPt { return rigPt{q.x*kf + float64(pad), q.y*kf + float64(pad) + bob} }
+	shift := func(pr rigPart) rigPart {
+		pr.pivot = off(pr.pivot)
+		pr.maxY = pr.maxY*kf + float64(pad) + bob
+		return pr
+	}
 	if p.open != 0 && r.jaw[0] != r.jaw[1] {
-		openJaw(w, off(r.jaw[0]), off(r.jaw[1]), shift(r.head), p.open, r.teeth)
+		openJaw(w, off(r.jaw[0]), off(r.jaw[1]), shift(r.head), p.open, r.teeth, kf)
 	}
 	if p.head != 0 {
 		turn(w, shift(r.head), p.head, joint)
@@ -148,7 +207,7 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 		turn(w, shift(r.neck), p.neck, joint)
 	}
 	if p.tail != 0 && r.tail.maxY != 0 {
-		turn(w, shift(r.tail), p.tail, 4) // + lifts a tail that points back
+		turn(w, shift(r.tail), p.tail, 4*kf) // + lifts a tail that points back
 	}
 	if p.wings != 0 {
 		for i, wg := range r.wings {
@@ -159,19 +218,102 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 			if i == 1 {
 				a = -p.wings // ...the right wing's the other
 			}
-			turn(w, shift(wg), a, 3)
+			turn(w, shift(wg), a, 3*kf)
 		}
 	}
-	if p.squash > 0 {
+	if p.squash > 0 && p.squash != 1 {
 		crouch(w, gy, p.squash)
 	}
 	if p.tilt != 0 {
 		turn(w, rigPart{pivot: rigPt{gx, gy - float64(base.h)/3}, all: true}, p.tilt, 0)
 	}
 	if p.lift != 0 {
-		raise(w, int(math.Round(p.lift)))
+		raise(w, int(math.Round(p.lift*kf)))
 	}
-	return cropTo(w, pad, base.w, base.h, gx, gy)
+	c, ax, ay, ok = cropTo(w, pad, base.w, base.h, gx, gy)
+	c.dens = k
+	return c, ax, ay, ok
+}
+
+// stepLegs moves the legs of a rig with no joints measured (stepJoints
+// moves the others) on working canvas w for pose p, and
+// returns how far the body sank between them, in canvas pixels. Held at a
+// step, each leg leans forward or back in turn, as drawn. Through a stride
+// (p.cycle) each swings in its own time: back along the ground, then lifted
+// and forward, while the body sinks as the legs spread and rises over them.
+// gaitReach is how much wider a leg swings through a stride than the lean
+// of a standing step.
+const gaitReach = 2.2
+
+func stepLegs(w *canvas, r dinoRig, p rigPose, pad, h, k int) float64 {
+	kf := float64(k)
+	bottom := pad + h - 1
+	type cut struct {
+		x0, x1, top int
+		dx, lift    float64
+		px          []color.RGBA
+	}
+	cuts := make([]cut, len(r.legs))
+	th := 2 * math.Pi * p.cycle
+	for i, l := range r.legs {
+		c := cut{x0: l.x0*k + pad, x1: (l.x1+1)*k - 1 + pad, top: l.top*k + pad}
+		if p.cycle != 0 {
+			g := float64(i) * 0.5
+			if i < len(r.gait) {
+				g = r.gait[i]
+			}
+			a := th + 2*math.Pi*g
+			reach := p.step * r.stride * gaitReach * kf // a long, ground-eating stride
+			c.dx = reach * math.Sin(a)
+			c.lift = math.Max(0, math.Cos(a)) * math.Abs(reach) * 0.4
+		} else {
+			c.dx = p.step * r.stride * kf
+			if i%2 == 1 {
+				c.dx = -c.dx
+			}
+		}
+		cw := c.x1 - c.x0 + 1
+		c.px = make([]color.RGBA, cw*(bottom-c.top+1))
+		for y := c.top; y <= bottom; y++ {
+			row := w.px[y*w.w+c.x0 : y*w.w+c.x1+1]
+			copy(c.px[(y-c.top)*cw:], row)
+			clear(row)
+		}
+		cuts[i] = c
+	}
+	bob := 0.0
+	if p.cycle != 0 {
+		amp := 0.3
+		if len(r.legs) > 2 {
+			amp = 0.14 // four legs carry the body more evenly
+		}
+		bob = math.Round(math.Abs(p.step) * r.stride * kf * amp * (1 - math.Cos(2*th)) / 2)
+		if bob > 0 {
+			raise(w, -int(bob))
+		}
+	}
+	paint := func(c cut) {
+		cw := c.x1 - c.x0 + 1
+		y0, y1 := c.top+int(bob), bottom-int(math.Round(c.lift))
+		for y := y0; y <= y1; y++ {
+			t := float64(y-y0) / float64(max(1, y1-y0))
+			sy := int(math.Round(t * float64(bottom-c.top)))
+			d := int(math.Round(c.dx * t))
+			for x := 0; x < cw; x++ {
+				if q := c.px[sy*cw+x]; q.A >= 128 {
+					w.set(c.x0+x+d, y, q)
+				}
+			}
+		}
+	}
+	for pass := range 2 { // the far legs, then the near ones over them
+		for i, c := range cuts {
+			if (r.far>>uint(i)&1 == 1) == (pass == 0) {
+				paint(c)
+			}
+		}
+	}
+	return bob
 }
 
 // underFeet is the ground point of a drawing: the middle of what touches
@@ -201,70 +343,67 @@ func underFeet(c *canvas) (float64, float64) {
 	return sum / float64(n), float64(bottom) + 0.5
 }
 
-// stepLeg leans the pixels of columns x0..x1, from row top to row bottom, by
-// up to dx at the foot.
-func stepLeg(c *canvas, x0, x1, top, bottom int, dx float64) {
-	src := append([]color.RGBA(nil), c.px...)
-	for y := top; y <= bottom; y++ {
-		for x := x0; x <= x1; x++ {
-			c.px[y*c.w+x] = color.RGBA{}
-		}
-	}
-	for y := top; y <= bottom; y++ {
-		d := int(math.Round(dx * float64(y-top) / float64(max(1, bottom-top))))
-		for x := x0; x <= x1; x++ {
-			if p := src[y*c.w+x]; p.A >= 128 {
-				c.set(x+d, y, p)
-			}
-		}
-	}
-}
-
 // turn rotates the pixels of rigPart pr by a radians about its pivot. Near the
 // pivot it also paints the in-between angles, so the joint stays whole.
 func turn(c *canvas, pr rigPart, a float64, joint float64) {
 	src := append([]color.RGBA(nil), c.px...)
+	has := pr.tester()
 	in := func(x, y int) bool {
-		return src[y*c.w+x].A >= 128 && pr.has(float64(x)+0.5, float64(y)+0.5)
+		return src[y*c.w+x].A >= 128 && has(float64(x)+0.5, float64(y)+0.5)
 	}
+	// Only as far from the pivot as the part reaches can anything change.
+	reach := 0.0
 	for y := 0; y < c.h; y++ {
 		for x := 0; x < c.w; x++ {
 			if in(x, y) {
 				c.px[y*c.w+x] = color.RGBA{}
+				reach = max(reach, math.Hypot(float64(x)+0.5-pr.pivot.x, float64(y)+0.5-pr.pivot.y))
 			}
 		}
 	}
+	x0, x1 := max(0, int(pr.pivot.x-reach)-1), min(c.w, int(pr.pivot.x+reach)+2)
+	y0, y1 := max(0, int(pr.pivot.y-reach)-1), min(c.h, int(pr.pivot.y+reach)+2)
 	ux, uy := math.Cos(pr.dir), math.Sin(pr.dir)
-	paint := func(b float64, near float64) {
-		sn, cs := math.Sin(-b), math.Cos(-b)
-		for y := 0; y < c.h; y++ {
-			for x := 0; x < c.w; x++ {
-				dx, dy := float64(x)+0.5-pr.pivot.x, float64(y)+0.5-pr.pivot.y
-				fx, fy := pr.pivot.x+dx*cs-dy*sn, pr.pivot.y+dx*sn+dy*cs
-				if near > 0 && (fx-pr.pivot.x)*ux+(fy-pr.pivot.y)*uy > near {
+	const steps = 12
+	var sn, cs [steps + 1]float64 // the angles between, for the joint; the last is the turn itself
+	for k := 1; k <= steps; k++ {
+		sn[k], cs[k] = math.Sincos(-a * float64(k) / steps)
+	}
+	first := 1
+	if joint <= 0 {
+		first = steps
+	}
+	r2 := (reach + 1) * (reach + 1)
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			dx, dy := float64(x)+0.5-pr.pivot.x, float64(y)+0.5-pr.pivot.y
+			if dx*dx+dy*dy > r2 {
+				continue
+			}
+			from := first
+			if d, sweep := dx*ux+dy*uy, math.Sqrt(dx*dx+dy*dy)*math.Abs(a); d-sweep > joint || d+sweep < 0 {
+				from = steps // too far from the cut to be in the joint at any angle between
+			}
+			for k := steps; k >= from; k-- { // the turn itself wins over the joint's filling
+				fx, fy := dx*cs[k]-dy*sn[k], dx*sn[k]+dy*cs[k]
+				if k < steps && fx*ux+fy*uy > joint {
 					continue // only the band along the cut fills the joint
 				}
-				sx, sy := int(math.Floor(fx)), int(math.Floor(fy))
+				sx, sy := int(math.Floor(pr.pivot.x+fx)), int(math.Floor(pr.pivot.y+fy))
 				if sx >= 0 && sy >= 0 && sx < c.w && sy < c.h && in(sx, sy) {
 					c.px[y*c.w+x] = src[sy*c.w+sx]
+					break
 				}
 			}
 		}
 	}
-	if joint > 0 {
-		const steps = 12
-		for k := 1; k < steps; k++ { // the joint, at the angles between
-			paint(a*float64(k)/steps, joint)
-		}
-	}
-	paint(a, 0)
 }
 
 // openJaw drops the lower jaw: the head's pixels just below the line from
 // the corner of the mouth to the tip of the snout, turned a radians about the
 // corner. The wedge it opens is the mouth, with teeth along both jaws for a
 // meat-eater.
-func openJaw(c *canvas, corner, tip rigPt, head rigPart, a float64, teeth bool) {
+func openJaw(c *canvas, corner, tip rigPt, head rigPart, a float64, teeth bool, kf float64) {
 	ux, uy := tip.x-corner.x, tip.y-corner.y
 	l := math.Hypot(ux, uy)
 	ux, uy = ux/l, uy/l
@@ -272,38 +411,55 @@ func openJaw(c *canvas, corner, tip rigPt, head rigPart, a float64, teeth bool) 
 	frame := func(x, y float64) (along, across float64) {
 		return (x-corner.x)*ux + (y-corner.y)*uy, (x-corner.x)*-uy + (y-corner.y)*ux
 	}
+	has := head.tester()
+	// Nothing further from the corner than the jaw is long changes.
+	reach := int(l + 8*kf)
+	bx0, bx1 := max(0, int(corner.x)-reach), min(c.w, int(corner.x)+reach+1)
+	by0, by1 := max(0, int(corner.y)-reach), min(c.h, int(corner.y)+reach+1)
 	isJaw := func(x, y float64) bool {
 		along, across := frame(x, y)
-		return head.has(x, y) && along > -1 && along < l+2 && across >= 0 && across < 6
+		return has(x, y) && along > -kf && along < l+2*kf && across >= 0 && across < 6*kf
 	}
 	src := append([]color.RGBA(nil), c.px...)
-	for y := 0; y < c.h; y++ {
-		for x := 0; x < c.w; x++ {
+	for y := by0; y < by1; y++ {
+		for x := bx0; x < bx1; x++ {
 			if src[y*c.w+x].A >= 128 && isJaw(float64(x)+0.5, float64(y)+0.5) {
 				c.px[y*c.w+x] = color.RGBA{}
 			}
 		}
 	}
 	gape := math.Tan(a)
-	for y := 0; y < c.h; y++ {
-		for x := 0; x < c.w; x++ {
+	for y := by0; y < by1; y++ {
+		for x := bx0; x < bx1; x++ {
 			along, across := frame(float64(x)+0.5, float64(y)+0.5)
 			if along <= 0.5 || along > l || across < 0 || across > along*gape+0.5 {
 				continue
 			}
 			col := dinoMouth.pick(1-across/(along*gape+1), x, y)
+			// Teeth every third pixel of the drawing: a point each when
+			// there is room to draw one.
+			u := along / kf
+			point := func(at int) float64 { // how long a tooth is here, in pixels
+				if int(u)%3 != at {
+					return 0
+				}
+				if kf <= 1 {
+					return 1.2
+				}
+				return kf * 1.5 * (1 - math.Abs(u-math.Floor(u)-0.5)*1.6)
+			}
 			switch {
-			case teeth && along > 2 && int(along)%3 == 1 && across < 1.2:
+			case teeth && u > 2 && across < point(1):
 				col = colTooth // along the upper jaw
-			case teeth && along > 3 && int(along)%3 == 2 && across > along*gape-1:
+			case teeth && u > 3 && across > along*gape-point(2)+0.2:
 				col = colTooth // along the lower
 			}
 			c.px[y*c.w+x] = col
 		}
 	}
 	sn, cs := math.Sin(-a), math.Cos(-a)
-	for y := 0; y < c.h; y++ {
-		for x := 0; x < c.w; x++ {
+	for y := by0; y < by1; y++ {
+		for x := bx0; x < bx1; x++ {
 			dx, dy := float64(x)+0.5-corner.x, float64(y)+0.5-corner.y
 			sx := int(math.Floor(corner.x + dx*cs - dy*sn))
 			sy := int(math.Floor(corner.y + dx*sn + dy*cs))
@@ -328,12 +484,12 @@ func crouch(c *canvas, gy, k float64) {
 	}
 }
 
-// raise moves the whole drawing up by n pixels.
+// raise moves the whole drawing up by n pixels (down, when n < 0).
 func raise(c *canvas, n int) {
 	src := append([]color.RGBA(nil), c.px...)
 	clear(c.px)
-	for y := 0; y+n < c.h; y++ {
-		if y+n >= 0 {
+	for y := 0; y < c.h; y++ {
+		if y+n >= 0 && y+n < c.h {
 			copy(c.px[y*c.w:(y+1)*c.w], src[(y+n)*c.w:(y+n+1)*c.w])
 		}
 	}

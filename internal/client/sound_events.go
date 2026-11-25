@@ -260,9 +260,9 @@ func (g *Game) frameSounds(alpha float64) {
 			moving = false // strokes in the water, no steps; the boat carries them
 		}
 		if moving && !p.Dead {
-			f = (g.frame / 7) % walkFrames
+			f = walkFrameAt(g.frame)
 		}
-		if f != g.sm.stepFrame[p.ID] && (f == 1 || f == 3) {
+		if f != g.sm.stepFrame[p.ID] && (f == 1 || f == 5) {
 			name := "step_grass"
 			switch g.tileAt(int(math.Floor(x)), int(math.Floor(y))) {
 			case sim.TileSand:

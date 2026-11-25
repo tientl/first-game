@@ -4,9 +4,6 @@ import (
 	"image/color"
 	"math"
 
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
-
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
@@ -92,8 +89,7 @@ func (b *bodyArt) bareBody(hide armSide) *bareArt {
 	a := &bareArt{}
 	for d := sim.DirDown; d <= sim.DirUp; d++ {
 		for f := range walkFrames {
-			_, _, S, T := playerLayersPose(b.look, d, f, false, hide)
-			a.shirt[d][f], a.top[d][f] = mk(S, 9, bodyFeet), mk(T, 9, bodyFeet)
+			a.shirt[d][f], a.top[d][f] = bareLayers(b.look, d, f, hide)
 		}
 	}
 	// Sideways only the near arm can go: the far one is behind the body.
@@ -101,13 +97,23 @@ func (b *bodyArt) bareBody(hide armSide) *bareArt {
 	a.shirt[sim.DirLeft], a.top[sim.DirLeft] = b.shirt[sim.DirLeft], b.top[sim.DirLeft]
 	if hide != armOff {
 		for f := range walkFrames {
-			_, _, S, T := playerLayersPose(b.look, sim.DirRight, f, false, armHand)
-			a.shirt[sim.DirRight][f], a.top[sim.DirRight][f] = mk(S, 9, bodyFeet), mk(T, 9, bodyFeet)
+			a.shirt[sim.DirRight][f], a.top[sim.DirRight][f] = bareLayers(b.look, sim.DirRight, f, armHand)
 			a.shirt[sim.DirLeft][f], a.top[sim.DirLeft][f] = mirrorSprite(a.shirt[sim.DirRight][f]), mirrorSprite(a.top[sim.DirRight][f])
 		}
 	}
 	b.bare[hide] = a
 	return a
+}
+
+// bareLayers draws the shirt and the top of look l facing d (never DirLeft)
+// on walk frame f without the arms hide names.
+func bareLayers(l sim.Look, d sim.Dir, f int, hide armSide) (shirt, top sprite) {
+	if playerHD {
+		_, _, S, T := playerLayersHD(l, d, f, false, hide)
+		return figSprite(S), figSprite(T)
+	}
+	_, _, S, T := playerLayersPose(l, d, legacyFrame(f), false, hide)
+	return mk(S, 9, bodyFeet), mk(T, 9, bodyFeet)
 }
 
 // arms returns b's arms, drawing them on first use.
@@ -289,6 +295,49 @@ func armCanvases(l sim.Look, d sim.Dir, side armSide, pose armPose) (sleeve, fis
 	return sleeve, fist, sh
 }
 
+// armCanvasesHD is armCanvases at HD density (lookhd.go): the same arms in
+// the same places, the sleeve a round brush through the shape's points.
+func armCanvasesHD(l sim.Look, d sim.Dir, side armSide, pose armPose) (sleeve, fist *canvas, sh armShape) {
+	l = l.Sanitized()
+	sh = armShapeOf(l.Female, d, side, pose)
+	g := newFigGen(l, (bodyW+2*armPad)*HDDensity, (bodyH+2)*HDDensity)
+	if sh.none {
+		return g.S.c, g.T.c, sh
+	}
+	sideways := d == sim.DirRight
+	if !sideways && side == armOff {
+		for i := range sh.pts {
+			sh.pts[i][0] = bodyW - 2 - sh.pts[i][0]
+		}
+		sh.fx = bodyW - sh.size - sh.fx
+	}
+	const k = HDDensity
+	g.f.ox = armPad * k
+	pts := make([]float64, 0, 2*len(sh.pts))
+	for _, p := range sh.pts {
+		pts = append(pts, float64(p[0]+1)*k, float64(p[1]+1)*k)
+	}
+	shaded := sideways && side == armOff || !sideways && side == armHand
+	bias, lit := 0.12, 0.1
+	if shaded {
+		bias = -0.16
+		if !sh.near {
+			lit = -0.12
+		}
+	}
+	sl := sPath(3, 3, pts...)
+	fx, fy, sz := float64(sh.fx*k), float64(sh.fy*k), float64(sh.size*k)
+	fs := sBox(fx, fy, fx+sz, fy+sz, 2.4)
+	g.f.fill(g.S, sl.sub(fs), bevel(shirtHD, sl, 3, bias))
+	g.f.fill(g.T, fs, bevel(g.sk, fs, sz/2, lit))
+	for i := 1; i < sh.size+1; i++ { // the knuckles
+		g.f.dot(g.T, sh.fx*k+i*k-1, sh.fy*k+int(sz/2), g.sk.at(2))
+	}
+	innerLines(0.4, g.S, g.T)
+	rimLayers(g.S.c, g.T.c)
+	return g.S.c, g.T.c, sh
+}
+
 func absInt(v int) int {
 	if v < 0 {
 		return -v
@@ -307,12 +356,19 @@ func genArm(l sim.Look, d sim.Dir, side armSide, pose armPose) armArt {
 		return a
 	}
 	S, F, sh := armCanvases(l, d, side, pose)
+	if playerHD {
+		S, F, sh = armCanvasesHD(l, d, side, pose)
+	}
 	if sh.none {
 		return armArt{none: true}
 	}
+	sleeve, fist := mk(S, 9+armPad, bodyFeet), mk(F, 9+armPad, bodyFeet)
+	if playerHD {
+		sleeve, fist = spriteHD(S.image(), 9+armPad, bodyFeet), spriteHD(F.image(), 9+armPad, bodyFeet)
+	}
 	return armArt{
-		sleeve: mk(S, 9+armPad, bodyFeet),
-		fist:   mk(F, 9+armPad, bodyFeet),
+		sleeve: sleeve,
+		fist:   fist,
 		hx:     float64(sh.fx) + float64(sh.size-1)/2 - 9,
 		hy:     float64(sh.fy) + float64(sh.size+1)/2 - bodyFeet,
 		size:   sh.size,
@@ -388,7 +444,7 @@ func (g *Game) punchPose(p protocol.PlayerView) (figPose, bool) {
 
 // drawFigure draws p standing at (x, y) like drawBody or drawArmored, with
 // its arms as fp has them and whatever it holds in its fist.
-func (g *Game) drawFigure(dst *ebiten.Image, p protocol.PlayerView, dir sim.Dir, frame int, x, y, bob float64, tint color.Color, armor sim.Tier, fp figPose) {
+func (g *Game) drawFigure(dst drawTarget, p protocol.PlayerView, dir sim.Dir, frame int, x, y, bob float64, tint color.Color, armor sim.Tier, fp figPose) {
 	l := p.Look
 	if armor >= sim.TierDiamond && (l.Hair == sim.HairSpiky || l.Hair == sim.HairBun) {
 		l.Hair = sim.HairShort // under the skull cap; see drawArmored
@@ -493,7 +549,7 @@ func (g *Game) drawFigure(dst *ebiten.Image, p protocol.PlayerView, dir sim.Dir,
 		reach := float64(fist.size)/2 + 2
 		cx := ux + fist.hx + float64(dx)*reach
 		cy := uy + fist.hy - 1 + float64(dy)*reach
-		drawSpark(dst, math.Floor(cx), math.Floor(cy), fp.spark)
+		drawSpark(dst, ux+math.Floor(cx-ux), uy+math.Floor(cy-uy), fp.spark) // whole art pixels from the figure's point; see align
 	}
 }
 
@@ -504,9 +560,9 @@ var (
 
 // drawSpark draws the little star of a landed punch round pixel (x, y), n
 // frames after it landed: a flash, a star, then four flecks flying apart.
-func drawSpark(dst *ebiten.Image, x, y float64, n int) {
+func drawSpark(dst drawTarget, x, y float64, n int) {
 	dot := func(dx, dy float64, c color.RGBA, a float64) {
-		vector.FillRect(dst, float32(x+dx), float32(y+dy), 1, 1, premul(c, a), false)
+		fillRect(dst, float32(x+dx), float32(y+dy), 1, 1, premul(c, a), false)
 	}
 	arms := func(r float64, c color.RGBA, a float64) {
 		dot(r, 0, c, a)

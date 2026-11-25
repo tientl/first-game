@@ -896,6 +896,9 @@ func (w *World) moveCreature(c *Creature, dx, dy float64) bool {
 // hurt takes health from p, killing it at zero. An animal's attack goes
 // through struck (gear.go) instead, so armour stops part of it.
 func hurt(p *Player, dmg float64) {
+	if p.dev.god {
+		return // dev mode; see dev.go
+	}
 	p.wake()
 	p.Health -= dmg
 	if p.Health <= 0 {

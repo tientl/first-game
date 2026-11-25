@@ -3,6 +3,7 @@
 //
 //	go run ./cmd/shot -o day.png
 //	go run ./cmd/shot -o night.png -time 0.85
+//	xvfb-run -a -s "-screen 0 1920x1080x24" go run ./cmd/shot -w 1920 -h 1080 -o hd.png
 package main
 
 import (
@@ -63,6 +64,8 @@ func main() {
 	weather := flag.String("weather", "", "the weather: rain, wind, storm, tornado, snow")
 	season := flag.String("season", "", "the season: spring, summer, autumn, winter")
 	zoom := flag.Int("zoom", 0, "the view's zoom, -3 to 3")
+	warm := flag.Bool("warm", false, "the trial warm ground: ochre earth with patches of grass")
+	fx := flag.Bool("fx", false, "turn on the post-processing shaders: glow and colour grading")
 	fight := flag.Bool("fight", false, "show the beasts' health: a few just hurt, with the damage floating up (use with -dinos)")
 	troodon := flag.Bool("troodon", false, "put a pack of night hunters round the player: one stalking, one leaping in, one biting, and two more watching from the dark (use with -time 0.9 for their eyes)")
 	woodsFlag := flag.Bool("woods", false, "put the woods round the player: a giant tree and a tree with beehives, banana trees, a troop of monkeys, and bees after the player")
@@ -81,8 +84,22 @@ func main() {
 	victory := flag.Bool("victory", false, "show the game-beaten (Phá đảo!) screen")
 	aimAt := flag.String("aim", "", "dx,dy: hold the mouse pointer this many tiles from the player (the hover brackets, a held torch's ghost)")
 	buildID := flag.Int("build", -1, "recipe id of a structure to place (0 campfire, 8 wall, 9 bed…): build mode with its ghost under -aim, the ingredients given")
+	herohd := flag.Bool("herohd", false, "draw the players as the trial hero: bigger, with a run, a sword blow and firelight (a trial; see internal/client/herohd.go)")
+	running := flag.Bool("run", false, "the player is on the move (with -herohd: mid-stride)")
+	winW := flag.Int("w", 1280, "window width; run xvfb with a screen at least this big (xvfb-run -s '-screen 0 1920x1080x24')")
+	winH := flag.Int("h", 720, "window height: 720 draws the world at 2 screen pixels per art pixel, 1080 at 3")
+	hdTest := flag.Bool("hdtest", false, "set down the HD trial: a mossy stone drawn as the old pixel art (left of the player) and at HD density (right); see internal/client/HD_ART.md")
+	envHD := flag.Bool("envhd", true, "the HD art of trees, plants, rocks and buildings (false: the original density-1 art, to compare)")
+	devCon := flag.Bool("devconsole", false, "open the dev console (as with -dev in cmd/game), with a few commands run on the world; see dev.go")
+	subPixel := flag.Bool("subpixel", true, "let the camera and moving things sit between art pixels, on screen pixels (false: whole art pixels, as before HD art)")
 	flag.Parse()
+	client.SetHeroHD(*herohd)
+	client.SetHDTest(*hdTest)
+	client.SetEnvHD(*envHD)
+	client.SetSubPixel(*subPixel)
 	client.SetZoom(*zoom)
+	client.SetPostFX(*fx)
+	client.SetWarmGround(*warm)
 	if *bossesFlag {
 		*coast = true
 	}
@@ -244,10 +261,10 @@ func main() {
 	if *at != "" {
 		want := map[string]sim.Tile{"desert": sim.TileDesert, "marsh": sim.TileMarsh, "cave": sim.TileCave,
 			"mountain": sim.TileMountain, "ash": sim.TileAsh, "lava": sim.TileLava, "mouth": sim.TileCave, "snow": sim.TileSnow,
-			"pond": sim.TileMarsh}[*at]
+			"pond": sim.TileMarsh, "forest": sim.TileForest, "rocky": sim.TileRocky}[*at]
 		// Desert and marsh: stand well inside, where they fill the screen.
 		deep := 0.0
-		if *at == "desert" || *at == "marsh" || *at == "snow" || *at == "pond" {
+		if *at == "desert" || *at == "marsh" || *at == "snow" || *at == "pond" || *at == "forest" {
 			deep = 0.75
 		}
 		share := func(tx, ty int) float64 {
@@ -705,6 +722,15 @@ func main() {
 			conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: rest}
 		}
 	}
+	if *running {
+		before := snap
+		before.Players = slices.Clone(snap.Players)
+		before.Tick = snap.Tick - 1
+		dx, dy := snap.Players[0].Dir.Delta()
+		before.Players[0].X -= 0.04 * float32(dx)
+		before.Players[0].Y -= 0.04 * float32(dy)
+		conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: before}
+	}
 	if *hurtFlag {
 		before := snap
 		before.Players = slices.Clone(snap.Players)
@@ -717,7 +743,7 @@ func main() {
 	if *audioSettings != "" {
 		client.InitAudio(*audioSettings)
 	}
-	ebiten.SetWindowSize(1280, 720)
+	ebiten.SetWindowSize(*winW, *winH)
 	ebiten.SetWindowTitle("shot")
 	game := client.New(conn, "Tien")
 	game.ShowOverlay(*overlay)
@@ -729,6 +755,9 @@ func main() {
 		game.StartBuild(sim.RecipeID(*buildID))
 	}
 	game.HoldBlows(*blowAge)
+	if *devCon {
+		showDevConsole(game, w)
+	}
 	if *troodon {
 		game.HoldLeap(troodonLeaper)
 	}

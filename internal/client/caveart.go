@@ -39,8 +39,8 @@ const (
 
 func genCaveArt() caveArt {
 	return caveArt{
-		mouth: mk(caveMouthCanvas(), caveMouthAX, caveMouthAY),
-		exit:  mk(caveExitCanvas(), caveExitAX, caveExitAY),
+		mouth: mkUp(caveMouthCanvas(), caveMouthAX, caveMouthAY),
+		exit:  mkUp(caveExitCanvas(), caveExitAX, caveExitAY),
 	}
 }
 

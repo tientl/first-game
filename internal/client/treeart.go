@@ -41,6 +41,10 @@ func (l limb) at(t float64) (x, y float64) {
 
 // drawLimb paints l as bark lit from the left, streaked along its length.
 func drawLimb(c *canvas, l limb) {
+	if c.hd() {
+		drawLimbHD(c, l, trunkRamp, 0.8, 7)
+		return
+	}
 	n := int(math.Hypot(l.x1-l.x0, l.y1-l.y0)*2) + 2
 	for i := 0; i <= n; i++ {
 		t := float64(i) / float64(n)
@@ -71,13 +75,14 @@ type crown struct {
 
 // roundCrown is a ball of leaves about R across centred on (cx, cy).
 func roundCrown(cx, cy, R float64, rng *rand.Rand) crown {
-	bs := []blob{{cx, cy + 1, R * 0.75}}
-	n := 5 + int(R/4)
+	k := hdK() // R is in pixels: three to an art pixel at HD
+	bs := []blob{{cx, cy + k, R * 0.75}}
+	n := 5 + int(R/k/4)
 	for i := range n {
 		a := 2*math.Pi*float64(i)/float64(n) + rng.Float64()*0.5
 		bs = append(bs, blob{cx + math.Cos(a)*R*0.72, cy + math.Sin(a)*R*0.55, R * (0.34 + rng.Float64()*0.14)})
 	}
-	bs = append(bs, blob{cx - 2 + rng.Float64()*4, cy - R*0.5, R * 0.45})
+	bs = append(bs, blob{cx + (rng.Float64()*4-2)*k, cy - R*0.5, R * 0.45})
 	return crown{bs, cx, cy, R * 1.25, R * 1.1}
 }
 
@@ -109,12 +114,18 @@ func genBroadleafIn(shape treeShape, rp ramp, tex uint32, vines bool, s float64,
 }
 
 // broadleafCanvas draws genBroadleafIn's tree and gives its ground point.
+//
+// At HD the tree is drawn three times the size in image pixels (the canvas
+// is marked, see markHD), and the ground point is in image pixels too:
+// trimmed and mkUp make the sprite's anchor of it.
 func broadleafCanvas(shape treeShape, rp ramp, tex uint32, vines bool, s float64, seed uint64) (*canvas, float64, float64) {
 	rng := rand.New(rand.NewPCG(seed, 99))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
-	c := newCanvas(int(math.Ceil(56*s)), int(math.Ceil(64*s)))
-	bx, by := math.Round(float64(c.w)/2), float64(c.h-3) // ground point
-	girth := 2.5 * s * s                                 // trunk half-thickness: big trees are stout
+	k := hdK()
+	girth := 2.5 * s * s * k // trunk half-thickness: big trees are stout
+	s *= k
+	c := markHD(newCanvas(int(math.Ceil(56*s)), int(math.Ceil(64*s))))
+	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*k // ground point
 	lean := r(-2.5, 2.5) * s
 
 	var limbs []limb
@@ -124,7 +135,7 @@ func broadleafCanvas(shape treeShape, rp ramp, tex uint32, vines bool, s float64
 	}
 	branch := func(x0, y0, x1, y1, w float64) {
 		mx, my := (x0+x1)/2+r(-1.5, 1.5)*s, (y0+y1)/2+r(-0.5, 2)*s // sagging a little
-		limbs = append(limbs, limb{x0, y0, mx, my, x1, y1, w, max(0.5, w*0.45)})
+		limbs = append(limbs, limb{x0, y0, mx, my, x1, y1, w, max(0.5*k, w*0.45)})
 	}
 
 	switch shape {
@@ -173,13 +184,13 @@ func broadleafCanvas(shape treeShape, rp ramp, tex uint32, vines bool, s float64
 	// Roots, and a few side branches off the trunk: some carry a tuft of
 	// leaves, some are bare.
 	for _, side := range []float64{-1, 1} {
-		limbs = append(limbs, limb{bx, by - 3*s, bx + side*2*s, by - 0.5*s, bx + side*r(3, 4.5)*s, by, girth * 0.6, 0.6})
+		limbs = append(limbs, limb{bx, by - 3*s, bx + side*2*s, by - 0.5*s, bx + side*r(3, 4.5)*s, by, girth * 0.6, 0.6 * k})
 	}
 	for range rng.IntN(3) {
 		x0, y0 := trunk.at(r(0.45, 0.8))
 		side := float64(1 - 2*rng.IntN(2))
 		x1, y1 := x0+side*r(5, 9)*s, y0-r(2, 6)*s
-		branch(x0, y0, x1, y1, max(0.7, girth*0.4))
+		branch(x0, y0, x1, y1, max(0.7*k, girth*0.4))
 		if rng.Float64() < 0.6 {
 			crowns = append(crowns, roundCrown(x1, y1-s, r(3, 4.5)*s, rng))
 		}
@@ -187,6 +198,14 @@ func broadleafCanvas(shape treeShape, rp ramp, tex uint32, vines bool, s float64
 
 	for _, l := range limbs {
 		drawLimb(c, l)
+	}
+	if c.hd() { // a knot or two in the trunk
+		for range 1 + rng.IntN(2) {
+			t := r(0.25, 0.7)
+			x, y := trunk.at(t)
+			w := lerpf(trunk.w0, trunk.w1, t)
+			knotHD(c, x+r(-0.4, 0.4)*w, y, min(4, max(2, w*0.3)), trunkRamp)
+		}
 	}
 	// Leaves, back (higher up) to front.
 	slices.SortStableFunc(crowns, func(a, b crown) int { return cmp.Compare(a.cy, b.cy) })
@@ -202,6 +221,21 @@ func broadleafCanvas(shape treeShape, rp ramp, tex uint32, vines bool, s float64
 	}
 	c.outline(0.75)
 	return c, bx, by
+}
+
+// leafStrandHD hangs a strand of small leaves n pixels down from (x, y0).
+func leafStrandHD(c *canvas, x, y0, n int, rp ramp, lit float64, seed uint32) {
+	for i := 0; i < n; i += 3 {
+		y := y0 + i
+		side := 1 - 2*((i/3)%2) // leaves on alternate sides
+		l := lit - float64(i)/float64(n)*0.3 + (hashf(x, y, seed)-0.5)*0.3
+		c.put(x, y, rp.pick(l-0.25, x, y))
+		c.put(x, y+1, rp.pick(l-0.25, x, y+1))
+		c.put(x, y+2, rp.pick(l-0.3, x, y+2))
+		c.put(x+side, y+1, rp.pick(l+0.1, x+side, y+1))
+		c.put(x+side, y+2, rp.pick(l, x+side, y+2))
+		c.put(x+2*side, y+2, rp.pick(l-0.1, x+2*side, y+2))
+	}
 }
 
 // crownUnderside is, per column, the lowest leaf pixel of the crown, or -1.
@@ -221,6 +255,15 @@ func crownUnderside(c *canvas) []int {
 
 // hangCurtains drapes strands of leaves from the crown's underside.
 func hangCurtains(c *canvas, rng *rand.Rand, rp ramp, s float64) {
+	if c.hd() {
+		bottom := crownUnderside(c)
+		for x := 1; x < c.w; x += 2 + rng.IntN(2) {
+			if y0 := bottom[x]; y0 >= 0 && rng.Float64() >= 0.2 {
+				leafStrandHD(c, x, y0-2, int((5+rng.Float64()*10)*s), rp, 0.55, 77)
+			}
+		}
+		return
+	}
 	for x, y0 := range crownUnderside(c) {
 		if y0 < 0 || rng.Float64() < 0.3 {
 			continue
@@ -236,6 +279,29 @@ func hangCurtains(c *canvas, rng *rand.Rand, rp ramp, s float64) {
 
 // shadeUnderCrown darkens the wood just below where leaves hang over it.
 func shadeUnderCrown(c *canvas) {
+	if c.hd() {
+		// Three pixels of deep shade, then a few of half shade.
+		for x := range c.w {
+			depth := 99
+			for y := range c.h {
+				p := c.at(x, y)
+				switch {
+				case p.A == 0:
+					depth = 99
+				case !isTrunk(p):
+					depth = 0
+				default:
+					depth++
+					if depth <= 3 {
+						c.put(x, y, trunkRamp[0])
+					} else if depth <= 7 && (p != trunkRamp[0]) && (depth <= 5 || dither(x, y) < 0.5) {
+						c.put(x, y, trunkRamp[1])
+					}
+				}
+			}
+		}
+		return
+	}
 	for y := 1; y < c.h; y++ {
 		for x := range c.w {
 			above := c.at(x, y-1)
@@ -265,6 +331,10 @@ func growVines(c *canvas, rng *rand.Rand, trunk limb, s float64) {
 		}
 		x := cols[rng.IntN(len(cols))]
 		y0, n, ph := bottom[x]-1, int((5+rng.Float64()*11)*s), rng.Float64()*6
+		if c.hd() {
+			vineHD(c, rng, x, y0-3, n, ph)
+			continue
+		}
 		for j := range n {
 			px, py := x+int(math.Round(math.Sin(float64(j)*0.5+ph)*0.7)), y0+j
 			c.set(px, py, vineRamp.at(1+(j/2)%2))
@@ -281,6 +351,26 @@ func growVines(c *canvas, rng *rand.Rand, trunk limb, s float64) {
 		return
 	}
 	ph := rng.Float64() * 6
+	if c.hd() {
+		for t := 0.04; t < 0.9; t += 0.004 {
+			x, y := trunk.at(t)
+			w := lerpf(trunk.w0, trunk.w1, t)
+			a := y*0.2 + ph
+			if math.Cos(a) < -0.1 {
+				continue // behind the trunk
+			}
+			px, py := int(math.Floor(x+math.Sin(a)*w)), int(math.Floor(y))
+			l := 0.4 + 0.4*math.Cos(a)
+			c.put(px, py, vineRamp.pick(l, px, py))
+			c.put(px+1, py, vineRamp.pick(l-0.25, px+1, py))
+			if hashf(px/2, py/3, 91) < 0.3 && py%3 == 0 { // a leaf
+				for _, d := range [][3]int{{2, -1, 3}, {3, -1, 3}, {2, 0, 2}, {3, 0, 3}, {4, 0, 2}, {3, 1, 1}} {
+					c.put(px+d[0], py+d[1], vineRamp.at(d[2]))
+				}
+			}
+		}
+		return
+	}
 	for t := 0.04; t < 0.9; t += 0.015 {
 		x, y := trunk.at(t)
 		w := lerpf(trunk.w0, trunk.w1, t)
@@ -296,12 +386,38 @@ func growVines(c *canvas, rng *rand.Rand, trunk limb, s float64) {
 	}
 }
 
+// vineHD hangs one vine n pixels down from (x, y0): a thin winding stem with
+// a leaf every few pixels, on alternate sides, and now and then a flower.
+func vineHD(c *canvas, rng *rand.Rand, x, y0, n int, ph float64) {
+	for j := range n {
+		px, py := x+int(math.Round(math.Sin(float64(j)*0.17+ph)*2)), y0+j
+		c.put(px, py, vineRamp.at(1))
+		c.put(px+1, py, vineRamp.at(0))
+		if j%5 == 2 { // a leaf: a small pointed shape
+			side := 1 - 2*((j/5)%2)
+			for _, d := range [][3]int{{1, 0, 3}, {2, 0, 3}, {3, 0, 2}, {1, 1, 2}, {2, 1, 2}, {2, -1, 3}} {
+				c.put(px+side*d[0]+(1-side)/2, py+d[1], vineRamp.at(d[2]))
+			}
+		}
+		if rng.Float64() < 0.03 && j > 3 { // a flower: four petals round an eye
+			col := vineFlowers[rng.IntN(len(vineFlowers))]
+			for _, d := range [][2]int{{0, -1}, {-1, 0}, {1, 0}, {0, 1}} {
+				c.put(px+d[0], py+d[1], col)
+			}
+			c.put(px, py, hex(0xe8b030))
+		}
+	}
+}
+
 // genPine draws a conifer at scale s: variant sets the number of tiers, and
 // seed the ragged edges.
 func genPine(variant int, s float64, seed uint64) sprite { return genPineOf(variant, s, seed, false) }
 
 // genPineOf draws a conifer; a snowy one has snow lying on its boughs.
 func genPineOf(variant int, s float64, seed uint64, snowy bool) sprite {
+	if envHD {
+		return genPineHD(variant, s, seed, snowy)
+	}
 	rng := rand.New(rand.NewPCG(seed, 121))
 	c := newCanvas(int(math.Ceil(34*s)), int(math.Ceil(62*s)))
 	bx, by := c.w/2, c.h-3               // ground point
@@ -380,13 +496,20 @@ func trimmed(c *canvas, ax, ay float64) sprite {
 		}
 	}
 	if x1 < 0 {
-		return mk(c, ax, ay)
+		return mkUp(c, ax, ay)
 	}
 	t := newCanvas(x1-x0+1, y1-y0+1)
+	t.dens = c.dens
+	if c.ol != nil {
+		t.ol = make([]bool, len(t.px))
+	}
 	for y := range t.h {
 		copy(t.px[y*t.w:(y+1)*t.w], c.px[(y+y0)*c.w+x0:(y+y0)*c.w+x1+1])
+		if c.ol != nil {
+			copy(t.ol[y*t.w:(y+1)*t.w], c.ol[(y+y0)*c.w+x0:(y+y0)*c.w+x1+1])
+		}
 	}
-	return mk(t, ax-float64(x0), ay-float64(y0))
+	return mkUp(t, ax-float64(x0), ay-float64(y0))
 }
 
 // Prehistoric trees: tree ferns, cycads, araucarias, ginkgos and giant
@@ -406,6 +529,10 @@ var (
 
 // drawLimbIn is drawLimb in the wood colours of rp.
 func drawLimbIn(c *canvas, l limb, rp ramp, streak uint32) {
+	if c.hd() {
+		drawLimbHD(c, l, rp, 0.85, streak)
+		return
+	}
 	n := int(math.Hypot(l.x1-l.x0, l.y1-l.y0)*2) + 2
 	for i := 0; i <= n; i++ {
 		t := float64(i) / float64(n)
@@ -432,6 +559,10 @@ func drawLimbIn(c *canvas, l limb, rp ramp, streak uint32) {
 // drooping at the tip, with leaflets either side that shrink to the tip.
 // stiff fronds (cycads) barely droop and have short, dense leaflets.
 func frond(c *canvas, x0, y0, a, L float64, rp ramp, stiff bool, seed uint32) {
+	if c.hd() {
+		frondHD(c, x0, y0, a, L, rp, stiff, seed)
+		return
+	}
 	droop, leaf, every := 0.95, 0.2, 2
 	sag := 0.18 // how much leaflets droop
 	if stiff {
@@ -476,16 +607,21 @@ func frond(c *canvas, x0, y0, a, L float64, rp ramp, stiff bool, seed uint32) {
 func genTreeFern(s float64, seed uint64) sprite {
 	rng := rand.New(rand.NewPCG(seed, 31))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
-	c := newCanvas(int(math.Ceil(58*s)), int(math.Ceil(66*s)))
-	bx, by := math.Round(float64(c.w)/2), float64(c.h-3)
+	k := hdK()
+	s *= k
+	c := markHD(newCanvas(int(math.Ceil(58*s)), int(math.Ceil(66*s))))
+	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*k
 	lean := r(-3, 3) * s
 	tx, ty := bx+lean, by-r(34, 40)*s
 	trunk := limb{bx, by, bx + lean*0.2, (by + ty) / 2, tx, ty, 2.2 * s, 1.5 * s}
 	drawLimbIn(c, trunk, treeFernTrunk, 81)
-	for t := 0.1; t < 0.95; t += 0.09 { // the scars of old fronds ring the trunk
+	for t := 0.1; t < 0.95; t += 0.09 / k * 1.5 { // the scars of old fronds ring the trunk
 		x, y := trunk.at(t)
 		w := lerpf(trunk.w0, trunk.w1, t)
-		c.line(x-w, y, x+w, y+1, func(px, py int, _ float64) color.RGBA { return treeFernTrunk[0] })
+		c.line(x-w, y, x+w, y+k, func(px, py int, _ float64) color.RGBA { return treeFernTrunk[0] })
+		if c.hd() { // a pale lip under each scar
+			c.line(x-w*0.8, y+1, x+w*0.3, y+k, func(px, py int, _ float64) color.RGBA { return treeFernTrunk[3] })
+		}
 	}
 	n := 7 + rng.IntN(3)
 	type fr struct{ a, L float64 }
@@ -510,23 +646,43 @@ func genTreeFern(s float64, seed uint64) sprite {
 func genCycad(s float64, seed uint64) sprite {
 	rng := rand.New(rand.NewPCG(seed, 37))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
-	c := newCanvas(int(math.Ceil(58*s)), int(math.Ceil(50*s)))
-	bx, by := math.Round(float64(c.w)/2), float64(c.h-3)
+	k := hdK()
+	s *= k
+	c := markHD(newCanvas(int(math.Ceil(58*s)), int(math.Ceil(50*s))))
+	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*k
 	h, half := r(14, 19)*s, 3.8*s
 	for y := int(by - h); y <= int(by); y++ {
 		for x := int(bx - half); x < int(math.Ceil(bx+half)); x++ {
-			l := 0.8 - (float64(x)+0.5-(bx-half))/(2*half)*0.6
-			if (x+y*2)%5 == 0 || (x-y*2)%5 == 0 { // diamond scales
-				l -= 0.25
+			u := (float64(x) + 0.5 - (bx - half)) / (2 * half)
+			l := 0.8 - u*0.6
+			if !c.hd() {
+				if (x+y*2)%5 == 0 || (x-y*2)%5 == 0 { // diamond scales
+					l -= 0.25
+				}
+				c.set(x, y, cycadTrunk.pick(l, x, y))
+				continue
 			}
-			c.set(x, y, cycadTrunk.pick(l, x, y))
+			// Diamond scales, each a little shingle: dark seams, a lit upper
+			// edge, and the trunk bulging a little at every row.
+			if bulge := 1 + 0.07*math.Sin(float64(y)*0.9); math.Abs(u-0.5)*2 > bulge*0.94 {
+				continue
+			}
+			a, b := ((x+y*2)%12+12)%12, ((x-y*2)%12+12)%12
+			switch {
+			case a == 0 || b == 0:
+				l -= 0.3
+			case a == 1 || b == 11:
+				l += 0.14
+			}
+			l += (hashf(x, y, 97) - 0.5) * 0.1
+			c.put(x, y, cycadTrunk.pick(l, x, y))
 		}
 	}
 	tx, ty := bx, by-h
 	n := 9 + rng.IntN(3)
 	for i := range n {
 		a := -math.Pi + 0.5 + (math.Pi-1.0)*float64(i)/float64(n-1) + r(-0.1, 0.1)
-		frond(c, tx, ty+1, a, r(15, 19)*s, cycadRamp, true, 140+uint32(i))
+		frond(c, tx, ty+k, a, r(15, 19)*s, cycadRamp, true, 140+uint32(i))
 	}
 	c.outline(0.6)
 	return trimmed(c, bx, by)
@@ -538,10 +694,13 @@ func genCycad(s float64, seed uint64) sprite {
 func genAraucaria(s float64, seed uint64) sprite {
 	rng := rand.New(rand.NewPCG(seed, 41))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
-	c := newCanvas(int(math.Ceil(60*s)), int(math.Ceil(76*s)))
-	bx, by := math.Round(float64(c.w)/2), float64(c.h-3)
+	k := hdK()
+	girth := 2.0 * s * s * k
+	s *= k
+	c := markHD(newCanvas(int(math.Ceil(60*s)), int(math.Ceil(76*s))))
+	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*k
 	tx, ty := bx+r(-1.5, 1.5)*s, by-r(50, 56)*s
-	trunk := limb{bx, by, bx, (by + ty) / 2, tx, ty, 2.0 * s * s, 1.0 * s}
+	trunk := limb{bx, by, bx, (by + ty) / 2, tx, ty, girth, 1.0 * s}
 	drawLimb(c, trunk)
 	var crowns []crown
 	tiers := 4
@@ -550,7 +709,7 @@ func genAraucaria(s float64, seed uint64) sprite {
 		span := (10 + float64(k)*4.5) * s
 		for _, side := range []float64{-1, 1} {
 			ex, ey := tx+side*span, y-r(1, 3)*s
-			l := limb{tx, y + 1, tx + side*span*0.5, y + 1.5*s, ex, ey, 1.1 * s, 0.6}
+			l := limb{tx, y + hdK(), tx + side*span*0.5, y + 1.5*s, ex, ey, 1.1 * s, 0.6 * hdK()}
 			drawLimb(c, l)
 			// Ropy foliage: a row of small clumps along the outer branch.
 			for t := 0.35; t <= 1.0; t += 0.16 {
@@ -574,10 +733,13 @@ func genAraucaria(s float64, seed uint64) sprite {
 func genRedwood(s float64, seed uint64) sprite {
 	rng := rand.New(rand.NewPCG(seed, 43))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
-	c := newCanvas(int(math.Ceil(48*s)), int(math.Ceil(100*s)))
-	bx, by := math.Round(float64(c.w)/2), float64(c.h-3)
+	k := hdK()
+	base := 4.2 * s * s * k
+	s *= k
+	c := markHD(newCanvas(int(math.Ceil(48*s)), int(math.Ceil(100*s))))
+	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*k
 	top := by - r(88, 94)*s
-	base, tip := 4.2*s*s, 0.8*s
+	tip := 0.8 * s
 	for y := int(top); y <= int(by); y++ {
 		f := (by - float64(y)) / (by - top) // 0 at the ground, 1 at the top
 		half := lerpf(base, tip, math.Pow(f, 0.7))
@@ -587,6 +749,10 @@ func genRedwood(s float64, seed uint64) sprite {
 		for x := int(bx - half); x < int(math.Ceil(bx+half)); x++ {
 			u := (float64(x) + 0.5 - (bx - half)) / (2 * half)
 			l := 0.85 - u*0.65
+			if c.hd() { // fibrous bark in long ropy furrows
+				c.put(x, y, barkAt(redwoodRamp, u*2-1, half, float64(y)*1.3, x, y, 0.85, 43))
+				continue
+			}
 			if (x+int(f*7))%3 == 0 { // deep vertical furrows
 				l -= 0.28
 			}

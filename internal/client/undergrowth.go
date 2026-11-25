@@ -98,8 +98,8 @@ func plantSprite(k plantKind, v int) sprite {
 		for kind := range numPlantKinds {
 			for i := 0; i < plantVariants; i++ {
 				c, ax, ay := genPlant(kind, i)
-				plantArt[kind][i] = mk(c, ax, ay)
-				plantArt[kind][i+plantVariants] = mk(c.mirrored(), float64(c.w)-ax, ay)
+				plantArt[kind][i] = mkUp(c, ax, ay)
+				plantArt[kind][i+plantVariants] = mkUp(c.mirrored(), float64(c.w)-ax, ay)
 			}
 		}
 	}
@@ -121,6 +121,20 @@ var (
 // the point where it meets the ground.
 func genPlant(k plantKind, v int) (*canvas, float64, float64) {
 	rng := rand.New(rand.NewPCG(uint64(k)*31+7, uint64(v)*17+3))
+	if envHD { // see hdplants.go
+		switch k {
+		case plantFern:
+			return genFernHD(rng)
+		case plantBroadleaf:
+			return genBigLeavesHD(rng)
+		case plantClump:
+			return genClumpHD(rng, uint32(v))
+		case plantBlades:
+			return genBladesHD(rng)
+		default:
+			return genFlowersHD(rng, petalRamps[v%len(petalRamps)])
+		}
+	}
 	switch k {
 	case plantFern:
 		return genFern(rng)
@@ -288,7 +302,7 @@ func genFlowers(rng *rand.Rand, petals ramp) (*canvas, float64, float64) {
 
 // drawUndergrowth draws the canopy's shade and the plants on the ground in
 // view, before anything that stands on it.
-func (g *Game) drawUndergrowth(dst *ebiten.Image, cam camera) {
+func (g *Game) drawUndergrowth(dst drawTarget, cam camera) {
 	if g.tiles == nil {
 		return
 	}
@@ -336,7 +350,7 @@ const (
 
 // drawCanopy darkens the forest floor, fading at the edges of the woods, and
 // by day lets a few spots of sunlight through, drifting as the leaves move.
-func (g *Game) drawCanopy(dst *ebiten.Image, cam camera) {
+func (g *Game) drawCanopy(dst drawTarget, cam camera) {
 	w, h := dst.Bounds().Dx(), dst.Bounds().Dy()
 	tx0, ty0, ok := g.tileMask(&g.canopy, cam, w, h, func(t sim.Tile) bool { return t == sim.TileForest })
 	if !ok {
