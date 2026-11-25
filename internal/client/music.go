@@ -334,6 +334,10 @@ func genMusic(name string) []float32 {
 		s, wet = composeNight(r), 0.38
 	case "cave":
 		s, wet = composeCave(r), 0.55
+	case "boss_jungle":
+		s, wet = composeJungleBoss(r), 0.28 // see bossmusic.go
+	case "boss_sea":
+		s, wet = composeSeaBoss(r), 0.45
 	default:
 		s = composeMenu(r)
 	}

@@ -19,7 +19,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 - [ ] **Giao diện** (mục 3): HUD gọn, bỏ ô hướng dẫn (F1), túi 30 ô, rương có ô đồ, chuột phải cắm đuốc.
 - [x] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
 - [ ] **Thời gian** (mục 4): ✅ ngày 16 phút, mùa 12 ngày, ngày và đêm theo mùa; còn **cửa hang** (chờ làm rõ "lối vào nằm ở phía dưới").
-- [x] **Chỉ 2 trùm** trong demo: các trùm khác tắt (không sinh ra, không hiện trên bản đồ); màn hình "Phá đảo!" tính theo 2 trùm. Hai trùm có thanh máu và nhạc chiến đấu (mục 8). Trùm được chọn: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu).
+- [x] **Chỉ 2 trùm** trong demo: các trùm khác tắt (không sinh ra, không hiện trên bản đồ); màn hình "Phá đảo!" tính theo 2 trùm. Hai trùm có thanh máu và nhạc chiến đấu (mục 8; nhạc ✅ `bossmusic.go`). Trùm được chọn: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu).
 - [ ] **Hướng dẫn chơi** vài phút đầu.
 - [ ] **Menu cài đặt**: âm lượng nhạc / tiếng, và phần **Hiển thị**:
   - Chế độ màn hình: Toàn màn hình / Toàn màn hình không viền / Cửa sổ (hiện chỉ có F11).
