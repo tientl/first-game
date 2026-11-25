@@ -74,11 +74,12 @@ type Game struct {
 	curr          protocol.Snapshot
 	currAt        time.Time
 	prevPlayers   map[sim.PlayerID]protocol.PlayerView
-	swingAt       map[sim.PlayerID]int       // frame each player's latest blow began; see slash.go
-	swingWhat     map[sim.PlayerID]swingInfo // what that blow was at, and with what; see swing.go
-	hurtAt        map[sim.PlayerID]int       // frame each player was last struck; see jolt.go
-	joltBuf       *fineBuf                   // scratch for drawing a struck player
-	heldAge       int                        // see HoldBlows in punch.go
+	swingAt       map[sim.PlayerID]int        // frame each player's latest blow began; see slash.go
+	swingWhat     map[sim.PlayerID]swingInfo  // what that blow was at, and with what; see swing.go
+	hurtAt        map[sim.PlayerID]int        // frame each player was last struck; see jolt.go
+	joltBuf       *fineBuf                    // scratch for drawing a struck player
+	gaits         map[sim.PlayerID]*gaitState // each player's stride; see limbdraw.go
+	heldAge       int                         // see HoldBlows in punch.go
 	prevCreatures map[sim.CreatureID]protocol.CreatureView
 	hearts        []heartFX      // floating up from beasts being fed; see ride.go
 	riders        []int          // scratch: players drawn on their mounts this frame

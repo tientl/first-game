@@ -162,7 +162,11 @@ func (g *Game) drawSwing(dst drawTarget, p protocol.PlayerView, d drawable, bob,
 	}
 	tier := func(t sim.Tier) sim.Tier { return min(t, sim.NumTiers-1) }
 	tool := func(s sprite) { // gripped at the hand, swung about the grip
-		drawAt(dst, s, d.sx+6*side, d.sy-7-bob, side, 1, chopAngle(age)*side, nil)
+		gx, gy := d.sx+6*side, d.sy-7-bob
+		if limbGrip.on { // the jointed figure's hand; see limbdraw.go
+			gx, gy = limbGrip.x, limbGrip.y
+		}
+		drawAt(dst, s, gx, gy, side, 1, chopAngle(age)*side, nil)
 	}
 	switch w.kind {
 	case swingAxe:

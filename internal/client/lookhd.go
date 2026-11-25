@@ -73,6 +73,26 @@ type figGen struct {
 	look       sim.Look
 	sk, hr, br ramp // skin, hair and beard, six tones each
 	seed       uint32
+
+	// The jointed figure (limbs.go): the layers of the arms, what to draw
+	// between the belt and the mantle, and how far what hangs trails.
+	FA, A, AO, TO *figLayer
+	hook          func()
+	lagX, lagY    float64
+}
+
+// lagged is s with its lower end trailing by the figure's lag: hair that
+// hangs, the tip of a braid.
+func (g *figGen) lagged(s shape) shape {
+	if g.lagX == 0 && g.lagY == 0 {
+		return s
+	}
+	lx, ly := g.lagX, g.lagY
+	t := func(y float64) float64 { v := clamp01((y - 40) / 22); return v * v }
+	return shape{s.x0 - math.Abs(lx), s.y0 - math.Abs(ly), s.x1 + math.Abs(lx), s.y1 + math.Abs(ly), func(x, y float64) float64 {
+		k := t(y)
+		return s.d(x-lx*k, y-ly*k)
+	}}
 }
 
 func skin6(sk ramp) ramp {
@@ -322,6 +342,11 @@ func (g *figGen) body(d sim.Dir, frame int, hide armSide) {
 
 		if !female {
 			g.belt(15, 39, !up)
+		}
+		if g.hook != nil {
+			g.hook()
+		}
+		if !female {
 			if up {
 				m := sBox(8, 46.5, 46, 56.5, 3.5).jag(1.8, 4.2, 53, 21)
 				f.fill(g.T, m, furShade(furHD, m, 6, 0, 31))
@@ -427,6 +452,9 @@ func (g *figGen) body(d sim.Dir, frame int, hide armSide) {
 			sl, hd := hdNearArm(sw)
 			g.sideSleeve(sl)
 			hand(g.T, hd, 0.1)
+		}
+		if g.hook != nil {
+			g.hook()
 		}
 		if !female {
 			m := sBox(14, 46.5, 39, 52, 3).or(sEll(26, 52, 8.5, 5.4)).jag(1.6, 3.8, 53, 21)

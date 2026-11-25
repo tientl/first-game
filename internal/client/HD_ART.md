@@ -73,6 +73,17 @@ it and pick one with a flag, or make both from the same code with
 - The player is HD (`lookhd.go`, `lookhd_head.go`, `armorhd.go`, drawn with
   the shapes and shaders of `hdfig.go`); `playerHD = false` brings back the
   density-1 figure of `look.go`.
+- The player has joints (`limbs.go`, `limbdraw.go`): arms and legs are
+  segments about a shoulder, an elbow, a hip, a knee and an ankle, posed in
+  the figure's own space and projected for each facing. A frame is two
+  halves put together when drawn: the legs (`loKey`: a walk or a run of 16
+  frames, matched to the ground covered so a foot that is down stays put)
+  and everything above them (`upKey`: the arms through a stride, or the six
+  frames of a blow, the tool gripped at the hand). Each half is drawn the
+  first time it is shown. `playerJointed = false` brings back the stiff
+  eight-frame figure. `LIMB_ANIM=dir go test ./internal/client -run
+  DumpLimbAnim -v` writes sheets and GIFs of the strides and blows and what
+  they cost.
 - The dinosaurs drawn from PNGs are HD: `dinos/hd/*.png` are the drawings
   of `dinos/` redrawn 3x as fine by `dinos/hd/gen.py` (rerun it after
   changing a drawing or its settings there). The rig (`dinorig.go`) is still

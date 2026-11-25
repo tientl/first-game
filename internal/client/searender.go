@@ -112,7 +112,11 @@ func (g *Game) drawSwimmer(dst drawTarget, p protocol.PlayerView, d drawable) {
 		g.swimBuf = newFineBuf(48, 48) // at HD density: see hd.go
 	}
 	g.swimBuf.img.Clear()
-	drawBody(g.swimBuf, b, dir, 0, 24, 40, 1, 0, tint)
+	if playerHD && playerJointed { // paddling; see limbdraw.go
+		drawFig(g.swimBuf, figDraw{b: b, up: upKey{dir, upSwim, uint8(g.frame / 12 % 4)}, tint: tint}, 24, 40)
+	} else {
+		drawBody(g.swimBuf, b, dir, 0, 24, 40, 1, 0, tint)
+	}
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(d.sx-24, y-40)
 	const k = HDDensity
