@@ -18,7 +18,15 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 - [ ] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
 - [ ] **Thời gian** (mục 4): ngày 15–20 phút; **cửa hang**.
 - [ ] **Chỉ 2 trùm** trong demo: các trùm khác tắt (không sinh ra, không hiện trên bản đồ); màn hình "Phá đảo!" tính theo 2 trùm. Hai trùm có thanh máu và nhạc chiến đấu (mục 8). Trùm được chọn: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu).
-- [ ] **Hướng dẫn chơi** vài phút đầu và **menu cài đặt** (âm lượng, toàn màn hình).
+- [ ] **Hướng dẫn chơi** vài phút đầu.
+- [ ] **Menu cài đặt**: âm lượng nhạc / tiếng, và phần **Hiển thị**:
+  - Chế độ màn hình: Toàn màn hình / Toàn màn hình không viền / Cửa sổ (hiện chỉ có F11).
+  - Độ phân giải: danh sách theo màn hình (1280×720, 1600×900, 1920×1080, 2560×1440…). Sắc nét nhất ở 1080p và các mức gấp nguyên lần (4K).
+  - Chất lượng vẽ: Cao (100%) / Trung bình (75%) / Thấp (50%) cho máy yếu.
+  - Cỡ giao diện: Tự động / 100% / 150% / 200%.
+  - Giới hạn khung hình: 30 / 60 / 120 / không giới hạn, kèm VSync.
+  - Thu phóng camera (đã có phím = / −) đưa vào menu.
+  - Mặc định tự động: độ phân giải màn hình, toàn màn hình, chất lượng Cao, cỡ giao diện Tự động. Cài đặt được lưu lại.
 - [ ] **Chơi thử, sửa lỗi**, build `.exe` cho Windows và bản Linux.
 
 ## 1. Công cụ dev (làm đầu tiên)
