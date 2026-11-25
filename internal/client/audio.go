@@ -240,7 +240,7 @@ func InitAudio(settingsPath string) {
 		s.mix.add(v)
 	}
 	log.Printf("audio: sound effects ready in %v", time.Since(t0).Round(time.Millisecond))
-	for _, name := range []string{"menu", "day", "night", "cave"} {
+	for _, name := range []string{"menu", "day", "night", "cave", "boss_jungle", "boss_sea"} {
 		go func() { s.musicReady <- musicTrack{name, genMusic(name)} }()
 	}
 

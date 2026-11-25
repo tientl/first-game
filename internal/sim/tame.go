@@ -172,6 +172,9 @@ func (w *World) wound(c *Creature, dmg int, by *Player) (killed bool) {
 		c.after, c.afterT = c.State, c.timer
 	}
 	w.provoke(c, by) // see dino.go: it may change what comes after
+	if c.windingUp() {
+		return false // drawn back for a blow, it does not flinch: see telegraph.go
+	}
 	if !d.tough && c.flinchCD > 0 {
 		return false // it shrugs off a blow so soon after the last: see combat.go
 	}

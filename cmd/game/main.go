@@ -26,7 +26,9 @@ func main() {
 	size := flag.Int("size", 0, "world width and height in tiles for a new game (0: the largest)")
 	savePath := flag.String("save", "", "save file (default: in the user config directory)")
 	dev := flag.Bool("dev", false, "dev mode: straight into a small new world, god mode, the console on the ` key; see dev.go")
+	demo := flag.Bool("demo", sim.Demo(), "the demo: only two bosses, Titanoboa and Megalodon (also built in by -tags demo)")
 	flag.Parse()
+	sim.SetDemo(*demo)
 
 	if *savePath == "" {
 		p, err := server.DefaultSavePath()

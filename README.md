@@ -71,6 +71,7 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 - `internal/client/sfx.go`: hiệu ứng (chặt, đập đá, nhặt đồ, ăn, lửa, bước chân theo loại đất…) và âm thanh môi trường lặp (sóng biển, lửa, gió, dế).
 - `internal/client/swimsound.go`: tiếng bơi. Nhảy xuống nước thì ùm một tiếng; bơi thì mỗi sải tay một tiếng rẽ nước, giữa hai sải có tiếng đạp chân; đứng nổi một chỗ thì nước óc ách quanh vai; leo lên bờ thì nước chảy ròng và nhỏ giọt. Dưới nước và trên thuyền không có tiếng bước chân.
 - `internal/client/music.go`: ba bản nhạc nền (menu, ban ngày, ban đêm) được soạn và "chơi" bằng code rồi lặp liền mạch; nhạc tự chuyển theo giờ trong game.
+- `internal/client/bossmusic.go`: **nhạc chiến đấu** khi đánh trùm (lúc thanh máu trùm hiện), cũng soạn bằng code. Titanoboa và các trùm trên cạn: trống trận rừng rậm, dây trầm dồn dập, kèn đồng gọi đáp (Rê Phrygian, 132 nhịp/phút). Megalodon và Spinosaurus: nhịp trầm dưới biển sâu, dây vê, hợp xướng, kèn đồng nhấn, trống định âm cuối mỗi câu (Đô thứ, 96 nhịp/phút). Hết trận thì nhạc nhạt dần về nhạc ngày hoặc đêm; hạ trùm thì vang một đoạn kèn chiến thắng.
 - `internal/client/audio.go`: bộ trộn phần mềm (âm lượng, pan trái/phải, độ cao) đưa ra một luồng Ebitengine.
 - `internal/client/sound_events.go`: server chỉ gửi trạng thái, nên client so hai snapshot liên tiếp để biết khi nào phát tiếng.
 - `internal/client/roar.go`: tiếng gầm và tiếng kêu của thú. Mỗi loài một giọng: bạo chúa gầm (3 kiểu, có tiếng vọng; ở xa nghe trầm và đục, vọng tới khoảng 32 ô), cổ dài hú trầm dài, ba sừng, Torosaurus, gai lưng rống, voi ma mút rống vòi, raptor sủa từng tràng ngắn, Anzu "bùm" ba tiếng từ ngực, Quetzalcoatlus kêu khàn. Thú đứng hoặc đi thong thả thỉnh thoảng tự cất tiếng (mỗi lần chỉ một con, cách nhau ít nhất 2,5 giây); bạo chúa ngửa cổ há hàm khi gầm, ba sừng hất đầu, voi giơ vòi, Anzu xù mào. Bạo chúa còn gầm khi thấy người, khi lao đi săn, khi hạ được mồi và khi bị đánh; bầy raptor kêu khi hạ mồi.
@@ -86,7 +87,7 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 
 | Phím / chuột | Tác dụng |
 | --- | --- |
-| WASD / mũi tên | Di chuyển. Nhân vật luôn quay mặt theo con trỏ chuột (đi lùi thì bước chân chạy ngược); để yên chuột vài giây thì quay theo hướng đi như cũ. Lúc cưỡi thú hay đi thuyền thì vẫn lái như trước |
+| WASD / mũi tên | Di chuyển. Nhân vật quay mặt theo hướng đi, và quay về thứ đang chặt, đào, đánh. Chỉ khi **ngắm** (giữ chuột với món dùng để ngắm trên tay, như cung hay đồ ném sau này) thì nhân vật mới quay theo con trỏ (`sim.AimedItem`). Lúc cưỡi thú hay đi thuyền thì vẫn lái như trước |
 | Chuột trái (nhấp hoặc giữ) | Làm việc với thứ **dưới con trỏ**: chặt cây (cần rìu), đập đá, hái quả, cắt cỏ, nhặt cành, đánh hay bắt thú, thêm củi vào lửa, mổ xác, quăng câu và giật cần. Thứ sẽ bị tác động có khung trắng bao quanh; xa quá tầm với thì khung đỏ và chữ "Xa quá". Dưới con trỏ không có gì trong tầm thì làm thứ gần nhất (ưu tiên phía con trỏ). Nhấp vào ô trên hàng ô nhanh để chọn ô đó |
 | Giữ Space | Như chuột trái, vào thứ gần nhất (chơi bằng bàn phím vẫn được) |
 | Chuột phải | Dùng món đang cầm: đồ ăn, thuốc thì ăn; thịt sống, cá sống… khi đứng cạnh lửa trại đang cháy thì nướng; đuốc, đầu thú, hạt giống thì cắm, dựng, gieo vào ô dưới con trỏ (ô đó không được thì đặt trước mặt, về phía con trỏ); phân thì bón cho cây dưới con trỏ; thuyền thì thả xuống nước về phía con trỏ; cầm thức ăn của thú và trỏ vào nó thì cho nó ăn (thuần hóa). Món khác: không làm gì, có dòng nhắc |
@@ -111,8 +112,7 @@ Nhắm bằng chuột cũng do máy chủ quyết: máy khách gửi chỗ con t
 
 Mới vào bạn chỉ có hai bàn tay: nhặt cành cây rơi dưới đất, đập một tảng đá (quanh chỗ xuất phát luôn có sẵn vài cành và một tảng đá), rồi mở bảng chế tạo (C) làm Rìu. Có rìu mới chặt được cây lấy gỗ.
 
-Một ngày trong game dài 8 phút: khoảng 4 phút rưỡi ban ngày, hơn 1 phút chạng vạng và gần 2 phút rưỡi
-ban đêm. Chỉ đêm **mùa đông** mới lạnh: đứng ngoài vùng sáng của lửa (lửa trại, lò nung, đuốc, dung nham) thì mất máu; đêm các mùa khác chỉ tối, không mất máu. Đứng trên tuyết không có áo lông, hoặc ra ngoài lúc mùa đông có tuyết hay gió mà không mặc ấm thì vẫn lạnh như trước. Từ cuối chạng vạng, đom đóm
+Một ngày trong game dài 16 phút: vào xuân phân và thu phân khoảng 9 phút ban ngày, 2 phút rưỡi chạng vạng và 5 phút ban đêm. Ngày dài dần tới giữa mùa hạ (đêm còn khoảng 4 phút) và ngắn dần tới giữa mùa đông (đêm gần 6 phút); thanh giờ góc trên phải đổi theo (`sim.DuskAt`, `sim.NightAt`). Ngủ qua đêm vẫn tốn chừng ấy no bụng như trước, nhưng màn đêm khi ngủ trôi lâu gấp đôi (khoảng 1 phút). Bản lưu cũ giữ đúng ngày và giờ trong ngày. Chỉ đêm **mùa đông** mới lạnh: đứng ngoài vùng sáng của lửa (lửa trại, lò nung, đuốc, dung nham) thì mất máu; đêm các mùa khác chỉ tối, không mất máu. Đứng trên tuyết không có áo lông, hoặc ra ngoài lúc mùa đông có tuyết hay gió mà không mặc ấm thì vẫn lạnh như trước. Từ cuối chạng vạng, đom đóm
 bay lập lòe trên đồng cỏ, trong rừng và đầm lầy.
 
 **Thú săn đêm: Troodon** (`internal/sim/nightstalker.go`). Khi trời tối hẳn, từng bầy 3 con Troodon (khủng long nhỏ, mắt rất to, săn đêm) mò ra từ bóng tối, cách người chơi 16–24 ô, mỗi người tối đa 2 bầy quanh mình. Chúng lặng lẽ áp sát từ nhiều phía, lao vào cắn (7 máu) rồi lùi ra, chạy chậm hơn bạn một chút. Chúng **sợ ánh sáng**: không bao giờ bước vào vùng sáng của lửa trại, lò nung, dung nham hay đuốc đang cháy, chỉ đứng ở rìa nhìn vào; bị ánh sáng chiếu tới thì chạy ra. Mắt chúng phát sáng trong đêm. Chúng không đụng tới người đang ngủ trên giường, đang bơi hay ngồi thuyền, và không xuống hang. Trời rạng sáng là bỏ đi mất. 50 máu (đấm tay gần như vô ích), cho 2 Thịt sống, 1 Da thú, 1 Xương. Nghe: tiếng gọi nhau lanh lảnh trong đêm, tiếng rít khi phát hiện bạn, tiếng lách cách trong cổ khi bầy tới gần.
@@ -286,7 +286,7 @@ Thế giới mới (kiểu `StyleTribal`) có thêm những thứ dưới đây;
 - **Vứt đồ ra khỏi túi** (mọi thế giới; `internal/sim/toss.go`, `internal/client/toss.go`): G vứt 1 món đang cầm, Shift+G (hoặc Ctrl+G) cả chồng; trong túi đồ (Tab) thì kéo một chồng ra ngoài khung túi rồi thả, chuột phải vào một ô, hoặc G / Shift+G với ô đang trỏ. Đồ rơi thành một đống ngay trước mặt (cách chừng 1 ô, theo hướng đang nhìn); phía trước là tường hay nước thì rơi ngay dưới chân. Vứt tiếp cùng loại vào chỗ đó thì dồn vào đống cũ (tối đa một ô túi mỗi đống). Đống vứt ra là đồ rơi như mọi đồ rơi khác: ai cũng nhặt được bằng Space hoặc đi ngang qua, được lưu cùng thế giới, 5 phút thì mục (trừ đồ huyền thoại). Riêng người vứt, đang đứng trên đống đó thì không tự nhặt lại khi đứng yên; bước ra rồi đi vào lại mới nhặt (Space thì nhặt ngay). Đang bơi hay ngồi thuyền thì chỉ vứt được lên bờ trước mặt; ngoài biển thì không vứt được (hiện thông báo, đồ vẫn trong túi) để khỏi mất đồ. Đã chết, đang ngủ hay đang mở rương thì không vứt được. Vứt cây đuốc đang cháy trên tay thì đuốc tắt. Có tiếng "bịch" nhẹ khi vứt.
 - **Xác thú**: hạ thú thì xác nằm lại trên vũng máu (thú bốn chân lật ngửa). Nhấp chuột vào xác để mổ (cầm dao thì nhanh gấp đôi): ra thịt, da, xương, **đầu thú**, và **Da khủng long** nếu là khủng long. Xác để 4 phút thì rữa mất. Xác thổ dân thì lục soát (có khi được giáo).
 - **Đầu thú**: cầm đầu trên tay, nhấp chuột phải (hoặc chuột trái vào chỗ đất trống) để cắm lên cọc ở ô dưới con trỏ làm vật trang trí; nhấp chuột trái vào nó để gỡ xuống.
-- **Mùa và thời tiết**: mỗi mùa 3 ngày (xuân, hạ, thu, đông). Thời tiết đổi vài phút một lần: mưa (lửa cháy nhanh gấp đôi), gió, giông bão (sét đánh gần người: 35 máu, cây bị sét thì đổ), lốc xoáy (cuốn người quay vòng, mất máu, quật đổ cây), tuyết. Mùa đông khi có tuyết hay gió thì ở ngoài trời rất lạnh kể cả ban ngày (mặc Áo lông, Áo da thú hoặc Giáp da khủng long, hoặc đứng gần lửa, đuốc); mặt đất phủ tuyết; ao hồ (không phải biển) đóng băng, đi lên được, cá trốn dưới băng. Mùa thu lá cây ngả vàng.
+- **Mùa và thời tiết**: mỗi mùa 12 ngày (xuân, hạ, thu, đông), một năm 48 ngày. Thời tiết đổi vài phút một lần: mưa (lửa cháy nhanh gấp đôi), gió, giông bão (sét đánh gần người: 35 máu, cây bị sét thì đổ), lốc xoáy (cuốn người quay vòng, mất máu, quật đổ cây), tuyết. Mùa đông khi có tuyết hay gió thì ở ngoài trời rất lạnh kể cả ban ngày (mặc Áo lông, Áo da thú hoặc Giáp da khủng long, hoặc đứng gần lửa, đuốc); mặt đất phủ tuyết; ao hồ (không phải biển) đóng băng, đi lên được, cá trốn dưới băng. Mùa thu lá cây ngả vàng.
 - **Làng thổ dân**: lều gỗ mái tranh quanh cột vật tổ và đống lửa không bao giờ tắt. Ở quần đảo, đảo nào cũng có làng, trên mọi loại đất (rừng, đồng cỏ, sa mạc, tuyết, đầm lầy, tro núi lửa). Đảo lớn có 2 đến 3 làng mỗi làng 5 thổ dân; đảo nhỏ dưới 600 ô có làng 3 thổ dân; đảo nhỏ hoặc hẹp quá thì chỉ có xóm nhỏ 3 lều, 2 thổ dân; bãi cát dưới 90 ô thì không có. Trên đảo nhà, làng cách chỗ xuất phát ít nhất 22 ô. Làng luôn tránh chỗ dựng kim tự tháp. (Thế giới kiểu lục địa cũ vẫn như trước: vài làng xa chỗ xuất phát.) Thổ dân da đen, mặt vẽ sơn trắng, không mặc áo, cầm giáo: thấy bạn trong 7 ô (đêm 5 ô) là xông tới đâm (12 máu), bị thương nặng thì chạy về làng. Họ cũng đi săn thỏ, Thescelosaurus, Ornithomimus. Làng còn lều thì cứ một phút gửi thêm người.
 - **Đường mòn**: nối chỗ xuất phát với các làng và cửa hang, giữa các làng với nhau; đi trên đường nhanh hơn. Rừng thưa hơn trước.
 - **Hang sâu**: núi nhiều hơn, hang có nhiều nhánh và hầm rộng, ăn sâu vào lòng núi. Trong hang có **nhện độc** (nhả tơ làm bạn đi chậm, cắn có độc mất máu dần) và **gấu hang** (cào rồi cắn). Chỗ sâu nhất có **rương cổ**: nhấp chuột hoặc E để mở, càng sâu đồ càng quý (bình máu, quặng, hắc diện thạch, răng bạo chúa, hạt giống...).
@@ -316,6 +316,8 @@ Xem nhanh: `go run ./cmd/shot -open -tribal`, `-at village`, `-at path`, `-weath
 ## Trùm (thế giới mở)
 
 Mỗi thế giới mở có sáu con trùm, mỗi vùng đất hoang một con (`internal/sim/bosses.go`, `bossfight.go`). Trùm sống ở hang ổ sâu trong vùng của nó, xa chỗ xuất phát, và không bao giờ đi xa hang quá 18 ô (Megalodon 34 ô). Nó ngủ cho tới khi có người tới gần, rồi gầm lên và đánh. Ai bỏ đi thì nó về hang và hồi máu. Còn dưới nửa máu thì nó **nổi giận**: gầm lên lần nữa, đánh nhanh hơn và chạy nhanh hơn. Mọi đòn đều có báo trước: trùm há miệng (hoặc chồm lên, cúi đầu, vung đuôi) chừng nửa giây rồi đòn mới tới, nên lùi kịp thì tránh được. Trùm đã hạ thì không bao giờ sống lại (được lưu); bản lưu cũ khi mở sẽ có đủ trùm.
+
+**Bản demo** chỉ có hai trùm: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu). Bốn trùm kia không sinh ra, không có hang ổ trên bản đồ, và hạ xong hai con là "Phá đảo!" (`internal/sim/demo.go`). Bật bằng `go run ./cmd/game -demo`, hoặc build sẵn bằng `go build -tags demo` / `make build-windows-demo`.
 
 | Trùm | Ở đâu | Đánh thế nào | Máu |
 | --- | --- | --- | --- |
@@ -365,10 +367,12 @@ Mỗi bậc nằm thành mạch trong đá ở một vùng riêng, càng tốt c
 
 | Bậc | Đào ở | Cần cúp | Thành |
 | --- | --- | --- | --- |
-| Đá lửa | Mạch đá lửa trên đồi đá quanh núi | Cúp đá | Lưỡi đá lửa |
-| Ngọc bích | Mạch ngọc bích trong hang (mang đuốc) | Cúp đá lửa | Ngọc bích mài |
-| Mã não | Mạch mã não giữa hoang mạc | Cúp ngọc bích | Mã não mài |
-| Hắc diện thạch | Vùng tro quanh núi lửa | Cúp mã não | (dùng luôn) |
+| Đá lửa | Mạch đá lửa trên đồi đá, mỏm nhỏ trong cỏ và rừng; luôn có vài mạch cách chỗ xuất phát 10–34 ô | Cúp đá | Lưỡi đá lửa |
+| Ngọc bích | Mạch ngọc bích sâu trong hang, xa lối vào (mang đuốc) | Cúp đá lửa | Ngọc bích mài |
+| Mã não | Mạch mã não giữa hoang mạc, hiếm | Cúp ngọc bích | Mã não mài |
+| Hắc diện thạch | Vùng tro quanh núi lửa, hiếm | Cúp mã não | (dùng luôn) |
+
+Quặng nằm thành **mạch** 3–8 khối liền nhau, giữa các mạch là khoảng đất trống (`internal/sim/orevein.go`). Than nằm thành vỉa trong hang và trên vùng tro. Thế giới 1024 × 1024 có khoảng 2.000 khối đá lửa, 1.800 ngọc bích, 350 mã não, 450 hắc diện thạch, 3.400 than.
 
 Giáp may từ đồ săn được; chỉ bộ tốt nhất trong túi có tác dụng, đỡ một phần sức tấn công của thú dữ:
 

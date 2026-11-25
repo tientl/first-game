@@ -85,7 +85,7 @@ func TestLoopsAreSeamless(t *testing.T) {
 }
 
 func TestMusicTracks(t *testing.T) {
-	for _, name := range []string{"menu", "day", "night", "cave"} {
+	for _, name := range []string{"menu", "day", "night", "cave", "boss_jungle", "boss_sea"} {
 		t0 := time.Now()
 		x := genMusic(name)
 		secs := float64(len(x)/2) / sampleRate

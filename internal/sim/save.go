@@ -23,10 +23,15 @@ import (
 //   - 10: things lie on the ground; players come back by their last bed.
 //   - 11: a beast's health counts in HealthScale units (weapons do damage, not hits).
 //   - 12: the bosses: which have fallen, who has seen their lairs, the victory.
-const SaveVersion = 12
+//   - 13: a day lasts 16 minutes and a season 12 days; older ticks are doubled.
+const SaveVersion = 13
 
-// v6DayTicks is how long a day was in saves before version 7.
-const v6DayTicks = 240 * TicksPerSecond
+// v6DayTicks is how long a day was in saves before version 7, and
+// v12DayTicks before version 13.
+const (
+	v6DayTicks  = 240 * TicksPerSecond
+	v12DayTicks = 480 * TicksPerSecond
+)
 
 // SaveData is everything needed to rebuild a world later. The terrain is not
 // stored: it is regenerated from the seed, which always yields the same map.
@@ -196,6 +201,9 @@ func Load(d SaveData) (*World, error) {
 	// so the world keeps its day number and time of day, and each regrowth
 	// keeps its share of the time it had left.
 	ticks := uint64(1)
+	if d.Version < 13 {
+		ticks = DayTicks / v12DayTicks
+	}
 	if d.Version < 7 {
 		ticks = DayTicks / v6DayTicks
 	}

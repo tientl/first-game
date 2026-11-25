@@ -97,10 +97,20 @@ func TestAimPrefersTargetsTowardsThePointer(t *testing.T) {
 	}
 }
 
-func TestThePlayerFacesThePointer(t *testing.T) {
+func TestThePlayerFacesThePointerOnlyWhileAiming(t *testing.T) {
 	w := flatWorld()
 	id := w.AddPlayer("a")
+	// Just pointing: the player faces the way they walk.
 	w.SetInput(id, Input{MoveX: 1, Aim: true, AimX: 10, AimY: 16.5})
+	w.Step()
+	if p := mustPlayer(t, w, id); p.Dir != DirRight {
+		t.Fatalf("walking east pointing west: dir %v, want the way walked", p.Dir)
+	}
+	// Aiming something aimed, the button held: they face the pointer.
+	aimedItems[ItemSpear] = true
+	defer delete(aimedItems, ItemSpear)
+	holding(w, id, ItemSpear)
+	w.SetInput(id, Input{MoveX: 1, Action: true, Aim: true, AimX: 10, AimY: 16.5})
 	w.Step()
 	if p := mustPlayer(t, w, id); p.Dir != DirLeft || p.X <= 16.5 {
 		t.Fatalf("walking east aiming west: dir %v x %.2f, want facing left while moving right", p.Dir, p.X)

@@ -45,7 +45,7 @@ const (
 	RaptorPounceSpeed  = 8.0 / TicksPerSecond
 	RaptorPounceTicks  = 6
 	RaptorBiteRange    = 1.2
-	RaptorBiteDamage   = 9.0
+	RaptorBiteDamage   = 10.0
 	RaptorBiteCD       = 2 * TicksPerSecond
 	RaptorBackOffTicks = 3 * TicksPerSecond / 2
 	RaptorFleeBelow    = 2 // hit points at which a raptor runs for it
@@ -250,13 +250,6 @@ func (w *World) foeOf(c *Creature) (*Player, float64) {
 	return p, math.Hypot(p.X-c.X, p.Y-c.Y)
 }
 
-// strike lands c's attack on p.
-func strike(c *Creature, p *Player, dmg float64, cd int) {
-	c.State, c.timer, c.biteCD = CreatureStrike, AttackTicks, cd
-	struck(p, dmg)
-	p.notify(NoticeBitten, uint8(c.Kind))
-}
-
 // faceToward turns a side-on creature to look at x.
 func (c *Creature) faceToward(x float64) {
 	if dx := x - c.X; math.Abs(dx) > 0.05 {
@@ -349,6 +342,9 @@ func (w *World) stepRaptor(c *Creature) {
 	}
 	switch c.State {
 	case CreatureStrike: // the pounce: a burst along its heading
+		if c.windingUp() { // crouched, about to spring: see telegraph.go
+			return
+		}
 		c.timer--
 		w.moveCreature(c, c.hx*RaptorPounceSpeed, c.hy*RaptorPounceSpeed)
 		if p != nil && dist <= RaptorBiteRange && c.biteCD == 0 {
@@ -403,6 +399,7 @@ func (w *World) stepRaptor(c *Creature) {
 	c.faceToward(p.X)
 	if dist <= pounce && c.biteCD == 0 {
 		c.State, c.timer = CreatureStrike, RaptorPounceTicks
+		c.blow = pendingBlow{ticks: WindupTicks(c.Kind)} // a crouch first; the pounce itself bites
 		c.hx, c.hy = (p.X-c.X)/dist, (p.Y-c.Y)/dist
 		return
 	}

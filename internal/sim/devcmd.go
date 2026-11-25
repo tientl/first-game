@@ -295,9 +295,9 @@ func (w *World) devTimeCmd(r *DevResult, args []string) {
 	case "noon", "trua":
 		f = 0.3
 	case "dusk", "evening", "chieu", "hoanghon", "changvang":
-		f = DuskStart + 0.02
+		f = DuskAt(w.tick) + 0.02
 	case "night", "dem", "toi":
-		f = NightStart + 0.08
+		f = NightAt(w.tick) + 0.08
 	case "midnight", "nuadem":
 		f = 0.9
 	default:

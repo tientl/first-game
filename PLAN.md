@@ -6,6 +6,7 @@ Việc cần làm, chia theo nhóm. Trong mỗi nhóm, mục trên làm trước
 
 Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đây; mọi thứ khác trong kế hoạch để sau demo.
 
+- [x] **Hướng nhân vật theo chuột chỉ khi ngắm**: bình thường nhân vật quay theo hướng đi (WASD), không quay theo con trỏ nữa. Chỉ khi dùng kỹ năng có hướng (cung, ném, sau này phép…) thì **giữ chuột** để ngắm: lúc đó nhân vật mới quay theo con trỏ, thả chuột thì bắn/ném.
 - [ ] **Đồ hoạ Full HD — ưu tiên số 1** (bắt buộc trong demo; mục 2). Chất lượng hình ảnh là thứ người chơi thấy đầu tiên, nên làm trước và làm kỹ nhất: mọi thứ người chơi thấy trong demo đều vẽ lại ở Full HD, không để nửa cũ nửa mới:
   - Nhân vật (đủ kiểu ngoại hình, giáp, vũ khí, cưỡi, bơi, ngủ) và mặt đất (cỏ xanh và đất ấm).
   - Cây, cỏ, hoa, đá, quặng, công trình.
@@ -14,11 +15,11 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - **Chuẩn chất lượng**: mỗi nhóm (nhân vật, mặt đất, cây, từng nhóm sinh vật, icon) làm xong thì gửi ảnh so sánh để duyệt; chưa đạt thì làm lại trước khi sang nhóm khác.
   - Nếu thiếu lượt dùng: **bớt số loài thú trong demo chứ không hạ chất lượng** (ưu tiên các loài ở đảo đầu tiên, rừng rậm, biển).
 - [ ] **Cảm giác đánh nhau** (mục 7): khựng lúc trúng đòn, thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh (hiệu ứng chém, va chạm lấy từ pixelfx); **giơ khiên đỡ**; thú **báo trước đòn** (lấy đà rõ ràng trước khi cắn, quất đuôi, lao).
-- [ ] **Chế độ dev** (mục 1) — để test nhanh trước khi phát hành.
+- [x] **Chế độ dev** (mục 1) — để test nhanh trước khi phát hành.
 - [ ] **Giao diện** (mục 3): HUD gọn, bỏ ô hướng dẫn (F1), túi 30 ô, rương có ô đồ, chuột phải cắm đuốc.
-- [ ] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
-- [ ] **Thời gian** (mục 4): ngày 15–20 phút; **cửa hang**.
-- [ ] **Chỉ 2 trùm** trong demo: các trùm khác tắt (không sinh ra, không hiện trên bản đồ); màn hình "Phá đảo!" tính theo 2 trùm. Hai trùm có thanh máu và nhạc chiến đấu (mục 8). Trùm được chọn: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu).
+- [x] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
+- [ ] **Thời gian** (mục 4): ✅ ngày 16 phút, mùa 12 ngày, ngày và đêm theo mùa; còn **cửa hang** (chờ làm rõ "lối vào nằm ở phía dưới").
+- [x] **Chỉ 2 trùm** trong demo: các trùm khác tắt (không sinh ra, không hiện trên bản đồ); màn hình "Phá đảo!" tính theo 2 trùm. Hai trùm có thanh máu và nhạc chiến đấu (mục 8; nhạc ✅ `bossmusic.go`). Trùm được chọn: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu).
 - [ ] **Hướng dẫn chơi** vài phút đầu.
 - [ ] **Menu cài đặt**: âm lượng nhạc / tiếng, và phần **Hiển thị**:
   - Chế độ màn hình: Toàn màn hình / Toàn màn hình không viền / Cửa sổ (hiện chỉ có F11).

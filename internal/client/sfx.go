@@ -517,6 +517,7 @@ func genSFX() map[string][][]float32 {
 	genCreatureSFX(r, add) // last, so the rng gives the sounds above as before
 	genCraftSFX(r, add)
 	genWoodsSFX(add)   // see jungleart.go
+	genBossSFX(add)    // see bossmusic.go
 	genSwimSFX(add)    // see swimsound.go
 	genTroodonSFX(add) // see troodonsound.go
 	for name, vs := range <-voices {

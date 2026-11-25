@@ -344,7 +344,10 @@ func (g *Game) frameSounds(alpha float64) {
 		snd.play("bird", 0.1+snd.rng.Float64()*0.2, snd.rng.Float64()*1.6-0.8, 0.9+snd.rng.Float64()*0.25)
 	}
 
+	g.bossWinSound() // see bossmusic.go
 	switch {
+	case g.curr.Boss.Kind.Boss() && !g.curr.Self.Dead:
+		snd.setMusic(bossTrack(g.curr.Boss.Kind)) // a boss fight; see bossmusic.go
 	case g.caveIn() > 0.5:
 		snd.setMusic("cave")
 	case amb < 0.35:

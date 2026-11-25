@@ -200,8 +200,8 @@ func (g *Game) drawClock(screen *ebiten.Image, sw int) {
 	g.text(screen, g.curr.Weather.Name(), float64(x)+w, 62, colMuted, text.AlignEnd, 1)
 
 	fillRoundRect(screen, x, y, w, h, 4, colNight)
-	fillRoundRect(screen, x, y, w*sim.NightStart, h, 4, colDusk)
-	fillRoundRect(screen, x, y, w*sim.DuskStart, h, 4, colDay)
+	fillRoundRect(screen, x, y, w*float32(sim.NightAt(tick)), h, 4, colDusk)
+	fillRoundRect(screen, x, y, w*float32(sim.DuskAt(tick)), h, 4, colDay)
 
 	// A sun by day, a moon by night, riding along the bar.
 	mx := x + float32(sim.DayFraction(tick))*w
@@ -261,7 +261,7 @@ func (g *Game) drawHelp(screen *ebiten.Image, sw, sh int) {
 		c      color.Color
 	}
 	held := g.myHeld()
-	lines := []line{{"WASD", "di chuyển — nhân vật quay theo con trỏ chuột", colMuted}}
+	lines := []line{{"WASD", "di chuyển — nhân vật quay theo hướng đi", colMuted}}
 	if r, ok := sim.RecipeByID(g.build.recipe); ok && g.build.on { // see mouse.go
 		lines = append(lines,
 			line{"Chuột trái", "dựng " + r.Name + " ở ô dưới con trỏ (xanh: được · đỏ: không)", colGood},
