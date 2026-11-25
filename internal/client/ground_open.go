@@ -1,15 +1,14 @@
 package client
 
 import (
-	"image/color"
 	"math"
 
 	"survivalgame/internal/sim"
 )
 
-// Ground art for the open world's biomes: desert dunes, swamp mud, volcanic
-// ash and lava, cave floors, and mountains, which stand up out of the ground
-// with a rock face on their south side like the sea cliffs.
+// The open world's biomes: their palettes, and the rock of the mountains,
+// which stand up out of the ground with a face on their south side like the
+// sea cliffs. How each kind of ground is drawn is in groundart.go.
 
 const mtnFaceH = 30 // art pixels of rock face along a mountain's south side
 
@@ -29,103 +28,12 @@ var (
 	iceRamp     = mkRamp(0x5a86a8, 0x76a2c2, 0x94bcd6, 0xb4d4e6, 0xd2e8f2, 0xf0faff)
 )
 
-// openBiome colours a pixel of the open world's new ground kinds; ok is false
-// for the kinds the island already had.
-func openBiome(k sim.Tile, px, py int, u, v float64) (c color.RGBA, ok bool) {
-	switch k {
-	case sim.TileDesert:
-		n := fbm2(u*0.2, v*0.28, 101, 3)
-		i := desertRamp.idx(0.5+(n-0.5)*0.9, px, py)
-		// Long dune ripples, bent by the wind.
-		r := math.Sin((v*1.5 + u*0.35 + fbm2(u*0.3, v*0.4, 102, 2)*3) * 2 * math.Pi)
-		switch {
-		case r > 0.9:
-			i -= 2
-		case r > 0.75:
-			i--
-		case r < -0.93:
-			i++
-		}
-		if hashf(px, py, 103) < 0.02 {
-			i++
-		}
-		return desertRamp.at(i), true
-	case sim.TileMarsh:
-		return marshGround(px, py, u, v), true // see swampart.go
-	case sim.TileAsh:
-		n := fbm2(u*0.4, v*0.5, 121, 3)
-		i := ashRamp2.idx(0.45+(n-0.5)*1.1, px, py)
-		if hashf(px, py, 122) < 0.006 {
-			return colEmber, true // a glowing ember
-		}
-		return ashRamp2.at(i), true
-	case sim.TileLava:
-		// A crust of dark plates with glowing cracks between them.
-		n := vnoise(u*2.2, v*2.6, 131)
-		crack := math.Abs(n - 0.5)
-		t := 1 - crack*4.5 + (vnoise(u*0.8, v*0.8, 132)-0.5)*0.5
-		return lavaRamp.pick(t, px, py), true
-	case sim.TileCave:
-		n := fbm2(u*0.5, v*0.6, 141, 3)
-		i := caveRamp.idx(0.45+(n-0.5)*1.1, px, py)
-		if hashf(px/2, py, 142) < 0.04 {
-			i += 2 // a pale pebble
-		}
-		return caveRamp.at(i), true
-	case sim.TileMountain:
-		return mountainTop(px, py, u, v), true
-	case sim.TileSnow:
-		return snowGround(px, py, u, v), true // see iceart.go
-	case sim.TilePath:
-		// Packed earth: two ruts worn by feet, small stones, tufts at the edges.
-		n := fbm2(u*0.4, v*0.5, 181, 3)
-		i := pathRamp.idx(0.5+(n-0.5)*0.7, px, py)
-		if math.Abs(vnoise(u*1.3, v*0.6, 182)-0.5) < 0.04 {
-			i-- // a rut
-		}
-		if hashf(px, py, 183) < 0.03 {
-			i += 2 // a pebble
-		}
-		return pathRamp.at(i), true
-	case sim.TileIce:
-		// Pond ice: pale and clear with white cracks and a dusting of snow.
-		n := fbm2(u*0.3, v*0.4, 191, 3)
-		i := iceRamp.idx(0.45+(n-0.5)*0.6, px, py)
-		if math.Abs(vnoise(u*2.4, v*2.8, 192)-0.5) < 0.02 {
-			return iceRamp.at(5), true // a crack
-		}
-		if fbm2(u*0.6+9, v*0.7, 193, 2) > 0.62 {
-			return snowGround(px, py, u, v), true // drifted snow
-		}
-		if hashf(px, py, 194) < 0.01 {
-			return colWhite, true // a glint
-		}
-		return iceRamp.at(i), true
-	}
-	return color.RGBA{}, false
-}
-
-func mountainTop(px, py int, u, v float64) color.RGBA {
-	// A height field of ridges and crags, lit from the north-west.
-	h := func(u, v float64) float64 {
-		r := 1 - math.Abs(2*fbm2(u*1.6, v*2.0, 154, 3)-1)
-		return fbm2(u*0.7, v*0.9, 151, 3) + 0.55*r*r
-	}
-	const e = 0.07
-	c := h(u, v)
-	l := 0.5 + (h(u-e, v-e)-c)*7 + (c-0.6)*0.6
-	if hashf(px, py, 153) < 0.02 {
-		l += 0.2
-	}
-	return mtnRamp.pick(l, px, py)
-}
-
 // Mountains are drawn standing up: seen from above and to the south, each
 // shows its flat top and, along its south edge, a tall face of rock that
 // covers the southern part of its own tiles. Caves run under the mountains:
 // the ground bake shows their floors with tunnel walls, and a separate
 // "roof" bake draws them covered over, with a dark mouth where a tunnel
-// comes out of a south face. The roof hides the caves until a player walks
+// comes out of a south face (see groundhd.go). The roof hides the caves until a player walks
 // in (see caves.go).
 
 // solidAt reports whether tile (tx, ty) is rock: a mountain, or with roof
@@ -157,20 +65,6 @@ func (t *terrain) isMountain(u, v float64, roof bool) bool {
 	return f+(fbm2(u*1.1, v*1.3, 160, 2)-0.5)*0.35 > 0.5
 }
 
-// mountainNear reports whether rock could show at (u, v): rock on a nearby
-// tile, including the tiles below, whose faces reach up into this one.
-func (t *terrain) mountainNear(u, v float64, roof bool) bool {
-	tx, ty := int(math.Floor(u)), int(math.Floor(v))
-	for y := ty - 1; y <= ty+1; y++ {
-		for x := tx - 1; x <= tx+1; x++ {
-			if t.solidAt(x, y, roof) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // caveNear reports whether a cave tile is near enough to (u, v) for the
 // roof to look different from the open ground there.
 func (t *terrain) caveNear(u, v float64) bool {
@@ -185,143 +79,6 @@ func (t *terrain) caveNear(u, v float64) bool {
 	return false
 }
 
-// mountainPixel colours a pixel near rock: its top or its south face (ok),
-// or for open ground (!ok) how much it lies in the shadow at the foot of a
-// face. With roof, caves count as rock and their mouths are cut into faces.
-func (t *terrain) mountainPixel(px, py int, u, v float64, roof bool) (c color.RGBA, shadow float64, ok bool) {
-	if !t.mountainNear(u, v, roof) {
-		return color.RGBA{}, 0, false
-	}
-	if !t.isMountain(u, v, roof) {
-		for k := 1; k <= 3; k++ {
-			if t.isMountain(u, v-float64(k)/TileH, roof) {
-				return color.RGBA{}, 0.32 - float64(k-1)*0.1, false
-			}
-		}
-		return color.RGBA{}, 0, false
-	}
-	// How high above the bottom edge of the rock this pixel is.
-	for k := 1; k <= mtnFaceH; k++ {
-		bu, bv := u, v+float64(k)/TileH
-		if t.isMountain(bu, bv, roof) {
-			continue
-		}
-		// The face. What lies at its foot decides what it looks like.
-		if roof {
-			// The face's foot wanders a little either side of the tile
-			// edge, so the mouth tile is the one at the foot or above it.
-			ftx, fty := int(math.Floor(u)), int(math.Floor(v+(float64(k)-0.5)/TileH))
-			for _, ty := range []int{fty, fty - 1} {
-				if c, ok := t.mouthPixel(px, ftx, ty, k); ok {
-					return c, 0, true
-				}
-			}
-		}
-		wall := t.tile(int(math.Floor(bu)), int(math.Floor(bv))) == sim.TileCave
-		return faceColor(px, py, k, wall), 0, true
-	}
-	if t.under > 0 && int(v) >= t.under {
-		return caveRockTop(px, py, u, v), 0, true // underground: solid rock, nearly black
-	}
-	return mountainTop(px, py, u, v), 0, true
-}
-
-// caveRockTop is the rock between the passages of the caves underground:
-// black, with only a faint grain.
-func caveRockTop(px, py int, u, v float64) color.RGBA {
-	n := fbm2(u*0.8, v*1.0, 171, 2)
-	l := 0.05 + (n-0.5)*0.12
-	if hashf(px, py, 172) < 0.015 {
-		l += 0.08
-	}
-	return caveDeep.pick(l, px, py)
-}
-
-// faceColor is the rock face k pixels above its foot. Tunnel walls inside a
-// cave are darker and wet, with crystals growing at their foot.
-func faceColor(px, py, k int, wall bool) color.RGBA {
-	if k >= mtnFaceH-1 {
-		return mtnRamp.at(len(mtnRamp) - 2) // the lit lip
-	}
-	f := float64(k) / mtnFaceH // 0 at the foot, 1 at the top
-	streak := vnoise(float64(px)*0.45, float64(py)*0.08, 161)
-	l := 0.3 + f*0.6 + (streak-0.5)*0.55
-	if hashf(px/2, py/4, 162) < 0.08 {
-		l -= 0.3 // a crack
-	}
-	if !wall {
-		return mtnFace.pick(l, px, py)
-	}
-	if c, ok := crystalPixel(px, py, k); ok {
-		return c
-	}
-	if hashf(px, py/2, 163) < 0.05 {
-		return hex(0x3c5a66) // a wet glint
-	}
-	return caveWall.pick(l, px, py)
-}
-
-// mouthPixel cuts the opening of a cave into the face above the mouth tile
-// (tx, ty), k pixels above the face's foot. Neighbouring mouth tiles share
-// one wide arch.
-func (t *terrain) mouthPixel(px, tx, ty, k int) (color.RGBA, bool) {
-	mouth := func(x int) bool {
-		return t.tile(x, ty) == sim.TileCave && t.tile(x, ty+1) != sim.TileCave && t.tile(x, ty+1).Walkable()
-	}
-	if !mouth(tx) {
-		return color.RGBA{}, false
-	}
-	x0, x1 := tx, tx
-	for mouth(x0 - 1) {
-		x0--
-	}
-	for mouth(x1 + 1) {
-		x1++
-	}
-	n := float64(x1 - x0 + 1)
-	cx := (float64(x0) + n/2) * TileW
-	hw := n*TileW/2 - 2
-	ah := math.Min(mtnFaceH-5, 14+n*5)
-	dx := (float64(px) + 0.5 - cx) / hw
-	dy := (float64(k) - 0.5) / ah
-	d := dx*dx + dy*dy
-	switch {
-	case d <= 1:
-		// Inside: black, with a little light on the floor at the very front.
-		if dy < 0.18 {
-			return hex(0x1c171c), true
-		}
-		return hex(0x050406), true
-	case d <= 1.22:
-		return mtnRamp.at(3), true // a frame of paler stones around the opening
-	case d <= 1.4:
-		return mtnFace.at(0), true // and its shadow
-	}
-	return color.RGBA{}, false
-}
-
-// crystalPixel draws clusters of glowing crystals at the foot of tunnel
-// walls. crystalAt gives the same spots, for their light.
-func crystalPixel(px, py, k int) (color.RGBA, bool) {
-	if k > 11 {
-		return color.RGBA{}, false
-	}
-	tx := int(math.Floor(float64(px) / TileW))
-	cx, ok := crystalX(tx, py+k)
-	if !ok {
-		return color.RGBA{}, false
-	}
-	for i, sh := range [3][3]float64{{-3, 9, 1.6}, {0, 11, 2}, {3, 7, 1.4}} { // x offset, height, half-width
-		x := float64(px) + 0.5 - (cx + sh[0])
-		h := float64(k) - 0.5
-		if h < sh[1] && math.Abs(x) < sh[2]*(1-h/sh[1])+0.4 {
-			l := 0.55 + 0.45*(1-h/sh[1]) - x*0.15
-			return crystalRamp.pick(l+float64(i)*0.05, px, py), true
-		}
-	}
-	return color.RGBA{}, false
-}
-
 // crystalX is where along tile column tx a crystal cluster grows at a wall
 // whose foot is at world pixel row footY, if one does.
 func crystalX(tx, footY int) (float64, bool) {
@@ -330,22 +87,4 @@ func crystalX(tx, footY int) (float64, bool) {
 		return 0, false
 	}
 	return float64(tx*TileW) + 6 + hashf(tx, ty, 171)*12, true
-}
-
-// roofPixel is how (px, py) looks with the caves roofed over, if that
-// differs from ground, the pixel without the roof.
-func (t *terrain) roofPixel(px, py int, ground color.RGBA) (color.RGBA, bool) {
-	u, v := (float64(px)+0.5)/TileW, (float64(py)+0.5)/TileH
-	if !t.caveNear(u, v) {
-		return color.RGBA{}, false
-	}
-	c, shadow, ok := t.mountainPixel(px, py, u, v, true)
-	switch {
-	case ok:
-	case shadow > 0:
-		c = mix(ground, colInk, shadow)
-	default:
-		return color.RGBA{}, false
-	}
-	return c, c != ground
 }

@@ -132,68 +132,6 @@ func (t *terrain) pondTile(tx, ty int) bool {
 	return t.pond != nil && t.tile(tx, ty) == sim.TileWater && tx >= 0 && ty >= 0 && tx < t.w && ty < t.h && t.pond[ty*t.w+tx] > 0
 }
 
-// swampBank darkens land at the edge of a pond (s tiles from the water,
-// 0 <= s < 0.22) into wet mud.
-func swampBank(c color.RGBA, px, py int, s float64) color.RGBA {
-	return mix(c, swampMud.pick(0.6, px, py), 0.75*(1-s/0.22))
-}
-
-// swampWater colours a pixel of a pond, s (< 0) tiles out from the bank: a
-// lip of mud, then a band of algae along the edge, then still, murky water
-// speckled with duckweed. It is nearly opaque: a pond barely ripples.
-func (t *terrain) swampWater(px, py int, u, v, s float64) color.RGBA {
-	// Below a bank on the north shore the mud drops a few pixels to the water.
-	for k := 1; k <= 3; k++ {
-		if t.coast(u, v-float64(k)/TileH) >= 0 {
-			return swampMud.at(3 - k)
-		}
-	}
-	if s > -0.08-(vnoise(u*4, v*4, 150)-0.5)*0.1 {
-		return swampMud.pick(0.35, px, py)
-	}
-	edge := fbm2(u*1.6+3, v*1.9+5, 151, 2)
-	if s > -0.55 && edge > 0.5 && hashf(px, py, 152) < 0.35+(edge-0.5)*2 {
-		return algaeRamp.pick(0.35+(edge-0.5)*1.2+(hashf(px, py, 153)-0.5)*0.5, px, py)
-	}
-	if hashf(px/2, py, 154) < 0.012 {
-		return algaeRamp.at(3) // duckweed
-	}
-	d := clamp01(-s / 3)
-	c := pondRamp.pick(0.85-d*0.75+(vnoise(u*0.8, v*0.9, 155)-0.5)*0.3, px, py)
-	return withAlpha(c, 232)
-}
-
-// marshGround colours a pixel of swamp mud: olive, blotched darker where it
-// is wetter, with puddles ringed by brown mud.
-func marshGround(px, py int, u, v float64) color.RGBA {
-	n := fbm2(u*0.35, v*0.45, 111, 3)
-	blot := fbm2(u*0.55+3, v*0.7+7, 115, 3)
-	l := 0.6 + (n-0.5)*0.6
-	if blot < 0.45 {
-		l -= (0.45 - blot) * 2.2 // wet, dark patches
-	}
-	switch h := hashf(px, py, 114); {
-	case h < 0.035:
-		l += 0.2 // a lit blade of sedge
-	case h < 0.06:
-		l -= 0.2
-	}
-	// Puddles of standing water with a muddy rim.
-	m := fbm2(u*1.3+5, v*1.7+9, 112, 2)
-	switch {
-	case m > 0.71:
-		if hashf(px, py, 113) < 0.03 {
-			return puddleRamp.at(3) // a glint
-		}
-		return puddleRamp.pick(0.15+(0.78-m)*6, px, py)
-	case m > 0.68:
-		return swampMud.pick(0.55+(m-0.68)*5, px, py)
-	case m > 0.665:
-		l -= 0.25 // the mud darkens towards a puddle
-	}
-	return marshRamp.pick(l, px, py)
-}
-
 // --- trees ---------------------------------------------------------------------
 
 // drawBark paints l as bark of ramp rp, lit from the left, with streaks
