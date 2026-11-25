@@ -125,7 +125,12 @@ func WeatherAt(seed uint64, tick uint64) Weather {
 }
 
 // Weather returns the weather now.
-func (w *World) Weather() Weather { return WeatherAt(w.seed, w.tick) }
+func (w *World) Weather() Weather {
+	if w.dev.forced {
+		return w.dev.weather // dev mode; see dev.go
+	}
+	return WeatherAt(w.seed, w.tick)
+}
 
 // Season returns the season now.
 func (w *World) Season() Season { return SeasonOf(w.tick) }

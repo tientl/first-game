@@ -230,6 +230,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	g.drawNotice(screen, sw)      // above the bag, so a failed craft or meal says why
 	g.drawVictory(screen, sw, sh) // every boss has fallen; see bossui.go
+	g.drawDev(screen, sw, sh)     // see devconsole.go
 
 	if g.disconnected && !g.paused {
 		g.dim(screen, sw, sh, 0.6)

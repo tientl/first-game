@@ -37,7 +37,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 ## 1. Công cụ dev (làm đầu tiên)
 
-- [ ] **Chế độ dev** (cờ `-dev` cho `cmd/game`), để test nhanh mọi tính năng:
+- [x] **Chế độ dev** (cờ `-dev` cho `cmd/game`), để test nhanh mọi tính năng:
   - Bỏ qua menu, vào thẳng thế giới mới (nhỏ, seed cố định, bản lưu riêng).
   - Bất tử, không đói, không khát, không lạnh (bật/tắt được).
   - Bảng lệnh (phím `~`): `give <đồ> <số>`, `tp <làng|trùm N|hang|kim tự tháp|x y>`, `spawn <thú>`, `time <giờ|đêm|ngày>`, `season <mùa>`, `weather <thời tiết>`, `speed <hệ số>`, `kill` (thú quanh), `heal`.

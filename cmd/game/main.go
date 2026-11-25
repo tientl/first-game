@@ -25,6 +25,7 @@ func main() {
 	name := flag.String("name", "", "player name: filled in on the character screen, and who \"Chơi tiếp\" continues as")
 	size := flag.Int("size", 0, "world width and height in tiles for a new game (0: the largest)")
 	savePath := flag.String("save", "", "save file (default: in the user config directory)")
+	dev := flag.Bool("dev", false, "dev mode: straight into a small new world, god mode, the console on the ` key; see dev.go")
 	flag.Parse()
 
 	if *savePath == "" {
@@ -32,13 +33,19 @@ func main() {
 		if err != nil {
 			log.Fatalf("no place to keep the save file: %v (use -save)", err)
 		}
+		if *dev {
+			p = devSavePath(p)
+		}
 		*savePath = p
 	}
 	log.Printf("save file: %s", *savePath)
 	client.InitAudio(filepath.Join(filepath.Dir(*savePath), "settings.json"))
 
-	a := &app{seed: *seed, name: *name, size: *size, savePath: *savePath}
+	a := &app{seed: *seed, name: *name, size: *size, savePath: *savePath, dev: *dev}
 	a.openMenu()
+	if a.dev {
+		a.startDev() // see dev.go
+	}
 
 	ebiten.SetWindowTitle("Dino Isles: Survival")
 	ebiten.SetWindowIcon(client.GameIcons())
@@ -58,6 +65,7 @@ type app struct {
 	name     string
 	size     int
 	savePath string
+	dev      bool // -dev: see dev.go
 
 	menu *client.Menu
 	sess *session
@@ -172,7 +180,7 @@ func (a *app) Draw(screen *ebiten.Image) {
 func (a *app) Layout(w, h int) (int, int) { return client.Layout(w, h) }
 
 func (a *app) config() server.Config {
-	return server.Config{SavePath: a.savePath, AutosaveEvery: autosaveEvery}
+	return server.Config{SavePath: a.savePath, AutosaveEvery: autosaveEvery, Dev: a.dev}
 }
 
 // background runs job off the game loop while the menu shows msg.
@@ -198,6 +206,7 @@ func (a *app) start(srv *server.Server) {
 	g := client.New(conn, a.join)
 	g.SetLook(a.look)
 	g.SetPauseHook(srv.SetPaused)
+	g.SetDev(a.dev)
 	a.sess = &session{srv: srv, cancel: cancel, done: done, conn: conn, game: g}
 	a.menu = nil
 }

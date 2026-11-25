@@ -54,6 +54,8 @@ type World struct {
 	genH     int                 // the height the generator was asked for: what a save keeps
 	surfaceH int                 // rows above ground, when the caves lie below; see underground.go
 	links    map[[2]int]caveLink // cave mouths and ways up: where each leads
+
+	dev devWorld // dev mode's overrides, never saved; see dev.go
 }
 
 func newWorld(width, height int) *World {

@@ -115,22 +115,31 @@ func (w *World) boatByID(id BoatID) *Boat {
 func WindAt(seed uint64, tick uint64) (dir, strength float64) {
 	slot := tick / WeatherTicks
 	h := hash2(int32(slot), int32(slot>>31), uint32(seed)^uint32(seed>>32)^windSlotOffset)
-	dir = unit(h) * 2 * math.Pi
-	switch WeatherAt(seed, tick) {
+	return unit(h) * 2 * math.Pi, windStrength(WeatherAt(seed, tick))
+}
+
+// windStrength is how hard the wind blows in weather wt, 0 to 1.
+func windStrength(wt Weather) float64 {
+	switch wt {
 	case WeatherStorm, WeatherTornado:
-		strength = 1
+		return 1
 	case WeatherWind:
-		strength = 0.9
+		return 0.9
 	case WeatherRain, WeatherSnow:
-		strength = 0.6
+		return 0.6
 	default:
-		strength = 0.45
+		return 0.45
 	}
-	return dir, strength
 }
 
 // Wind is the wind now.
-func (w *World) Wind() (dir, strength float64) { return WindAt(w.seed, w.tick) }
+func (w *World) Wind() (dir, strength float64) {
+	dir, strength = WindAt(w.seed, w.tick)
+	if w.dev.forced {
+		strength = windStrength(w.dev.weather) // dev mode; see dev.go
+	}
+	return dir, strength
+}
 
 // SailFactor is how much of a sail's full speed it makes heading at an
 // angle to a wind of the given direction and strength.

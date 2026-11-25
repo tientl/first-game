@@ -142,8 +142,9 @@ type Game struct {
 	zoomNoticed int // the zoom last shown in a notice
 	strikesSeen map[[2]float32]bool
 	prevBoats   map[sim.BoatID]protocol.BoatView
-	swimBuf     *fineBuf // scratch for drawing a swimmer cut off at the water
-	boss        bossUI   // the boss bar and the victory screen; see bossui.go
+	swimBuf     *fineBuf    // scratch for drawing a swimmer cut off at the water
+	boss        bossUI      // the boss bar and the victory screen; see bossui.go
+	dev         *devConsole // the dev console, only with -dev; see devconsole.go
 }
 
 // New returns a game that plays over conn under the given player name.
@@ -213,6 +214,11 @@ func (g *Game) Update() error {
 	defer func() { g.frameSounds(g.alpha()) }()
 	if g.disconnected {
 		g.setOverlay(overlayNone)
+	}
+	if g.updateDev() { // the dev console has the keyboard; see devconsole.go
+		g.receive()
+		g.wmap.collect()
+		return nil
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		if g.build.on && g.overlay == overlayNone && !g.paused {
@@ -360,6 +366,8 @@ func (g *Game) onMessage(m protocol.ServerMsg) {
 			return
 		}
 		g.onSnapshot(m.Snapshot)
+	case protocol.ServerDev:
+		g.onDev(m.Dev) // see devconsole.go
 	}
 }
 

@@ -90,6 +90,7 @@ func main() {
 	winH := flag.Int("h", 720, "window height: 720 draws the world at 2 screen pixels per art pixel, 1080 at 3")
 	hdTest := flag.Bool("hdtest", false, "set down the HD trial: a mossy stone drawn as the old pixel art (left of the player) and at HD density (right); see internal/client/HD_ART.md")
 	envHD := flag.Bool("envhd", true, "the HD art of trees, plants, rocks and buildings (false: the original density-1 art, to compare)")
+	devCon := flag.Bool("devconsole", false, "open the dev console (as with -dev in cmd/game), with a few commands run on the world; see dev.go")
 	subPixel := flag.Bool("subpixel", true, "let the camera and moving things sit between art pixels, on screen pixels (false: whole art pixels, as before HD art)")
 	flag.Parse()
 	client.SetHeroHD(*herohd)
@@ -754,6 +755,9 @@ func main() {
 		game.StartBuild(sim.RecipeID(*buildID))
 	}
 	game.HoldBlows(*blowAge)
+	if *devCon {
+		showDevConsole(game, w)
+	}
 	if *troodon {
 		game.HoldLeap(troodonLeaper)
 	}
