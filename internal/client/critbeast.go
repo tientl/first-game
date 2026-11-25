@@ -352,14 +352,64 @@ func finer(r ramp) ramp {
 	return out
 }
 
-var sabreCoat, sabrePale = finer(sabreFur), finer(sabreCream)
+// The sabre-tooth's coat: tawny orange over the back and flanks, marked
+// with dark rosettes and broken stripes; pale grey-white legs, chest,
+// throat, belly and jaws.
+var (
+	sabreTawny = finer(mkRamp(0x2e160b, 0x54290f, 0x853f14, 0xb35c1c, 0xd27d2c, 0xe69c45, 0xf2bd6e))
+	sabreGrey  = finer(mkRamp(0x4b4744, 0x77736e, 0x9f9b94, 0xc2bfb6, 0xdddbd2, 0xf2f1eb))
+	sabreDark  = mkRamp(0x180c07, 0x26130a, 0x3a1e0e, 0x4d2a14)
+	sabreIvory = mkRamp(0x8a8478, 0xc4c0b4, 0xe8e6dc, 0xfbfbf5, 0xffffff)
+)
+
+// sabreMark is the marking of the coat at (u, v), art pixels of the cat's
+// side: 1 the dark ring of a rosette, open on one side, 2 the deeper tawny
+// it rings, 0 the plain coat. solid makes plain spots of them, k times as
+// big.
+func sabreMark(u, v, k float64, solid bool) int {
+	u, v = u/k, v/k
+	u, v = u+1.5*(vnoise(u*0.3, v*0.3, 411)-0.5), v+1.5*(vnoise(u*0.3+7, v*0.3, 412)-0.5)
+	const cw, ch = 5.3, 4.3
+	row := int(math.Floor(v / ch))
+	for r := row - 1; r <= row+1; r++ {
+		st := 0.5 * float64(r&1)
+		col := int(math.Floor(u/cw - st))
+		for c := col - 1; c <= col+1; c++ {
+			h1, h2, h3 := hashf(c, r, 413), hashf(c, r, 414), hashf(c, r, 415)
+			mx := (float64(c) + st + 0.5 + 0.5*(h1-0.5)) * cw
+			my := (float64(r) + 0.5 + 0.4*(h2-0.5)) * ch
+			rx := 1.7 + 0.75*h3
+			ry := rx * (0.7 + 0.2*h1)
+			du, dv := u-mx, v-my
+			e := math.Hypot(du/rx, dv/ry)
+			if e >= 1 {
+				continue
+			}
+			if solid {
+				if e < 0.72 {
+					return 1
+				}
+				continue
+			}
+			if e < 0.46 {
+				return 2
+			}
+			if a := math.Atan2(dv, du); math.Cos(a-2*math.Pi*h2) > 0.66 {
+				return 0 // where the ring is broken
+			}
+			return 1
+		}
+	}
+	return 0
+}
 
 func sabreHD(pose, f int) (*canvas, float64, float64) {
-	q := newCritAt(72, 48, 4, 6)
+	q := newCritAt(82, 54, 6, 12)
 	const gy = 38.9
 	g := gait{stride: 7.5, lift: 2.6, duty: 0.65, offs: walkOffs}
 	// flex is the spine in a run: 1 gathered, the hind feet under the
-	// belly, -1 stretched out.
+	// belly, -1 stretched out. jaw is how wide the jaws gape: at 1 nearly a
+	// right angle, as only a sabre-tooth's can.
 	var crouch, pitch, hdx, hdy, ha, jaw, reach, flex float64
 	earsBack, air := false, false
 	switch pose {
@@ -376,27 +426,29 @@ func sabreHD(pose, f int) (*canvas, float64, float64) {
 			flex = math.Sin(2*math.Pi*g.ph + 0.5)
 			pitch = 0.07 * math.Sin(2*math.Pi*g.ph-0.6)
 			hdx, hdy = 1-flex, 0.8*flex
+			jaw = 0.12
 		}
 	case sabreStalk:
-		crouch, hdx, hdy = 4.5, 3, 3.2
+		crouch, hdx, hdy, ha = 4.5, 3, 1.2, -0.12
 		if f > 0 {
 			g.on, g.ph, g.stride, g.lift = true, cycPh(f), 5.5, 1.6
 		}
 	case sabreSpring:
-		if amt := blowAmt(f); amt < 0 { // gathered on its haunches
-			crouch, pitch, hdx, hdy, jaw = -6*amt, 0.16*amt, 1, -1.5*amt, 0.3
+		if amt := blowAmt(f); amt < 0 { // gathered on its haunches, snarling
+			crouch, pitch, hdx, hdy = -6*amt, 0.16*amt, 1, -1.5*amt
+			jaw = 0.35 + 0.4*(1+amt)
 			flex = -0.8 * amt
 		} else {
-			air, reach, pitch, jaw = true, amt, -0.34*amt, 0.4+0.6*amt
-			hdx, hdy, ha = 2, -1, -0.1
+			air, reach, pitch, jaw = true, amt, -0.34*amt, 0.85+0.15*amt
+			hdx, hdy, ha = 2, -1, -0.08
 			flex = -amt
 		}
 	case sabreCower:
-		crouch, hdx, hdy, ha, earsBack = 8.2, 1, 6, 0.2, true
+		crouch, hdx, hdy, ha, earsBack = 8.2, 1, -2.2, 0.1, true
 	case sabreEatA, sabreEatB:
-		crouch, pitch, hdx, hdy, ha = 2.5, 0.2, -1, 7.5, 0.75
+		crouch, pitch, hdx, hdy, ha = 2.5, 0.2, -1, 3.4, 1.1
 		if pose == sabreEatB {
-			jaw, hdy = 0.7, 6.5
+			jaw, hdy = 0.42, 2.6
 		}
 	}
 	crouch += g.bob(0.8)
@@ -408,48 +460,97 @@ func sabreHD(pose, f int) (*canvas, float64, float64) {
 	py := int(math.Round((cy - cy0) * cK)) // the coat's pattern rides with the body
 	T := func(s shape) shape { return s.turned(cx, cy, pitch) }
 	P := func(x, y float64) (float64, float64) { return turnXY(x, y+cy-cy0, cx, cy, pitch) }
-	// Short dense fur in soft clumps, dappled darker over the back.
-	spot := func(x, y int) float64 {
-		ax, ay := float64(x)/cK, float64(y-py)/cK
-		if ay < cy0+2.5 && vnoise(ax*0.6+ay*0.25, ay*0.95, 407) > 0.59 {
-			return 0.26
-		}
-		return 0
+	// side is where image pixel (x, y) lies on the cat's side as it stands.
+	side := func(x, y int) (float64, float64) {
+		u, v := turnXY((float64(x)+0.5)/cK, (float64(y)+0.5)/cK, cx, cy, -pitch)
+		return u, v - (cy - cy0)
 	}
 	var whole shape // the body, for the light on the muscles that lie on it
-	coatAt := func(s shape, b float64, dx int, spots bool) shader {
-		return locksAt(sabreCoat, func(x, y int) float64 {
-			l := s.lum(x, y, 5*cK) + b + 0.03
-			if spots && whole.d != nil {
-				l = 0.4*l + 0.6*(whole.lum(x, y, 5*cK)+b+0.03)
-			}
-			if spots {
-				l -= spot(x, y)
+	// tawny is the marked coat of the back over s; marks 0 leaves it
+	// plain, 1 gives the rosettes of the flanks and the stripes of the
+	// spine and neck.
+	tawny := func(s shape, b float64, marks int) shader {
+		light := func(x, y int) float64 {
+			l := s.lum(x, y, 5*cK) + b + 0.05
+			if marks == 1 && whole.d != nil {
+				l = 0.4*l + 0.6*(whole.lum(x, y, 5*cK)+b+0.05)
 			}
 			return l
-		}, 3.2, 4.2, 0.3, 401, dx, py)
+		}
+		base := locksAt(sabreTawny, light, 3.2, 4.2, 0.3, 401, 0, py)
+		deep := locksAt(sabreTawny, func(x, y int) float64 { return light(x, y) - 0.13 }, 3.2, 4.2, 0.3, 401, 0, py)
+		if marks == 0 {
+			return base
+		}
+		return func(x, y int, d float64) color.RGBA {
+			u, v := side(x, y)
+			m := sabreMark(u, v, 1, false)
+			switch {
+			case u > 39.5: // the neck: broken stripes running down it
+				m = 0
+				if vnoise((u+0.45*v)*0.62, (v-0.45*u)*0.2, 416) > 0.58 {
+					m = 1
+				}
+			case v < cy0-4.6 && vnoise(u*0.3, v*1.1, 417) > 0.63:
+				m = 1 // and along the spine
+			case v < cy0-6.4:
+				m = 0
+			}
+			switch m {
+			case 1:
+				return toneOf(sabreDark, light(x, y)+0.05)
+			case 2:
+				return deep(x, y, d)
+			}
+			return base(x, y, d)
+		}
 	}
-	coat := func(s shape, b float64) shader { return coatAt(s, b, 0, false) }
-	cream := func(s shape, b float64) shader {
-		return locksAt(sabrePale, lit(s, 4, b+0.24), 3.2, 4.2, 0.3, 402, 0, py)
+	grey := func(s shape, b float64, dx int) shader {
+		return locksAt(sabreGrey, lit(s, 4, b+0.22), 3.2, 4.2, 0.3, 402, dx, py)
 	}
-	// pale is hi, turning to cream inside in: a soft, broken edge.
+	// pale is hi, turning to lo inside in: a soft, broken edge.
 	pale := func(hi, lo shader, in shape) shader {
 		return func(x, y int, d float64) color.RGBA {
-			if in.d(float64(x)+0.5, float64(y)+0.5) < (hashf(x/2, y/2, 409)-0.6)*1.4*cK {
+			if in.d(float64(x)+0.5, float64(y)+0.5) < (hashf(x/2, y/2, 409)-0.6)*1.5*cK {
 				return lo(x, y, d)
 			}
 			return hi(x, y, d)
 		}
 	}
-	paw := func(fx, fy float64, b float64, claws bool, dx int) {
-		pw := aCap(fx-0.1, fy-1.1, fx+2.4, fy-0.85, 1.55, 1.25)
-		q.fill(pw, coatAt(pw, b+0.1, dx, false))
-		q.flat(aCap(fx+2.2, fy-0.9, fx+2.5, fy-0.2, 0.22, 0.2), plain(sabreFur[1])) // between the toes
-		if claws {
-			for k := 0.0; k < 3; k++ {
-				q.fill(aPoly(fx+2.6+0.5*k, fy-1.7+0.5*k, fx+4.5+0.3*k, fy-0.6+0.6*k, fx+2.9+0.4*k, fy-0.7+0.5*k), plain(colBone))
+	// limb is the pale coat of a leg, barred with dark down to the knee;
+	// (dx, hy) is where its pattern hangs from.
+	limb := func(s shape, b float64, dx int, hy float64, seed uint32) shader {
+		lo := grey(s, b, dx)
+		return func(x, y int, d float64) color.RGBA {
+			u, v := (float64(x-dx)+0.5)/cK, (float64(y)+0.5)/cK-hy
+			if v < 6.6+1.5*hashf(x/3, 0, seed) {
+				w := (v + 0.45*math.Sin(u*0.8+float64(seed))) / 2.9
+				if w-math.Floor(w) < 0.36 && vnoise(u*0.8, v*0.5, seed) > 0.33 {
+					return toneOf(sabreDark, s.lum(x, y, 4*cK)+b+0.15)
+				}
 			}
+			return lo(x, y, d)
+		}
+	}
+	claw := hex(0x2b211c)
+	// A broad paw, its claws showing; out makes them long, unsheathed.
+	paw := func(fx, fy, b float64, fore, out bool, dx int) {
+		r := 1.75
+		if fore {
+			r = 2.15
+		}
+		pw := aCap(fx-0.2, fy-r+0.5, fx+1.5*r, fy-r+0.85, r, r*0.8)
+		for k := 0.0; k < 3; k++ {
+			x, l := fx+0.95*r+0.62*r*k, 1.0
+			if out {
+				l = 1.9
+			}
+			q.fill(aPoly(x, fy-1.1, x+0.9+0.5*l, fy+0.3*l+0.1, x+0.1, fy+0.25), plain(claw))
+		}
+		q.fill(pw, grey(pw, b+0.05, dx))
+		for k := 1.0; k < 3; k++ { // between the toes
+			x := fx + 0.85*r + 0.6*r*k
+			q.flat(aCap(x, fy-0.95, x+0.25, fy-0.1, 0.2, 0.17), plain(sabreGrey[2]))
 		}
 	}
 	hipX := 2.6 * flex
@@ -465,7 +566,7 @@ func sabreHD(pose, f int) (*canvas, float64, float64) {
 			if hind {
 				fx, fy = hx-5-5*reach, hy+9-2*reach
 			} else {
-				fx, fy = hx+7+4*reach, hy+5-3*reach
+				fx, fy = hx+5+4*reach, hy+9-2*reach
 			}
 		} else if !hind && pitch > 0.1 {
 			fx += 3 // eating: the fore paws out in front
@@ -474,104 +575,126 @@ func sabreHD(pose, f int) (*canvas, float64, float64) {
 		if hind {
 			bend = -1
 		}
-		kx, ky := ik2(hx, hy, fx, fy-1.2, 6.6, 6.6, bend)
-		// A heavy forearm; a thigh that narrows to a thin hock.
-		r0, r1, r2 := 4.3, 2.9, 2.1
+		kx, ky := ik2(hx, hy, fx, fy-1.6, 6.6, 6.6, bend)
+		// A fore leg like a pillar; a thigh that narrows to a thin hock.
+		r0, r1, r2 := 5.2, 3.9, 2.9
 		if hind {
-			r0, r1, r2 = 4.6, 2.3, 1.75
+			r0, r1, r2 = 4.8, 2.6, 2.0
 		}
-		lg := aLeg(hx, hy, kx, ky, fx, fy-1.7, r0, r1, r2)
-		b := -0.22
+		lg := aLeg(hx, hy, kx, ky, fx, fy-2.2, r0, r1, r2)
+		b := -0.24
 		if near {
 			b = 0
 		}
 		sl := int(math.Round((fx - hx0 + 1) * 0.6 * cK))
-		q.fill(lg, coatAt(lg, b, sl, false))
-		paw(fx, fy, b, air && !hind, sl)
+		q.fill(lg, limb(lg, b, sl, hy, 431+uint32(i)))
+		paw(fx, fy, b, !hind, air && !hind, sl)
 	}
 	leg(2, 19, 25, false)
-	leg(3, 40.5, 25, false)
+	leg(3, 41.5, 25.5, false)
 	// A bobbed tail.
 	tx, ty := P(10.5+hipX, 21)
-	tb := newCTube(bez(6, 1.9, 1.35, [2]float64{tx + 1, ty}, [2]float64{tx - 2, ty - 0.6}, [2]float64{tx - 4, ty - 1.4 + 2*clamp01(crouch/8)}, [2]float64{tx - 4.6, ty - 4 + 5*clamp01(crouch/8)}))
+	tb := newCTube(bez(6, 2, 1.5, [2]float64{tx + 1, ty}, [2]float64{tx - 1.6, ty - 0.6}, [2]float64{tx - 3.2, ty - 1.2 + 2*clamp01(crouch/8)}, [2]float64{tx - 3.8, ty - 3 + 4*clamp01(crouch/8)}))
 	q.fill(tb.shape(), tb.skin(func(x, y int, s, v, l float64) color.RGBA {
-		if s > 0.72 {
-			l -= 0.22 // its dark tip
+		if s > 0.7 || s > 0.3 && s < 0.48 {
+			return toneOf(sabreDark, l+0.1) // ringed, and dark at the tip
 		}
-		return toneOf(sabreFur, l-0.02)
+		return toneOf(sabreTawny, l)
 	}))
 
-	// The body: a deep chest under heavy shoulders, the back sloping away
-	// to lower, lighter hindquarters.
-	hx, hy := P(46+hdx, 17+hdy)
-	nkx, nky := P(38.5, 20.3)
-	rump := T(aEll(17+hipX, cy+0.3, 7.5, 6.5))
-	waist := T(aEll(27+0.5*hipX, cy+0.1-1.5*flex, 10.5, 5.2+0.5*flex))
-	chest := T(aEll(37, cy-1.6, 8.6, 7.8))
-	neck := aCap(nkx, nky, hx-1.5, hy+0.8, 6, 4.7)
+	// The body: a deep chest under a hump of shoulder, the back sloping
+	// away to lower, lighter hindquarters; the head carried low before it.
+	hx, hy := P(47.5+hdx, 18.5+hdy)
+	nkx, nky := P(39.5, 19.6)
+	rump := T(aEll(17+hipX, cy+0.5, 7.6, 6.6))
+	waist := T(aEll(27+0.5*hipX, cy+0.3-1.5*flex, 10.5, 5.5+0.5*flex))
+	chest := T(aEll(37.5, cy-1.9, 9.6, 8.7))
+	neck := aCap(nkx, nky, hx-1.5, hy+0.8, 6.7, 5.2)
 	body := sBlend(4, rump, waist, chest, neck)
-	belly := T(aEll(28+0.5*hipX, cy+5.7-0.8*flex, 13.5, 3)).or(aCap(nkx+3.5, nky+5.2, hx+0.5, hy+4.6, 2.2, 2))
-	q.fill(body, pale(coatAt(body, 0, 0, true), cream(body, 0), belly))
+	under := T(sBelow((cy + 2.9) * cK)).or(T(aEll(44, cy+2.2, 4.6, 6.4))).or(aCap(nkx+4, nky+5.4, hx+0.5, hy+5, 2.9, 2.6))
+	q.fill(body, pale(tawny(body, 0, 1), grey(body, 0, 0), under))
 	leg(0, 15.5, 26, true)
-	leg(1, 37.5, 26.5, true)
+	leg(1, 38, 27, true)
 	// The muscle of the haunch and the shoulder blade, which rolls as the
 	// fore leg under it swings.
 	q.edge, whole = 0.1, body
-	haunch := T(aEll(16.6+hipX, cy+1.3, 5.7, 6))
-	q.fill(haunch, coatAt(haunch, 0.01, 0, true))
+	low := T(sBelow((cy + 4.6) * cK))
+	haunch := T(aEll(16.6+hipX, cy+1.5, 6, 6.3))
+	q.fill(haunch, pale(tawny(haunch, 0.01, 1), grey(haunch, 0, 0), low))
 	fdx, _ := g.foot(1)
 	roll := -fdx / math.Max(1, g.stride)
 	if !g.on {
 		roll = 0
 	}
-	blade := T(aEll(37.4+1.6*roll, cy-2.4-1.3*roll-0.25*crouch+0.6*reach, 4.9, 6.2))
-	q.fill(blade, coatAt(blade, 0.03, 0, true))
+	blade := T(aEll(37.8+1.6*roll, cy-1.6-1.3*roll-0.25*crouch+0.6*reach, 5.8, 7.3))
+	q.fill(blade, pale(tawny(blade, 0.03, 1), grey(blade, 0, 0), low))
 	q.edge = 0.34
 
-	// The head: a heavy skull, a broad pale muzzle, and the two long fangs.
+	// The head: a heavy skull, small ears, a ruff under the cheek, pale
+	// jaws and the two long sabres. The upper jaw lifts and the lower one
+	// drops away from it.
+	ha -= 0.5 * jaw
+	ja := 1.38 * jaw
 	R := func(s shape) shape { return s.turned(hx, hy, ha) }
 	RP := func(x, y float64) (float64, float64) { return turnXY(x, y, hx, hy, ha) }
+	J := func(s shape) shape { return R(s.turned(hx+0.3, hy+3, ja)) } // on the lower jaw
 	fang := func(dx, b float64) {
 		var c [4][2]float64
-		for i, o := range [4][2]float64{{6.2, 2.4}, {7.4, 5.5}, {7.2, 8.4}, {5.4, 10.8}} {
+		for i, o := range [4][2]float64{{6.3, 2.2}, {8.4, 6.4}, {7.9, 10.6}, {5.2, 13.6}} {
 			c[i][0], c[i][1] = RP(hx+o[0]+dx, hy+o[1])
 		}
-		tb := newCTube(bez(10, 1.35, 0.3, c[0], c[1], c[2], c[3]))
+		tb := newCTube(bez(12, 1.3, 0.28, c[0], c[1], c[2], c[3]))
 		q.fill(tb.shape(), tb.skin(func(x, y int, s, v, l float64) color.RGBA {
-			return toneOf(tuskRamp, 0.42+0.75*l+b)
+			return toneOf(sabreIvory, 0.5+0.7*l+b)
 		}))
 	}
-	fang(-1.7, -0.3)
+	fang(-1.8, -0.34)
+	ruff := R(aEll(hx-2.4, hy+4, 4, 3.6).jag(6, 5, (hy+3.4)*cK, 421))
+	q.fill(ruff, grey(ruff, -0.06, 0))
 	if jaw > 0 {
-		lower := R(aCap(hx+0.6, hy+3.6, hx+5.8, hy+4.8+3.6*jaw, 1.7, 1.25))
-		q.fill(lower, cream(lower, -0.05))
-		q.flat(R(aPoly(hx+1.2, hy+2.8, hx+7, hy+2.8, hx+5.6, hy+3.9+3.1*jaw)), plain(hex(0x8e2a30)))
+		tx, ty := turnXY(hx+7.6, hy+5, hx+0.3, hy+3, ja)
+		q.fill(R(aPoly(hx+0.3, hy+2.2, hx+8.2, hy+3.4, tx, ty)), plain(hex(0x5c1219))) // the mouth
+		q.flat(J(aCap(hx+1.6, hy+3, hx+5.9, hy+3.2, 1.15, 0.8)), plain(hex(0xdc7480))) // the tongue
+		q.flat(J(aCap(hx+2.4, hy+2.8, hx+4.8, hy+3, 0.35, 0.3)), plain(hex(0xf0a0a6)))
+		lower := J(aCap(hx+0.8, hy+4.5, hx+7.3, hy+5.1, 1.75, 1.25))
+		q.fill(J(aPoly(hx+6.2, hy+4.3, hx+7.4, hy+4.3, hx+7, hy+2.3)), plain(sabreIvory[3])) // a lower fang
+		q.fill(lower, grey(lower, -0.02, 0))
 	} else {
-		chin := R(aCap(hx+1.5, hy+3.9, hx+5.6, hy+4.6, 1.5, 1.15))
-		q.fill(chin, cream(chin, -0.08))
+		chin := R(aCap(hx+1.5, hy+4.1, hx+5.8, hy+4.8, 1.6, 1.25))
+		q.fill(chin, grey(chin, -0.06, 0))
 	}
 	earA := -0.3
 	if earsBack {
 		earA = -1.5
 	}
-	ear := R(aEll(hx-1.8, hy-5.2, 1.7, 2.3).turned(hx-2, hy-3.6, earA))
-	q.fill(ear, coat(ear, -0.14))
-	skull := R(sBlend(2, aEll(hx, hy-0.2, 6.3, 5.7), aEll(hx+5.3, hy+1.4, 4.1, 3.5), aEll(hx-1.2, hy+2.8, 4.4, 3.6)))
-	muzzle := R(aEll(hx+6, hy+3.1, 4.4, 2.7).or(aEll(hx+7.4, hy+1.6, 2.2, 2)))
-	q.fill(skull, pale(coat(skull, 0.05), cream(skull, 0.02), muzzle))
-	q.flat(R(aEll(hx-1.6, hy-4.9, 0.75, 1.25).turned(hx-2, hy-3.6, earA)), plain(sabreFur[1]))
-	q.flat(R(aCap(hx+4.2, hy+3.9, hx+8.2, hy+3.3, 0.24, 0.2)), plain(sabreFur[1])) // the lip
-	fang(0, 0.06)
-	for k := 0.0; k < 3; k++ { // where the whiskers grow
-		wx, wy := RP(hx+5.4+1.1*k, hy+2.3-0.25*k)
-		q.dot(wx, wy, 0, 0, sabreFur[2])
+	ear := R(aEll(hx-2.6, hy-6, 1.7, 2.1).turned(hx-2.4, hy-4, earA))
+	q.fill(ear, plain(sabreDark[2]))
+	skull := R(sBlend(2, aEll(hx, hy-0.2, 6.4, 5.8), aEll(hx+5.4, hy+1.3, 4.3, 3.6), aEll(hx-1, hy+2.8, 4.6, 3.8)))
+	muzzle := R(aEll(hx+6.2, hy+3, 4.7, 2.9).or(aEll(hx+7.4, hy+1.4, 2.5, 2.1)).or(aEll(hx+1.2, hy+4.9, 5.2, 2.5)).or(aEll(hx+3.4, hy-0.2, 1.9, 1.3)))
+	q.fill(skull, pale(tawny(skull, 0.06, 0), grey(skull, 0.02, 0), muzzle))
+	q.flat(R(aEll(hx-2.5, hy-6, 0.7, 1.1).turned(hx-2.4, hy-4, earA)), plain(sabreGrey[8])) // the pale spot of the ear
+	// The marks of the face: stripes back over the crown, two across the
+	// cheek, the brow and the dark line down from the eye.
+	dark := plain(sabreDark[1])
+	for k := 0.0; k < 3; k++ {
+		q.mark(R(aCap(hx+1.6-1.9*k, hy-5+0.25*k, hx-0.6-1.9*k, hy-2.9+0.5*k, 0.36, 0.26)), dark)
 	}
-	ex, ey := RP(hx+2.6, hy-1.2)
-	q.flat(R(aCap(hx+1, hy-2.5, hx+4, hy-2.2, 0.4, 0.3)), plain(sabreFur[0]))     // the brow
-	q.flat(R(aCap(hx+3.6, hy-0.6, hx+4.6, hy+1.2, 0.3, 0.2)), plain(sabreFur[2])) // and the dark line down from the eye
-	q.eye(ex, ey, 1.6, hex(0xf0b428))
-	nose := R(aEll(hx+8.9, hy+0.7, 1.05, 0.9))
-	q.flat(nose, plain(hex(0x4a2622)))
+	q.mark(R(aCap(hx-0.4, hy+0.4, hx-4.4, hy+1.5, 0.36, 0.26)), dark)
+	q.mark(R(aCap(hx-0.6, hy+2.1, hx-3.8, hy+3.4, 0.33, 0.25)), dark)
+	if jaw == 0 {
+		q.flat(R(aCap(hx+4.2, hy+4, hx+8.4, hy+3.4, 0.24, 0.2)), plain(sabreGrey[1])) // the lip
+	}
+	fang(0, 0.08)
+	for k := 0.0; k < 3; k++ { // where the whiskers grow
+		wx, wy := RP(hx+5.6+1.1*k, hy+2.2-0.25*k)
+		q.dot(wx, wy, 0, 0, sabreGrey[3])
+	}
+	ex, ey := RP(hx+2.8, hy-1.4)
+	q.flat(R(aCap(hx+1, hy-2.7, hx+4.2, hy-2.3, 0.42, 0.3)), dark)
+	q.flat(R(aCap(hx+3.8, hy-0.7, hx+4.9, hy+1.2, 0.3, 0.2)), dark)
+	q.eye(ex, ey, 1.6, hex(0xf2b21e))
+	nose := R(aEll(hx+9.1, hy+0.6, 1.1, 0.95))
+	q.flat(nose, plain(hex(0x5a2a2a)))
 	ay := 38.4
 	if air {
 		ay = 42.4
