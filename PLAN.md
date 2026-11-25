@@ -69,3 +69,6 @@ Việc cần làm, theo thứ tự ưu tiên hiện tại. Làm xong mục nào 
   - Độ hiếm tăng theo khoảng cách từ đảo đầu tiên; đảo đầu tiên chỉ có đá và than.
   - Than nằm thành vỉa trong hang và vùng đá.
   - Mỗi loại quặng có dấu hiệu nhận biết từ xa (màu, ánh lấp lánh) để người chơi đi tìm.
+  - Đếm thực tế (thế giới 1024×1024): than 23.112, đá lửa 241, ngọc bích 21.587, mã não 413, hắc diện thạch 419. Đá lửa (bậc thấp nhất) lại hiếm nhất; ngọc bích và than quá nhiều vì hang mê cung rất rộng.
+  - Mục tiêu: đá lửa vài nghìn (có cả gần đảo đầu tiên); ngọc bích 1.000–2.000, ở sâu trong hang; than ít hơn, thành vỉa; mã não và hắc diện thạch giữ khoảng 400.
+  - **Thêm kim cương**: bậc 5, quý nhất, hiếm hơn hắc diện thạch (khoảng 50–100 mạch). Chỉ ở chỗ sâu nhất của hang dưới đảo núi lửa hoặc gần hang ổ trùm; cần cúp hắc diện thạch mới đào được; lấp lánh trong bóng tối. Làm công cụ, kiếm, giáp bậc 5 mạnh nhất (dưới đồ huyền thoại của trùm).
