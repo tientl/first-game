@@ -119,7 +119,34 @@ const (
 	ItemCarchaSword  // Kiếm răng cưa Carcharo: quick, hard blows
 	ItemGigaAxe      // Rìu nanh Giganoto: the hardest blow; fells trees fast
 	ItemMegaNecklace // Vòng răng Megalodon: swim and sail faster
-	itemsEnd         // new items go above this line
+
+	// The new plants and the toads: see flora.go and toad.go.
+	ItemBamboo         // building material; later arrow shafts and water tubes
+	ItemGourd          // eaten young; later dried into a water flask
+	ItemPitcherWater   // rain water out of a pitcher plant: drunk as it is
+	ItemFlax           // fibre, twisted into rope
+	ItemVine           // a liana: rough rope
+	ItemRope           // from flax or vines
+	ItemPoisonMushroom // eating it poisons; later poison arrows
+	ItemNightshade     // a poison berry
+	ItemAloe           // soothes burns and wounds
+	ItemHerb           // draws poison out; a potion ingredient
+	ItemMoss           // laid on a wound in place of a bandage
+	ItemSeaweed        // eaten
+	ItemLily           // a water lily's flower
+	ItemLotusSeed      // eaten
+	ItemHorsetail      // a rough rush from the water's edge
+	ItemRice           // wild rice: sown in tilled soil, or roasted
+	ItemRoastRice
+	ItemCorn // wild corn: eaten, roasted, or sown
+	ItemRoastCorn
+	ItemSquash // eaten or roasted
+	ItemRoastSquash
+	ItemSquashSeed  // sown in tilled soil
+	ItemToadSkin    // from the green toad
+	ItemPoisonGland // from the green toad: later poison arrows
+	ItemGlowGland   // from the glow toad
+	itemsEnd        // new items go above this line
 
 	// The head of each kind of beast, a trophy: HeadItem(k). They sit at a
 	// fixed place so new items above never move them.
@@ -137,6 +164,8 @@ type ItemDef struct {
 	Health float64 // restored when eaten; negative hurts (raw food), but never below 1
 	Stack  int     // most one inventory slot holds; 0 means MaxStack
 	Tool   bool    // kept, not used up; a player carries at most one
+	Poison int     // eating it poisons for this many ticks
+	Cures  bool    // eating or putting it on draws poison out
 }
 
 var itemDefs = [NumItems]ItemDef{
@@ -219,8 +248,8 @@ var itemDefs = [NumItems]ItemDef{
 	ItemDinoHide:     {Name: "Da khủng long"},
 	ItemDinoArmor:    {Name: "Giáp da khủng long", Stack: 1, Tool: true},
 	ItemPotion:       {Name: "Bình máu", Health: PotionHealth, Stack: 10},
-	ItemBigPotion:    {Name: "Bình máu lớn", Health: BigPotionHealth, Stack: 10},
-	ItemBandage:      {Name: "Băng tơ nhện", Health: BandageHealth, Stack: 10},
+	ItemBigPotion:    {Name: "Bình máu lớn", Health: BigPotionHealth, Stack: 10, Cures: true},
+	ItemBandage:      {Name: "Băng tơ nhện", Health: BandageHealth, Stack: 10, Cures: true},
 	ItemSilk:         {Name: "Tơ nhện"},
 	ItemGlowSpore:    {Name: "Bào tử phát sáng"},
 	ItemFlowerRed:    {Name: "Hoa anh túc đỏ"},
@@ -240,6 +269,32 @@ var itemDefs = [NumItems]ItemDef{
 	ItemBanana:       {Name: "Chuối", Hunger: 14, Health: 3},
 	ItemHoney:        {Name: "Mật ong", Hunger: 10, Health: 15, Stack: 20},
 	ItemBattleAxe:    {Name: "Rìu chiến", Stack: 1, Tool: true},
+
+	ItemBamboo:         {Name: "Tre"},
+	ItemGourd:          {Name: "Quả bầu", Hunger: 8, Health: 1},
+	ItemPitcherWater:   {Name: "Nước nắp ấm", Health: 3, Stack: 10},
+	ItemFlax:           {Name: "Sợi lanh"},
+	ItemVine:           {Name: "Dây leo"},
+	ItemRope:           {Name: "Dây thừng"},
+	ItemPoisonMushroom: {Name: "Nấm độc", Hunger: 4, Health: -8, Poison: FoodPoisonTicks},
+	ItemNightshade:     {Name: "Quả cà độc", Hunger: 4, Health: -6, Poison: FoodPoisonTicks},
+	ItemAloe:           {Name: "Lô hội", Health: 8},
+	ItemHerb:           {Name: "Thảo dược", Health: 5, Cures: true},
+	ItemMoss:           {Name: "Rêu", Health: 10},
+	ItemSeaweed:        {Name: "Rong biển", Hunger: 7, Health: 1},
+	ItemLily:           {Name: "Hoa súng"},
+	ItemLotusSeed:      {Name: "Hạt sen", Hunger: 9, Health: 2},
+	ItemHorsetail:      {Name: "Cỏ đuôi ngựa"},
+	ItemRice:           {Name: "Thóc", Hunger: 3},
+	ItemRoastRice:      {Name: "Cốm rang", Hunger: 20, Health: 3},
+	ItemCorn:           {Name: "Ngô", Hunger: 10, Health: 1},
+	ItemRoastCorn:      {Name: "Ngô nướng", Hunger: 24, Health: 4},
+	ItemSquash:         {Name: "Bí", Hunger: 12, Health: 1},
+	ItemRoastSquash:    {Name: "Bí nướng", Hunger: 28, Health: 5},
+	ItemSquashSeed:     {Name: "Hạt bí"},
+	ItemToadSkin:       {Name: "Da cóc"},
+	ItemPoisonGland:    {Name: "Tuyến độc cóc"},
+	ItemGlowGland:      {Name: "Tuyến phát sáng"},
 }
 
 // Valid reports whether k is a real item kind (not ItemNone, in range).

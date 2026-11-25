@@ -27,7 +27,9 @@ import (
 //   - 14: the bag has 30 slots (it had 20), and so do chests; older inventories
 //     load as they were, with the new slots empty. An old chest in a cave
 //     opened like a chest; one opened before spilled its hoard already.
-const SaveVersion = 14
+//   - 15: the wild plants of flora.go (some stand in the water) and crops of
+//     four kinds; an older world keeps the plants a fresh one would grow.
+const SaveVersion = 15
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -217,7 +219,7 @@ func Load(d SaveData) (*World, error) {
 	var fresh []Entity
 	for _, e := range w.entities {
 		if e.Kind == EntityTwig && d.Version < 2 || e.Kind == EntityPebble && d.Version < 5 ||
-			IsFruitTree(e.Kind) && d.Version < 9 {
+			IsFruitTree(e.Kind) && d.Version < 9 || e.Kind == EntityFlora && d.Version < 15 {
 			fresh = append(fresh, *e)
 		}
 	}
@@ -239,7 +241,7 @@ func Load(d SaveData) (*World, error) {
 	w.nextEnt = d.NextEntity
 	for _, e := range d.Entities {
 		if e.ID == 0 || e.Kind == EntityNone || e.Kind >= NumEntityKinds ||
-			!w.canPlace(e.TX, e.TY) || w.entities[e.ID] != nil {
+			!w.canHold(e.Kind, e.Var, e.TX, e.TY) || w.entities[e.ID] != nil {
 			continue
 		}
 		if d.Version < 3 {
@@ -258,6 +260,15 @@ func Load(d SaveData) (*World, error) {
 			e.HP = maxHP(e.Kind, false) // a few blows at it are not kept: older saves hold the one hit of picking
 		}
 		switch e.Kind {
+		case EntityFlora:
+			if e.Var >= uint8(NumFlora) {
+				continue
+			}
+			e.HP = FloraKind(e.Var).def().hp() // a blow or two at a bamboo is not kept
+		case EntityCrop:
+			if e.Var >= uint8(NumCrops) {
+				e.Var = 0
+			}
 		case EntityCampfire:
 			if e.Fuel <= 0 {
 				continue
@@ -273,7 +284,7 @@ func Load(d SaveData) (*World, error) {
 	}
 	w.loadChests(d.Chests)
 	for _, e := range fresh {
-		if w.canPlace(e.TX, e.TY) {
+		if w.canHold(e.Kind, e.Var, e.TX, e.TY) {
 			w.nextEnt++
 			e.ID = w.nextEnt
 			ent := e

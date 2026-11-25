@@ -441,6 +441,11 @@ var devItemAliases = map[string]ItemKind{
 	"hide": ItemHide, "bone": ItemBone, "fur": ItemFur, "saddle": ItemSaddle,
 	"potion": ItemPotion, "raft": ItemRaft, "boat": ItemSailboat, "sailboat": ItemSailboat,
 	"honey": ItemHoney, "banana": ItemBanana, "battleaxe": ItemBattleAxe,
+	"bamboo": ItemBamboo, "gourd": ItemGourd, "pitcherwater": ItemPitcherWater, "flax": ItemFlax, "vine": ItemVine,
+	"rope": ItemRope, "poisonmushroom": ItemPoisonMushroom, "nightshade": ItemNightshade, "aloe": ItemAloe,
+	"herb": ItemHerb, "moss": ItemMoss, "seaweed": ItemSeaweed, "lily": ItemLily, "lotusseed": ItemLotusSeed, "lotus": ItemLotusSeed,
+	"horsetail": ItemHorsetail, "rice": ItemRice, "corn": ItemCorn, "squash": ItemSquash, "squashseed": ItemSquashSeed,
+	"toadskin": ItemToadSkin, "poisongland": ItemPoisonGland, "glowgland": ItemGlowGland,
 }
 
 // devBeastAliases are English names for the beasts.
@@ -456,6 +461,7 @@ var devBeastAliases = map[string]CreatureKind{
 	"spider": CreatureSpider, "bear": CreatureBear, "tribesman": CreatureTribesman, "warrior": CreatureTribesman,
 	"mosa": CreatureMosa, "mosasaur": CreatureMosa, "kraken": CreatureKraken, "squid": CreatureKraken,
 	"scorpion": CreatureScorpion, "monkey": CreatureMonkey,
+	"toad": CreatureToad, "poisontoad": CreatureToad, "greentoad": CreatureToad, "glowtoad": CreatureGlowToad,
 }
 
 // FindItem finds the item a player means by name: its number, an English

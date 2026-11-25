@@ -534,10 +534,15 @@ func (w *World) interact(p *Player, e *Entity) bool {
 	case EntityFarmland:
 		return w.plant(p, e)
 	case EntityCrop:
-		return w.harvest(p, e, ItemPotato, CropYield, HitPower, func() {
-			e.Kind, e.Ready = EntityFarmland, true // dug up: the bed is free again
-			e.RegrowAt = w.tick + FarmlandDecayTicks
-		})
+		return w.reap(p, e) // see flora.go
+	case EntityFlora:
+		dmg := HitPower
+		if FloraKind(e.Var).def().axe {
+			if dmg = withTool(ToolAxe); dmg == 0 {
+				return false
+			}
+		}
+		return w.pickFlora(p, e, dmg) // see flora.go
 	case EntityCampfire:
 		return w.stoke(p, e, FireMaxFuel) // coal first: it burns longest
 	case EntityFurnace:
@@ -606,8 +611,15 @@ func (w *World) eat(p *Player, i int) {
 	default:
 		def := s.Item.Def()
 		p.Inv.TakeSlot(i, 1)
-		if s.Item == ItemBigPotion || s.Item == ItemBandage {
+		if def.Cures {
+			if p.Poisoned() {
+				p.notify(NoticeCured, uint8(s.Item))
+			}
 			p.cure() // draws the venom out
+		}
+		if def.Poison > 0 && !PoisonProof(&p.Inv) && !p.dev.god {
+			p.poison = max(p.poison, def.Poison) // the wrong mushroom, the wrong berry
+			p.notify(NoticeFoodPoison, uint8(s.Item))
 		}
 		p.Hunger = min(MaxHunger, p.Hunger+def.Hunger)
 		// Raw food hurts a little, but a meal never kills.

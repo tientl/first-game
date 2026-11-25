@@ -47,7 +47,7 @@ func aimBox(k EntityKind) (halfW, height float64) {
 		return 0.6, 2.6
 	case EntityBoulder, EntityBerryBush, EntityCactus, EntityWall, EntityStoneWall, EntityDoor,
 		EntityFurnace, EntityBed, EntityChest, EntitySpikes, EntityTrophy, EntityTorchStand,
-		EntityManEater, EntityTreasure, EntityGlowPlant, EntityReed, EntityCampfire, EntityGrave:
+		EntityManEater, EntityTreasure, EntityGlowPlant, EntityReed, EntityCampfire, EntityGrave, EntityFlora:
 		return 0.5, 1.6
 	}
 	return 0.5, 1

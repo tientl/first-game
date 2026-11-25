@@ -81,6 +81,10 @@ const (
 	CreatureCarcharo
 	CreatureGiganoto
 	CreatureMegalodon
+
+	// The toads of the ponds and the marsh: see toad.go.
+	CreatureToad     // green and warty: its touch poisons
+	CreatureGlowToad // harmless; it glows at night
 	NumCreatureKinds
 )
 
@@ -158,6 +162,8 @@ type creatureDef struct {
 	wades      bool       // walks on land and swims anywhere in the water, deep or not (Spinosaurus)
 	seaside    bool       // appears only on sand by the water
 	waterside  bool       // appears only on its spawn tiles where they touch water
+	pondside   bool       // appears only in the marsh and beside ponds; see toad.go
+	pads       bool       // sits on lily pads as on land
 	onLine     bool       // caught on a fishing line: cast, wait for the bite, strike
 	homeKind   EntityKind // lives in a burrow or den of this kind; EntityNone if it roams free
 	perHome    int        // animals to a home
@@ -346,6 +352,8 @@ type Creature struct {
 	huntedT        int        // ticks left of the hunter's attention
 	fleeT          int        // ticks it has run from a hunter: it tires
 	trip           int        // ticks left of a walk to water
+
+	hops int // a toad's hops left in this run; see toad.go
 }
 
 // fauna is the world's animal life.
@@ -412,7 +420,7 @@ func (w *World) creatureFits(k CreatureKind, x, y float64) bool {
 			}
 			tx := int(math.Floor(x - r + 2*r*float64(i)/float64(n)))
 			ty := int(math.Floor(y - r + 2*r*float64(j)/float64(n)))
-			land := w.landAt(tx, ty) && !w.beastBlocked(tx, ty)
+			land := (w.landAt(tx, ty) || d.pads && w.padAt(tx, ty)) && !w.beastBlocked(tx, ty)
 			switch {
 			case d.deep && w.TileAt(tx, ty) != TileWater:
 				return false
@@ -459,7 +467,7 @@ func (w *World) spawnCreatures() {
 		for ty := 0; ty < w.height; ty++ {
 			for tx := 0; tx < w.width; tx++ {
 				t := w.tiles[ty*w.width+tx]
-				if !slices.Contains(d.spawnOn, t) || (d.water && !w.isShallow(tx, ty)) || (d.seaside && !w.seaside(tx, ty)) || (d.waterside && !w.waterside(tx, ty)) {
+				if !slices.Contains(d.spawnOn, t) || (d.water && !w.isShallow(tx, ty)) || (d.seaside && !w.seaside(tx, ty)) || (d.waterside && !w.waterside(tx, ty)) || (d.pondside && !w.pondside(tx, ty)) {
 					continue
 				}
 				if d.deep {
@@ -717,6 +725,8 @@ func (w *World) stepCreature(c *Creature) {
 		w.stepScorpion(c) // see pyramid.go
 	case CreatureTroodon:
 		w.stepTroodon(c) // see nightstalker.go
+	case CreatureToad, CreatureGlowToad:
+		w.stepToad(c) // see toad.go
 	default:
 		w.wander(c)
 	}
@@ -926,6 +936,9 @@ func (w *World) catch(p *Player, c *Creature) bool {
 	// What a kill gives falls on the ground (see drops.go), so a full bag
 	// never stops a blow; only a fish comes straight off the line into it.
 	dmg := w.blow(p, c.Kind) // see combat.go
+	if c.Kind == CreatureToad && Punches(p.Held()) && c.biteCD == 0 {
+		w.toadPoisons(c, p) // a bare fist on a poison toad: see toad.go
+	}
 	fits := p.Inv
 	if missing := addAll(&fits, c.Kind.loot()); missing.Valid() && d.onLine {
 		p.notify(NoticeBagFull, uint8(missing))

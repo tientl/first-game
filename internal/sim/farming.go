@@ -34,8 +34,9 @@ func (e *Entity) GrowthStage(tick uint64) int {
 	if e.Kind != EntityCrop || e.Ready {
 		return 0
 	}
-	left := min(CropGrowTicks, int(e.RegrowAt-min(e.RegrowAt, tick)))
-	return min(CropStages-1, (CropGrowTicks-left)*CropStages/CropGrowTicks)
+	grow := CropKind(e.Var).growTicks()
+	left := min(grow, int(e.RegrowAt-min(e.RegrowAt, tick)))
+	return min(CropStages-1, (grow-left)*CropStages/grow)
 }
 
 // dig tills the tile p faces when p holds a hoe, and reports whether it did.
@@ -68,19 +69,4 @@ func (w *World) till(tx, ty int) *Entity {
 	e := w.addEntity(EntityFarmland, tx, ty)
 	e.RegrowAt = w.tick + FarmlandDecayTicks
 	return e
-}
-
-// plant puts one of p's sweet potatoes into the empty bed e.
-func (w *World) plant(p *Player, e *Entity) bool {
-	if p.Inv.Take(ItemPotato, 1) == 0 {
-		p.notify(NoticeNeedSeed, uint8(ItemPotato))
-		return false
-	}
-	fed := e.Big // dung in the bed: see dung.go
-	e.Kind, e.Ready, e.Big, e.HP = EntityCrop, false, false, maxHP(EntityCrop, false)
-	e.RegrowAt = w.tick + CropGrowTicks
-	if fed {
-		e.RegrowAt = w.tick + CropGrowTicks/DungBoost
-	}
-	return true
 }

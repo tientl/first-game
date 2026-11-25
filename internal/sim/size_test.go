@@ -75,8 +75,8 @@ func TestGeneratedWorldsHaveBothSizes(t *testing.T) {
 			if e.Big && !e.Kind.Sized() {
 				t.Fatalf("seed %d: a big %s", seed, e.Kind.Name())
 			}
-			if e.HP != maxHP(e.Kind, e.Big) {
-				t.Fatalf("seed %d: %s (big=%v) has %d hp, want %d", seed, e.Kind.Name(), e.Big, e.HP, maxHP(e.Kind, e.Big))
+			if e.HP != e.fullHP() {
+				t.Fatalf("seed %d: %s (big=%v) has %d hp, want %d", seed, e.Kind.Name(), e.Big, e.HP, e.fullHP())
 			}
 			count[e.Kind][sizeOf(e.Big)]++
 		}
@@ -132,7 +132,7 @@ func TestLoadingAnOlderSaveGivesTreesAndBouldersASize(t *testing.T) {
 		if got == nil {
 			t.Fatalf("%s %d lost on load", e.Kind.Name(), id)
 		}
-		want := maxHP(e.Kind, e.Big)
+		want := e.fullHP()
 		if id == hitTree {
 			want = (2*maxHP(EntityTree, true) + 2) / 3 // 2 of 3 hits left, rounded up
 		}

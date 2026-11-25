@@ -54,7 +54,19 @@ const (
 
 	RecipeBattleAxe = RecipeSailboat + 1
 
-	NumRecipes = RecipeBattleAxe + 1
+	// The new plants: see flora.go.
+	RecipeRope        = RecipeBattleAxe + 1 // flax fibre twisted into rope
+	RecipeVineRope    = RecipeRope + 1      // or lianas plaited
+	RecipeMossBandage = RecipeVineRope + 1  // moss and flax in place of silk and grass
+	RecipeHerbPotion  = RecipeMossBandage + 1
+	RecipeBambooWall  = RecipeHerbPotion + 1
+	RecipeBambooFloor = RecipeBambooWall + 1
+	RecipeBambooRaft  = RecipeBambooFloor + 1
+	RecipeRoastRice   = RecipeBambooRaft + 1
+	RecipeRoastCorn   = RecipeRoastRice + 1
+	RecipeRoastSquash = RecipeRoastCorn + 1
+
+	NumRecipes = RecipeRoastSquash + 1
 )
 
 // Recipe turns ingredients into either a structure placed in front of the
@@ -296,6 +308,60 @@ var recipes = [NumRecipes]Recipe{
 		Inputs: []Ingredient{{Item: ItemWood, Count: 2}, {Item: ItemIronBar, Count: 2}, {Item: ItemHide, Count: 1}},
 		Gives:  ItemBattleAxe,
 	},
+	RecipeRope: {
+		ID: RecipeRope, Name: "Dây thừng (sợi lanh)",
+		Inputs: []Ingredient{{Item: ItemFlax, Count: 3}},
+		Gives:  ItemRope,
+	},
+	RecipeVineRope: {
+		ID: RecipeVineRope, Name: "Dây thừng (dây leo)",
+		Inputs: []Ingredient{{Item: ItemVine, Count: 2}},
+		Gives:  ItemRope,
+	},
+	RecipeMossBandage: {
+		ID: RecipeMossBandage, Name: "Băng rêu",
+		Inputs: []Ingredient{{Item: ItemMoss, Count: 2}, {Item: ItemFlax, Count: 1}},
+		Gives:  ItemBandage,
+	},
+	RecipeHerbPotion: {
+		ID: RecipeHerbPotion, Name: "Bình máu thảo dược",
+		Inputs:   []Ingredient{{Item: ItemHerb, Count: 2}, {Item: ItemAloe, Count: 1}},
+		Gives:    ItemPotion,
+		NearFire: true,
+	},
+	RecipeBambooWall: {
+		ID: RecipeBambooWall, Name: "Tường tre",
+		Inputs: []Ingredient{{Item: ItemBamboo, Count: 3}},
+		Places: EntityWall,
+	},
+	RecipeBambooFloor: {
+		ID: RecipeBambooFloor, Name: "Sàn tre",
+		Inputs: []Ingredient{{Item: ItemBamboo, Count: 2}},
+		Places: EntityFloor,
+	},
+	RecipeBambooRaft: {
+		ID: RecipeBambooRaft, Name: "Bè tre",
+		Inputs: []Ingredient{{Item: ItemBamboo, Count: 8}, {Item: ItemRope, Count: 2}},
+		Gives:  ItemRaft,
+	},
+	RecipeRoastRice: {
+		ID: RecipeRoastRice, Name: "Cốm rang",
+		Inputs:   []Ingredient{{Item: ItemRice, Count: 3}},
+		Gives:    ItemRoastRice,
+		NearFire: true,
+	},
+	RecipeRoastCorn: {
+		ID: RecipeRoastCorn, Name: "Ngô nướng",
+		Inputs:   []Ingredient{{Item: ItemCorn, Count: 1}},
+		Gives:    ItemRoastCorn,
+		NearFire: true,
+	},
+	RecipeRoastSquash: {
+		ID: RecipeRoastSquash, Name: "Bí nướng",
+		Inputs:   []Ingredient{{Item: ItemSquash, Count: 1}},
+		Gives:    ItemRoastSquash,
+		NearFire: true,
+	},
 	// The metal tools are filled in by fillTierTools, swords and armour by fillGear.
 }
 
@@ -380,6 +446,8 @@ const (
 	NoticeCantToss      // Arg: ItemKind; nowhere dry to throw it: in the water or in a boat
 	NoticeTooFar        // the tile chosen to build on is out of reach; see aim.go
 	NoticeNothingNear   // E found nothing to pick up, open or get on
+	NoticeFoodPoison    // Arg: ItemKind eaten that poisons; see flora.go
+	NoticeCured         // Arg: ItemKind that drew the poison out
 )
 
 // CommandKind is a discrete player request, as opposed to held input.

@@ -105,7 +105,9 @@ func Generate(cfg GenConfig) (*World, error) {
 			w.spawnTribes()
 			w.guardPyramid()
 		}
-		w.placeBosses() // see bosses.go
+		w.placeBosses()                                                // see bosses.go
+		w.scatterFlora(rand.New(rand.NewPCG(cfg.Seed, 0xf107a)), seed) // after everything else: see flora.go
+		w.spawnToads()                                                 // by the ponds the lilies grow on: see toad.go
 		return w, nil
 	}
 
@@ -121,6 +123,8 @@ func Generate(cfg GenConfig) (*World, error) {
 	w.scatterDeepOres(rand.New(rand.NewPCG(cfg.Seed, 0x1ade)), int(w.spawnX), int(w.spawnY))
 	w.starterKit(rng)
 	w.spawnCreatures()
+	w.scatterFlora(rand.New(rand.NewPCG(cfg.Seed, 0xf107a)), seed)
+	w.spawnToads()
 	return w, nil
 }
 

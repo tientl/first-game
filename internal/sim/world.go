@@ -209,14 +209,15 @@ func (w *World) stepEntities() {
 		switch e.Kind {
 		case EntityTree, EntityBerryBush, EntityGrassTuft, EntityTwig, EntityPebble, EntityCrop,
 			EntityCactus, EntityReed, EntityMushroom, EntityClam, EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree,
-			EntityFlower, EntityGlowPlant:
+			EntityFlower, EntityGlowPlant, EntityFlora:
+			w.catchRain(e) // a pitcher plant fills fast in the rain: see flora.go
 			if !e.Ready && w.tick >= e.RegrowAt {
 				if e.FruitStump() {
 					w.standFruitTree(e) // up again, still bare; see fruit.go
 					break
 				}
 				e.Ready = true // for a crop: ripe
-				e.HP = maxHP(e.Kind, e.Big)
+				e.HP = e.fullHP()
 			}
 		case EntityFarmland:
 			if w.tick >= e.RegrowAt {
