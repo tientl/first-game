@@ -2,6 +2,19 @@
 
 Việc cần làm, chia theo nhóm. Trong mỗi nhóm, mục trên làm trước. Làm xong mục nào thì đánh dấu `[x]` và cập nhật cẩm nang.
 
+## Mốc DEMO (làm trước hết)
+
+Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đây; mọi thứ khác trong kế hoạch để sau demo.
+
+- [ ] **Chế độ dev** (mục 1) — để test nhanh trước khi phát hành.
+- [ ] **Giao diện** (mục 3): HUD gọn, bỏ ô hướng dẫn (F1), túi 30 ô, rương có ô đồ, chuột phải cắm đuốc.
+- [ ] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
+- [ ] **Thời gian** (mục 4): ngày 15–20 phút; **cửa hang**.
+- [ ] **Chỉ 2 trùm** trong demo: các trùm khác tắt (không sinh ra, không hiện trên bản đồ); màn hình "Phá đảo!" tính theo 2 trùm. Hai trùm có thanh máu và nhạc chiến đấu (mục 8). Trùm được chọn: *(chờ chọn)*.
+- [ ] **Đồ hoạ**: dùng hình hiện tại cho demo; phần Full HD dở dang không bật trong demo.
+- [ ] **Hướng dẫn chơi** vài phút đầu và **menu cài đặt** (âm lượng, toàn màn hình).
+- [ ] **Chơi thử, sửa lỗi**, build `.exe` cho Windows và bản Linux.
+
 ## 1. Công cụ dev (làm đầu tiên)
 
 - [ ] **Chế độ dev** (cờ `-dev` cho `cmd/game`), để test nhanh mọi tính năng:
