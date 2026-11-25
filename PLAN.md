@@ -18,7 +18,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 - [x] **Chế độ dev** (mục 1) — để test nhanh trước khi phát hành.
 - [ ] **Giao diện** (mục 3): HUD gọn, bỏ ô hướng dẫn (F1), túi 30 ô, rương có ô đồ, chuột phải cắm đuốc.
 - [x] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
-- [ ] **Thời gian** (mục 4): ✅ ngày 16 phút, mùa 12 ngày, ngày và đêm theo mùa; còn **cửa hang** (miệng hang quay xuống phía dưới màn hình, xem mục 4).
+- [x] **Thời gian** (mục 4): ✅ ngày 16 phút, mùa 12 ngày, ngày và đêm theo mùa; ✅ **cửa hang** (miệng hang quay xuống phía dưới màn hình, xem mục 4).
 - [x] **Chỉ 2 trùm** trong demo: các trùm khác tắt (không sinh ra, không hiện trên bản đồ); màn hình "Phá đảo!" tính theo 2 trùm. Hai trùm có thanh máu và nhạc chiến đấu (mục 8; nhạc ✅ `bossmusic.go`). Trùm được chọn: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu).
 - [ ] **Gặp trùm phải ấn tượng** (hiện trùm đứng trơ trọi ngoài trời, gặp thì nhạt):
   - **Hang ổ thật**: Titanoboa nằm cuộn trong một hố rễ cây khổng lồ / phế tích đá giữa rừng rậm, quanh có xương thú, da rắn lột, cây đổ; Megalodon ở một vùng biển sâu tối màu có xác tàu, xương cá voi, đàn cá tản ra.
@@ -58,7 +58,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 - [x] Giai đoạn 0: nền tảng vẽ ở độ phân giải màn hình (`internal/client/hd.go`, `HD_ART.md`).
 - [x] Giai đoạn 1: nhân vật (8 khung đi, giáp, đấm, bơi, ngủ, màn hình tạo nhân vật) và mặt đất (cả hai kiểu: cỏ xanh và đất ấm; `SetGroundStyle`, lưu trong cài đặt).
-- [x] Giai đoạn 2: cây, cỏ, hoa, đá, công trình (vẽ lại ở HD). Còn tinh chỉnh tự động, cần vẽ tay sau: quặng, lò nung, lều, cây ăn thịt, chông, kim tự tháp, cửa hang. Lửa, thuyền, icon vẫn hình cũ.
+- [x] Giai đoạn 2: cây, cỏ, hoa, đá, công trình (vẽ lại ở HD). Còn tinh chỉnh tự động, cần vẽ tay sau: quặng, lò nung, lều, cây ăn thịt, chông, kim tự tháp. Lửa, thuyền, icon vẫn hình cũ.
 - [ ] Giai đoạn 3: khủng long và các sinh vật. **Xong phần khủng long** (16 loài vẽ từ PNG, 8 khung đi/chạy, 8 khung vỗ cánh, lấy đà trước đòn — hình HD tạo tự động từ hình cũ, chưa vẽ tay). Còn: thú vẽ bằng code (thỏ, rắn, cua, cá sấu, voi ma mút, hổ răng kiếm, gấu, nhện, thổ dân, khỉ, bọ cạp, cá, giun), quái biển, 6 trùm; và sim phải trì hoãn đòn đánh để lấy đà là báo trước thật (hiện trúng đòn ngay khi bắt đầu lấy đà).
 - [ ] Giai đoạn 4: icon, giao diện, hiệu ứng (có thể lấy hiệu ứng từ pixelfx, giấy phép MIT).
 
@@ -96,7 +96,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Biển: giông bão mạnh hơn, sóng lớn ảnh hưởng thuyền.
   - Đồng cỏ: theo mùa như hiện nay.
   - Khi đi từ vùng này sang vùng khác thì thời tiết chuyển dần, không đổi đột ngột.
-- [ ] **Cửa hang**: miệng hang **quay xuống phía dưới màn hình** (về phía người nhìn): một ụ đá / vách đá có mặt đứng hướng xuống dưới, ở chân vách là vòm cửa tối có lối đất dẫn ra; chỉ đi vào được từ phía dưới (hai bên và phía sau là đá chặn). Hiện tại trông như một cái hố nhìn từ trên xuống.
+- [x] **Cửa hang**: miệng hang **quay xuống phía dưới màn hình** (về phía người nhìn): một ụ đá / vách đá có mặt đứng hướng xuống dưới, ở chân vách là vòm cửa tối có lối đất dẫn ra; chỉ đi vào được từ phía dưới (hai bên và phía sau là đá chặn). ✅ Vẽ lại ở HD (`caveart.go`): ụ đá phủ rêu, vòm cửa có đá lanh tô, dây leo, lối đất; lối ra trong hang là vòm sáng ở phía trên màn hình trên một dãy bậc. Đá chặn hai bên và phía sau đã có test (`TestCaveMouthOpensSouth`).
 - [ ] **Sửa phân bố quặng** (hiện mỗi ô của vùng có cùng một tỉ lệ ra quặng, nên quặng rải lẻ tẻ đều khắp vùng, không thành mạch):
   - Quặng mọc thành **mạch / cụm** 3–8 khối liền nhau, giữa các cụm là khoảng trống lớn.
   - Gắn với địa hình: sát vách đá, chân núi, trong hang; càng sâu trong hang càng nhiều và càng hiếm.
