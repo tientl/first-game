@@ -13,7 +13,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Icon túi đồ, giao diện, hiệu ứng (lửa, chém, va chạm, nước…).
   - **Chuẩn chất lượng**: mỗi nhóm (nhân vật, mặt đất, cây, từng nhóm sinh vật, icon) làm xong thì gửi ảnh so sánh để duyệt; chưa đạt thì làm lại trước khi sang nhóm khác.
   - Nếu thiếu lượt dùng: **bớt số loài thú trong demo chứ không hạ chất lượng** (ưu tiên các loài ở đảo đầu tiên, rừng rậm, biển).
-- [ ] **Cảm giác đánh nhau** (mục 7): khựng lúc trúng đòn, thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh (hiệu ứng chém, va chạm lấy từ pixelfx); **lăn né** (không bị trúng trong lúc lăn) và **giơ khiên đỡ**; thú **báo trước đòn** (lấy đà rõ ràng trước khi cắn, quất đuôi, lao).
+- [ ] **Cảm giác đánh nhau** (mục 7): khựng lúc trúng đòn, thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh (hiệu ứng chém, va chạm lấy từ pixelfx); **giơ khiên đỡ**; thú **báo trước đòn** (lấy đà rõ ràng trước khi cắn, quất đuôi, lao).
 - [ ] **Chế độ dev** (mục 1) — để test nhanh trước khi phát hành.
 - [ ] **Giao diện** (mục 3): HUD gọn, bỏ ô hướng dẫn (F1), túi 30 ô, rương có ô đồ, chuột phải cắm đuốc.
 - [ ] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
@@ -142,7 +142,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 ## 7. Chiến đấu và sự kiện
 
-- [ ] **Cảm giác đánh nhau** (trong demo): khựng lúc trúng đòn (hit-stop), thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh hoặc chí mạng; hiệu ứng chém, va chạm từ pixelfx; lăn né có khoảnh khắc bất tử; giơ khiên đỡ đòn; thú báo trước đòn để người chơi đọc và né; chặn mẹo đánh một đòn rồi lùi.
+- [ ] **Cảm giác đánh nhau** (trong demo): khựng lúc trúng đòn (hit-stop), thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh hoặc chí mạng; hiệu ứng chém, va chạm từ pixelfx; giơ khiên đỡ đòn; thú báo trước đòn để người chơi đọc và né; chặn mẹo đánh một đòn rồi lùi.
 - [ ] **Cung tên**: cung, tên thường, tên độc, tên lửa.
 - [ ] **Đêm trăng máu, khủng long tấn công trại**:
   - Vài ngày một lần, đêm đỏ rực và bầy raptor hoặc Troodon kéo tới căn cứ.
