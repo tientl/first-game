@@ -35,7 +35,20 @@ func (a *art) armor(tier sim.Tier, female bool) *armorArt {
 		return s
 	}
 	s := &armorArt{}
-	jointed := playerHD && playerJointed // the armour sits on the body: one frame does; see limbdraw.go
+	jointed := playerHD && playerJointed // the armour sits on the body: one frame does; see tallarmor.go
+	if jointed {
+		for d := sim.DirDown; d <= sim.DirRight; d++ {
+			b, h := armorTall(k.tier, female, d)
+			for f := range walkFrames {
+				s.body[d][f], s.helmet[d][f], s.whole[d][f] = b, h, b
+			}
+		}
+		if a.armors == nil {
+			a.armors = make(map[armorKey]*armorArt)
+		}
+		a.armors[k] = s
+		return s
+	}
 	for d := sim.DirDown; d <= sim.DirRight; d++ {
 		for f := range walkFrames {
 			if jointed && f > 0 {
