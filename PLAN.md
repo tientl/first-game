@@ -63,3 +63,9 @@ Việc cần làm, theo thứ tự ưu tiên hiện tại. Làm xong mục nào 
   - Chữa bệnh: **lô hội** (chữa bỏng); **thảo dược** (giải độc cóc, nhện, bọ cạp; làm bình máu); **rêu** (đắp vết thương thay băng).
   - Theo vùng: bờ biển có **cây đước**, **rong biển** ăn được; ao và đầm lầy có **hoa súng**, **sen** (lá cho cóc ngồi, hạt sen ăn được); gần nước có **cỏ đuôi ngựa**; đồng cỏ có **mộc lan**; sa mạc có **bụi gai** làm rào tự nhiên; vùng tuyết có **việt quất tuyết** ăn được mùa đông.
   - Trồng trọt thêm: **lúa, ngô hoang, bí** (hiện chỉ có khoai lang).
+- [ ] **Sửa phân bố quặng** (hiện mỗi ô của vùng có cùng một tỉ lệ ra quặng, nên quặng rải lẻ tẻ đều khắp vùng, không thành mạch):
+  - Quặng mọc thành **mạch / cụm** 3–8 khối liền nhau, giữa các cụm là khoảng trống lớn.
+  - Gắn với địa hình: sát vách đá, chân núi, trong hang; càng sâu trong hang càng nhiều và càng hiếm.
+  - Độ hiếm tăng theo khoảng cách từ đảo đầu tiên; đảo đầu tiên chỉ có đá và than.
+  - Than nằm thành vỉa trong hang và vùng đá.
+  - Mỗi loại quặng có dấu hiệu nhận biết từ xa (màu, ánh lấp lánh) để người chơi đi tìm.
