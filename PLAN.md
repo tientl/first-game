@@ -100,3 +100,10 @@ Việc cần làm, theo thứ tự ưu tiên hiện tại. Làm xong mục nào 
   - Món nấu có hiệu ứng tạm thời: canh thịt rau (hồi máu nhanh), súp nóng (chống lạnh), cá nướng thảo mộc (chạy nhanh), thịt hầm khủng long (no lâu, thêm sức đánh), trà thảo dược (giải độc), nước dừa / nước ép quả (đỡ khát, thêm chút máu).
   - **Muối**: phơi nước biển trên giàn ở bờ biển; ướp thịt để được lâu, nấu món ngon hơn.
   - **Đồ ăn ôi thiu** (để sau, chỉ ở độ khó Thành thạo và Chúa tể): thịt, cá sống để lâu thì hỏng; thịt khô, muối, hun khói giữ được lâu.
+- [ ] **Quần áo và trang bị** (hiện giáp chỉ cần nằm trong túi, game tự chọn bộ tốt nhất; áo lông trong túi thì chống lạnh; không có ô mặc đồ). Làm trước: ô trang bị + hiện trên người, chỉ số Ấm / Mát / Giáp, túi đeo lưng, khiên tròn:
+  - **6 ô trang bị**: Mũ, Áo, Quần, Giày, Áo choàng, Đeo thêm (vòng cổ, túi đeo). Mặc gì thì hiện đúng trên nhân vật Viking (mũ sắt có thanh che mũi, áo choàng lông, ủng…).
+  - **Độ bền**: mòn khi bị đánh, sửa bằng nguyên liệu ở bàn chế tạo.
+  - **Chỉ số**: Giáp (đỡ đòn), Ấm (tuyết, đêm đông), Mát (sa mạc, khát chậm hơn), Chống mưa, Tốc độ (đồ nặng đi chậm).
+  - **Đồ theo vùng**: áo choàng / mũ / ủng lông (tuyết); khăn trùm, áo vải lanh, dép (sa mạc); áo tơi lá (mưa); giày da cá sấu (đi nhanh ở đầm lầy); áo ngụy trang lá (thú để ý muộn).
+  - **Túi đeo lưng**: thêm ô túi đồ. **Khiên tròn Viking**: giơ lên đỡ đòn. **Mũ sắt Viking**: đỡ đòn vào đầu.
+  - Để sau: **nhuộm màu áo** (màu từ hoa, quả); **bộ đồ đủ món** có thêm hiệu ứng (ví dụ đủ bộ da bạo chúa thì thú nhỏ sợ).
