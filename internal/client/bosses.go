@@ -20,7 +20,7 @@ type bossSprites [numBosses][numBossPoses][2]sprite
 
 func genBossSprites() (s bossSprites) {
 	for b := range numBosses {
-		if bossID(b) == bossTitanoboa || bossID(b) == bossMegalodon {
+		if bossID(b) == bossTitanoboa || bossID(b) == bossMegalodon || bossID(b) == bossMammothKing {
 			continue // drawn at HDDensity, frame by frame as they are shown: see bossHDSprite
 		}
 		for p := range numBossPoses {
@@ -85,10 +85,10 @@ func bossShadow(k sim.CreatureKind) float64 {
 	if !ok {
 		return 0
 	}
-	return [numBosses]float64{0, 56, 66, 54, 62, 0}[i] // Titanoboa's shadow is in its drawing
+	return [numBosses]float64{0, 56, 108, 54, 62, 0}[i] // Titanoboa's shadow is in its drawing
 }
 
-// bossHDSprite is the frame of Titanoboa or the Megalodon to show for c:
+// bossHDSprite is the frame of Titanoboa, the mammoth king or the Megalodon to show for c:
 // each state of theirs (see internal/sim/bossfight.go) has its own run of
 // frames, timed from the moment the state began.
 func (g *Game) bossHDSprite(c protocol.CreatureView, moving bool) (sprite, bool) {
@@ -118,6 +118,8 @@ func (g *Game) bossHDSprite(c protocol.CreatureView, moving bool) (sprite, bool)
 			return titanSlither.sprite(t/5, left), true
 		}
 		return titanIdle.sprite(t/13, left), true // coiled in the undergrowth
+	case sim.CreatureMammothKing:
+		return kingSprite(c, moving, t, age, left), true
 	case sim.CreatureMegalodon:
 		hdWarm(megaLurk, megaSwim, megaSurface, megaStrike, megaBreach, megaSlam, megaRoar)
 		switch c.State {
@@ -150,6 +152,8 @@ func (g *Game) bossPortrait(i int, pose bossPose) sprite {
 		return titanRoar.sprite(0, false)
 	case bossMegalodon:
 		return megaBreach.sprite(5, false)
+	case bossMammothKing:
+		return kingRoar.sprite(0, false)
 	}
 	return g.art.bosses[i][pose][0]
 }

@@ -86,6 +86,7 @@ func main() {
 	flag.BoolVar(&demoBosses, "demobosses", false, "with -bosses: only Titanoboa and the Megalodon, the bar showing Titanoboa's health")
 	encounterFlag := flag.String("encounter", "", "play a real meeting with a boss of the demo, titan or shark, and write its stills as <o>_approach.png, _lair.png, _intro.png and _arena.png; see encounter.go")
 	encGIF := flag.Bool("encgif", false, "with -encounter: also write every fourth frame of the entrance as <o>_gif_NNN.png")
+	king := flag.Bool("king", false, "put the mammoth king by the player, with a mammoth of its herd for scale; -bosspose picks its state (0 idle, 1 chase, 2 strike, 3 special, 4 roar), -bossage how far into it")
 	victory := flag.Bool("victory", false, "show the game-beaten (Phá đảo!) screen")
 	aimAt := flag.String("aim", "", "dx,dy: hold the mouse pointer this many tiles from the player (the hover brackets, a held torch's ghost)")
 	buildID := flag.Int("build", -1, "recipe id of a structure to place (0 campfire, 8 wall, 9 bed…): build mode with its ghost under -aim, the ingredients given")
@@ -610,6 +611,13 @@ func main() {
 		put(troodonLeaper+2, -4.2, 1.8, sim.CreatureChase, false)  // crouched, waiting its turn
 		put(troodonLeaper+3, -7.5, -2.2, sim.CreatureChase, false) // and two more out in the dark
 		put(troodonLeaper+4, 7.5, 3.4, sim.CreatureIdle, true)
+	}
+	if *king {
+		states := []sim.CreatureState{sim.CreatureIdle, sim.CreatureChase, sim.CreatureStrike, sim.CreatureSpecial, sim.CreatureRoar}
+		hp := int16(min(sim.CreatureMammothKing.MaxHP(), 32767))
+		snap.Creatures = append(snap.Creatures,
+			protocol.CreatureView{ID: 1<<25 + 1, Kind: sim.CreatureMammothKing, X: float32(sx - 7.5), Y: float32(sy + 1.2), State: states[*bossPose%len(states)], HP: hp, MaxHP: hp},
+			protocol.CreatureView{ID: 1<<25 + 2, Kind: sim.CreatureMammoth, X: float32(sx + 5), Y: float32(sy + 1.6), State: sim.CreatureIdle, FaceLeft: true})
 	}
 	if *ice {
 		id := sim.CreatureID(1 << 26)
