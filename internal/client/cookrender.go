@@ -107,7 +107,7 @@ func (g *Game) drawOvenFire(dst drawTarget, e protocol.EntityView, d drawable) {
 		return
 	}
 	f := g.art.flames[(g.frame/4+int(e.ID))%flameFrames]
-	drawAt(dst, f, d.sx-1.5, d.sy-0.5, 0.5, 0.36, 0, nil)
+	drawAt(dst, f, d.sx-1.5, d.sy-0.5, 0.6, 0.42, 0, nil)
 }
 
 // puffs draws n puffs rising from (x, y) one after another: each climbs
@@ -133,8 +133,8 @@ func (g *Game) puffs(dst drawTarget, x, y float64, id sim.EntityID, n int, perio
 // and lit ovens, and the sparkle of salt forming. Like the embers it is a
 // pure function of time.
 func (g *Game) drawCookFX(dst drawTarget, cam camera) {
-	steam := color.RGBA{236, 240, 246, 150}
-	smoke := color.RGBA{150, 150, 158, 120}
+	steam := color.RGBA{240, 243, 248, 215}
+	smoke := color.RGBA{158, 158, 166, 170}
 	for _, e := range g.curr.Entities {
 		st := sim.StationOf(e.Kind, e.Var)
 		if st == sim.StationNone {
@@ -145,7 +145,7 @@ func (g *Game) drawCookFX(dst drawTarget, cam camera) {
 		switch st {
 		case sim.StationPot:
 			if working {
-				g.puffs(dst, sx, sy-29, e.ID, 6, 150, 30, 5, 15, steam)
+				g.puffs(dst, sx, sy-29, e.ID, 8, 150, 34, 6, 19, steam)
 			} else if loaded && e.Fuel > 0 {
 				g.puffs(dst, sx, sy-29, e.ID, 2, 190, 18, 4, 9, steam)
 			}
@@ -165,7 +165,7 @@ func (g *Game) drawCookFX(dst drawTarget, cam camera) {
 				if working {
 					n = 6 // baking: the fire is fed and draws well
 				}
-				g.puffs(dst, sx+3.5, sy-18, e.ID, n, 200, 40, 4, 16, smoke)
+				g.puffs(dst, sx+4.5, sy-21, e.ID, n, 200, 44, 5, 19, smoke)
 			}
 		case sim.StationRack:
 			if working && e.Cook&sim.CookFlagSalt != 0 {
@@ -340,4 +340,24 @@ func cookNoticeText(kind sim.NoticeKind, arg uint8) string {
 		return "Đã múc: " + name
 	}
 	return ""
+}
+
+// cookShadow is the width of the shadow under cooking gear e; ok is false
+// if e is none.
+func cookShadow(e protocol.EntityView) (float64, bool) {
+	switch e.Kind {
+	case sim.EntityMortar:
+		return 20, true
+	case sim.EntityOven:
+		return 40, true
+	case sim.EntityDryRack:
+		return 34, true
+	case sim.EntityClay:
+		return 0, true
+	case sim.EntityCampfire:
+		if e.Var != 0 {
+			return 32, true
+		}
+	}
+	return 0, false
 }

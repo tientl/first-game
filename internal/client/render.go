@@ -426,6 +426,9 @@ func shadowWidth(e protocol.EntityView) float64 {
 	if w, ok := graveShadow(e); ok {
 		return w
 	}
+	if w, ok := cookShadow(e); ok { // see cookrender.go
+		return w
+	}
 	size := sizeIdx(e.Big)
 	switch e.Kind {
 	case sim.EntityTree:

@@ -120,7 +120,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
     - Uống nước ao chưa nấu: đỡ khát nhưng có thể bị **đau bụng / ngộ độc** (mất máu một lúc).
     - Nước biển: không uống được.
   - Có thể thêm: dừa, dưa, xương rồng cho một ít nước; bình chứa có dung tích (số ngụm).
-- [ ] **Dụng cụ nấu ăn và món mới** (hiện chỉ nướng từng miếng cạnh lửa trại). Làm trước: nồi đất, giàn phơi, 3–4 món canh/súp có hiệu ứng:
+- [x] **Dụng cụ nấu ăn và món mới** (hiện chỉ nướng từng miếng cạnh lửa trại). Làm trước: nồi đất, giàn phơi, 3–4 món canh/súp có hiệu ứng:
   - Dụng cụ:
     - **Nồi đất** (đất sét, nung ở lò): đun sôi nước ao cho sạch (gắn với khát nước); nấu canh, súp, hầm từ nhiều nguyên liệu.
     - **Xiên nướng / giàn nướng** (gỗ, cành): đặt trên lửa trại, nướng 3–4 miếng cùng lúc.

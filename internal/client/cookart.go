@@ -460,17 +460,17 @@ func genMortarCanvas(full bool) (*canvas, float64, float64) {
 // leaning against it. Lit, the mouth glows; loaf sets a loaf to cool on the
 // stone by the mouth.
 func genOvenCanvas(lit, loaf bool) (*canvas, float64, float64) {
-	c := hdCanvas(34, 32)
-	var cx, base, rx, h = 16 * ck, 27 * ck, 12.5 * ck, 19 * ck
+	c := hdCanvas(42, 38)
+	var cx, base, rx, h = 19 * ck, 33 * ck, 15.5 * ck, 23 * ck
 	// The peel, leaning on the dome's right shoulder.
-	ckPole(c, cx+15.5*ck, base+1*ck, cx+11.6*ck, base-16*ck, 2, woodRamp, 0.8, 3180)
+	ckPole(c, cx+19*ck, base+1*ck, cx+14.6*ck, base-19*ck, 2.2, woodRamp, 0.8, 3180)
 	for y := 0; y < 20; y++ {
 		f := float64(y) / (6.5 * ck) // 0 at the blade's tip
-		half := 2.4 * ck * min(1, 0.55+f*1.6) * min(1, 0.7+(1-f)*1.2)
-		mx := cx + 10.6*ck + f*1.3*ck // it leans with the handle
+		half := 2.6 * ck * min(1, 0.55+f*1.6) * min(1, 0.7+(1-f)*1.2)
+		mx := cx + 13.5*ck + f*1.3*ck // it leans with the handle
 		for x := int(mx - half); x <= int(mx+half); x++ {
 			u := (float64(x) + 0.5 - mx) / half
-			c.put(x, int(base-22.2*ck)+y, grainHD(woodRamp, x, y, 0.84-(u+1)/2*0.38-f*0.08, true, 3181))
+			c.put(x, int(base-25.2*ck)+y, grainHD(woodRamp, x, y, 0.84-(u+1)/2*0.38-f*0.08, true, 3181))
 		}
 	}
 	// The dome.
@@ -492,7 +492,7 @@ func genOvenCanvas(lit, loaf bool) (*canvas, float64, float64) {
 			}
 			col := ovenRamp.pick(l, x, y)
 			// Soot above the mouth and round the smoke hole.
-			mx, my := (float64(x)+0.5-(cx-1.5*ck))/(7*ck), (float64(y)+0.5-(base-9.5*ck))/(7*ck)
+			mx, my := (float64(x)+0.5-(cx-1.5*ck))/(8.5*ck), (float64(y)+0.5-(base-11.5*ck))/(8*ck)
 			if s := 1 - (mx*mx + my*my*0.8); s > 0 && my < 0.3 {
 				col = mix(col, ashRamp.pick(l*0.6, x, y), min(0.8, s*1.1))
 			}
@@ -500,7 +500,7 @@ func genOvenCanvas(lit, loaf bool) (*canvas, float64, float64) {
 		}
 	}
 	// The smoke hole: a collar of clay with the dark in it.
-	hx, hy := cx+3.5*ck, base-h+2.2*ck
+	hx, hy := cx+4.5*ck, base-h+2.6*ck
 	c.ellipse(hx, hy, 3.6*ck, 1.8*ck, func(x, y int, nx, ny float64) color.RGBA {
 		return ovenRamp.pick(0.95-(nx+1)/2*0.4-ny*0.2, x, y)
 	})
@@ -508,13 +508,13 @@ func genOvenCanvas(lit, loaf bool) (*canvas, float64, float64) {
 		return mix(hex(0x120a08), ashRamp[1], max(0, ny)*0.6)
 	})
 	// The stones it stands on.
-	for i := 0; i < 8; i++ {
-		f := float64(i)/7*2 - 1
+	for i := 0; i < 10; i++ {
+		f := float64(i)/9*2 - 1
 		lift := (1 - math.Sqrt(max(0, 1-f*f))) * 2.6 * ck
 		stoneHD(c, cx+f*(rx-1*ck), base+0.6*ck-lift, (2.3+hashf(i, 0, 3186)*0.5)*ck, (1.7+hashf(i, 1, 3186)*0.3)*ck, 1-float64(i)*0.035, stoneRamp, 3187+uint32(i))
 	}
 	// The mouth: an arch lined with a lip of paler clay.
-	var mx, my, mw, mh = cx - 1.5*ck, base - 0.6*ck, 5.6 * ck, 8.2 * ck
+	var mx, my, mw, mh = cx - 1.5*ck, base - 0.6*ck, 6.6 * ck, 9.6 * ck
 	arch := func(x, y int, w, hh float64) (bool, float64, float64) {
 		ax, ay := (float64(x)+0.5-mx)/w, (float64(y)+0.5-my)/hh
 		return ay <= 0 && ax*ax+ay*ay <= 1, ax, ay
@@ -558,7 +558,7 @@ func genOvenCanvas(lit, loaf bool) (*canvas, float64, float64) {
 	}
 	if loaf {
 		// A flat stone to the left of the mouth, and the loaf on it.
-		lx, ly := cx-11.5*ck, base+1.4*ck
+		lx, ly := cx-14*ck, base+1.4*ck
 		stoneHD(c, lx, ly+1.5, 5*ck, 1.9*ck, 1, stoneRamp, 3198)
 		loafHD(c, lx, ly-1.3*ck, 4.3*ck, 2.6*ck, 3199)
 	}
@@ -811,7 +811,7 @@ func genPuff(i int) sprite {
 			if d >= 1 {
 				continue
 			}
-			a := (1 - d) * (1 - d) * 1.6
+			a := (1 - d) * 1.7
 			l := 0.86 - dy*0.14 - dx*0.06
 			v := uint8(255 * clamp01(l))
 			c.put(x, y, color.RGBA{v, v, v, uint8(255 * clamp01(a))})
