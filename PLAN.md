@@ -113,3 +113,9 @@ Việc cần làm, theo thứ tự ưu tiên hiện tại. Làm xong mục nào 
   - Đánh: đấm hai tay xuống đất (sóng chấn động, hất văng mọi người quanh nó), vồ bắt người ném đi, nhổ cây / nhặt tảng đá ném từ xa, đấm ngực gầm lên gọi đàn khỉ tới ném quả và cào. Máu thấp thì leo lên vách đá hồi sức, rồi nhảy xuống đập đất.
   - Chiến lợi phẩm huyền thoại gợi ý: **Găng tay vượn chúa** (đấm tay không mạnh như vũ khí, mang vác nặng không chậm) hoặc **Bờm vượn chúa** (thú nhỏ không dám lại gần).
   - Thêm vào màn hình "Phá đảo!" (7 trùm) và vào các ô bóng trùm trong đĩa bay.
+- [ ] **Trùm thứ 8: bọ cạp khổng lồ trong kim tự tháp** (hiện kim tự tháp chỉ là khối đá có rương ở cửa, bọ cạp thường canh bên ngoài):
+  - **Vào được bên trong kim tự tháp**: đi vào cửa thì đổi cảnh sang lòng kim tự tháp (như hang, đĩa bay): hành lang tối, bẫy (gai bật, đá lăn, cát lún), cần đuốc; sâu nhất là phòng mộ có quan tài và kho báu.
+  - Tên gợi ý: **Bọ cạp Chúa — Chúa kim tự tháp**: to như bạo chúa, vỏ đen ánh vàng, đuôi phát sáng xanh độc.
+  - Đánh: kẹp hai càng (giữ người lại, siết máu), chích đuôi (độc nặng, mất máu lâu), phun độc thành vũng trên sàn, chui xuống cát rồi trồi lên dưới chân người chơi, gọi bọ cạp con. Vỏ cứng: phải đánh vào đuôi hoặc lúc nó ngóc lên mới trúng mạnh.
+  - Chiến lợi phẩm huyền thoại gợi ý: **Giáp vỏ bọ cạp** (miễn độc, phản lại một phần sát thương) hoặc **Dao đuôi bọ cạp** (mỗi đòn làm thú trúng độc).
+  - Đưa vào màn hình "Phá đảo!" và các ô bóng trùm trong đĩa bay.
