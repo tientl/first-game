@@ -17,7 +17,7 @@ var (
 
 // genBurrow draws a rabbit burrow: the hole faces the viewer, the mound of
 // dug earth rises behind it, with a few blades of grass and crumbs about.
-func genBurrow() sprite { c, ax, ay := burrowCanvas(); return mk(c, ax, ay) }
+func genBurrow() sprite { c, ax, ay := burrowCanvas(); return mkUp(c, ax, ay) }
 
 // burrowCanvas draws the burrow and returns its anchor.
 func burrowCanvas() (*canvas, float64, float64) {
@@ -54,7 +54,7 @@ func burrowCanvas() (*canvas, float64, float64) {
 
 // genDen draws a snake den: stones piled over a low black crevice, and the
 // pale crumple of a shed skin trailing out of it.
-func genDen() sprite { c, ax, ay := denCanvas(); return mk(c, ax, ay) }
+func genDen() sprite { c, ax, ay := denCanvas(); return mkUp(c, ax, ay) }
 
 // denCanvas draws the den and returns its anchor.
 func denCanvas() (*canvas, float64, float64) {

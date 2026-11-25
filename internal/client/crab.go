@@ -27,10 +27,7 @@ const (
 	crabPoses
 )
 
-func genCrab(pose int) sprite {
-	c, ax, ay := crabCanvas(pose)
-	return mk(c, ax, ay)
-}
+func genCrab(pose int) sprite { return critter("crab", 0, pose, 0) }
 
 // crabClaws are the right claw seen from above, shut and gaping: a round
 // palm with a thick fixed finger and a thinner one that works against it.

@@ -82,6 +82,17 @@ it and pick one with a flag, or make both from the same code with
   are extra rig poses drawn the first time they are shown (`dinoanim.go`);
   `DINO_ANIM=dir go test ./internal/client -run DumpDinoAnim -v` writes
   their frames and what they cost.
+- The animals drawn in code are HD (`critterhd.go` holds the tools and the
+  frames; `critsmall.go`, `critcroc.go`, `critbeast.go`, `critcave.go` the
+  drawings): bodies of blended signed-distance shapes in art pixels, legs of
+  two bones that reach for where the gait puts each foot, so a walk is
+  `cycFrames` frames and a blow is wound up over `blowFrames` before it
+  lands. `critter(kind, side, pose, f)` draws a frame the first time it is
+  shown; frame 0 of a pose is the pose the density-1 art had. `critterHD =
+  false` (`shot -critterhd=false`) brings the old drawings back.
+  `CRITTER_DUMP=dir go test ./internal/client -run DumpCritters -v` writes a
+  sheet (old above new, then the moving frames) and GIFs of each animal, and
+  what drawing them costs.
 - Not density-aware yet: the sprite export in `export.go`, the fallen body
   (`bodyart.go`) and the map's head marker, which still use the density-1
   figure.

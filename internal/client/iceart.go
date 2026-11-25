@@ -225,7 +225,7 @@ var (
 	tuskRamp    = mkRamp(0x7d6744, 0xab9165, 0xd3bd90, 0xeedfba, 0xfdf6e0)
 )
 
-func genMammoth(pose int) sprite { c, ax, ay := mammothCanvas(pose); return mk(c, ax, ay) }
+func genMammoth(pose int) sprite { return critter("mammoth", 0, pose, 0) }
 
 // mammothPelt is the shaggy coat: long strands hanging down it, lying in
 // ragged tiers one over another.
@@ -407,7 +407,7 @@ var (
 	sabreCream = mkRamp(0x6b5440, 0x9a8164, 0xc4ad8a, 0xe3d2b0, 0xf6ecd4)
 )
 
-func genSabre(pose int) sprite { c, ax, ay := sabreCanvas(pose); return mk(c, ax, ay) }
+func genSabre(pose int) sprite { return critter("sabre", 0, pose, 0) }
 
 // sabrePelt is a short tawny coat, dappled along the back and paling to
 // cream wherever it faces the ground; pale is how readily it does.

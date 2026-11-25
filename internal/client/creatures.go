@@ -162,14 +162,18 @@ func wormStamps(c *canvas, x0, x1, cy, amp, freq, ph, r float64) {
 	}
 }
 
-func genWorm(frame int) sprite {
+func genWorm(frame int) sprite { return critter("worm", 0, frame, 0) }
+
+func wormCanvas(frame int) (*canvas, float64, float64) {
 	c := newCanvas(13, 7)
 	wormStamps(c, 2, 10, 4, 0.8, 0.95, float64(frame)*math.Pi, 0.85)
 	c.outline(0.6)
-	return mk(c, 6, 5)
+	return c, 6, 5
 }
 
-func genFish(frame int) sprite {
+func genFish(frame int) sprite { return critter("fish", 0, frame, 0) }
+
+func fishCanvas(frame int) (*canvas, float64, float64) {
 	c := newCanvas(17, 9)
 	tail := []float64{4.5, 4.5, 0.5, 1.6, 0.5, 7.4}
 	if frame == 1 {
@@ -186,7 +190,7 @@ func genFish(frame int) sprite {
 	})
 	c.set(12, 4, colInk)
 	c.outline(0.6)
-	return mk(c, 8, 6)
+	return c, 8, 6
 }
 
 // genCreatureIcons draws the bag icons for what animals give.
@@ -592,6 +596,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 	}
 	if s, bob, ok := g.seaSprite(c); ok {
 		return s, bob // see searender.go
+	}
+	if s, bob, ok := g.critterSprite(c, moving, side, t); ok {
+		return s, bob // the code-drawn animals in motion: see critterhd.go
 	}
 	if s, bob, ok := g.tribalSprite(c, moving); ok {
 		return s, bob // see tribalrender.go
