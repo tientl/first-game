@@ -155,21 +155,36 @@ func bossPaint(c *canvas, seam float64, f bossPelt, chains ...[]knob) *furShape 
 
 // bossFrame is a turned frame: u runs along it from its origin, v across it
 // (down, for a head looking right).
-type bossFrame struct{ ox, oy, a float64 }
+//
+// sc, if set, is the size of its units in pixels (the HD bosses, see
+// bosshd.go).
+type bossFrame struct {
+	ox, oy, a float64
+	sc        float64
+}
+
+// k1 is the size of the frame's units in pixels.
+func (f bossFrame) k1() float64 {
+	if f.sc == 0 {
+		return 1
+	}
+	return f.sc
+}
 
 func (f bossFrame) at(u, v float64) (float64, float64) {
-	x, y := rotPt(f.a, u, v)
+	x, y := rotPt(f.a, u*f.k1(), v*f.k1())
 	return f.ox + x, f.oy + y
 }
 
 // local is the frame's (u, v) of the middle of pixel (x, y).
 func (f bossFrame) local(x, y int) (float64, float64) {
-	return rotPt(-f.a, float64(x)+0.5-f.ox, float64(y)+0.5-f.oy)
+	u, v := rotPt(-f.a, float64(x)+0.5-f.ox, float64(y)+0.5-f.oy)
+	return u / f.k1(), v / f.k1()
 }
 
 func (f bossFrame) k(u, v, r float64) knob {
 	x, y := f.at(u, v)
-	return knob{x, y, r}
+	return knob{x, y, r * f.k1()}
 }
 
 func (f bossFrame) knobs(ks []knob) []knob {
@@ -187,7 +202,25 @@ func (f bossFrame) poly(c *canvas, q [][2]float64, col func(x, y int) color.RGBA
 		x, y := f.at(v[0], v[1])
 		pts = append(pts, x, y)
 	}
+	if f.sc != 0 { // in pixels already
+		rawPoly(c, pts, col)
+		return
+	}
 	c.polygon(pts, col)
+}
+
+// poly2 fills a polygon whose corners are given in two frames: f's for a
+// third coordinate of 0, g's for 1.
+func (f bossFrame) poly2(c *canvas, g bossFrame, q [][3]float64, col func(x, y int) color.RGBA) {
+	pts := make([]float64, 0, 2*len(q))
+	for _, v := range q {
+		x, y := f.at(v[0], v[1])
+		if v[2] != 0 {
+			x, y = g.at(v[0], v[1])
+		}
+		pts = append(pts, x, y)
+	}
+	rawPoly(c, pts, col)
 }
 
 // bossLine draws a line a pixel wide in one colour.

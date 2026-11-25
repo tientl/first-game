@@ -20,6 +20,9 @@ type bossSprites [numBosses][numBossPoses][2]sprite
 
 func genBossSprites() (s bossSprites) {
 	for b := range numBosses {
+		if bossID(b) == bossTitanoboa || bossID(b) == bossMegalodon {
+			continue // drawn at HDDensity, frame by frame as they are shown: see bossHDSprite
+		}
 		for p := range numBossPoses {
 			c, ax, ay := bossCanvas(bossID(b), bossPose(p))
 			s[b][p][0], s[b][p][1] = sidedPair(mk(c, ax, ay))
@@ -66,6 +69,9 @@ func (g *Game) bossSprite(c protocol.CreatureView, moving bool) (sprite, float64
 	if !ok || g.art == nil {
 		return sprite{}, 0, false
 	}
+	if s, ok := g.bossHDSprite(c, moving); ok {
+		return s, 0, true
+	}
 	side := 0
 	if c.FaceLeft {
 		side = 1
@@ -79,7 +85,73 @@ func bossShadow(k sim.CreatureKind) float64 {
 	if !ok {
 		return 0
 	}
-	return [numBosses]float64{60, 56, 66, 54, 62, 0}[i]
+	return [numBosses]float64{0, 56, 66, 54, 62, 0}[i] // Titanoboa's shadow is in its drawing
+}
+
+// bossHDSprite is the frame of Titanoboa or the Megalodon to show for c:
+// each state of theirs (see internal/sim/bossfight.go) has its own run of
+// frames, timed from the moment the state began.
+func (g *Game) bossHDSprite(c protocol.CreatureView, moving bool) (sprite, bool) {
+	left := c.FaceLeft
+	t := g.frame + int(c.ID)*7
+	age, prev := g.stateAge(c)
+	if bossAgeShot >= 0 {
+		t = bossAgeShot
+	}
+	switch c.Kind {
+	case sim.CreatureTitanoboa:
+		hdWarm(titanIdle, titanRoar, titanSlither, titanStrike, titanGrab)
+		switch c.State {
+		case sim.CreatureRoar: // reared, hissing
+			return titanRoar.sprite(t/6, left), true
+		case sim.CreatureStrike, sim.CreatureClaw: // drawn back, then the lunge
+			return titanStrike.sprite(titanStrikeFrame(age), left), true
+		case sim.CreatureGrab, sim.CreatureSpecial: // its coils round its prey
+			return titanGrab.sprite(t/6, left), true
+		case sim.CreatureChase:
+			if moving {
+				return titanSlither.sprite(t/3, left), true
+			}
+			return titanSlither.sprite(t/7, left), true // gathering itself, in reach
+		}
+		if moving { // going back to its lair
+			return titanSlither.sprite(t/5, left), true
+		}
+		return titanIdle.sprite(t/13, left), true // coiled in the undergrowth
+	case sim.CreatureMegalodon:
+		hdWarm(megaLurk, megaSwim, megaSurface, megaStrike, megaBreach, megaSlam, megaRoar)
+		switch c.State {
+		case sim.CreatureRoar:
+			return megaRoar.sprite(t/5, left), true
+		case sim.CreatureStrike, sim.CreatureClaw:
+			if prev == sim.CreatureLurk { // the ram: it is on them at once
+				age += 30
+			}
+			return megaStrike.sprite(megaFrameAt(megaStrikeAges[:], age), left), true
+		case sim.CreatureSpecial, sim.CreatureGrab: // the leap
+			return megaBreach.sprite(megaFrameAt(megaBreachAges[:], age), left), true
+		case sim.CreatureLurk: // circling, only its fin showing
+			return megaLurk.sprite(t/5, left), true
+		case sim.CreatureChase: // up at the surface
+			if prev == sim.CreatureSpecial && age < megaSlamN*megaSlamAge {
+				return megaSlam.sprite(age/megaSlamAge, left), true // it has just come down
+			}
+			return megaSurface.sprite(t/5, left), true
+		}
+		return megaSwim.sprite(t/7, left), true // going back to its deep
+	}
+	return sprite{}, false
+}
+
+// bossPortrait is a picture of boss i for the screens that list them.
+func (g *Game) bossPortrait(i int, pose bossPose) sprite {
+	switch bossID(i) {
+	case bossTitanoboa:
+		return titanRoar.sprite(0, false)
+	case bossMegalodon:
+		return megaBreach.sprite(5, false)
+	}
+	return g.art.bosses[i][pose][0]
 }
 
 // bossName is a boss's name and epithet: "Spinosaurus — Chúa đầm lầy".

@@ -128,3 +128,17 @@ resolution. `go test ./internal/client -bench BakeChunk` times a bake.
 
 `cmd/shot -envhd=false` (`SetEnvHD`) gives the original density-1 art back,
 to compare.
+
+## The bosses and sea monsters
+
+Titanoboa, the Megalodon, the Mosasaurus and the giant squid are drawn at
+`HDDensity` as runs of frames (`bhAnim`, `bosshd.go`), each frame drawn the
+first time it is shown and all of a beast's frames drawn ahead on other
+threads once it is first seen (`hdWarm`). Bodies are tubes along a curve
+(`hdTube`) or chains of knobs in a scaled frame (`hdFrameAt` + `bossPaint`);
+the water they break is `hdOut` (foam, rings, spray, what is under seen
+dimly). `bossHDSprite` (`bosses.go`) and `seaSprite` (`searender.go`) pick the
+frame from the state and how long the beast has been in it (`stateAge`).
+`BOSS_ANIM=dir go test ./internal/client -run DumpHDAnim -v` writes every
+frame and what they cost; `shot -bosses -demobosses -bosspose N -bossage F`
+shows them in the game.
