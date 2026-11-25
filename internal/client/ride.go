@@ -4,9 +4,6 @@ import (
 	"image/color"
 	"math"
 
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
-
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
@@ -40,7 +37,7 @@ const riderLegs = 5
 var saddleRamp = mkRamp(0x4a2a18, 0x6e4224, 0x925c34, 0xb57a48)
 
 // drawRider draws p on the back of its mount c, drawn at d.
-func (g *Game) drawRider(dst *ebiten.Image, p protocol.PlayerView, c protocol.CreatureView, d drawable) {
+func (g *Game) drawRider(dst drawTarget, p protocol.PlayerView, c protocol.CreatureView, d drawable) {
 	back, height := seat(c.Kind)
 	side := 1.0
 	dir := sim.DirRight
@@ -53,9 +50,9 @@ func (g *Game) drawRider(dst *ebiten.Image, p protocol.PlayerView, c protocol.Cr
 	for row := 0.0; row < 4; row++ {
 		w := 7 - row*0.5
 		col := saddleRamp.at(3 - int(row))
-		vector.FillRect(dst, float32(math.Round(x-w)), float32(math.Round(y+row-1)), float32(math.Round(2*w)), 1, col, false)
+		fillRect(dst, float32(math.Round(x-w)), float32(math.Round(y+row-1)), float32(math.Round(2*w)), 1, col, false)
 	}
-	vector.FillRect(dst, float32(math.Round(x-7)), float32(math.Round(y+3)), 14, 1, saddleRamp[0], false)
+	fillRect(dst, float32(math.Round(x-7)), float32(math.Round(y+3)), 14, 1, saddleRamp[0], false)
 	tint := playerColors[int(p.ID)%len(playerColors)]
 	ride := bob
 	if d.moving {
@@ -64,7 +61,7 @@ func (g *Game) drawRider(dst *ebiten.Image, p protocol.PlayerView, c protocol.Cr
 	fy := y + riderLegs - ride
 	// The rider: punching from the saddle (punch.go), or thrown back by a
 	// blow (jolt.go).
-	rider := func(dst *ebiten.Image, x, fy float64) {
+	rider := func(dst drawTarget, x, fy float64) {
 		fp, arms := g.punchPose(p)
 		if age, ok := g.jolting(p.ID); ok && !arms && age < joltFling {
 			fp, arms = flingPose(p), true
@@ -87,7 +84,7 @@ func (g *Game) drawRider(dst *ebiten.Image, p protocol.PlayerView, c protocol.Cr
 
 // drawPetMark draws a little heart over a pet: red over mine, pale over
 // someone else's.
-func (g *Game) drawPetMark(dst *ebiten.Image, c protocol.CreatureView, x, top float64) {
+func (g *Game) drawPetMark(dst drawTarget, c protocol.CreatureView, x, top float64) {
 	col := color.RGBA{0xe0, 0x4a, 0x5a, 0xff}
 	if c.Owner != g.myID {
 		col = color.RGBA{0xd8, 0xd0, 0xd8, 0xff}
@@ -95,19 +92,19 @@ func (g *Game) drawPetMark(dst *ebiten.Image, c protocol.CreatureView, x, top fl
 	top += markInset(c.Kind) * beastScale(c.Kind) // down to the top of its head
 	heart(dst, x, top-5, col)
 	if c.Stay {
-		vector.FillRect(dst, float32(math.Round(x+4)), float32(math.Round(top-6)), 1, 3, colWhite, false) // a pause mark
-		vector.FillRect(dst, float32(math.Round(x+6)), float32(math.Round(top-6)), 1, 3, colWhite, false)
+		fillRect(dst, float32(math.Round(x+4)), float32(math.Round(top-6)), 1, 3, colWhite, false) // a pause mark
+		fillRect(dst, float32(math.Round(x+6)), float32(math.Round(top-6)), 1, 3, colWhite, false)
 	}
 }
 
 // heart draws a 5x4 pixel heart centred on x with its top at y.
-func heart(dst *ebiten.Image, x, y float64, col color.RGBA) {
+func heart(dst drawTarget, x, y float64, col color.RGBA) {
 	rows := [4]string{".#.#.", "#####", ".###.", "..#.."}
 	x0, y0 := math.Round(x-2.5), math.Round(y)
 	for r, row := range rows {
 		for i, ch := range row {
 			if ch == '#' {
-				vector.FillRect(dst, float32(x0+float64(i)), float32(y0+float64(r)), 1, 1, col, false)
+				fillRect(dst, float32(x0+float64(i)), float32(y0+float64(r)), 1, 1, col, false)
 			}
 		}
 	}
@@ -148,7 +145,7 @@ func (g *Game) tameEffects(old, cur protocol.Snapshot) {
 }
 
 // drawHearts floats the feeding hearts up and fades them.
-func (g *Game) drawHearts(dst *ebiten.Image, cam camera) {
+func (g *Game) drawHearts(dst drawTarget, cam camera) {
 	const life = 70
 	live := g.hearts[:0]
 	for _, h := range g.hearts {

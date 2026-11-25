@@ -3,9 +3,6 @@ package client
 import (
 	"math"
 
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
-
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
@@ -56,7 +53,7 @@ const battleAxeHead = 11.0
 // drawBattleAxeHeld draws the axe at rest in the hand at (hx, hy), tipped
 // well out to the side or ahead, so the head stays clear of the face
 // whichever way the player looks.
-func drawBattleAxeHeld(dst *ebiten.Image, dir sim.Dir, hx, hy, side float64) {
+func drawBattleAxeHeld(dst drawTarget, dir sim.Dir, hx, hy, side float64) {
 	drawAt(dst, battleAxeSprite(), math.Round(hx), math.Round(hy)+1, side, 1, cleaveCarry*side, nil)
 }
 
@@ -122,7 +119,7 @@ func (g *Game) cleaving(p protocol.PlayerView) bool {
 
 // drawCleave draws p's war axe in the middle of a blow: the axe, the broad
 // sweep its head leaves on the way down, and the burst where it lands.
-func (g *Game) drawCleave(dst *ebiten.Image, p protocol.PlayerView, d drawable, bob float64) {
+func (g *Game) drawCleave(dst drawTarget, p protocol.PlayerView, d drawable, bob float64) {
 	dir := p.Dir & 3
 	side := facingSide(dir)
 	ps := cleavePoseFor(dir)
@@ -138,7 +135,7 @@ func (g *Game) drawCleave(dst *ebiten.Image, p protocol.PlayerView, d drawable, 
 	gy := d.sy - bob + math.Round(ry+(ps.upY-ry)*up+(ps.outY-ry)*out)
 	at := func(b, r float64) (float64, float64) { return gx + math.Sin(b)*r*side, gy - math.Cos(b)*r }
 	dot := func(x, y, w, white, alpha float64) {
-		vector.FillRect(dst, float32(math.Round(x)), float32(math.Round(y)), float32(w), float32(w),
+		fillRect(dst, float32(math.Round(x)), float32(math.Round(y)), float32(w), float32(w),
 			premul(mix(iiJade[4], colWhite, white), alpha), false)
 	}
 
@@ -183,7 +180,7 @@ func (g *Game) drawCleave(dst *ebiten.Image, p protocol.PlayerView, d drawable, 
 			dot(x, y, 1, 0.4+0.15*float64(i%3), 1-u)
 		}
 		for i := -1.0; i <= 1; i += 2 { // dust, low and wide
-			vector.FillRect(dst, float32(math.Round(hx+i*(3+7*u))), float32(math.Round(hy+2-2*u)), 2, 2,
+			fillRect(dst, float32(math.Round(hx+i*(3+7*u))), float32(math.Round(hy+2-2*u)), 2, 2,
 				premul(iiShell[3], 0.6*(1-u)), false)
 		}
 	}

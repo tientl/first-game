@@ -4,9 +4,6 @@ import (
 	"image/color"
 	"math"
 
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
-
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
@@ -388,7 +385,7 @@ func (g *Game) punchPose(p protocol.PlayerView) (figPose, bool) {
 
 // drawFigure draws p standing at (x, y) like drawBody or drawArmored, with
 // its arms as fp has them and whatever it holds in its fist.
-func (g *Game) drawFigure(dst *ebiten.Image, p protocol.PlayerView, dir sim.Dir, frame int, x, y, bob float64, tint color.Color, armor sim.Tier, fp figPose) {
+func (g *Game) drawFigure(dst drawTarget, p protocol.PlayerView, dir sim.Dir, frame int, x, y, bob float64, tint color.Color, armor sim.Tier, fp figPose) {
 	l := p.Look
 	if armor >= sim.TierDiamond && (l.Hair == sim.HairSpiky || l.Hair == sim.HairBun) {
 		l.Hair = sim.HairShort // under the skull cap; see drawArmored
@@ -493,7 +490,7 @@ func (g *Game) drawFigure(dst *ebiten.Image, p protocol.PlayerView, dir sim.Dir,
 		reach := float64(fist.size)/2 + 2
 		cx := ux + fist.hx + float64(dx)*reach
 		cy := uy + fist.hy - 1 + float64(dy)*reach
-		drawSpark(dst, math.Floor(cx), math.Floor(cy), fp.spark)
+		drawSpark(dst, ux+math.Floor(cx-ux), uy+math.Floor(cy-uy), fp.spark) // whole art pixels from the figure's point; see align
 	}
 }
 
@@ -504,9 +501,9 @@ var (
 
 // drawSpark draws the little star of a landed punch round pixel (x, y), n
 // frames after it landed: a flash, a star, then four flecks flying apart.
-func drawSpark(dst *ebiten.Image, x, y float64, n int) {
+func drawSpark(dst drawTarget, x, y float64, n int) {
 	dot := func(dx, dy float64, c color.RGBA, a float64) {
-		vector.FillRect(dst, float32(x+dx), float32(y+dy), 1, 1, premul(c, a), false)
+		fillRect(dst, float32(x+dx), float32(y+dy), 1, 1, premul(c, a), false)
 	}
 	arms := func(r float64, c color.RGBA, a float64) {
 		dot(r, 0, c, a)

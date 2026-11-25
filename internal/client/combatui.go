@@ -107,8 +107,8 @@ func (g *Game) drawCombat(screen *ebiten.Image, cam camera, scale, alpha float64
 			continue
 		}
 		s, bob := g.creatureSprite(c, moving)
-		sx, sy := cam.toScreen(x, y)
-		w := math.Max(22, math.Min(48, float64(s.img.Bounds().Dx())*0.6)) * scale
+		sx, sy := cam.toScreenFine(x, y)
+		w := math.Max(22, math.Min(48, s.w()*0.6)) * scale
 		h := 2.5 * scale
 		bx, by := sx*scale-w/2, (sy-bob-s.ay-5)*scale
 		vector.DrawFilledRect(screen, float32(bx-1), float32(by-1), float32(w+2), float32(h+2), barBack, false)

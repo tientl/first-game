@@ -7,7 +7,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -167,7 +166,7 @@ func (g *Game) cropSprite(e protocol.EntityView) sprite {
 
 // drawSoil draws the tilled soil under farmland and crops, before anything
 // upright, so players and plants stand on it.
-func (g *Game) drawSoil(dst *ebiten.Image, list []drawable) {
+func (g *Game) drawSoil(dst drawTarget, list []drawable) {
 	for _, d := range list {
 		if d.isPlayer || d.creature || d.drop || d.boat {
 			continue
@@ -202,15 +201,15 @@ func (g *Game) digSpot() (tx, ty int, ok bool) {
 }
 
 // drawDigSpot outlines the tile the held hoe would till.
-func (g *Game) drawDigSpot(dst *ebiten.Image, cam camera) {
+func (g *Game) drawDigSpot(dst drawTarget, cam camera) {
 	tx, ty, ok := g.digSpot()
 	if !ok || g.curr.Self.Dead {
 		return
 	}
 	x, y := cam.toScreen(float64(tx), float64(ty))
 	a := uint8(110 + 70*math.Sin(float64(g.frame)*0.12))
-	vector.FillRect(dst, float32(x)+2, float32(y)+2, TileW-4, TileH-4, color.RGBA{uint8(int(soilRamp[2].R) * 60 / 255), uint8(int(soilRamp[2].G) * 60 / 255), uint8(int(soilRamp[2].B) * 60 / 255), 60}, false)
-	vector.StrokeRect(dst, float32(x)+1.5, float32(y)+1.5, TileW-3, TileH-3, 1, color.RGBA{a, a, a, a}, false)
+	fillRect(dst, float32(x)+2, float32(y)+2, TileW-4, TileH-4, color.RGBA{uint8(int(soilRamp[2].R) * 60 / 255), uint8(int(soilRamp[2].G) * 60 / 255), uint8(int(soilRamp[2].B) * 60 / 255), 60}, false)
+	strokeRect(dst, float32(x)+1.5, float32(y)+1.5, TileW-3, TileH-3, 1, color.RGBA{a, a, a, a}, false)
 }
 
 // drawDigLabel names what Space does on the marked tile, at screen resolution.

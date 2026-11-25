@@ -43,7 +43,7 @@ func (g *Game) boatSprites(b protocol.BoatView) (back, front sprite, seatX, seat
 }
 
 // drawBoat draws b at (sx, sy) with its rider and sail.
-func (g *Game) drawBoat(dst *ebiten.Image, b protocol.BoatView, sx, sy float64) {
+func (g *Game) drawBoat(dst drawTarget, b protocol.BoatView, sx, sy float64) {
 	t := float64(g.frame) + float64(b.ID)*13
 	bob := math.Round(math.Sin(t*0.06) * 1)
 	if b.Held {
@@ -62,7 +62,7 @@ func (g *Game) drawBoat(dst *ebiten.Image, b protocol.BoatView, sx, sy float64) 
 			wx := sx - hx*d*TileW/TileH*0.9 + math.Sin(float64(k)*2.3)*float64(k)*0.4
 			wy := sy - hy*d*0.7 + 2
 			a := uint8(180 * (1 - float64(k)/float64(n+1)))
-			vector.FillRect(dst, float32(math.Round(wx)), float32(math.Round(wy)), 2, 1, color.RGBA{a, a, a, a}, false)
+			fillRect(dst, float32(math.Round(wx)), float32(math.Round(wy)), 2, 1, color.RGBA{a, a, a, a}, false)
 		}
 	}
 	drawAt(dst, back, sx, sy+bob, 1, 1, 0, nil)
@@ -100,7 +100,7 @@ func (g *Game) sailFrame(b protocol.BoatView) int {
 
 // drawSwimmer draws p in the water at d: the head and shoulders above the
 // surface, rings spreading round them.
-func (g *Game) drawSwimmer(dst *ebiten.Image, p protocol.PlayerView, d drawable) {
+func (g *Game) drawSwimmer(dst drawTarget, p protocol.PlayerView, d drawable) {
 	b := g.art.body(p.Look)
 	dir := p.Dir & 3
 	tint := playerColors[int(p.ID)%len(playerColors)]
@@ -123,7 +123,7 @@ func (g *Game) drawSwimmer(dst *ebiten.Image, p protocol.PlayerView, d drawable)
 		r, a := 5+ph*7, uint8(170*(1-ph))
 		for s := range 20 {
 			ang := 2 * math.Pi * float64(s) / 20
-			vector.FillRect(dst, float32(math.Round(d.sx+r*math.Cos(ang))), float32(math.Round(y-13+r*0.4*math.Sin(ang))), 1, 1, color.RGBA{a, a, a, a}, false)
+			fillRect(dst, float32(math.Round(d.sx+r*math.Cos(ang))), float32(math.Round(y-13+r*0.4*math.Sin(ang))), 1, 1, color.RGBA{a, a, a, a}, false)
 		}
 	}
 }
@@ -157,9 +157,9 @@ func (g *Game) seaSprite(c protocol.CreatureView) (sprite, float64, bool) {
 // drawSeaShadow draws a sea monster swimming under the surface: its dark
 // shape, and for the sea lizard now and then a ridge of its back breaking
 // the water.
-func (g *Game) drawSeaShadow(dst *ebiten.Image, cam camera, c protocol.CreatureView, alpha float64) {
+func (g *Game) drawSeaShadow(dst drawTarget, cam camera, c protocol.CreatureView, alpha float64) {
 	x, y, moving := g.lerpCreature(c, alpha)
-	sx, sy := cam.toScreen(x, y)
+	sx, sy := cam.toScreenFine(x, y)
 	a := &g.art.sea
 	s := a.mosaShadow
 	if c.Kind == sim.CreatureKraken {
@@ -171,7 +171,7 @@ func (g *Game) drawSeaShadow(dst *ebiten.Image, cam camera, c protocol.CreatureV
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(sx-s.ax, sy-s.ay)
 	op.ColorScale.ScaleAlpha(0.42)
-	dst.DrawImage(s.img, op)
+	drawSprite(dst, s, op)
 	if c.Kind == sim.CreatureMosa && moving && (g.frame/50+int(c.ID))%3 == 0 {
 		r := a.mosaBack
 		if c.FaceLeft {
@@ -182,7 +182,7 @@ func (g *Game) drawSeaShadow(dst *ebiten.Image, cam camera, c protocol.CreatureV
 }
 
 // drawKraken draws a giant squid holding a boat: its arms rising round it.
-func (g *Game) drawKrakenArms(dst *ebiten.Image, c protocol.CreatureView, d drawable) {
+func (g *Game) drawKrakenArms(dst drawTarget, c protocol.CreatureView, d drawable) {
 	a := &g.art.sea
 	for k := range 5 {
 		ang := float64(k)*2*math.Pi/5 + 0.4

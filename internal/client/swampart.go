@@ -7,8 +7,6 @@ import (
 	"math/rand/v2"
 	"slices"
 
-	"github.com/hajimehoshi/ebiten/v2"
-
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
@@ -603,7 +601,7 @@ func genFloater(k floaterKind, v int) sprite {
 }
 
 // drawFloaters draws what floats on tile (tx, ty) if it is a swamp pond.
-func (g *Game) drawFloaters(dst *ebiten.Image, cam camera, tx, ty int) {
+func (g *Game) drawFloaters(dst drawTarget, cam camera, tx, ty int) {
 	if g.ground == nil || g.ground.terr == nil || !g.ground.terr.pondTile(tx, ty) {
 		return
 	}

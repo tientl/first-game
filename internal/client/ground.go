@@ -533,7 +533,7 @@ func (gc *groundCache) evict(frame int) {
 }
 
 // draw paints water and ground for the view (ox, oy, w, h) in world pixels.
-func (gc *groundCache) draw(dst *ebiten.Image, ox, oy float64, frame int) {
+func (gc *groundCache) draw(dst drawTarget, ox, oy float64, frame int) {
 	w, h := dst.Bounds().Dx(), dst.Bounds().Dy()
 	gc.drawWater(dst, ox, oy, frame)
 	gc.collect()
@@ -580,9 +580,9 @@ func (gc *groundCache) draw(dst *ebiten.Image, ox, oy float64, frame int) {
 const waveW, waveH = 96, 72
 
 // drawWater fills the view with water and two drifting layers of ripples.
-func (gc *groundCache) drawWater(dst *ebiten.Image, ox, oy float64, frame int) {
-	dst.Fill(colWaterBG)
+func (gc *groundCache) drawWater(dst drawTarget, ox, oy float64, frame int) {
 	w, h := float64(dst.Bounds().Dx()), float64(dst.Bounds().Dy())
+	fillRect(dst, -1, -1, float32(w)+2, float32(h)+2, colWaterBG, false) // a pixel over, for the canvas's sub-pixel shift
 	t := float64(frame)
 	for _, l := range []struct{ vx, vy, a float64 }{{0.12, 0.05, 0.55}, {-0.08, 0.09, 0.35}} {
 		sx := math.Mod(-ox+t*l.vx, waveW)

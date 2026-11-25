@@ -135,13 +135,13 @@ func (g *Game) drawVictory(screen *ebiten.Image, sw, sh int) {
 			pose = bossSpecial // its idle is only a shadow under the water
 		}
 		s := g.art.bosses[bi][pose][0]
-		b := s.img.Bounds()
-		k2 := min(1.4, 180/float64(b.Dx()), 90/float64(b.Dy()))
+		sw, sh := s.w(), s.h()
+		k2 := min(1.4, 180/sw, 90/sh)
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(k2, k2)
-		op.GeoM.Translate(x+cw/2-float64(b.Dx())*k2/2, y+8+90-float64(b.Dy())*k2)
+		op.GeoM.Translate(x+cw/2-sw*k2/2, y+8+90-sh*k2)
 		dst := screen
-		dst.DrawImage(s.img, op)
+		drawSprite(dst, s, op)
 		// Struck off: a red cross.
 		ax, ay := float32(x+cw/2), float32(y+8+50)
 		vector.StrokeLine(dst, ax-26, ay-26, ax+26, ay+26, 5, color.RGBA{220, 30, 30, 220}, true)
@@ -167,13 +167,13 @@ func (g *Game) drawBossMarks(dst *ebiten.Image, at func(x, y float64) (float32, 
 		vector.FillCircle(dst, x, y, 13, colInk, true)
 		vector.FillCircle(dst, x, y, 11.5, bg, true)
 		if h, ok := g.art.heads[m.Kind]; ok {
-			b := h.img.Bounds()
-			k := 18 / float64(max(b.Dx(), b.Dy()))
+			hw, hh := h.w(), h.h()
+			k := 18 / max(hw, hh)
 			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(-float64(b.Dx())/2, -float64(b.Dy())/2)
+			op.GeoM.Translate(-hw/2, -hh/2)
 			op.GeoM.Scale(k, k)
 			op.GeoM.Translate(float64(x), float64(y))
-			dst.DrawImage(h.img, op)
+			drawSprite(dst, h, op)
 		}
 		if m.Defeated {
 			vector.StrokeLine(dst, x-10, y-10, x+10, y+10, 3, color.RGBA{230, 40, 40, 255}, true)

@@ -23,16 +23,21 @@ const (
 	walkFrames  = 4
 )
 
-// sprite is an image plus its anchor: the pixel that sits on the ground point.
+// sprite is an image plus its anchor: the point that sits on the ground
+// point, in art pixels. dens is the image's pixel density, image pixels per
+// art pixel: 0 or 1 for the original art, HDDensity for redrawn HD art (see
+// hd.go and HD_ART.md). Draw sprites with drawAt, drawSwaying or
+// drawSprite, and size them with s.w() and s.h(), so either density works.
 type sprite struct {
 	img    *ebiten.Image
 	ax, ay float64
+	dens   int
 }
 
 // mk makes a sprite of c anchored at design point (ax, ay).
 func mk(c *canvas, ax, ay float64) sprite {
 	x, y := c.toPx(ax, ay)
-	return sprite{c.image(), x, y}
+	return sprite{img: c.image(), ax: x, ay: y}
 }
 
 // art holds every placeholder image, generated in code at start-up. Swapping
@@ -487,11 +492,10 @@ var mirrorCache = map[*ebiten.Image]sprite{}
 func flipped(s sprite) sprite {
 	m, ok := mirrorCache[s.img]
 	if !ok {
-		m = mirrorSprite(sprite{s.img, 0, s.ay})
+		m = mirrorSprite(sprite{img: s.img, ay: s.ay, dens: s.dens})
 		mirrorCache[s.img] = m
 	}
-	w := float64(s.img.Bounds().Dx())
-	return sprite{m.img, w - s.ax, s.ay}
+	return sprite{img: m.img, ax: s.w() - s.ax, ay: s.ay, dens: s.dens}
 }
 
 func mirrorSprite(s sprite) sprite {
@@ -500,8 +504,8 @@ func mirrorSprite(s sprite) sprite {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(-1, 1)
 	op.GeoM.Translate(float64(w), 0)
-	img.DrawImage(s.img, op)
-	return sprite{img, float64(w) - s.ax, s.ay}
+	img.DrawImage(s.img, op) // in image pixels: the mirror keeps s's density
+	return sprite{img: img, ax: s.w() - s.ax, ay: s.ay, dens: s.dens}
 }
 
 // --- effects ----------------------------------------------------------------

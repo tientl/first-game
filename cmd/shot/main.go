@@ -3,6 +3,7 @@
 //
 //	go run ./cmd/shot -o day.png
 //	go run ./cmd/shot -o night.png -time 0.85
+//	xvfb-run -a -s "-screen 0 1920x1080x24" go run ./cmd/shot -w 1920 -h 1080 -o hd.png
 package main
 
 import (
@@ -85,8 +86,14 @@ func main() {
 	buildID := flag.Int("build", -1, "recipe id of a structure to place (0 campfire, 8 wall, 9 bed…): build mode with its ghost under -aim, the ingredients given")
 	herohd := flag.Bool("herohd", false, "draw the players as the trial hero: bigger, with a run, a sword blow and firelight (a trial; see internal/client/herohd.go)")
 	running := flag.Bool("run", false, "the player is on the move (with -herohd: mid-stride)")
+	winW := flag.Int("w", 1280, "window width; run xvfb with a screen at least this big (xvfb-run -s '-screen 0 1920x1080x24')")
+	winH := flag.Int("h", 720, "window height: 720 draws the world at 2 screen pixels per art pixel, 1080 at 3")
+	hdTest := flag.Bool("hdtest", false, "set down the HD trial: a mossy stone drawn as the old pixel art (left of the player) and at HD density (right); see internal/client/HD_ART.md")
+	subPixel := flag.Bool("subpixel", true, "let the camera and moving things sit between art pixels, on screen pixels (false: whole art pixels, as before HD art)")
 	flag.Parse()
 	client.SetHeroHD(*herohd)
+	client.SetHDTest(*hdTest)
+	client.SetSubPixel(*subPixel)
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
 	client.SetWarmGround(*warm)
@@ -733,7 +740,7 @@ func main() {
 	if *audioSettings != "" {
 		client.InitAudio(*audioSettings)
 	}
-	ebiten.SetWindowSize(1280, 720)
+	ebiten.SetWindowSize(*winW, *winH)
 	ebiten.SetWindowTitle("shot")
 	game := client.New(conn, "Tien")
 	game.ShowOverlay(*overlay)

@@ -6,9 +6,6 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
-
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
@@ -693,7 +690,7 @@ func (g *Game) snowCover(cam camera) float64 {
 
 // drawSnowfall drifts flakes down over the snowy parts of the world. Like
 // the embers, each flake is a function of its index and the clock.
-func (g *Game) drawSnowfall(dst *ebiten.Image, cam camera) {
+func (g *Game) drawSnowfall(dst drawTarget, cam camera) {
 	cover := g.snowCover(cam)
 	if cover <= 0 || g.caveIn() > 0.5 {
 		return
@@ -718,7 +715,7 @@ func (g *Game) drawSnowfall(dst *ebiten.Image, cam camera) {
 		if r.Float64() < 0.2 {
 			size = 2
 		}
-		vector.FillRect(dst, float32(math.Round(x)), float32(math.Round(y)), size, size, color.RGBA{a, a, a, a}, false)
+		fillRect(dst, float32(math.Round(x)), float32(math.Round(y)), size, size, color.RGBA{a, a, a, a}, false)
 	}
 }
 

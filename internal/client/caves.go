@@ -96,7 +96,7 @@ const ownLightRadius = 1.9
 
 // crystalLights punches the crystals' light out of the darkness (punch) or
 // adds their cold glow to the scene.
-func (g *Game) crystalLights(dst *ebiten.Image, cam camera, punch bool) {
+func (g *Game) crystalLights(dst drawTarget, cam camera, punch bool) {
 	in := g.caveIn()
 	if in <= 0 {
 		return

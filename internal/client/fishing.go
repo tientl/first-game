@@ -6,7 +6,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -49,13 +48,13 @@ func (g *Game) floatAt(p protocol.PlayerView, cam camera) (float64, float64) {
 }
 
 // drawLines draws every fishing line that is out.
-func (g *Game) drawLines(dst *ebiten.Image, cam camera, alpha float64) {
+func (g *Game) drawLines(dst drawTarget, cam camera, alpha float64) {
 	for _, p := range g.curr.Players {
 		if p.Cast == sim.CastNone || p.Dead {
 			continue
 		}
 		wx, wy, _ := g.lerpPlayer(p, alpha)
-		px, py := cam.toScreen(wx, wy)
+		px, py := cam.toScreenFine(wx, wy)
 		tx, ty := rodTip(p.Dir&3, px, py)
 		fx, fy := g.floatAt(p, cam)
 
@@ -69,14 +68,14 @@ func (g *Game) drawLines(dst *ebiten.Image, cam camera, alpha float64) {
 			t := float64(i) / float64(n)
 			x := tx + (fx-tx)*t
 			y := ty + (fy-ty)*t + sag*4*t*(1-t)
-			vector.FillRect(dst, float32(math.Round(x)), float32(math.Round(y)), 1, 1, colLine, false)
+			fillRect(dst, float32(math.Round(x)), float32(math.Round(y)), 1, 1, colLine, false)
 		}
 
 		// The float: red over white, half under water when the fish bites.
 		fx, fy = math.Round(fx), math.Round(fy)
-		vector.FillRect(dst, float32(fx-1), float32(fy-3), 3, 2, colFloatHi, false)
+		fillRect(dst, float32(fx-1), float32(fy-3), 3, 2, colFloatHi, false)
 		if p.Cast != sim.CastBite {
-			vector.FillRect(dst, float32(fx-1), float32(fy-1), 3, 2, colFloatLo, false)
+			fillRect(dst, float32(fx-1), float32(fy-1), 3, 2, colFloatLo, false)
 		}
 		if p.Cast == sim.CastBite { // rings spreading from the tug
 			ph := math.Mod(float64(g.frame)/14, 1)
@@ -85,7 +84,7 @@ func (g *Game) drawLines(dst *ebiten.Image, cam camera, alpha float64) {
 			for k := range 16 {
 				ang := 2 * math.Pi * float64(k) / 16
 				x, y := math.Round(fx+r*math.Cos(ang)), math.Round(fy+r*0.45*math.Sin(ang))
-				vector.FillRect(dst, float32(x), float32(y), 1, 1, color.RGBA{a, a, a, a}, false)
+				fillRect(dst, float32(x), float32(y), 1, 1, color.RGBA{a, a, a, a}, false)
 			}
 		}
 	}

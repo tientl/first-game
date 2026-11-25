@@ -273,7 +273,7 @@ func isLava(t sim.Tile) bool { return t == sim.TileLava }
 
 // lavaLight draws lava's glow: a hole in the darkness when target is the
 // darkness layer (punch), or warm light added to the scene otherwise.
-func (g *Game) lavaLight(dst *ebiten.Image, cam camera, tx0, ty0 int, punch bool, k float32) {
+func (g *Game) lavaLight(dst drawTarget, cam camera, tx0, ty0 int, punch bool, k float32) {
 	for _, o := range [][2]float64{{0, 0}, {-0.5, 0}, {0.5, 0}, {0, -0.5}, {0, 0.5}} {
 		op := maskOp(cam, tx0, ty0)
 		op.GeoM.Translate(o[0]*TileW, o[1]*TileH)

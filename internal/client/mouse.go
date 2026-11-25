@@ -464,7 +464,7 @@ var (
 
 // drawGhost draws what a left click would build on the world canvas: the
 // tile outlined and the thing itself, see-through, green or red.
-func (g *Game) drawGhost(dst *ebiten.Image, cam camera) {
+func (g *Game) drawGhost(dst drawTarget, cam camera) {
 	gv := g.ghost()
 	if !gv.ok {
 		return
@@ -475,8 +475,8 @@ func (g *Game) drawGhost(dst *ebiten.Image, cam camera) {
 		col, tint = colGhostBad, [3]float32{1.4, 0.6, 0.6}
 	}
 	pulse := uint8(150 + 70*math.Sin(float64(g.frame)*0.15))
-	vector.FillRect(dst, float32(x)+1, float32(y)+1, TileW-2, TileH-2, color.RGBA{col.R / 3, col.G / 3, col.B / 3, 90}, false)
-	vector.StrokeRect(dst, float32(x)+1.5, float32(y)+1.5, TileW-3, TileH-3, 1, color.RGBA{uint8(int(col.R) * int(pulse) / 255), uint8(int(col.G) * int(pulse) / 255), uint8(int(col.B) * int(pulse) / 255), pulse}, false)
+	fillRect(dst, float32(x)+1, float32(y)+1, TileW-2, TileH-2, color.RGBA{col.R / 3, col.G / 3, col.B / 3, 90}, false)
+	strokeRect(dst, float32(x)+1.5, float32(y)+1.5, TileW-3, TileH-3, 1, color.RGBA{uint8(int(col.R) * int(pulse) / 255), uint8(int(col.G) * int(pulse) / 255), uint8(int(col.B) * int(pulse) / 255), pulse}, false)
 	ev := protocol.EntityView{Kind: gv.kind, TX: int16(gv.tx), TY: int16(gv.ty), Ready: true}
 	switch gv.kind {
 	case sim.EntityTorchStand:
@@ -494,7 +494,7 @@ func (g *Game) drawGhost(dst *ebiten.Image, cam camera) {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(math.Round(x-s.ax), math.Round(y-s.ay))
 		op.ColorScale.Scale(tint[0]*a, tint[1]*a, tint[2]*a, a)
-		dst.DrawImage(s.img, op)
+		drawSprite(dst, s, op)
 	}
 	cx, cy := x+TileW/2, y+TileH/2
 	s, _ := g.entitySprite(ev)
@@ -548,11 +548,11 @@ func (g *Game) targetBox(tg targetView, cam camera) (x, y, w, h float64, ok bool
 	switch {
 	case tg.drop:
 		dx, dy, lift := g.dropPos(tg.d)
-		sx, sy = cam.toScreen(dx, dy)
+		sx, sy = cam.toScreenFine(dx, dy)
 		return sx - 7, sy - lift - 9, 14, 12, true
 	case tg.creature:
 		cx, cy, moving := g.lerpCreature(tg.c, g.alpha())
-		sx, sy = cam.toScreen(cx, cy)
+		sx, sy = cam.toScreenFine(cx, cy)
 		var bob float64
 		s, bob = g.creatureSprite(tg.c, moving)
 		sy -= bob
@@ -563,8 +563,7 @@ func (g *Game) targetBox(tg targetView, cam camera) (x, y, w, h float64, ok bool
 	if s.img == nil {
 		return 0, 0, 0, 0, false
 	}
-	b := s.img.Bounds()
-	return sx - s.ax - 1, sy - s.ay - 1, float64(b.Dx()) + 2, float64(b.Dy()) + 2, true
+	return sx - s.ax - 1, sy - s.ay - 1, s.w() + 2, s.h() + 2, true
 }
 
 // drawBrackets draws the four corners of a box, with a dark edge so they
