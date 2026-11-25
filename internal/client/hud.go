@@ -200,8 +200,8 @@ func (g *Game) drawClock(screen *ebiten.Image, sw int) {
 	g.text(screen, g.curr.Weather.Name(), float64(x)+w, 62, colMuted, text.AlignEnd, 1)
 
 	fillRoundRect(screen, x, y, w, h, 4, colNight)
-	fillRoundRect(screen, x, y, w*sim.NightStart, h, 4, colDusk)
-	fillRoundRect(screen, x, y, w*sim.DuskStart, h, 4, colDay)
+	fillRoundRect(screen, x, y, w*float32(sim.NightAt(tick)), h, 4, colDusk)
+	fillRoundRect(screen, x, y, w*float32(sim.DuskAt(tick)), h, 4, colDay)
 
 	// A sun by day, a moon by night, riding along the bar.
 	mx := x + float32(sim.DayFraction(tick))*w

@@ -16,7 +16,7 @@ const (
 
 	SleepSpeedup      = 8 // world ticks per server tick while every player sleeps
 	SleepRegenFactor  = 4 // health comes back this much faster in bed
-	SleepHungerFactor = 0.75
+	SleepHungerFactor = 0.35 // a night is twice as long as it was: a night in bed costs what it did
 )
 
 // TorchLit reports whether p holds a burning torch.

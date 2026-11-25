@@ -1,5 +1,7 @@
 package sim
 
+import "math"
+
 // Phase is the part of the day.
 type Phase uint8
 
@@ -35,9 +37,9 @@ func DayFraction(tick uint64) float64 {
 func PhaseOf(tick uint64) Phase {
 	f := DayFraction(tick)
 	switch {
-	case f >= NightStart:
+	case f >= NightAt(tick):
 		return PhaseNight
-	case f >= DuskStart:
+	case f >= DuskAt(tick):
 		return PhaseDusk
 	default:
 		return PhaseDay
@@ -48,16 +50,43 @@ func PhaseOf(tick uint64) Phase {
 // night, with smooth ramps between.
 func Ambient(tick uint64) float64 {
 	f := DayFraction(tick)
+	dusk, night := DuskAt(tick), NightAt(tick)
 	switch {
 	case f < transition: // dawn
 		return f / transition
-	case f < DuskStart:
+	case f < dusk:
 		return 1
-	case f < NightStart: // dusk
-		return 1 - (1-duskAmbient)*(f-DuskStart)/(NightStart-DuskStart)
-	case f < NightStart+transition: // nightfall
-		return duskAmbient * (1 - (f-NightStart)/transition)
+	case f < night: // dusk
+		return 1 - (1-duskAmbient)*(f-dusk)/(night-dusk)
+	case f < night+transition: // nightfall
+		return duskAmbient * (1 - (f-night)/transition)
 	default:
 		return 0
 	}
+}
+
+// The days draw out towards midsummer and in towards midwinter: dusk and
+// nightfall come up to dayShift of a day later in summer, earlier in winter.
+// DuskStart and NightStart are the equinox's.
+const (
+	dayShift   = 0.07
+	nightShift = 0.06
+	midsummer  = 0.375 // through the year: the middle of summer
+)
+
+// seasonSwing is +1 at midsummer, -1 at midwinter, 0 at the equinoxes.
+func seasonSwing(tick uint64) float64 {
+	year := float64(SeasonDays*int(NumSeasons)) * DayTicks
+	y := math.Mod(float64(tick), year) / year
+	return math.Cos(2 * math.Pi * (y - midsummer))
+}
+
+// DuskAt is the fraction of the day dusk starts at on the day of tick.
+func DuskAt(tick uint64) float64 {
+	return DuskStart + dayShift*seasonSwing(tick-tick%DayTicks)
+}
+
+// NightAt is the fraction of the day night falls at on the day of tick.
+func NightAt(tick uint64) float64 {
+	return NightStart + nightShift*seasonSwing(tick-tick%DayTicks)
 }

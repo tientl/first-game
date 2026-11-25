@@ -75,3 +75,42 @@ func TestVersion6SaveKeepsTheDayAndTheTimeOfDay(t *testing.T) {
 		t.Errorf("saved and loaded again: tick %d regrow %d, want %d and %d", w3.Tick(), w3.entities[stump.ID].RegrowAt, w2.Tick(), stump.RegrowAt)
 	}
 }
+
+func TestSummerDaysAreLongerThanWinterDays(t *testing.T) {
+	if m := float64(DayTicks) / TicksPerSecond / 60; m < 15 || m > 20 {
+		t.Errorf("a day lasts %.1f minutes, want 15 to 20", m)
+	}
+	day := func(s Season, n int) uint64 { return uint64(int(s)*SeasonDays+n) * DayTicks }
+	summer, winter := day(Summer, SeasonDays/2), day(Winter, SeasonDays/2)
+	if DuskAt(summer) <= DuskAt(winter)+0.1 || NightAt(summer) <= NightAt(winter)+0.1 {
+		t.Errorf("summer dusk %.2f night %.2f, winter dusk %.2f night %.2f: summer days should be clearly longer",
+			DuskAt(summer), NightAt(summer), DuskAt(winter), NightAt(winter))
+	}
+	for d := range SeasonDays * int(NumSeasons) {
+		tk := uint64(d) * DayTicks
+		if NightAt(tk)-DuskAt(tk) < 0.1 || 1-NightAt(tk) < 0.18 {
+			t.Fatalf("day %d: dusk %.2f night %.2f", d+1, DuskAt(tk), NightAt(tk))
+		}
+	}
+	// Within one day the times do not move.
+	if DuskAt(summer) != DuskAt(summer+DayTicks-1) {
+		t.Error("dusk moves during the day")
+	}
+}
+
+func TestVersion12SaveKeepsTheDayAndTheTimeOfDay(t *testing.T) {
+	w, err := Generate(GenConfig{Seed: 5, Width: 48, Height: 48})
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := w.Save()
+	d.Version = 12
+	d.Tick = 4*v12DayTicks + v12DayTicks/4 // day 5, a quarter through
+	w2, err := Load(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if DayOf(w2.Tick()) != 5 || DayFraction(w2.Tick()) != 0.25 {
+		t.Errorf("after loading: day %d at %.3f, want day 5 at 0.250", DayOf(w2.Tick()), DayFraction(w2.Tick()))
+	}
+}

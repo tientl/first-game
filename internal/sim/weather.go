@@ -50,7 +50,7 @@ const (
 
 // Weather tuning.
 const (
-	SeasonDays    = 3
+	SeasonDays    = 12 // a year of 48 days
 	WeatherTicks  = 100 * TicksPerSecond // the weather holds this long
 	WetFireFactor = 2                    // fires burn this much faster in rain
 

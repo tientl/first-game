@@ -16,9 +16,10 @@ const (
 	TickDuration   = time.Second / TicksPerSecond
 )
 
-// DayTicks is the length of one full day/night cycle (8 minutes): about 4½
-// minutes of day, a little over 1 of dusk and nearly 2½ of night.
-const DayTicks = 480 * TicksPerSecond
+// DayTicks is the length of one full day/night cycle (16 minutes): about 9
+// minutes of day, 2½ of dusk and 5 of night at the equinox; summer days are
+// longer and winter nights longer (see DuskAt).
+const DayTicks = 960 * TicksPerSecond
 
 // Player tuning.
 const (
