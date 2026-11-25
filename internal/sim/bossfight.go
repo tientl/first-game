@@ -49,7 +49,8 @@ const (
 	GigaTailKnock  = 2.0
 	GigaTailWindup = 14
 
-	MegaCircle      = 5.0 // it circles its prey this far off
+	MegaCircle      = 5.0  // it circles its prey this far off
+	megaAwakeSight  = 25.6 // once in a fight it follows its prey across all its water
 	MegaCircleTicks = 4 * TicksPerSecond
 	MegaRamBoat     = 5 // boat hit points
 	MegaRamRider    = 12.0
@@ -131,6 +132,9 @@ func (w *World) bossFoe(c *Creature, l *bossLair, wounded bool) (*Player, float6
 	sight := bossTuneOf(c.Kind).sight
 	if l.awake {
 		sight = max(sight*1.6, 12)
+		if c.Kind == CreatureMegalodon {
+			sight = megaAwakeSight
+		}
 	}
 	if p := w.players[l.foe]; w.bossCanFight(c, l, p) {
 		if d := math.Hypot(p.X-c.X, p.Y-c.Y); d <= sight {
@@ -172,7 +176,7 @@ func (w *World) bossAwake(c *Creature, l *bossLair, p *Player) bool {
 		w.bossHome(c, l)
 		return false
 	}
-	l.lost, l.stuck = 0, 0
+	l.lost, l.stuck, l.prey = 0, 0, 0
 	if !l.awake || !l.roared {
 		l.awake, l.roared = true, true
 		l.special = w.bossCD(l, bossTuneOf(c.Kind).specialCD/2)
@@ -206,6 +210,9 @@ func (w *World) bossRoar(c *Creature, l *bossLair, p *Player) {
 // bossHome takes c back to its lair; there it rests and heals.
 func (w *World) bossHome(c *Creature, l *bossLair) {
 	w.bossLetGo(c, l)
+	if c.Kind == CreatureTitanoboa && w.titanProwl(c, l) {
+		return // out after a small animal: see lair.go
+	}
 	d := c.Kind.def()
 	sea := c.Kind == CreatureMegalodon || (c.Kind == CreatureSpino && w.inWater(c.X, c.Y))
 	if math.Hypot(l.x-c.X, l.y-c.Y) > d.leash+1 {
@@ -235,8 +242,7 @@ func (w *World) bossHome(c *Creature, l *bossLair) {
 			c.State = CreatureWander
 		}
 	case CreatureMegalodon:
-		c.State = CreatureLurk
-		w.swim(c)
+		w.megaIdle(c, l) // see lair.go
 	default:
 		w.wander(c)
 	}

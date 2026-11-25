@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 38
+const Version = 39
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -110,6 +110,7 @@ type Snapshot struct {
 	Boss      BossView    // the boss this player is fighting, for the big bar; see boss.go
 	BossMarks []BossMark  // the boss lairs this player has seen, for the map
 	Victory   VictoryView // every boss has fallen: the game-beaten screen
+	Lairs     []LairView  // the boss lairs near by: their arenas, and whether their bosses sleep
 }
 
 // BoatView is a boat on the water.

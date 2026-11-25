@@ -24,7 +24,8 @@ import (
 //   - 11: a beast's health counts in HealthScale units (weapons do damage, not hits).
 //   - 12: the bosses: which have fallen, who has seen their lairs, the victory.
 //   - 13: a day lasts 16 minutes and a season 12 days; older ticks are doubled.
-const SaveVersion = 13
+//   - 14: the bosses' lairs are dressed (see lair.go); older worlds get theirs on loading.
+const SaveVersion = 14
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -269,6 +270,9 @@ func Load(d SaveData) (*World, error) {
 		w.nextEnt = max(w.nextEnt, e.ID)
 	}
 	w.loadChests(d.Chests)
+	if d.Version < 14 {
+		w.dressLairs() // the bones, the nest and the ruin of each lair: see lair.go
+	}
 	for _, e := range fresh {
 		if w.canPlace(e.TX, e.TY) {
 			w.nextEnt++

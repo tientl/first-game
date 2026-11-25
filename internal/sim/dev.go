@@ -244,7 +244,9 @@ func (w *World) DevTeleport(id PlayerID, x, y float64) bool {
 	if p.mount != 0 {
 		w.dismount(p)
 	}
-	if p.boat != 0 {
+	if b := w.boatByID(p.boat); b != nil && w.boatFits(b.Kind, x, y) {
+		b.X, b.Y, b.Speed = x, y, 0 // by sea to sea: the boat comes too
+	} else if p.boat != 0 {
 		w.leaveBoat(p)
 	}
 	p.wake()
