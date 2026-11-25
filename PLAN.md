@@ -6,16 +6,18 @@ Việc cần làm, chia theo nhóm. Trong mỗi nhóm, mục trên làm trước
 
 Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đây; mọi thứ khác trong kế hoạch để sau demo.
 
+- [ ] **Đồ hoạ Full HD — ưu tiên số 1** (bắt buộc trong demo; mục 2). Chất lượng hình ảnh là thứ người chơi thấy đầu tiên, nên làm trước và làm kỹ nhất: mọi thứ người chơi thấy trong demo đều vẽ lại ở Full HD, không để nửa cũ nửa mới:
+  - Nhân vật (đủ kiểu ngoại hình, giáp, vũ khí, cưỡi, bơi, ngủ) và mặt đất (cỏ xanh và đất ấm).
+  - Cây, cỏ, hoa, đá, quặng, công trình.
+  - Mọi sinh vật có trong thế giới demo, kèm hoạt ảnh nhiều khung; Titanoboa và Megalodon to, đẹp nhất.
+  - Icon túi đồ, giao diện, hiệu ứng (lửa, chém, va chạm, nước…).
+  - **Chuẩn chất lượng**: mỗi nhóm (nhân vật, mặt đất, cây, từng nhóm sinh vật, icon) làm xong thì gửi ảnh so sánh để duyệt; chưa đạt thì làm lại trước khi sang nhóm khác.
+  - Nếu thiếu lượt dùng: **bớt số loài thú trong demo chứ không hạ chất lượng** (ưu tiên các loài ở đảo đầu tiên, rừng rậm, biển).
 - [ ] **Chế độ dev** (mục 1) — để test nhanh trước khi phát hành.
 - [ ] **Giao diện** (mục 3): HUD gọn, bỏ ô hướng dẫn (F1), túi 30 ô, rương có ô đồ, chuột phải cắm đuốc.
 - [ ] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
 - [ ] **Thời gian** (mục 4): ngày 15–20 phút; **cửa hang**.
 - [ ] **Chỉ 2 trùm** trong demo: các trùm khác tắt (không sinh ra, không hiện trên bản đồ); màn hình "Phá đảo!" tính theo 2 trùm. Hai trùm có thanh máu và nhạc chiến đấu (mục 8). Trùm được chọn: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu).
-- [ ] **Đồ hoạ Full HD** (bắt buộc trong demo; mục 2): mọi thứ người chơi thấy trong demo đều vẽ lại ở Full HD, không để nửa cũ nửa mới:
-  - Nhân vật (đủ kiểu ngoại hình, giáp, vũ khí, cưỡi, bơi, ngủ) và mặt đất (cỏ xanh và đất ấm).
-  - Cây, cỏ, hoa, đá, quặng, công trình.
-  - Mọi sinh vật có trong thế giới demo, kèm hoạt ảnh nhiều khung; Titanoboa và Megalodon to, đẹp nhất.
-  - Icon túi đồ, giao diện, hiệu ứng (lửa, chém, va chạm, nước…).
 - [ ] **Hướng dẫn chơi** vài phút đầu và **menu cài đặt** (âm lượng, toàn màn hình).
 - [ ] **Chơi thử, sửa lỗi**, build `.exe` cho Windows và bản Linux.
 
