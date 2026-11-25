@@ -57,8 +57,8 @@ func (a *art) headOf(k sim.CreatureKind) sprite {
 	if right < 0 {
 		return s
 	}
-	cw := max(10, int(float64(w)*0.36))
-	if w < 22 {
+	cw := max(10*s.density(), int(float64(w)*0.36))
+	if w < 22*s.density() {
 		cw = w // small animals: the whole of them
 	}
 	left := max(0, right-cw+1)
@@ -78,7 +78,8 @@ func (a *art) headOf(k sim.CreatureKind) sprite {
 	sub := s.img.SubImage(image.Rect(b.Min.X+left, b.Min.Y+top, b.Min.X+right+1, b.Min.Y+bottom+1)).(*ebiten.Image)
 	img := ebiten.NewImage(right-left+1, bottom-top+1)
 	img.DrawImage(sub, nil)
-	return sprite{img: img, ax: float64(right-left+1) / 2, ay: float64(bottom - top + 1)}
+	dn := float64(s.density()) // the cut is in image pixels, the anchor in art pixels
+	return sprite{img: img, ax: float64(right-left+1) / 2 / dn, ay: float64(bottom-top+1) / dn, dens: s.dens}
 }
 
 // iconOf fits s in a 16x16 bag icon.
@@ -304,8 +305,7 @@ func (g *Game) drawTribalEntity(dst drawTarget, e protocol.EntityView, d drawabl
 	case sim.EntityTrophy:
 		drawAt(dst, a.post, d.sx, d.sy, 1, 1, 0, nil)
 		if h, ok := g.art.heads[sim.CreatureKind(e.Var)]; ok {
-			b := h.img.Bounds()
-			k := min(1, 22/float64(max(b.Dx(), b.Dy())))
+			k := min(1, 22/max(h.w(), h.h()))
 			drawAt(dst, h, d.sx, d.sy-a.post.ay+5, k, k, 0, nil)
 		}
 		return true

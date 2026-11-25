@@ -66,14 +66,17 @@ func (g *Game) hellSprite(c protocol.CreatureView, moving bool) (sprite, float64
 		switch {
 		case feeding(c):
 			return a.toro[side][trikeEatA+chew(c, t)], 0, true
-		case c.State == sim.CreatureStrike, calling(c):
+		case c.State == sim.CreatureStrike:
+			s, _ := blow("toro", side, trikeGore, g.strikeAge(c), a.toro[side][trikeGore])
+			return s, 0, true
+		case calling(c):
 			return a.toro[side][trikeGore], 0, true
 		case c.State == sim.CreatureChase && moving:
-			return a.toro[side][trikeCharge], float64((t / 4) % 2), true
+			return stride("toro", side, dinoPoses["trike"][trikeCharge], 1.4, t, 4), 0, true
 		case c.State == sim.CreatureChase:
 			return a.toro[side][trikeCharge], 0, true
 		case moving:
-			return a.toro[side][trikeWalkA+(t/12)%2], 0, true
+			return stride("toro", side, rigPose{}, 1, t, 12), 0, true
 		}
 		return a.toro[side][trikeWalkA], 0, true
 	case sim.CreatureAchero: // as the raptor
@@ -81,13 +84,14 @@ func (g *Game) hellSprite(c protocol.CreatureView, moving bool) (sprite, float64
 		case feeding(c):
 			return a.achero[side][raptorEatA+chew(c, t)], 0, true
 		case c.State == sim.CreatureStrike:
-			return a.achero[side][raptorPounce], 2, true
+			s, far := blow("achero", side, raptorPounce, g.strikeAge(c), a.achero[side][raptorPounce])
+			return s, 2 * far, true
 		case c.State == sim.CreatureCower:
 			return a.achero[side][raptorCower], 0, true
 		case moving && (c.State == sim.CreatureChase || c.State == sim.CreatureFlee):
-			return a.achero[side][raptorRunA+(t/4)%2], 0, true
+			return stride("achero", side, raptorRun, 1.25, t, 4), 0, true
 		case moving:
-			return a.achero[side][raptorRunA+(t/8)%2], 0, true
+			return stride("achero", side, rigPose{}, 1, t, 8), 0, true
 		}
 		return a.achero[side][raptorStand], 0, true
 	case sim.CreatureBrachy, sim.CreatureChampso: // as the crocodile
@@ -112,10 +116,10 @@ func (g *Game) hellSprite(c protocol.CreatureView, moving bool) (sprite, float64
 			return a.ornitho[side][ornithoEatA+chew(c, t)], 0, true
 		case c.State == sim.CreatureRest:
 			return a.ornitho[side][ornithoRest], 0, true
-		case moving && c.State == sim.CreatureFlee:
-			return a.ornitho[side][ornithoRunA+(t/3)%2], 0, true
+		case moving && c.State == sim.CreatureFlee: // a sprint: neck stretched out
+			return stride("ornitho", side, rigPose{tilt: 0.06, neck: 0.12}, 1.3, t, 3), 0, true
 		case moving:
-			return a.ornitho[side][ornithoRunA+(t/7)%2], 0, true
+			return stride("ornitho", side, rigPose{}, 1, t, 7), 0, true
 		}
 		return a.ornitho[side][ornithoStand], 0, true
 	case sim.CreatureThesc:
@@ -123,9 +127,9 @@ func (g *Game) hellSprite(c protocol.CreatureView, moving bool) (sprite, float64
 		case feeding(c):
 			return a.thesc[side][thescEatA+chew(c, t)], 0, true
 		case moving && c.State == sim.CreatureFlee:
-			return a.thesc[side][thescWalkA+(t/6)%2], 0, true
+			return stride("thesc", side, rigPose{tilt: 0.06}, 1.25, t, 6), 0, true
 		case moving:
-			return a.thesc[side][thescWalkA+(t/11)%2], 0, true
+			return stride("thesc", side, rigPose{}, 1, t, 11), 0, true
 		}
 		return a.thesc[side][thescStand], 0, true
 	case sim.CreatureAnzu:
@@ -134,10 +138,11 @@ func (g *Game) hellSprite(c protocol.CreatureView, moving bool) (sprite, float64
 			return a.anzu[side][anzuEatA+chew(c, t)], 0, true
 		case c.State == sim.CreatureRoar, calling(c): // crest up to warn, or to boom
 			return a.anzu[side][anzuDisplay], 0, true
-		case c.State == sim.CreatureStrike:
-			return a.anzu[side][anzuKick], 0, true
+		case c.State == sim.CreatureStrike: // leans back, then kicks
+			s, _ := blow("anzu", side, anzuKick, g.strikeAge(c), a.anzu[side][anzuKick])
+			return s, 0, true
 		case moving:
-			return a.anzu[side][anzuWalkA+(t/8)%2], 0, true
+			return stride("anzu", side, rigPose{}, 1, t, 8), 0, true
 		}
 		return a.anzu[side][anzuStand], 0, true
 	case sim.CreatureQuetzal:
@@ -145,12 +150,12 @@ func (g *Game) hellSprite(c protocol.CreatureView, moving bool) (sprite, float64
 		case feeding(c):
 			return a.quetzal[side][quetzalEatA+chew(c, t)], 0, true
 		case c.State == sim.CreatureSoar:
-			flap := [4]int{pteroUp, pteroGlide, pteroDown, pteroGlide}
-			return a.quetzalFly[side][flap[(t/8)%4]], pteroSoarAlt * 1.4, true
-		case c.State == sim.CreatureStrike:
-			return a.quetzal[side][quetzalStab], 0, true
+			return rigSprite("quetzalFly", side, flapPose(t/4)), pteroSoarAlt * 1.4, true
+		case c.State == sim.CreatureStrike: // the beak drawn back, then the stab
+			s, _ := blow("quetzal", side, quetzalStab, g.strikeAge(c), a.quetzal[side][quetzalStab])
+			return s, 0, true
 		case moving:
-			return a.quetzal[side][quetzalWalkA+(t/12)%2], 0, true
+			return stride("quetzal", side, rigPose{}, 1, t, 12), 0, true
 		}
 		return a.quetzal[side][quetzalWalkA], 0, true
 	}

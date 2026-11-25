@@ -60,6 +60,28 @@ func redrawEye(c *canvas, cx, cy int) {
 			c.px[i] = ink
 		}
 	}
+	if c.dens > 1 { // room for a round eye: socket, iris, a slit of a pupil and a glint
+		k := float64(c.dens)
+		for dy := -6; dy <= 6; dy++ {
+			for dx := -6; dx <= 6; dx++ {
+				switch d := math.Hypot(float64(dx), float64(dy)) / k; {
+				case d <= 1.4 && dx <= 0 && dy <= 0 && d > 0.7:
+					c.put(cx+dx, cy+dy, troodonEye[1]) // the lit side of the iris
+				case d <= 1.4:
+					c.put(cx+dx, cy+dy, troodonEye[0])
+				case d <= 1.85 && c.at(cx+dx, cy+dy).A >= 128:
+					c.put(cx+dx, cy+dy, ink)
+				}
+			}
+		}
+		for dy := -3; dy <= 3; dy++ {
+			c.put(cx, cy+dy, hex(0x120a04))
+		}
+		c.put(cx+1, cy, hex(0x120a04))
+		c.put(cx-1, cy, hex(0x120a04))
+		c.put(cx-2, cy-2, hex(0xfff6d8))
+		return
+	}
 	for dy := -2; dy <= 1; dy++ {
 		for dx := -2; dx <= 1; dx++ {
 			if dx == -2 && dy == -2 {
@@ -94,14 +116,20 @@ func eyeOf(c *canvas) (x, y float64, ok bool) {
 	return x / n, y / n, true
 }
 
+// eyeOffsets is where the eye at (ex, ey) of canvas c is from its anchor
+// (ax, ay), in art pixels, facing right and facing left.
+func eyeOffsets(c *canvas, ex, ey, ax, ay float64) (r, l [2]float64) {
+	k := float64(max(1, c.dens))
+	return [2]float64{(ex - ax) / k, (ey - ay) / k}, [2]float64{(ax - ex) / k, (ey - ay) / k}
+}
+
 func genTroodonArt() troodonArt {
 	var a troodonArt
 	for p := range troodonPoses {
 		c, ax, ay := troodonCanvas(p)
 		a.s[0][p], a.s[1][p] = sidedPair(mk(c, ax, ay))
 		if ex, ey, ok := eyeOf(c); ok {
-			a.eye[0][p] = [2]float64{ex - ax, ey - ay}
-			a.eye[1][p] = [2]float64{ax - ex, ey - ay}
+			a.eye[0][p], a.eye[1][p] = eyeOffsets(c, ex, ey, ax, ay)
 		}
 	}
 	return a
@@ -119,40 +147,56 @@ func (g *Game) HoldLeap(id sim.CreatureID) { troodonHeld[id] = true }
 // troodonLeapFrames is how long a strike is the leap in, before the bite.
 const troodonLeapFrames = 9
 
-// troodonPose is the pose a Troodon is drawn in, and how far off the ground.
-func (g *Game) troodonPose(c protocol.CreatureView, moving bool) (int, float64) {
+// troodonWindFrames is how long a strike is the crouch in, before the leap.
+const troodonWindFrames = 4
+
+// troodonFrame is the frame a Troodon is drawn in (with where its eye is),
+// and how far off the ground.
+func (g *Game) troodonFrame(c protocol.CreatureView, moving bool) (rigFrame, float64) {
+	a := &g.art.beasts.troodon
+	side := 0
+	if c.FaceLeft {
+		side = 1
+	}
+	held := func(p int) rigFrame {
+		return rigFrame{s: a.s[side][p], eye: a.eye[side][p], hasEye: a.eye[side][p] != ([2]float64{})}
+	}
 	t := g.frame + int(c.ID)*7
 	if c.State != sim.CreatureStrike {
 		delete(troodonStrikes, c.ID)
 	}
 	switch {
 	case c.State == sim.CreatureStrike && troodonHeld[c.ID]:
-		return troodonLeap, 4
+		return held(troodonLeap), 4
 	case c.State == sim.CreatureStrike:
 		at, ok := troodonStrikes[c.ID]
 		if !ok || g.frame < at {
 			at = g.frame
 			troodonStrikes[c.ID] = at
 		}
-		if age := g.frame - at; age < troodonLeapFrames {
-			return troodonLeap, 2 + math.Round(3*math.Sin(float64(age+3)/float64(troodonLeapFrames+3)*math.Pi))
+		age := g.frame - at
+		if age < troodonWindFrames { // gathered low to spring
+			return held(troodonStalk), 0
 		}
-		return troodonBite, 0
+		if age -= troodonWindFrames; age < troodonLeapFrames {
+			return held(troodonLeap), 2 + math.Round(3*math.Sin(float64(age+3)/float64(troodonLeapFrames+3)*math.Pi))
+		}
+		return held(troodonBite), 0
 	case c.State == sim.CreatureHurt:
-		return troodonHurt, 0
+		return held(troodonHurt), 0
 	case moving && (c.State == sim.CreatureChase || c.State == sim.CreatureFlee):
-		return troodonRunA + (t/4)%2, float64((t / 4) % 2)
+		return rigFrameOf("troodon", side, stridePose(rigPose{tilt: 0.08, head: 0.1}, t*gaitFrames/8, 1.4)), 0
 	case c.State == sim.CreatureChase: // waiting at the edge of the light
 		if (t/45)%6 == 2 {
-			return troodonHiss, 0
+			return held(troodonHiss), 0
 		}
-		return troodonStalk, 0
+		return held(troodonStalk), 0
 	case moving:
-		return troodonWalkA + (t/9)%2, 0
+		return rigFrameOf("troodon", side, stridePose(rigPose{}, t*gaitFrames/18, 0.8)), 0
 	case (t/70)%4 == 1:
-		return troodonPeer, 0
+		return held(troodonPeer), 0
 	}
-	return troodonStand, 0
+	return held(troodonStand), 0
 }
 
 // troodonSprite is creatureSprite for the night hunter; ok is false for any
@@ -161,12 +205,8 @@ func (g *Game) troodonSprite(c protocol.CreatureView, moving bool) (sprite, floa
 	if c.Kind != sim.CreatureTroodon {
 		return sprite{}, 0, false
 	}
-	side := 0
-	if c.FaceLeft {
-		side = 1
-	}
-	p, bob := g.troodonPose(c, moving)
-	return g.art.beasts.troodon.s[side][p], bob, true
+	f, bob := g.troodonFrame(c, moving)
+	return f.s, bob, true
 }
 
 // troodonLabel is creatureLabel for the night hunter.
@@ -202,15 +242,15 @@ func (g *Game) drawEyeshine(dst drawTarget, cam camera, alpha, dark float64) {
 		if t%(170+int(c.ID%5)*23) < 7 {
 			continue // a blink
 		}
-		side, dir := 0, 1.0
+		dir := 1.0
 		if c.FaceLeft {
-			side, dir = 1, -1
+			dir = -1
 		}
-		p, bob := g.troodonPose(c, moving)
-		eye := g.art.beasts.troodon.eye[side][p]
-		if eye == ([2]float64{}) {
+		f, bob := g.troodonFrame(c, moving)
+		if !f.hasEye {
 			continue
 		}
+		eye := f.eye
 		sx, sy := cam.toScreenFine(x, y)
 		align(dst, sx, sy) // on the beast's own grid, as drawSprites drew it
 		if c.State == sim.CreatureHurt {

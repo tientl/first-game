@@ -148,6 +148,10 @@ type canvas struct {
 	// tx and ty shift the drawing calls by that many design units, to make room
 	// above or beside a design without redrawing it.
 	tx, ty float64
+	// dens is the density of the art drawn here: canvas pixels per art
+	// pixel. 0 means 1; HDDensity for a drawing redrawn that fine, which mk
+	// turns into a sprite of that density (see hd.go).
+	dens int
 }
 
 func newCanvas(w, h int) *canvas { return &canvas{w: w, h: h, px: make([]color.RGBA, w*h)} }

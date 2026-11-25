@@ -73,8 +73,16 @@ it and pick one with a flag, or make both from the same code with
 - The player is HD (`lookhd.go`, `lookhd_head.go`, `armorhd.go`, drawn with
   the shapes and shaders of `hdfig.go`); `playerHD = false` brings back the
   density-1 figure of `look.go`.
-- Not density-aware yet: the trophy head crop in `tribalrender.go`
-  (`headOf`), the sprite export in `export.go`, the fallen body
+- The dinosaurs drawn from PNGs are HD: `dinos/hd/*.png` are the drawings
+  of `dinos/` redrawn 3x as fine by `dinos/hd/gen.py` (rerun it after
+  changing a drawing or its settings there). The rig (`dinorig.go`) is still
+  measured in the pixels of the density-1 drawing and scales itself; its
+  canvases carry `dens`, which `mk` turns into an HD sprite. `dinoHD = false`
+  brings back the density-1 drawings. Strides, wingbeats and wound-up blows
+  are extra rig poses drawn the first time they are shown (`dinoanim.go`);
+  `DINO_ANIM=dir go test ./internal/client -run DumpDinoAnim -v` writes
+  their frames and what they cost.
+- Not density-aware yet: the sprite export in `export.go`, the fallen body
   (`bodyart.go`) and the map's head marker, which still use the density-1
   figure.
 

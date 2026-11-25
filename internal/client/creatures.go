@@ -660,24 +660,28 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 		switch {
 		case feeding(c):
 			return a.trike[side][trikeEatA+chew(c, t)], 0
-		case c.State == sim.CreatureStrike, calling(c): // a gore, or a bellow with the head thrown up
+		case c.State == sim.CreatureStrike: // a gore: the horns dropped, then tossed up
+			s, _ := blow("trike", side, trikeGore, g.strikeAge(c), a.trike[side][trikeGore])
+			return s, 0
+		case calling(c): // a bellow with the head thrown up
 			return a.trike[side][trikeGore], 0
 		case c.State == sim.CreatureChase && moving: // a pounding charge
-			return a.trike[side][trikeCharge], float64((t / 4) % 2)
+			return stride("trike", side, dinoPoses["trike"][trikeCharge], 1.4, t, 4), 0
 		case c.State == sim.CreatureChase:
 			return a.trike[side][trikeCharge], 0
 		case moving:
-			return a.trike[side][trikeWalkA+(t/12)%2], 0
+			return stride("trike", side, rigPose{}, 1, t, 12), 0
 		}
 		return a.trike[side][trikeWalkA], 0
 	case sim.CreatureStego:
 		switch {
 		case feeding(c):
 			return a.stego[side][stegoEatA+chew(c, t)], 0
-		case c.State == sim.CreatureStrike:
-			return a.stego[side][stegoSwipe], 0
+		case c.State == sim.CreatureStrike: // the tail coiled low, then swung
+			s, _ := blow("stego", side, stegoSwipe, g.strikeAge(c), a.stego[side][stegoSwipe])
+			return s, 0
 		case moving:
-			return a.stego[side][stegoWalkA+(t/14)%2], 0
+			return stride("stego", side, rigPose{}, 1, t, 14), 0
 		}
 		return a.stego[side][stegoWalkA], 0
 	case sim.CreatureBrachio:
@@ -685,21 +689,22 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 			return a.brachio[side][brachEatA+chew(c, t)], 0
 		}
 		if moving {
-			return a.brachio[side][brachWalkA+(t/16)%2], 0
+			return stride("brachio", side, rigPose{}, 1, t, 16), 0
 		}
 		return a.brachio[side][brachWalkA], 0
 	case sim.CreatureRaptor:
 		switch {
 		case feeding(c):
 			return a.raptor[side][raptorEatA+chew(c, t)], 0
-		case c.State == sim.CreatureStrike:
-			return a.raptor[side][raptorPounce], 3
+		case c.State == sim.CreatureStrike: // a crouch, then the spring
+			s, far := blow("dakota", side, raptorPounce, g.strikeAge(c), a.raptor[side][raptorPounce])
+			return s, 3 * far
 		case c.State == sim.CreatureCower:
 			return a.raptor[side][raptorCower], 0
 		case moving && (c.State == sim.CreatureChase || c.State == sim.CreatureFlee):
-			return a.raptor[side][raptorRunA+(t/4)%2], 0
+			return stride("dakota", side, raptorRun, 1.25, t, 4), 0
 		case moving:
-			return a.raptor[side][raptorRunA+(t/8)%2], 0
+			return stride("dakota", side, rigPose{}, 1, t, 8), 0
 		}
 		return a.raptor[side][raptorStand], 0
 	case sim.CreatureRex:
@@ -708,26 +713,26 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 			return a.rex[side][rexEatA+chew(c, t)], 0
 		case c.State == sim.CreatureRoar, calling(c):
 			return a.rex[side][rexRoar], 0
-		case c.State == sim.CreatureStrike:
-			return a.rex[side][rexBite], 0
+		case c.State == sim.CreatureStrike: // the head reared back, then the bite
+			s, _ := blow("rex", side, rexBite, g.strikeAge(c), a.rex[side][rexBite])
+			return s, 0
 		case moving && c.State == sim.CreatureChase:
-			return a.rex[side][rexWalkA+(t/7)%2], 0
+			return stride("rex", side, rigPose{tilt: 0.05, open: 0.12}, 1.3, t, 7), 0
 		case moving:
-			return a.rex[side][rexWalkA+(t/11)%2], 0
+			return stride("rex", side, rigPose{}, 1, t, 11), 0
 		}
 		return a.rex[side][rexWalkA], 0
 	case sim.CreaturePtero:
-		flap := [4]int{pteroUp, pteroGlide, pteroDown, pteroGlide}
 		switch c.State {
 		case sim.CreatureIdle:
 			return a.ptero[side][pteroPerch], 0
 		case sim.CreatureSoar:
-			if (t/90)%3 == 0 { // now and then it flaps; mostly it glides
-				return a.ptero[side][flap[(t/6)%4]], pteroSoarAlt
+			if (t/96)%3 == 0 { // now and then it flaps; mostly it glides
+				return rigSprite("pteroFly", side, flapPose(t/3)), pteroSoarAlt
 			}
 			return a.ptero[side][pteroGlide], pteroSoarAlt
 		case sim.CreatureFlee:
-			return a.ptero[side][flap[(t/4)%4]], pteroClimbAlt
+			return rigSprite("pteroFly", side, flapPose(t/2)), pteroClimbAlt
 		case sim.CreatureStrike:
 			return a.ptero[side][pteroGlide], pteroDiveAlt - 3
 		}
@@ -736,8 +741,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 		switch c.State {
 		case sim.CreatureLurk:
 			return a.plesio[side][plesioUnder], 0
-		case sim.CreatureStrike:
-			return a.plesio[side][plesioStrike], 0
+		case sim.CreatureStrike: // the neck reared, then the lunge
+			s, _ := blow("plesio", side, plesioStrike, g.strikeAge(c), a.plesio[side][plesioStrike])
+			return s, 0
 		}
 		return a.plesio[side][plesioUp], 0
 	case sim.CreatureMammoth:
