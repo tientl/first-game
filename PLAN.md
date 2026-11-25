@@ -42,3 +42,11 @@ Việc cần làm, theo thứ tự ưu tiên hiện tại. Làm xong mục nào 
   - Biển: giông bão mạnh hơn, sóng lớn ảnh hưởng thuyền.
   - Đồng cỏ: theo mùa như hiện nay.
   - Khi đi từ vùng này sang vùng khác thì thời tiết chuyển dần, không đổi đột ngột.
+- [ ] **Khát nước**:
+  - Thêm thanh **Khát** cạnh No bụng. Khát giảm dần theo thời gian (nhanh hơn khi chạy, khi nắng nóng ở sa mạc). Khát cạn thì **mất máu** dần.
+  - Phải uống **nước sạch**:
+    - **Nước mưa**: uống được ngay. Làm vật hứng nước mưa (ví dụ thùng gỗ, lá to) đặt ngoài trời, trời mưa thì đầy dần.
+    - **Nước ao, hồ, sông**: múc bằng vật chứa (bình da, bát đất…), phải **nấu sôi** ở lửa trại mới uống được.
+    - Uống nước ao chưa nấu: đỡ khát nhưng có thể bị **đau bụng / ngộ độc** (mất máu một lúc).
+    - Nước biển: không uống được.
+  - Có thể thêm: dừa, dưa, xương rồng cho một ít nước; bình chứa có dung tích (số ngụm).
