@@ -150,6 +150,7 @@ type Game struct {
 	prevBoats   map[sim.BoatID]protocol.BoatView
 	swimBuf     *fineBuf    // scratch for drawing a swimmer cut off at the water
 	boss        bossUI      // the boss bar and the victory screen; see bossui.go
+	lair        lairFX      // the lairs' scenes and the moment a fight starts; see lairrender.go, bossintro.go
 	dev         *devConsole // the dev console, only with -dev; see devconsole.go
 }
 
@@ -254,6 +255,9 @@ func (g *Game) Update() error {
 	if g.paused {
 		g.updatePause()
 		return nil
+	}
+	if g.ready && g.hasCurr && !g.disconnected {
+		g.lairUpdate() // see lairrender.go
 	}
 	if g.ready && g.hasCurr && !g.disconnected && !g.updateVictory() { // see bossui.go
 		g.handleInput()
@@ -466,6 +470,10 @@ func (g *Game) handleInput() {
 		if ax, ay, ok := g.aim(); ok {
 			in.Aim, in.AimX, in.AimY = true, quantAim(ax), quantAim(ay)
 		}
+	}
+
+	if g.introLocked() {
+		in.MoveX, in.MoveY, in.Action = 0, 0, false // a boss's entrance: see bossintro.go
 	}
 
 	// Held input is sent only when it changes; if the send fails it is

@@ -37,6 +37,10 @@ func TestEveryArchipelagoHasItsSixBosses(t *testing.T) {
 			if !w.creatureFits(k, cr.X, cr.Y) {
 				t.Errorf("seed %d: %s does not fit at its lair (%.1f, %.1f)", c.seed, k.Name(), cr.X, cr.Y)
 			}
+			far := far
+			if k == CreatureTitanoboa {
+				far = far * 5 / 8 // it lies in the deepest of the woods, which on a small map may all be nearer (see bossLairSite)
+			}
 			if d := math.Hypot(b.LairX-w.spawnX, b.LairY-w.spawnY); d < far {
 				t.Errorf("seed %d: %s only %.0f tiles from the spawn", c.seed, k.Name(), d)
 			}

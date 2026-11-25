@@ -27,7 +27,8 @@ import (
 //   - 14: the bag has 30 slots (it had 20), and so do chests; older inventories
 //     load as they were, with the new slots empty. An old chest in a cave
 //     opened like a chest; one opened before spilled its hoard already.
-const SaveVersion = 14
+//   - 15: the bosses' lairs are dressed (see lair.go); older worlds get theirs on loading.
+const SaveVersion = 15
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -272,6 +273,9 @@ func Load(d SaveData) (*World, error) {
 		w.nextEnt = max(w.nextEnt, e.ID)
 	}
 	w.loadChests(d.Chests)
+	if d.Version < 15 {
+		w.dressLairs() // the bones, the nest and the ruin of each lair: see lair.go
+	}
 	for _, e := range fresh {
 		if w.canPlace(e.TX, e.TY) {
 			w.nextEnt++
