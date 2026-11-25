@@ -64,7 +64,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 ### Tỉ lệ và hoạt ảnh
 
-- [ ] **Nhân vật có khớp tay chân** (giữ cách vẽ bằng code, như khủng long `dinolegs.go`): vai–khuỷu–cổ tay, hông–gối–cổ chân xoay quanh khớp; đi, chạy 8–12 khung, bàn chân không trượt, tay vung ngược chân; chém, đâm, bổ, đấm có lấy đà – ra đòn – thu về; áo choàng, tóc, râu đung đưa trễ nhịp; đủ 4 hướng, mọi kiểu ngoại hình, giáp, đồ cầm tay khớp với bàn tay.
+- [x] **Nhân vật có khớp tay chân** (giữ cách vẽ bằng code, như khủng long `dinolegs.go`): vai–khuỷu–cổ tay, hông–gối–cổ chân xoay quanh khớp; đi, chạy 8–12 khung, bàn chân không trượt, tay vung ngược chân; chém, đâm, bổ, đấm có lấy đà – ra đòn – thu về; áo choàng, tóc, râu đung đưa trễ nhịp; đủ 4 hướng, mọi kiểu ngoại hình, giáp, đồ cầm tay khớp với bàn tay.
 - [ ] **Tỉ lệ**: dựa vào độ cao nhân vật hiện tại, tăng độ cao của các thứ khác (cây, thú, công trình…) cho cân.
 - [ ] **Hoạt ảnh sinh vật**: mỗi sinh vật có đi, chạy, lấy đà, cắn, quất đuôi để tấn công; 8 hoặc 16 khung cho mượt.
 

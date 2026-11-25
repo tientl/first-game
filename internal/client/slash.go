@@ -51,6 +51,9 @@ func (g *Game) drawSlash(dst drawTarget, p protocol.PlayerView, d drawable, bob 
 		side = -1
 	}
 	gx, gy := d.sx+6*side, d.sy-7-bob // the grip, at the hand
+	if limbGrip.on {                  // the jointed figure's hand; see limbdraw.go
+		gx, gy = limbGrip.x, limbGrip.y
+	}
 	age := float64(g.frame - g.swingAt[p.ID])
 	k := min(1, age/slashFrames)
 	a := slashAngle(k)

@@ -54,7 +54,7 @@ const battleAxeHead = 11.0
 // well out to the side or ahead, so the head stays clear of the face
 // whichever way the player looks.
 func drawBattleAxeHeld(dst drawTarget, dir sim.Dir, hx, hy, side float64) {
-	drawAt(dst, battleAxeSprite(), math.Round(hx), math.Round(hy)+1, side, 1, cleaveCarry*side, nil)
+	drawAt(dst, battleAxeSprite(), math.Round(hx), math.Round(hy)+1, side, 1, (cleaveCarry+heldTurn)*side, nil)
 }
 
 // A blow, in frames at 60 a second.
@@ -133,6 +133,9 @@ func (g *Game) drawCleave(dst drawTarget, p protocol.PlayerView, d drawable, bob
 	out := clamp01((a - cleaveCarry) / (ps.down - cleaveCarry))
 	gx := d.sx + math.Round(rx+(ps.upX-rx)*up+(ps.outX-rx)*out)*side
 	gy := d.sy - bob + math.Round(ry+(ps.upY-ry)*up+(ps.outY-ry)*out)
+	if limbGrip.on { // the jointed figure's hand; see limbdraw.go
+		gx, gy = limbGrip.x, limbGrip.y
+	}
 	at := func(b, r float64) (float64, float64) { return gx + math.Sin(b)*r*side, gy - math.Cos(b)*r }
 	dot := func(x, y, w, white, alpha float64) {
 		fillRect(dst, float32(math.Round(x)), float32(math.Round(y)), float32(w), float32(w),

@@ -84,6 +84,7 @@ type bodyArt struct {
 	look  sim.Look
 	bare  [numArmSides]*bareArt // without one arm, for a punch; see punch.go
 	fists *fistArt              // the arms thrown out in a punch
+	limbs limbArt               // the jointed figure's frames; see limbdraw.go
 }
 
 // body returns the sprites of look l, drawing them on first use. It must be
@@ -94,6 +95,13 @@ func (a *art) body(l sim.Look) *bodyArt {
 		return b
 	}
 	b := &bodyArt{head: genHeadMark(l), look: l}
+	if a.bodies == nil {
+		a.bodies = make(map[sim.Look]*bodyArt)
+	}
+	if playerHD && playerJointed { // its frames are drawn as they are shown: see limbdraw.go
+		a.bodies[l] = b
+		return b
+	}
 	if playerHD { // see lookhd.go
 		_, _, _, shut := playerLayersHD(l, sim.DirDown, 0, true, armNone)
 		b.asleep = figSprite(shut)
@@ -124,6 +132,10 @@ func (a *art) body(l sim.Look) *bodyArt {
 // drawBody draws a standing or walking player at (x, y), the feet, scaled
 // by s. The body bobs up by bob art pixels on step frames.
 func drawBody(dst drawTarget, b *bodyArt, dir sim.Dir, frame int, x, y, s, bob float64, tint color.Color) {
+	if playerHD && playerJointed {
+		drawBodyJ(dst, b, dir, frame, x, y, s, tint)
+		return
+	}
 	drawAt(dst, b.back[dir][frame], x, y-bob*s, s, s, 0, nil)
 	drawAt(dst, b.legs[dir][frame], x, y, s, s, 0, nil)
 	drawAt(dst, b.shirt[dir][frame], x, y-bob*s, s, s, 0, tint)

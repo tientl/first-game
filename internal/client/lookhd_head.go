@@ -102,8 +102,15 @@ func (g *figGen) braid(l *figLayer, r ramp, x, y0, y1 float64, tie color.RGBA) {
 			off = -1
 		}
 		s := sEll(x+off, y+2.3, 2.7, 2.7)
+		if t := (y - y0) / (y1 - y0); g.lagX != 0 {
+			s = s.moved(math.Round(g.lagX*1.5*t*t), 0) // the braid trails; see limbs.go
+		}
 		f.fill(l, s, bevel(r, s, 2.6, 0.06))
 		k++
+	}
+	if g.lagX != 0 || g.lagY != 0 {
+		x += math.Round(g.lagX * 1.5)
+		y1 += math.Round(g.lagY)
 	}
 	t := sBox(x-2.4, y1-6, x+2.4, y1-3.2, 0.9)
 	f.fill(l, t, func(px, py int, _ float64) color.RGBA {
@@ -285,7 +292,7 @@ func (g *figGen) head(d sim.Dir, shut bool) {
 		cx = 23
 	}
 	hs := func(s shape) shader { return hairShade(hr, s, 7, cx, cy, g.seed) }
-	hair := func(s shape) { f.fill(T, s, hs(s)) }
+	hair := func(s shape) { s = g.lagged(s); f.fill(T, s, hs(s)) }
 	lock := func(x0, y0, mx, my, x1, y1, w0, w1 float64) {
 		hair(sLock(x0, y0, mx, my, x1, y1, w0, w1))
 	}
@@ -354,7 +361,7 @@ func (g *figGen) head(d sim.Dir, shut bool) {
 			}
 			g.braid(T, hr, 8.5, 44, 60, hairTie)
 		case sim.HairLong: // loose, parted in the middle, down past the shoulders
-			back := sBox(8, 30, 46, 66, 4).jag(2.4, 4.4, 61, 43)
+			back := g.lagged(sBox(8, 30, 46, 66, 4).jag(2.4, 4.4, 61, 43))
 			f.fill(g.B, back, hairShade(hr, back, 9, cx, cy, g.seed+3))
 			opening := sFn(func(x, y float64) float64 {
 				hw := 14.6 * math.Pow(clamp01((y-16.5)/13), 0.7)
@@ -515,6 +522,7 @@ func (g *figGen) head(d sim.Dir, shut bool) {
 // beardBraid hangs the beard's short plait from (x, y), with its gold bead.
 func (g *figGen) beardBraid(x, y float64) {
 	f := &g.f
+	x, y = x+math.Round(g.lagX*0.6), y+math.Round(g.lagY*0.6) // it swings a little; see limbs.go
 	k := sEll(x, y+0.6, 2.5, 2.2)
 	f.fill(g.T, k, bevel(g.br, k, 2.2, 0.05))
 	bead := sBox(x-2.2, y+2, x+2.2, y+5, 1)

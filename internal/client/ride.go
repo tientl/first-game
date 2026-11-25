@@ -62,6 +62,10 @@ func (g *Game) drawRider(dst drawTarget, p protocol.PlayerView, c protocol.Creat
 	// The rider: punching from the saddle (punch.go), or thrown back by a
 	// blow (jolt.go).
 	rider := func(dst drawTarget, x, fy float64) {
+		if playerHD && playerJointed { // astride, the knees forward; see limbdraw.go
+			g.drawFigureJ(dst, p, dir, loKey{dir: dir, anim: loSit}, upKey{dir: dir}, x, fy, 0)
+			return
+		}
 		fp, arms := g.punchPose(p)
 		if age, ok := g.jolting(p.ID); ok && !arms && age < joltFling {
 			fp, arms = flingPose(p), true

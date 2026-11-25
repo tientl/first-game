@@ -86,6 +86,7 @@ type drawable struct {
 	idx      int     // index into curr.Players, curr.Creatures, curr.Drops or curr.Entities
 	sx, sy   float64
 	moving   bool
+	wx, wy   float64 // a player's place in tiles, for its stride; see limbdraw.go
 }
 
 // layer orders things standing on the same row: entities, then animals,
@@ -297,7 +298,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 			continue
 		}
 		sx, sy := cam.toScreenFine(wx, wy)
-		list = append(list, drawable{y: wy, id: uint32(p.ID), isPlayer: true, idx: i, sx: sx, sy: sy, moving: moving})
+		list = append(list, drawable{y: wy, id: uint32(p.ID), isPlayer: true, idx: i, sx: sx, sy: sy, moving: moving, wx: wx, wy: wy})
 	}
 	slices.SortFunc(list, func(a, b drawable) int {
 		if c := cmp.Compare(a.y, b.y); c != 0 {
@@ -702,6 +703,13 @@ func (g *Game) drawStanding(dst drawTarget, p protocol.PlayerView, d drawable) {
 		g.drawHeroHD(dst, p, d) // the trial hero; see herohddraw.go
 		return
 	}
+	if playerHD && playerJointed { // see limbdraw.go
+		dir := p.Dir & 3
+		lo, up := g.stride(p, dir, d.wx, d.wy, d.moving)
+		g.drawFigureJ(dst, p, dir, lo, up, d.sx, d.sy, p.Armor)
+		g.drawAilments(dst, p, d)
+		return
+	}
 	frame, bob := 0, 0.0
 	if d.moving {
 		frame = walkFrameAt(g.frame)
@@ -755,6 +763,12 @@ func (g *Game) drawStanding(dst drawTarget, p protocol.PlayerView, d drawable) {
 	if !heldBehind(dir) && !inFist {
 		hand()
 	}
+	g.drawAilments(dst, p, d)
+}
+
+// drawAilments draws what clings to my own player: a web, the bubbles of
+// poison.
+func (g *Game) drawAilments(dst drawTarget, p protocol.PlayerView, d drawable) {
 	if p.ID == g.myID {
 		if g.curr.Self.Webbed {
 			drawAt(dst, g.art.tribal.webbed, d.sx, d.sy, 1, 1, 0, nil)
@@ -776,10 +790,16 @@ func (g *Game) drawSleeper(dst drawTarget, p protocol.PlayerView, d drawable) {
 	// the head to the pillow. Breathing lifts the blanket a pixel.
 	fx, fy := d.sx+10, d.sy-6
 	b := g.art.body(p.Look)
-	drawAt(dst, b.back[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
-	drawAt(dst, b.legs[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
-	drawAt(dst, b.shirt[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, tint)
-	drawAt(dst, b.asleep, fx, fy, 1, 1, -math.Pi/2, nil)
+	if playerHD && playerJointed { // see limbdraw.go
+		drawFig(dst, figDraw{b: b, up: upKey{dir: sim.DirDown, anim: upAsleep}, tint: tint, rot: -math.Pi / 2}, fx, fy)
+		b = nil
+	}
+	if b != nil {
+		drawAt(dst, b.back[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
+		drawAt(dst, b.legs[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
+		drawAt(dst, b.shirt[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, tint)
+		drawAt(dst, b.asleep, fx, fy, 1, 1, -math.Pi/2, nil)
+	}
 	breath := 0.0
 	if (g.frame/50)%2 == 0 {
 		breath = 1
