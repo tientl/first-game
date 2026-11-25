@@ -6,6 +6,7 @@ Việc cần làm, chia theo nhóm. Trong mỗi nhóm, mục trên làm trước
 
 Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đây; mọi thứ khác trong kế hoạch để sau demo.
 
+- [ ] **Hướng nhân vật theo chuột chỉ khi ngắm**: bình thường nhân vật quay theo hướng đi (WASD), không quay theo con trỏ nữa. Chỉ khi dùng kỹ năng có hướng (cung, ném, sau này phép…) thì **giữ chuột** để ngắm: lúc đó nhân vật mới quay theo con trỏ, thả chuột thì bắn/ném.
 - [ ] **Đồ hoạ Full HD — ưu tiên số 1** (bắt buộc trong demo; mục 2). Chất lượng hình ảnh là thứ người chơi thấy đầu tiên, nên làm trước và làm kỹ nhất: mọi thứ người chơi thấy trong demo đều vẽ lại ở Full HD, không để nửa cũ nửa mới:
   - Nhân vật (đủ kiểu ngoại hình, giáp, vũ khí, cưỡi, bơi, ngủ) và mặt đất (cỏ xanh và đất ấm).
   - Cây, cỏ, hoa, đá, quặng, công trình.
