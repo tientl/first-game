@@ -5,7 +5,10 @@ import "math"
 // Aiming with the mouse.
 //
 // The client sends where the mouse points (Input.Aim), in world tiles. The
-// player faces it, except when riding or sailing, which steer as before.
+// player faces the way they walk, and turns to what they work on; they face
+// the pointer only while aiming: holding the button down with something
+// that is aimed in hand (see AimedItem: a bow, a throw). Riding and sailing
+// steer as before.
 // Action works on what is under the pointer when the player reaches it, by
 // the usual reach rules; when nothing actable is under it, or it is out of
 // reach, Action falls back to the nearest target, preferring those towards
@@ -262,13 +265,21 @@ func (w *World) buildSpot(p *Player, tx, ty int, k EntityKind, soft bool) bool {
 // those keep their own facing.
 func (w *World) faceAim(p *Player) {
 	ax, ay, ok := p.Aim()
-	if !ok || p.mount != 0 || p.boat != 0 || p.line.state != CastNone {
+	if !ok || !p.input.Action || !AimedItem(p.Held()) || p.mount != 0 || p.boat != 0 || p.line.state != CastNone {
 		return
 	}
 	if dx, dy := ax-p.X, ay-p.Y; dx*dx+dy*dy > 0.04 {
 		p.Dir = dirToward(dx, dy)
 	}
 }
+
+// aimedItems are the things used by aiming them: held with the button down,
+// the player turns to the pointer. Bows and thrown weapons go here when they
+// come (see PLAN.md).
+var aimedItems = map[ItemKind]bool{}
+
+// AimedItem reports whether k is used by aiming it.
+func AimedItem(k ItemKind) bool { return aimedItems[k] }
 
 // targetFor returns what p's Action works on, by ResolveTarget.
 func (w *World) targetFor(p *Player) (*Entity, *Creature) {

@@ -86,7 +86,7 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 
 | Phím / chuột | Tác dụng |
 | --- | --- |
-| WASD / mũi tên | Di chuyển. Nhân vật luôn quay mặt theo con trỏ chuột (đi lùi thì bước chân chạy ngược); để yên chuột vài giây thì quay theo hướng đi như cũ. Lúc cưỡi thú hay đi thuyền thì vẫn lái như trước |
+| WASD / mũi tên | Di chuyển. Nhân vật quay mặt theo hướng đi, và quay về thứ đang chặt, đào, đánh. Chỉ khi **ngắm** (giữ chuột với món dùng để ngắm trên tay, như cung hay đồ ném sau này) thì nhân vật mới quay theo con trỏ (`sim.AimedItem`). Lúc cưỡi thú hay đi thuyền thì vẫn lái như trước |
 | Chuột trái (nhấp hoặc giữ) | Làm việc với thứ **dưới con trỏ**: chặt cây (cần rìu), đập đá, hái quả, cắt cỏ, nhặt cành, đánh hay bắt thú, thêm củi vào lửa, mổ xác, quăng câu và giật cần. Thứ sẽ bị tác động có khung trắng bao quanh; xa quá tầm với thì khung đỏ và chữ "Xa quá". Dưới con trỏ không có gì trong tầm thì làm thứ gần nhất (ưu tiên phía con trỏ). Nhấp vào ô trên hàng ô nhanh để chọn ô đó |
 | Giữ Space | Như chuột trái, vào thứ gần nhất (chơi bằng bàn phím vẫn được) |
 | Chuột phải | Dùng món đang cầm: đồ ăn, thuốc thì ăn; thịt sống, cá sống… khi đứng cạnh lửa trại đang cháy thì nướng; đuốc, đầu thú, hạt giống thì cắm, dựng, gieo vào ô dưới con trỏ (ô đó không được thì đặt trước mặt, về phía con trỏ); phân thì bón cho cây dưới con trỏ; thuyền thì thả xuống nước về phía con trỏ; cầm thức ăn của thú và trỏ vào nó thì cho nó ăn (thuần hóa). Món khác: không làm gì, có dòng nhắc |

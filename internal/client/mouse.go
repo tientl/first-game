@@ -17,9 +17,10 @@ import (
 
 // Mouse-first controls; the rules the server keeps are in sim/aim.go.
 //
-//   - The player faces the pointer: where it is goes to the server as the
-//     aim. A pointer left alone for a few seconds stops aiming, so a
-//     keyboard player walks facing the way they go, as before.
+//   - Where the pointer is goes to the server as the aim: it picks what the
+//     left button works on. The player faces the way they walk, and turns
+//     to the pointer only while aiming something aimed (sim.AimedItem) with
+//     the button held. A pointer left alone for a few seconds stops aiming.
 //   - The left button works on what is under the pointer, bracketed on
 //     screen (red when out of reach). With nothing there in reach it works
 //     on the nearest target, preferring those towards the pointer, as Space

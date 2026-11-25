@@ -261,7 +261,7 @@ func (g *Game) drawHelp(screen *ebiten.Image, sw, sh int) {
 		c      color.Color
 	}
 	held := g.myHeld()
-	lines := []line{{"WASD", "di chuyển — nhân vật quay theo con trỏ chuột", colMuted}}
+	lines := []line{{"WASD", "di chuyển — nhân vật quay theo hướng đi", colMuted}}
 	if r, ok := sim.RecipeByID(g.build.recipe); ok && g.build.on { // see mouse.go
 		lines = append(lines,
 			line{"Chuột trái", "dựng " + r.Name + " ở ô dưới con trỏ (xanh: được · đỏ: không)", colGood},
