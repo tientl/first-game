@@ -2,6 +2,7 @@ package client
 
 import (
 	"image/color"
+	"math"
 	"math/rand/v2"
 	"strings"
 	"unicode"
@@ -347,6 +348,9 @@ func (c *charCreator) drawPreview(dst *ebiten.Image, b box) {
 	fillRoundRect(dst, float32(b.x), float32(b.y), float32(b.w), float32(b.h), 10, color.RGBA{14, 16, 26, 210})
 	a := getArt()
 	s := float64(int(min((b.w-40)/18, (b.h-80)/30)))
+	if playerHD {
+		s = max(HDDensity, math.Floor(s/HDDensity)*HDDensity) // a whole number of screen pixels to each of the HD art's
+	}
 	fx, fy := b.x+b.w/2, b.y+b.h-36
 
 	op := &ebiten.DrawImageOptions{} // the shadow
@@ -359,8 +363,8 @@ func (c *charCreator) drawPreview(dst *ebiten.Image, b box) {
 
 	// Walk on the spot, turning a quarter every second and a half.
 	dir := previewDirs[(c.frame/90+c.turn)%len(previewDirs)]
-	frame := (c.frame / 8) % walkFrames
-	bob := float64(frame % 2)
+	frame := (c.frame / 4) % walkFrames
+	bob := walkBob(frame)
 	drawBody(dst, a.body(c.look), dir, frame, fx, fy, s, bob, playerColors[1])
 
 	// The name above the head, as other players will see it.

@@ -20,7 +20,7 @@ const (
 	shadowSize  = 64
 	lightSize   = 256
 	flameFrames = 8
-	walkFrames  = 4
+	walkFrames  = 8
 )
 
 // sprite is an image plus its anchor: the point that sits on the ground

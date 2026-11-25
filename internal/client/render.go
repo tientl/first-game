@@ -696,21 +696,19 @@ func (g *Game) drawStanding(dst drawTarget, p protocol.PlayerView, d drawable) {
 	}
 	frame, bob := 0, 0.0
 	if d.moving {
-		frame = (g.frame / 7) % walkFrames
+		frame = walkFrameAt(g.frame)
 		if g.backpedalling(p) {
 			frame = (walkFrames - frame) % walkFrames // facing the pointer and walking away from it: the steps run backwards
 		}
-		if frame%2 == 1 {
-			bob = 1
-		}
+		bob = walkBob(frame)
 	} else if (g.frame/40)%2 == 0 {
 		bob = 0 // idle: breathing would go here
 	}
 	dir := p.Dir & 3
 	tint := playerColors[int(p.ID)%len(playerColors)]
-	step := 0
+	step := 0.0
 	if d.moving {
-		step = walkStep(frame)
+		step = walkSwing(frame)
 	}
 
 	// The hand: while working, the tool the job takes, swung in time with the

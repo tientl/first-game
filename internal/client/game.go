@@ -77,7 +77,7 @@ type Game struct {
 	swingAt       map[sim.PlayerID]int       // frame each player's latest blow began; see slash.go
 	swingWhat     map[sim.PlayerID]swingInfo // what that blow was at, and with what; see swing.go
 	hurtAt        map[sim.PlayerID]int       // frame each player was last struck; see jolt.go
-	joltBuf       *ebiten.Image              // scratch for drawing a struck player
+	joltBuf       *fineBuf                   // scratch for drawing a struck player
 	heldAge       int                        // see HoldBlows in punch.go
 	prevCreatures map[sim.CreatureID]protocol.CreatureView
 	hearts        []heartFX      // floating up from beasts being fed; see ride.go
@@ -142,8 +142,8 @@ type Game struct {
 	zoomNoticed int // the zoom last shown in a notice
 	strikesSeen map[[2]float32]bool
 	prevBoats   map[sim.BoatID]protocol.BoatView
-	swimBuf     *ebiten.Image // scratch for drawing a swimmer cut off at the water
-	boss        bossUI        // the boss bar and the victory screen; see bossui.go
+	swimBuf     *fineBuf // scratch for drawing a swimmer cut off at the water
+	boss        bossUI   // the boss bar and the victory screen; see bossui.go
 }
 
 // New returns a game that plays over conn under the given player name.

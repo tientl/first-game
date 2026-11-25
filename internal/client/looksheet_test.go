@@ -92,7 +92,7 @@ func TestLookSheet(t *testing.T) {
 			tint := playerColors[row%len(playerColors)]
 			col := 0
 			for _, d := range dirs {
-				for f := range walkFrames {
+				for f := range 4 {
 					lookCell(img, l, d, f, tint, col*cw*k+k, row*ch*k, k)
 					col++
 				}

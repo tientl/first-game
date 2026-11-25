@@ -94,12 +94,25 @@ func (a *art) body(l sim.Look) *bodyArt {
 		return b
 	}
 	b := &bodyArt{head: genHeadMark(l), look: l}
-	_, _, _, shut := playerLayersWith(l, sim.DirDown, 0, true)
-	b.asleep = mk(shut, 9, bodyFeet)
-	for d := sim.DirDown; d <= sim.DirRight; d++ {
+	if playerHD { // see lookhd.go
+		_, _, _, shut := playerLayersHD(l, sim.DirDown, 0, true, armNone)
+		b.asleep = figSprite(shut)
+	} else {
+		_, _, _, shut := playerLayersWith(l, sim.DirDown, 0, true)
+		b.asleep = mk(shut, 9, bodyFeet)
+	}
+	for _, d := range []sim.Dir{sim.DirDown, sim.DirUp, sim.DirRight} {
 		for f := range walkFrames {
-			b.back[d][f], b.legs[d][f], b.shirt[d][f], b.top[d][f] = genPlayer(l, d, f)
+			if playerHD {
+				b.back[d][f], b.legs[d][f], b.shirt[d][f], b.top[d][f] = genPlayerHD(l, d, f)
+			} else {
+				b.back[d][f], b.legs[d][f], b.shirt[d][f], b.top[d][f] = genPlayer(l, d, legacyFrame(f))
+			}
 		}
+	}
+	for f := range walkFrames { // the mirror image
+		b.back[sim.DirLeft][f], b.legs[sim.DirLeft][f] = mirrorSprite(b.back[sim.DirRight][f]), mirrorSprite(b.legs[sim.DirRight][f])
+		b.shirt[sim.DirLeft][f], b.top[sim.DirLeft][f] = mirrorSprite(b.shirt[sim.DirRight][f]), mirrorSprite(b.top[sim.DirRight][f])
 	}
 	if a.bodies == nil {
 		a.bodies = make(map[sim.Look]*bodyArt)
@@ -689,8 +702,10 @@ func braid(c *canvas, hr ramp, x, y0, y1 int) {
 	}
 }
 
-// genPlayer draws one direction and walk frame of look l as four layers.
-// Walk frames are 0 stand, 1 left step, 2 stand, 3 right step.
+// genPlayer draws one direction and walk frame of look l as four layers:
+// the density-1 figure, which lookhd.go's HD figure took the place of (see
+// playerHD); the bodies on the ground and the map markers are still made
+// of it. Its walk frames are 0 stand, 1 left step, 2 stand, 3 right step.
 //
 // armorart.go, held.go and ride.go follow the same frame: 18x26 before the
 // headroom, feet at (9, 24), the head centred on (9, 7).
