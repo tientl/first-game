@@ -119,3 +119,7 @@ Việc cần làm, theo thứ tự ưu tiên hiện tại. Làm xong mục nào 
   - Đánh: kẹp hai càng (giữ người lại, siết máu), chích đuôi (độc nặng, mất máu lâu), phun độc thành vũng trên sàn, chui xuống cát rồi trồi lên dưới chân người chơi, gọi bọ cạp con. Vỏ cứng: phải đánh vào đuôi hoặc lúc nó ngóc lên mới trúng mạnh.
   - Chiến lợi phẩm huyền thoại gợi ý: **Giáp vỏ bọ cạp** (miễn độc, phản lại một phần sát thương) hoặc **Dao đuôi bọ cạp** (mỗi đòn làm thú trúng độc).
   - Đưa vào màn hình "Phá đảo!" và các ô bóng trùm trong đĩa bay.
+- [ ] **Yêu cầu chung cho mọi trùm** (6 trùm hiện có và 2 trùm mới):
+  - **To**: trùm phải to hơn hẳn thú thường; ít nhất cỡ bạo chúa, trùm mới (vượn, bọ cạp chúa) to gấp 2–3 lần. Rà lại cỡ 6 trùm hiện có cho cân.
+  - **Thanh máu**: đã có thanh máu trùm ở trên cùng màn hình; thêm tên trùm, chia vạch theo giai đoạn (ví dụ dưới 50% máu thì đổi cách đánh, nổi giận), hiệu ứng khi máu tụt.
+  - **Nhạc chiến đấu** (hiện chưa có; nhạc chỉ có ngày / đêm / hang / menu): nhạc riêng khi đánh trùm, tổng hợp bằng code như nhạc hiện tại: trống dồn, kèn trầm, dây căng; mỗi trùm một chủ đề (Titanoboa: trống rừng; Spinosaurus: nước, trầm; Voi Chúa: tù và; Carcharo: sa mạc; Giganoto: núi lửa, nặng; Megalodon: biển sâu; vượn chúa: trống bộ lạc; bọ cạp chúa: Ai Cập cổ). Nhạc dâng lên khi trùm thức dậy, dồn dập hơn khi trùm dưới 50% máu, tắt dần khi bỏ chạy, có đoạn nhạc chiến thắng khi hạ trùm.
