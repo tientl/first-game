@@ -165,6 +165,15 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Chiến lợi phẩm huyền thoại gợi ý: **Giáp vỏ bọ cạp** (miễn độc, phản lại một phần sát thương) hoặc **Dao đuôi bọ cạp** (mỗi đòn làm thú trúng độc).
   - Đưa vào màn hình "Phá đảo!" và các ô bóng trùm trong đĩa bay.
 
+## 10. Đồ trang trí (sau demo)
+
+- [ ] **Đồ trang trí** (hiện chỉ có đầu thú cắm cọc, sàn gỗ, đuốc cắm, hoa trồng từ hạt). Chỉ để trang trí, **không có hệ thống "Ấm cúng" / "Nghỉ ngơi"**. Làm trước: thảm lông, giá vũ khí, đầu thú treo tường, đèn nấm, bàn ghế:
+  - Nội thất: bàn, ghế, ghế dài, kệ gỗ (bày đồ lên); giá vũ khí, giá giáp (treo kiếm, giáo, khiên, giáp, hiện đúng hình); thảm lông thú (gấu, hổ răng kiếm, da khủng long, mỗi loại một hoa văn); giường lông.
+  - Đèn: đèn dầu, lồng đèn treo, chậu than; đèn nấm phát sáng; đèn đom đóm trong lọ.
+  - Trưng bày: đầu thú treo tường; bệ trưng bày đầu trùm, món huyền thoại; bể cá thả cá câu được. Để sau (cùng phần hang): bộ xương khủng long, hoá thạch.
+  - Viking và bộ lạc: cờ, khiên tròn sơn màu treo tường, tượng gỗ chạm, cột vật tổ tự làm, chuông gió xương, dây treo răng thú.
+  - Ngoài trời: chậu cây, bồn hoa, hàng rào gỗ trang trí, cổng gỗ, đường lát đá, bù nhìn rơm.
+
 ## 9. Khám phá
 
 - [ ] **Đĩa bay rơi**:
