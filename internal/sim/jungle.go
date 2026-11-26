@@ -1,8 +1,10 @@
 package sim
 
 import (
+	"cmp"
 	"math"
 	"math/rand/v2"
+	"slices"
 )
 
 // The woods.
@@ -107,7 +109,8 @@ func (w *World) growGiants(rng *rand.Rand) {
 		}
 		placed = append(placed, [2]int{cx, cy})
 	}
-	for _, e := range w.entities {
+	// In the order of the ids, so the same seed hangs the same hives.
+	for _, e := range w.sortedEntities() {
 		if e.Kind == EntityTree && w.TileAt(e.TX, e.TY) == TileForest && rng.Float64() < treeHiveChance {
 			e.Var = hiveVar
 		}
@@ -226,4 +229,14 @@ func (w *World) fellGiant(p *Player, e *Entity, dmg int) bool {
 		e.RegrowAt = math.MaxUint64 // giants do not grow back in a lifetime
 		w.dropAt(x, y+0.6, loot)
 	})
+}
+
+// sortedEntities returns every entity, in the order of their ids.
+func (w *World) sortedEntities() []*Entity {
+	out := make([]*Entity, 0, len(w.entities))
+	for _, e := range w.entities {
+		out = append(out, e)
+	}
+	slices.SortFunc(out, func(a, b *Entity) int { return cmp.Compare(a.ID, b.ID) })
+	return out
 }
