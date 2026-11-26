@@ -396,8 +396,8 @@ func (p tbPose) canvas() (*canvas, float64, float64) {
 		rd.stampBlade(b, int32(-2-i))
 	}
 	rd.shade()
+	rd.addHorns(hd, p, true) // the horns of its near side, their roots under the skull
 	rd.head(hd, p)
-	rd.addHorns(hd, p, true) // the horns of its near side, over its head
 	rd.eyeGlow(hd, p, false)
 	c.outline(0.8)
 	rd.eyeGlow(hd, p, true)
@@ -805,6 +805,10 @@ func (rd *tbRender) head(hp tbHeadPos, p tbPose) {
 			frameQuad(c, f, tu+e-0.4, tv-0.3, tu+e+5.5*p.tongue, tv-0.3+dv*p.tongue, 0.8, colTongue)
 		}
 	}
+	// Its jaw's own spikes, under the chin, their roots hidden in it.
+	for i, s := range [][4]float64{{-6, 10.5, 2.35, 11}, {3, 12, 2.15, 8}, {12, 11.8, 2.0, 6.5}, {20, 10.6, 1.9, 5}} {
+		rd.hornAt(fj, s[0], s[1], s[2], s[3]*(0.9+0.1*p.spread), 1.6, 0.35, 0.25, true, 980+uint32(i))
+	}
 	// The jaw: pale scales along its lip, plates down its side, a pale throat.
 	bossPaint(c, 0.3, func(x, y int, q bossPt) color.RGBA {
 		u, v := fj.local(x, y)
@@ -813,16 +817,16 @@ func (rd *tbRender) head(hp tbHeadPos, p tbPose) {
 		}
 		l := 0.1 + q.l*0.86
 		switch {
-		case u > -7 && v < tbLipLow(u)+2.4: // the lip
+		case u > -7 && v < tbLipLow(u)+1.5: // the lip
 			if f := u / 3.2; f-math.Floor(f) < 0.1 {
 				l -= 0.12
 			}
 			return tbTone(tbBelly, l*0.9+0.04)
 		case v > 9.2-0.1*u || q.ny > 0.55: // the throat
-			if f := (u + v*0.3) / 2.2; f-math.Floor(f) < 0.18 {
-				l -= 0.16
+			if f := (u + v*0.3) / 2.4; f-math.Floor(f) < 0.14 {
+				l -= 0.08
 			}
-			return tbTone(tbBelly, l*0.85)
+			return tbTone(tbBelly, l*0.82+0.06)
 		}
 		e, mx, my, id := tbPlates(u, v, 3.6, 975)
 		l += rd.plateLight(fj, e, mx, my) - 0.04
@@ -832,10 +836,8 @@ func (rd *tbRender) head(hp tbHeadPos, p tbPose) {
 		}
 		return tbTone(rp, l*0.92)
 	}, fj.knobs(tbJaw))
-	// Its jaw's own spikes, under the chin.
-	for i, s := range [][4]float64{{-6, 10.5, 2.35, 11}, {3, 12, 2.15, 8}, {12, 11.8, 2.0, 6.5}, {20, 10.6, 1.9, 5}} {
-		rd.hornAt(fj, s[0], s[1], s[2], s[3]*(0.9+0.1*p.spread), 1.6, 0.35, 0.25, true, 980+uint32(i))
-	}
+	// A horn on the snout, grown out of it.
+	rd.hornAt(fr, 34.5, -9, -1.6, 6.5, 1.8, 0.35, 0.3, true, 993)
 	// The skull: great keeled plates over the crown, small scales on the
 	// face, a smooth pale lip, the eye sunk in a dark socket under the brow.
 	bossPaint(c, 0.32, func(x, y int, q bossPt) color.RGBA {
@@ -880,6 +882,10 @@ func (rd *tbRender) head(hp tbHeadPos, p tbPose) {
 		}
 		return col
 	}, fr.knobs(tbSkull))
+	// Spikes along the brow.
+	rd.hornAt(fr, 9, -22.5, -2.1, 9*(0.8+0.2*p.spread), 1.9, 0.3, 0.3, true, 990)
+	rd.hornAt(fr, 15.5, -21.8, -1.95, 7*(0.8+0.2*p.spread), 1.6, 0.3, 0.3, true, 991)
+	rd.hornAt(fr, 21, -18.4, -1.8, 5.5, 1.4, 0.25, 0.3, true, 992)
 	// The heavy brow over the eye: rough, ridged bone.
 	bossPaint(c, 0.5, func(x, y int, q bossPt) color.RGBA {
 		u, v := fr.local(x, y)
@@ -912,11 +918,6 @@ func (rd *tbRender) head(hp tbHeadPos, p tbPose) {
 	rd.tooth(fr, 29.8, tbLipUp(29.8)-0.2, 10, 1.9, 1, 1)
 	rd.tooth(fr, 39.2, tbLipUp(39.2)-0.2, 7, 1.45, 1, 1)
 	rd.eye(hp, p)
-	// Spikes on the brow and a horn on the snout.
-	rd.hornAt(fr, 9, -22.5, -2.1, 9*(0.8+0.2*p.spread), 1.9, 0.3, 0.3, true, 990)
-	rd.hornAt(fr, 15.5, -21.8, -1.95, 7*(0.8+0.2*p.spread), 1.6, 0.3, 0.3, true, 991)
-	rd.hornAt(fr, 21, -18.4, -1.8, 5.5, 1.4, 0.25, 0.3, true, 992)
-	rd.hornAt(fr, 34.5, -9, -1.6, 6.5, 1.8, 0.35, 0.3, true, 993)
 }
 
 // plateLight is how much lighter (or darker) a pixel of a plate is: the
@@ -1064,6 +1065,9 @@ func (rd *tbRender) addHorns(hp tbHeadPos, p tbPose, near bool) {
 		}
 		a := h[2] - sp*0.22*math.Sin(h[2]) // raised, they fan out wider
 		l := h[3] * (0.92 + 0.08*sp)
+		if sp < 0 {
+			l *= 1 + 0.25*sp // laid back flat along its neck
+		}
 		if !isNear {
 			l *= 0.9
 		}
@@ -1256,7 +1260,7 @@ var (
 		b := math.Sin(2 * math.Pi * float64(i) / titanIdleN)
 		ctrl := tbSpiral(-10, -12, 58, 21, 2.9, 2.45, 0, 36)
 		ctrl = append(ctrl, vec3{-2, -20, 48}, vec3{12, -10, 54 + b*0.8})
-		p := tbPose{path: tbSpline(ctrl), look: 0.12, swell: 0.025 * b, lid: 0.55, spread: -0.8}
+		p := tbPose{path: tbSpline(ctrl), look: 0.12, swell: 0.025 * b, lid: 0.55, spread: -1}
 		if i == 2 || i == 3 {
 			p.tongue = 0.5 + 0.5*float64(i-2)
 		}
@@ -1274,10 +1278,10 @@ var (
 			if q.z == 0 {
 				q.y += 5 * math.Sin(w-q.x*0.025)
 			}
-			q.x += 7 * math.Sin(w+0.6) * smooth(clamp01((q.z-40)/120))
-			q.y += 3 * math.Cos(w) * smooth(clamp01((q.z-40)/120))
+			q.x += 10 * math.Sin(w+0.6) * smooth(clamp01((q.z-30)/110))
+			q.y += 5 * math.Cos(w) * smooth(clamp01((q.z-30)/110))
 		}
-		p := tbPose{path: tbSpline(ctrl), look: -0.62 + 0.08*math.Sin(w), gape: 0.92 + 0.08*math.Sin(2*w),
+		p := tbPose{path: tbSpline(ctrl), look: -0.62 + 0.12*math.Sin(w-0.5), gape: 0.92 + 0.08*math.Sin(2*w),
 			tongue: 0.55 + 0.45*math.Sin(2*w), spread: 1}
 		return p.canvas()
 	})
@@ -1289,8 +1293,8 @@ var (
 		ctrl := []vec3{{-340, 40, 0}, {-270, 10, 0}, {-200, 32, 0}, {-140, 46, 0}, {-88, 30, 0}}
 		hel := tbSpiral(0, -4, 31-3*sq, 31-3*sq, math.Pi*0.92+w*0.06, 2.25, 0, 58)
 		ctrl = append(ctrl, hel...)
-		ctrl = append(ctrl, vec3{6, -12, 86}, vec3{16, -8, 98 + 2*sq})
-		p := tbPose{path: tbSpline(ctrl), look: 0.55 + 0.06*math.Sin(w), gape: 0.45 + 0.3*sq, tongue: sq, spread: 0.6}
+		ctrl = append(ctrl, vec3{2, -12, 88}, vec3{10, -6, 100 + 2*sq})
+		p := tbPose{path: tbSpline(ctrl), look: 0.95 + 0.06*math.Sin(w), gape: 0.45 + 0.3*sq, tongue: sq, spread: 0.6}
 		return p.canvas()
 	})
 )
