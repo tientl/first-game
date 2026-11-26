@@ -117,6 +117,10 @@ func (g *Game) prefetchArt() {
 			}
 		case sim.EntityGiantTree, sim.EntityBananaTree:
 			woodsSet.warm()
+		case sim.EntityFlora:
+			if sim.FloraKind(e.Var) == sim.FloraMangrove { // see mangrove.go
+				mangroveSets[boolIdx(g.tileAt(int(e.TX), int(e.TY)).Sea())].warm()
+			}
 		}
 	}
 	for _, c := range g.curr.Creatures {

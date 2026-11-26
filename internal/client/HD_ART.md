@@ -196,6 +196,18 @@ go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
   `dressFoot` laying grass, snow, sand or mud over the roots. Every bark
   ramp is in `barkOf`, which is how `isTrunk` tells wood from leaves.
   `shot -trunksheet` shows the foot of every kind of tree three times as big.
+- The mangrove (`mangrove.go`) is wood laid out in the tree's own space (x
+  across, z towards the viewer, h up) and seen from the game's angle: stilt
+  roots leaving the trunk at different heights all round it, some forking or
+  splitting into fingers, aerial roots from the crown and pencil roots in
+  the mud, each a tube lit as a cylinder, with bark, rings, lenticels and
+  the tide's algae and barnacles low down. Far ones are drawn first and
+  darker, each with its shadow on the ground. Four variants (`mgSeeds`, the
+  layouts picked by eye), each drawn in the water and on the sand
+  (`mangroveSets`); the ripples and reflections under the roots that stand
+  in the sea are drawn with the tree (`drawMangroveWater`). `MANGROVE_DUMP=dir
+  go test ./internal/client -run DumpMangroves` writes sheets of every look
+  and of the roots close up.
 - Rocks, ore veins, coal seams, pebbles and the furnace (`rockart.go`) are
   built of convex blocks (each the inside of a few planes) seen from the
   game's angle: each pixel takes the face it meets first, so faces come out

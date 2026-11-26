@@ -625,7 +625,7 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		}
 		return g.cropSprite(e), 0.05
 	case sim.EntityFlora:
-		return floraEntitySprite(e) // see florarender.go
+		return g.floraEntitySprite(e) // see florarender.go
 	case sim.EntityBurrow:
 		return a.beasts.burrow, 0
 	case sim.EntityDen:
