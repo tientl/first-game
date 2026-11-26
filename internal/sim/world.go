@@ -39,6 +39,7 @@ type World struct {
 	wx       weather   // lightning, tornadoes and ice; see weather.go
 	villages []Village // see tribe.go
 	islands  []Island  // see archipelago.go
+	relief   []Relief  // per tile, in worlds made since StyleIsles; see relief.go
 
 	boats    []*Boat // see boats.go
 	nextBoat BoatID

@@ -33,7 +33,7 @@ func (w *World) waterside(tx, ty int) bool {
 	}
 	for dy := -1; dy <= 1; dy++ {
 		for dx := -1; dx <= 1; dx++ {
-			if (dx != 0 || dy != 0) && w.inBounds(tx+dx, ty+dy) && w.TileAt(tx+dx, ty+dy) == TileWater {
+			if (dx != 0 || dy != 0) && w.inBounds(tx+dx, ty+dy) && w.TileAt(tx+dx, ty+dy).Swimmable() {
 				return true
 			}
 		}

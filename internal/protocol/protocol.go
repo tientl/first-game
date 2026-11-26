@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 42
+const Version = 43
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -85,6 +85,7 @@ type Welcome struct {
 	Tiles         []sim.Tile     // row-major, Width*Height
 	Explored      []byte         // tiles this player has seen (sim.Explored bytes)
 	SurfaceH      int            // rows above ground; the caves are the rows below, from SurfaceH+sim.UndergroundGap; 0: no caves below
+	Relief        []sim.Relief   // row-major like Tiles: each tile's height level and variant; nil for worlds made before sim.StyleIsles
 	Difficulty    sim.Difficulty // the world's difficulty: whether dying costs what you carry
 }
 

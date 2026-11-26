@@ -36,6 +36,8 @@ func pathCost(t Tile) float64 {
 		return 3
 	case TileMarsh:
 		return 5
+	case TileFord:
+		return 2.4 // across a river: see rivers.go
 	}
 	return 0
 }
@@ -83,10 +85,11 @@ func (w *World) carvePaths(rng *rand.Rand, sx, sy int) {
 	for _, m := range nearest(spawn, mouths, pathMouths) {
 		legs = append(legs, [2]pt{spawn, m})
 	}
+	pf := w.newPathFinder()
 	for _, l := range legs {
-		route := w.findPath(l[0].x, l[0].y, l[1].x, l[1].y)
+		route := pf.find(l[0].x, l[0].y, l[1].x, l[1].y)
 		for k, i := range route {
-			if pathCost(w.tiles[i]) == 0 || max(abs(i%w.width-sx), abs(i/w.width-sy)) <= clearSpawnRadius {
+			if pathCost(w.tiles[i]) == 0 || w.tiles[i] == TileFord || max(abs(i%w.width-sx), abs(i/w.width-sy)) <= clearSpawnRadius {
 				continue // the spawn keeps its own ground
 			}
 			w.tiles[i] = TilePath
@@ -95,7 +98,7 @@ func (w *World) carvePaths(rng *rand.Rand, sx, sy int) {
 				x, y := i%w.width, i/w.width
 				px, py := route[k-1]%w.width, route[k-1]/w.width
 				nx, ny := x+(py-y), y+(x-px) // to one side of the way it runs
-				if w.inBounds(nx, ny) && pathCost(w.tiles[ny*w.width+nx]) > 0 {
+				if w.inBounds(nx, ny) && pathCost(w.tiles[ny*w.width+nx]) > 0 && w.tiles[ny*w.width+nx] != TileFord {
 					w.tiles[ny*w.width+nx] = TilePath
 				}
 			}
@@ -103,25 +106,104 @@ func (w *World) carvePaths(rng *rand.Rand, sx, sy int) {
 	}
 }
 
-// findPath returns the tiles of the easiest way from (x0, y0) to (x1, y1),
-// or nil if there is none.
-func (w *World) findPath(x0, y0, x1, y1 int) []int {
-	if !w.inBounds(x0, y0) || !w.inBounds(x1, y1) {
+// pathFinder finds the easiest ways between tiles, one after another, with
+// its buffers kept between searches. It knows which tiles a trail can
+// reach from which, so it does not search a whole island for a way to
+// another across the sea.
+type pathFinder struct {
+	w       *World
+	cost    []float32
+	from    []int32
+	touched []int32
+	comp    []int32 // per tile a trail can cross: its patch of such tiles (8-connected); -1 for the rest
+}
+
+func (w *World) newPathFinder() *pathFinder {
+	n := w.width * w.height
+	pf := &pathFinder{w: w, cost: make([]float32, n), from: make([]int32, n), comp: make([]int32, n)}
+	inf := float32(math.Inf(1))
+	for i := range pf.cost {
+		pf.cost[i], pf.from[i], pf.comp[i] = inf, -1, -1
+	}
+	var q []int32
+	next := int32(0)
+	for start := range w.tiles {
+		if pf.comp[start] >= 0 || pathCost(w.tiles[start]) == 0 {
+			continue
+		}
+		pf.comp[start] = next
+		q = append(q[:0], int32(start))
+		for k := 0; k < len(q); k++ {
+			x, y := int(q[k])%w.width, int(q[k])/w.width
+			for _, d := range pathSteps {
+				nx, ny := x+d[0], y+d[1]
+				if !w.inBounds(nx, ny) {
+					continue
+				}
+				if j := ny*w.width + nx; pf.comp[j] < 0 && pathCost(w.tiles[j]) > 0 {
+					pf.comp[j] = next
+					q = append(q, int32(j))
+				}
+			}
+		}
+		next++
+	}
+	return pf
+}
+
+var pathSteps = [8][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, 1}, {1, -1}, {-1, -1}}
+
+// reachable reports whether find can get from start to goal at all: a
+// trail steps onto tiles it can cross, and onto the goal whatever it is.
+// Laying a trail never changes which tiles can be crossed, so the patches
+// stay true while the trails go down.
+func (pf *pathFinder) reachable(x0, y0, x1, y1 int) bool {
+	if max(abs(x1-x0), abs(y1-y0)) <= 1 {
+		return true
+	}
+	w := pf.w
+	var from [8]int32
+	n := 0
+	for _, d := range pathSteps {
+		if x, y := x0+d[0], y0+d[1]; w.inBounds(x, y) {
+			if c := pf.comp[y*w.width+x]; c >= 0 {
+				from[n] = c
+				n++
+			}
+		}
+	}
+	for _, d := range append(pathSteps[:], [2]int{0, 0}) {
+		if x, y := x1+d[0], y1+d[1]; w.inBounds(x, y) {
+			if c := pf.comp[y*w.width+x]; c >= 0 && slices.Contains(from[:n], c) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// find returns the tiles of the easiest way from (x0, y0) to (x1, y1), or
+// nil if there is none.
+func (pf *pathFinder) find(x0, y0, x1, y1 int) []int {
+	w := pf.w
+	if !w.inBounds(x0, y0) || !w.inBounds(x1, y1) || !pf.reachable(x0, y0, x1, y1) {
 		return nil
 	}
-	n := w.width * w.height
-	cost := make([]float32, n)
-	from := make([]int32, n)
-	for i := range cost {
-		cost[i] = float32(math.Inf(1))
-		from[i] = -1
-	}
+	cost, from := pf.cost, pf.from
+	defer func() {
+		inf := float32(math.Inf(1))
+		for _, i := range pf.touched {
+			cost[i], from[i] = inf, -1
+		}
+		pf.touched = pf.touched[:0]
+	}()
 	start, goal := y0*w.width+x0, y1*w.width+x1
 	h := func(i int) float64 {
 		return math.Hypot(float64(i%w.width-x1), float64(i/w.width-y1))
 	}
 	q := &pathQueue{}
 	cost[start] = 0
+	pf.touched = append(pf.touched, int32(start))
 	heap.Push(q, pathNode{i: start, f: h(start)})
 	for q.Len() > 0 {
 		cur := heap.Pop(q).(pathNode)
@@ -129,7 +211,7 @@ func (w *World) findPath(x0, y0, x1, y1 int) []int {
 			break
 		}
 		x, y := cur.i%w.width, cur.i/w.width
-		for _, d := range [8][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, 1}, {1, -1}, {-1, -1}} {
+		for _, d := range pathSteps {
 			nx, ny := x+d[0], y+d[1]
 			if !w.inBounds(nx, ny) {
 				continue
@@ -148,6 +230,9 @@ func (w *World) findPath(x0, y0, x1, y1 int) []int {
 				c *= math.Sqrt2
 			}
 			if nc := cost[cur.i] + float32(c); nc < cost[j] {
+				if from[j] < 0 && j != start {
+					pf.touched = append(pf.touched, int32(j))
+				}
 				cost[j] = nc
 				from[j] = int32(cur.i)
 				heap.Push(q, pathNode{i: j, f: float64(nc) + h(j)})

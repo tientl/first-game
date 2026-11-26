@@ -244,7 +244,7 @@ var creatureDefs = [NumCreatureKinds]creatureDef{
 		yield: ItemFish, yieldN: 1, bait: ItemWorm, tool: ItemRod,
 		water: true, onLine: true,
 		leash: 8, idle: [2]int{10, 60}, roam: [2]int{15, 50},
-		spawnOn: []Tile{TileWater}, tilesPer: 40,
+		spawnOn: []Tile{TileWater, TileShallow, TileRiver}, tilesPer: 40,
 	},
 	CreatureCrab: {
 		name: "Cua", hp: 1,
@@ -324,9 +324,9 @@ type Creature struct {
 	fedCD     int      // ticks before it takes another meal
 	healT     int      // ticks to its next point of mending, as a pet
 
-	village  int // the village a warrior belongs to, 1-based; 0 for everyone else
-	grabHP   int // a giant squid's health when it seized its boat
-	flinchCD int // ticks before a blow can make it flinch again; see combat.go
+	village  int         // the village a warrior belongs to, 1-based; 0 for everyone else
+	grabHP   int         // a giant squid's health when it seized its boat
+	flinchCD int         // ticks before a blow can make it flinch again; see combat.go
 	blow     pendingBlow // a blow drawn back, waiting to land; see telegraph.go
 
 	homeX, homeY float64
@@ -383,7 +383,7 @@ func (w *World) isShallow(tx, ty int) bool {
 		w.fauna.shallow = make([]bool, w.width*w.height)
 		for y := 0; y < w.height; y++ {
 			for x := 0; x < w.width; x++ {
-				if w.tiles[y*w.width+x] != TileWater {
+				if !w.tiles[y*w.width+x].Swimmable() {
 					continue
 				}
 				for dy := -1; dy <= 1 && !w.fauna.shallow[y*w.width+x]; dy++ {
@@ -428,7 +428,7 @@ func (w *World) creatureFits(k CreatureKind, x, y float64) bool {
 				return false
 			case d.amphibious && !land && !w.isShallow(tx, ty):
 				return false
-			case d.wades && !land && w.TileAt(tx, ty) != TileWater:
+			case d.wades && !land && !w.TileAt(tx, ty).Swimmable():
 				return false
 			case !d.water && !d.deep && !d.amphibious && !d.wades && !land:
 				return false
@@ -622,8 +622,9 @@ func (w *World) stepCreatures() {
 			f.drinkers = append(f.drinkers, c)
 		}
 	}
+	awake := w.awake()
 	for _, c := range f.creatures {
-		if !c.gone {
+		if !c.gone && !w.dozes(c, awake) { // see doze.go
 			w.stepCreature(c)
 			w.maybeDung(c) // see dung.go
 		}

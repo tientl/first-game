@@ -23,9 +23,10 @@ const (
 	StyleJungle                   // as StyleIce, with the woods spread over far more of the lowland
 	StyleTribal                   // as StyleJungle, with thinner woods, trails, villages, deep caves; see tribe.go
 	StyleSeas                     // as StyleTribal, but an archipelago: one land to an island; see archipelago.go
+	StyleIsles                    // as StyleSeas, with designed islands, coasts, heights and rivers; see isles.go
 
 	// StyleLatest is what a new game is made with.
-	StyleLatest = StyleSeas
+	StyleLatest = StyleIsles
 )
 
 // biomeShares is how much of the lowland each biome takes, and how wide the
@@ -41,9 +42,10 @@ func (w *World) biomeShares() biomeShares {
 
 // World sizes offered for a new open world.
 const (
-	SizeMedium = 256
-	SizeLarge  = 512
-	SizeHuge   = 1024
+	SizeMedium   = 256
+	SizeLarge    = 512
+	SizeHuge     = 1024
+	SizeColossal = 2048 // "Khổng lồ": four times the land of SizeHuge
 )
 
 // Open-world tuning. Shares are of the land, so every biome shows up at every
@@ -383,7 +385,12 @@ func (w *World) volcano(seed uint32, sx, sy int) {
 	if best < 0 {
 		return // a world too small or too wet for a volcano
 	}
-	vx, vy := best%w.width, best/w.width
+	w.cone(seed, best%w.width, best/w.width, R)
+}
+
+// cone raises a volcano of radius R round (vx, vy): its lava lake, the
+// ring of rock round it, and the ash with lava running down it.
+func (w *World) cone(seed uint32, vx, vy int, R float64) {
 	r0 := int(math.Ceil(R * 1.15))
 	for ty := vy - r0; ty <= vy+r0; ty++ {
 		for tx := vx - r0; tx <= vx+r0; tx++ {
@@ -398,7 +405,7 @@ func (w *World) volcano(seed uint32, sx, sy int) {
 				w.tiles[i] = TileLava
 			case r < 0.3:
 				w.tiles[i] = TileMountain
-			case r < 1 && w.tiles[i] != TileWater:
+			case r < 1 && !w.tiles[i].Sea():
 				w.tiles[i] = TileAsh
 				if r < 0.85 && math.Abs(fbm(x/10, y/10, seed+62, 2)-0.5) < openLavaRiver {
 					w.tiles[i] = TileLava
@@ -459,7 +466,7 @@ func (w *World) seaside(tx, ty int) bool {
 	}
 	for dy := -1; dy <= 1; dy++ {
 		for dx := -1; dx <= 1; dx++ {
-			if (dx != 0 || dy != 0) && w.inBounds(tx+dx, ty+dy) && w.TileAt(tx+dx, ty+dy) == TileWater {
+			if (dx != 0 || dy != 0) && w.inBounds(tx+dx, ty+dy) && w.TileAt(tx+dx, ty+dy).Sea() {
 				return true
 			}
 		}
@@ -477,6 +484,8 @@ func (w *World) speedAt(x, y float64) float64 {
 		return openMarshSpeed
 	case TilePath:
 		return PathSpeed
+	case TileFord:
+		return FordSpeed // wading: see rivers.go
 	}
 	return 1
 }

@@ -18,13 +18,20 @@ const (
 	TileSnow     // open world: the frozen north, freezing to stand on; see iceage.go
 	TilePath     // tribal worlds: a beaten trail, quicker going; see paths.go
 	TileIce      // never in a world: what the client draws frozen ponds as in winter
+
+	// Worlds made since StyleIsles: see isles.go, coast.go, heights.go and rivers.go.
+	TileShallow   // the sea's shallows: reefs, shoals, lagoons and straits; swum and sailed
+	TileRiver     // fresh running water, swum across
+	TileFord      // a river's shallow crossing over stones, waded
+	TileWaterfall // a river falling over a cliff: nobody passes
+	TileCliff     // the rock face where high ground drops to lower, or to the sea: nobody passes
 	NumTiles
 )
 
 // Walkable reports whether players can stand on t.
 func (t Tile) Walkable() bool {
 	switch t {
-	case TileWater, TileMountain, TileLava:
+	case TileWater, TileMountain, TileLava, TileShallow, TileRiver, TileWaterfall, TileCliff:
 		return false
 	}
 	return t < NumTiles

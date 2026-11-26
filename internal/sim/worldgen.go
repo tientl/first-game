@@ -66,9 +66,12 @@ func Generate(cfg GenConfig) (*World, error) {
 
 	if cfg.Style != StyleIsland {
 		var sx, sy int
-		if cfg.Style >= StyleSeas {
+		switch {
+		case cfg.Style >= StyleIsles:
+			sx, sy = w.islesTerrain(seed) // see isles.go
+		case cfg.Style >= StyleSeas:
 			sx, sy = w.archipelagoTerrain(seed)
-		} else {
+		default:
 			sx, sy = w.openTerrain(seed)
 		}
 		tribal := cfg.Style >= StyleTribal
@@ -80,7 +83,11 @@ func Generate(cfg GenConfig) (*World, error) {
 		if cfg.Style >= StyleSeas {
 			w.addUnderground(seed) // see underground.go
 		}
-		w.scatterOpen(rng, rand.New(rand.NewPCG(cfg.Seed, 0xb16b16)))
+		if cfg.Style >= StyleIsles {
+			w.scatterIsles(rng, rand.New(rand.NewPCG(cfg.Seed, 0xb16b16))) // see islescatter.go
+		} else {
+			w.scatterOpen(rng, rand.New(rand.NewPCG(cfg.Seed, 0xb16b16)))
+		}
 		w.scatterPebbles(rand.New(rand.NewPCG(cfg.Seed, 0x9ebb1e)))
 		w.scatterOres(rand.New(rand.NewPCG(cfg.Seed, 0x0de5)))
 		w.scatterFruit(rand.New(rand.NewPCG(cfg.Seed, 0xf1f)))
@@ -109,6 +116,10 @@ func Generate(cfg GenConfig) (*World, error) {
 		w.scatterClay(rand.New(rand.NewPCG(cfg.Seed, 0xc1a7)))         // see cooking.go
 		w.scatterFlora(rand.New(rand.NewPCG(cfg.Seed, 0xf107a)), seed) // after everything else: see flora.go
 		w.spawnToads()                                                 // by the ponds the lilies grow on: see toad.go
+		if cfg.Style >= StyleIsles {
+			w.unblockCrossings() // see islescatter.go
+			w.unblockIslands()
+		}
 		return w, nil
 	}
 

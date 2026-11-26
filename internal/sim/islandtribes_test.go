@@ -6,9 +6,13 @@ import (
 )
 
 func TestEveryIslandHasACaveAndATribe(t *testing.T) {
-	for _, size := range []int{SizeMedium, SizeLarge} {
+	for _, c := range []struct {
+		style WorldStyle
+		size  int
+	}{{StyleSeas, SizeMedium}, {StyleSeas, SizeLarge}, {StyleIsles, SizeMedium}, {StyleIsles, SizeLarge}} {
+		size := c.size
 		for seed := uint64(1); seed <= 3; seed++ {
-			w := genSeas(t, seed, size)
+			w := genStyle(t, c.style, seed, size)
 			W, H := w.width, w.surfaceH
 			sx, sy := w.Spawn()
 			islands := 0
@@ -57,7 +61,12 @@ func TestEveryIslandHasACaveAndATribe(t *testing.T) {
 }
 
 func TestEveryVillageHasHutsAndWarriors(t *testing.T) {
-	w := genSeas(t, 1, SizeMedium)
+	for _, style := range archipelagos {
+		testVillages(t, genStyle(t, style, 1, SizeMedium))
+	}
+}
+
+func testVillages(t *testing.T, w *World) {
 	for i, v := range w.villages {
 		huts, folk := 0, 0
 		for _, e := range w.entities {

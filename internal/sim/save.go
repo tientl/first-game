@@ -32,7 +32,10 @@ import (
 //     what stations hold, and the buffs of dishes.
 //   - 17: the wild plants of flora.go (some stand in the water) and crops of
 //     four kinds; an older world keeps the plants a fresh one would grow.
-const SaveVersion = 17
+//   - 18: worlds of StyleIsles: designed islands with shallows, cliffs, ramps,
+//     rivers and fords, and the 2048-tile size. Nothing older changes, but an
+//     older game would make the wrong world of such a save, so it must refuse it.
+const SaveVersion = 18
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.

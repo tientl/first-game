@@ -155,7 +155,7 @@ func (w *World) boatFits(k BoatKind, x, y float64) bool {
 	r := boatDefs[k].radius
 	for _, c := range [][2]float64{{-r, -r * 0.6}, {r, -r * 0.6}, {-r, r * 0.6}, {r, r * 0.6}, {0, 0}} {
 		tx, ty := int(math.Floor(x+c[0])), int(math.Floor(y+c[1]))
-		if !w.inBounds(tx, ty) || w.tiles[ty*w.width+tx] != TileWater || w.frozenAt(tx, ty) {
+		if !w.inBounds(tx, ty) || !w.tiles[ty*w.width+tx].Swimmable() || w.frozenAt(tx, ty) {
 			return false
 		}
 	}
@@ -329,7 +329,7 @@ func (w *World) swimmable(x, y float64) bool {
 			return false
 		}
 		t := w.tiles[ty*w.width+tx]
-		return (t == TileWater || t.Walkable()) && !w.blocked(tx, ty)
+		return (t.Swimmable() || t.Walkable()) && !w.blocked(tx, ty)
 	}
 	return ok(x-r, y-r) && ok(x+r, y-r) && ok(x-r, y+r) && ok(x+r, y+r)
 }
@@ -337,7 +337,7 @@ func (w *World) swimmable(x, y float64) bool {
 // inWater reports whether (x, y) is open water: someone there swims.
 func (w *World) inWater(x, y float64) bool {
 	tx, ty := int(math.Floor(x)), int(math.Floor(y))
-	return w.TileAt(tx, ty) == TileWater && !w.frozenAt(tx, ty)
+	return w.TileAt(tx, ty).Swimmable() && !w.frozenAt(tx, ty)
 }
 
 // stepSwim keeps p's breath in the water: a swimmer tires, and then drowns.

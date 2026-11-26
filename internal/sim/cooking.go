@@ -639,7 +639,7 @@ func (w *World) stepStations() {
 func (w *World) nearSea(tx, ty int) bool {
 	for y := ty - SaltReach; y <= ty+SaltReach; y++ {
 		for x := tx - SaltReach; x <= tx+SaltReach; x++ {
-			if w.inBounds(x, y) && w.tiles[y*w.width+x] == TileWater && !w.freshWater(x, y) {
+			if w.inBounds(x, y) && w.tiles[y*w.width+x].Sea() && !w.freshWater(x, y) {
 				return true
 			}
 		}
@@ -650,8 +650,16 @@ func (w *World) nearSea(tx, ty int) bool {
 // freshWater reports whether tile (tx, ty) is the water of a pond or lake,
 // not the sea.
 func (w *World) freshWater(tx, ty int) bool {
-	if !w.inBounds(tx, ty) || w.tiles[ty*w.width+tx] != TileWater {
+	if !w.inBounds(tx, ty) {
 		return false
+	}
+	switch i := ty*w.width + tx; {
+	case w.tiles[i] == TileRiver || w.tiles[i] == TileFord || w.tiles[i] == TileWaterfall:
+		return true // a river: see rivers.go
+	case w.tiles[i] != TileWater:
+		return false
+	case w.relief != nil && w.relief[i].Variant() == VarLake:
+		return true
 	}
 	if !w.wx.pondDone {
 		w.wx.pond = PondMask(w.width, w.height, w.tiles)
@@ -987,7 +995,7 @@ func (w *World) mountGear(p *Player, g CookGear, at bool, atX, atY int) {
 // tile chosen, when at is set): a bowl takes sea water, a flask fresh.
 func (w *World) scoop(p *Player, held ItemKind, at bool, atX, atY int) {
 	wet := func(tx, ty int) bool {
-		return w.inBounds(tx, ty) && w.tiles[ty*w.width+tx] == TileWater && !w.frozenAt(tx, ty)
+		return w.inBounds(tx, ty) && w.tiles[ty*w.width+tx].Swimmable() && !w.frozenAt(tx, ty)
 	}
 	tx, ty, found := 0, 0, false
 	if at && wet(atX, atY) && math.Hypot(float64(atX)+0.5-p.X, float64(atY)+0.5-p.Y) <= PlaceReach {
@@ -1189,7 +1197,7 @@ func (w *World) scatterClay(r *rand.Rand) {
 			pond, sea := false, false
 			for dy := -1; dy <= 1; dy++ {
 				for dx := -1; dx <= 1; dx++ {
-					if w.TileAt(tx+dx, ty+dy) != TileWater || !w.inBounds(tx+dx, ty+dy) {
+					if !w.TileAt(tx+dx, ty+dy).Swimmable() || !w.inBounds(tx+dx, ty+dy) {
 						continue
 					}
 					if w.freshWater(tx+dx, ty+dy) {
