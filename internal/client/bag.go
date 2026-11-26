@@ -116,12 +116,11 @@ func (g *Game) drawSlotSized(dst *ebiten.Image, s sim.Slot, x, y float64, px int
 	if st == slotLifted {
 		a = 0.3
 	}
-	icon := g.art.icons[s.Item]
-	ib := icon.Bounds()
-	k := float64(max(1, (px-8)/max(1, ib.Dx())))
-	drawIcon(dst, icon, x+(float64(px)-float64(ib.Dx())*k)/2, y+(float64(px)-float64(ib.Dy())*k)/2, k, a)
+	// The icon is the old one's size, 16 UI pixels times as many as fit.
+	is := float64(16 * max(1, (px-8)/16))
+	g.drawItem(dst, s.Item, x+(float64(px)-is)/2, y+(float64(px)-is)/2, is, a) // see iconhd.go
 	if s.Item.MaxCount() > 1 {
-		g.text(dst, fmt.Sprintf("%d", s.Count), x+float64(px)-5, y+float64(px)-17, colWhite, text.AlignEnd, 1)
+		g.text(overIcons(dst), fmt.Sprintf("%d", s.Count), x+float64(px)-5, y+float64(px)-17, colWhite, text.AlignEnd, 1)
 	}
 }
 
@@ -446,7 +445,7 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 		}
 		g.drawSlot(screen, inv[i], x, y, st)
 		if sim.IsHotbar(i) {
-			g.drawKeyBadge(screen, hotbarLabel(i), x-3, y-3, i == g.hotSel)
+			g.drawKeyBadge(overIcons(screen), hotbarLabel(i), x-3, y-3, i == g.hotSel)
 			if i == g.hotSel {
 				fillRoundRect(screen, float32(x)+14, float32(y)+slotPx+4, slotPx-28, 3, 1.5, colKey)
 			}
@@ -464,15 +463,15 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 		}
 		if b.byMouse {
 			x, y := float64(b.lastMX)-24, float64(b.lastMY)-24
-			drawIcon(screen, g.art.icons[s.Item], x, y, 3, 0.9)
+			g.drawItem(screen, s.Item, x, y, 48, 0.9)
 			if s.Item.MaxCount() > 1 {
-				g.text(screen, fmt.Sprintf("%d", s.Count), x+51, y+33, colWhite, text.AlignEnd, 1)
+				g.text(overIcons(screen), fmt.Sprintf("%d", s.Count), x+51, y+33, colWhite, text.AlignEnd, 1)
 			}
-			g.drawTossHint(screen, x+24, y+24)
+			g.drawTossHint(overIcons(screen), x+24, y+24)
 			return
 		}
 		x, y := b.slotXY(b.cursor)
-		drawIcon(screen, g.art.icons[s.Item], x+slotPx-26, y-14, 2, 1)
+		g.drawItem(screen, s.Item, x+slotPx-26, y-14, 32, 1)
 	}()
 
 	// What the pointed-at slot holds.
@@ -553,7 +552,7 @@ func (g *Game) drawRecipeCard(screen *ebiten.Image, r sim.Recipe, x, y, w float6
 
 	// What it makes: an item's icon, or a structure's world sprite.
 	if r.Gives.Valid() {
-		drawIcon(screen, g.art.icons[r.Gives], x+8, y+(cardH-32)/2, 2, 1)
+		g.drawItem(screen, r.Gives, x+8, y+(cardH-32)/2, 32, 1)
 	} else {
 		ix, iy := x+24, y+cardH-9
 		s, _ := g.entitySprite(protocol.EntityView{Kind: r.Places, Ready: true})
@@ -602,7 +601,7 @@ func (g *Game) drawRecipeCard(screen *ebiten.Image, r sim.Recipe, x, y, w float6
 	}
 	cx := tx
 	for _, in := range r.Inputs {
-		drawIcon(screen, g.art.icons[in.Item], cx, y+27, 1, 1)
+		g.drawItem(screen, in.Item, cx, y+27, 16, 1)
 		c := colGood
 		if inv.Count(in.Item) < in.Count {
 			c = colBad

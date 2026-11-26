@@ -43,6 +43,7 @@ func (g *Game) text(dst *ebiten.Image, s string, x, y float64, clr color.Color, 
 func (g *Game) textWidth(s string) float64 { return textWidth(s, 1) }
 
 func (g *Game) dim(dst *ebiten.Image, sw, sh int, alpha float64) {
+	uiBreak() // what it covers goes on the screen first, HD icons and all: see iconhd.go
 	vector.FillRect(dst, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, uint8(alpha * 255)}, false)
 }
 
@@ -374,6 +375,7 @@ func (g *Game) drawNotice(screen *ebiten.Image, sw int) {
 	if g.notice == "" || !time.Now().Before(g.noticeUntil) {
 		return
 	}
+	uiBreak() // over the bag's HD icons: see iconhd.go
 	w := float32(g.textWidth(g.notice)) + 28
 	panel(screen, float32(sw)/2-w/2, 96, w, 28)
 	g.text(screen, g.notice, float64(sw/2), 102, colWhite, text.AlignCenter, 1)
@@ -526,12 +528,13 @@ func (g *Game) drawHotbar(screen *ebiten.Image, sw, sh int) {
 			st = slotHeld
 		}
 		g.drawSlotSized(screen, inv[i], x, y, hotPx, st)
-		g.drawKeyBadge(screen, hotbarLabel(i), x-3, y-3, i == g.hotSel)
+		top := overIcons(screen) // over the HD icons: see iconhd.go
+		g.drawKeyBadge(top, hotbarLabel(i), x-3, y-3, i == g.hotSel)
 		// How much of the burning torch is left.
 		if i == g.hotSel && inv[i].Item == sim.ItemTorch && g.curr.Self.TorchFuel > 0 {
 			f := float32(g.curr.Self.TorchFuel) / float32(sim.TorchBurnTicks)
-			fillRoundRect(screen, float32(x)+6, float32(y)+hotPx-7, hotPx-12, 4, 2, color.RGBA{0, 0, 0, 160})
-			fillRoundRect(screen, float32(x)+6, float32(y)+hotPx-7, (hotPx-12)*f, 4, 2, color.RGBA{255, 160, 60, 255})
+			fillRoundRect(top, float32(x)+6, float32(y)+hotPx-7, hotPx-12, 4, 2, color.RGBA{0, 0, 0, 160})
+			fillRoundRect(top, float32(x)+6, float32(y)+hotPx-7, (hotPx-12)*f, 4, 2, color.RGBA{255, 160, 60, 255})
 		}
 	}
 
