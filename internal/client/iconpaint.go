@@ -446,8 +446,8 @@ func dropShadow(px []color.RGBA, n int, k float64) []color.RGBA {
 		}
 	}
 	r := max(1, int(math.Round(0.45*k)))
-	a = boxBlur(a, n, r)
-	a = boxBlur(a, n, r)
+	a = iconBoxBlur(a, n, r)
+	a = iconBoxBlur(a, n, r)
 	out := make([]color.RGBA, len(px))
 	for i, c := range px {
 		sh := color.RGBA{0, 0, 0, uint8(math.Round(a[i] * 0.42 * 255))}
@@ -456,7 +456,7 @@ func dropShadow(px []color.RGBA, n int, k float64) []color.RGBA {
 	return out
 }
 
-func boxBlur(a []float64, n, r int) []float64 {
+func iconBoxBlur(a []float64, n, r int) []float64 {
 	tmp := make([]float64, len(a))
 	out := make([]float64, len(a))
 	for y := 0; y < n; y++ {
