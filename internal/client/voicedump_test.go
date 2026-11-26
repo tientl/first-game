@@ -22,7 +22,8 @@ import (
 //
 // Each sound is played through the game's own mixer (audio.go), so it is
 // what a player standing right by the beast hears: the bank's sound
-// resampled at the voice's rate (pitch and speed together), at its volume,
+// resampled at the voice's rate (pitch and speed together; a recorded voice
+// kept at half rate is played at half speed, see realvoice.go), at its volume,
 // times the effects bus (the effects slider squared; VOICE_EFFECTS, 0 to 1,
 // default 0.8 as a new game has it), times the mixer's 0.9 and its soft clip.
 // The few per-play random pitch shifts (±3–4 %) are left out. The bank's
@@ -75,63 +76,64 @@ var roarFar = 1.4 * math.Pow(1-16/roarReach, 2)
 
 var dumpDinos = []dumpSpecies{
 	{"rex", sim.CreatureRex, []dumpUse{
-		{"roar", "gầm khi thấy người chơi", dp("roar", 1, 1)},
-		{"roar", "gầm khi lao theo con mồi", dp("roar", 0.85, 1)},
-		{"roar", "gầm bên con mồi vừa hạ", dp("roar", 0.75, 1)},
-		{"roar", "gầm khi bị đánh", dp("roar", 0.6, 1)},
-		{"roar_far", "tiếng gầm nghe từ xa (16 ô, bị nghẹt)", dp("roar_far", roarFar, 1)},
+		{"roar", "gầm khi thấy người chơi", dp("rex_roar", 1, 1)},
+		{"roar", "gầm khi lao theo con mồi", dp("rex_roar", 0.85, 1)},
+		{"roar", "gầm bên con mồi vừa hạ", dp("rex_roar", 0.75, 1)},
+		{"roar_far", "tiếng gầm nghe từ xa (16 ô, bị nghẹt)", dp("rex_roar_far", roarFar, 1)},
+		{"hurt", "gầm đứt quãng khi bị đánh", dp("rex_hurt", 0.75, 1)},
 		{"growl", "gầm gừ khi đuổi sát", dp("rex_growl", 0.9, 1)},
 	}},
-	{"trike", sim.CreatureTrike, []dumpUse{{"alarm", "rống khi lao tới / bỏ chạy", dp("bellow", 0.8, 1)}}},
-	{"toro", sim.CreatureToro, []dumpUse{{"alarm", "rống khi lao tới", dp("bellow", 0.9, 1)}}},
-	{"stego", sim.CreatureStego, []dumpUse{{"alarm", "rống khi lao tới / bỏ chạy", dp("bellow", 0.8, 1)}}},
+	{"trike", sim.CreatureTrike, []dumpUse{{"alarm", "rống khi lao tới / bỏ chạy", dp("trike_alarm", 0.8, 1)}}},
+	{"toro", sim.CreatureToro, []dumpUse{{"alarm", "rống khi lao tới", dp("toro_alarm", 0.9, 1)}}},
+	{"stego", sim.CreatureStego, []dumpUse{{"alarm", "rống khi lao tới / bỏ chạy", dp("stego_alarm", 0.8, 1)}}},
 	{"ankylo", sim.CreatureAnkylo, []dumpUse{
 		{"alarm", "gầm gừ khi quay chùy đuôi về phía người lại gần", dp("ankylo_grunt", 0.75, 1)},
 		{"strike", "gầm khi khuỵu xuống lấy đà quật chùy", dp("ankylo_grunt", 0.6, 1.18)},
 	}},
-	{"brachio", sim.CreatureBrachio, []dumpUse{{"alarm", "rống khi lao tới / bỏ chạy", dp("bellow", 0.8, 1)}}},
-	{"thesc", sim.CreatureThesc, []dumpUse{{"alarm", "rống khi bỏ chạy", dp("bellow", 0.5, 1)}}},
-	{"ornitho", sim.CreatureOrnitho, []dumpUse{{"alarm", "kêu chít khi bỏ chạy", dp("squeak", 0.4, 1)}}},
+	{"brachio", sim.CreatureBrachio, []dumpUse{{"alarm", "rống khi lao tới / bỏ chạy", dp("brachio_alarm", 0.8, 1)}}},
+	{"thesc", sim.CreatureThesc, []dumpUse{{"alarm", "kêu khi bỏ chạy", dp("thesc_alarm", 0.5, 1)}}},
+	{"ornitho", sim.CreatureOrnitho, []dumpUse{{"alarm", "kêu khi bỏ chạy", dp("ornitho_alarm", 0.4, 1)}}},
 	{"raptor", sim.CreatureRaptor, []dumpUse{
-		{"alarm", "rít khi lao vào săn", dp("raptor_screech", 0.75, 1)},
-		{"call", "gọi đàn bên con mồi vừa hạ", dp("chirp", 0.5, 1)},
-		{"growl", "lục khục, lách cách khi đuổi sát", dp("raptor_click", 0.55, 1)},
+		{"alarm", "rít khi lao vào săn", dp("raptor_alarm", 0.75, 1)},
+		{"call", "gọi đàn bên con mồi vừa hạ", dp("raptor_call", 0.5, 1)},
+		{"growl", "lục khục, lách cách khi đuổi sát", dp("raptor_growl", 0.55, 1)},
+		{"attack", "gầm rít khi vồ", dp("raptor_attack", 0.5, 1)},
 	}},
 	{"achero", sim.CreatureAchero, []dumpUse{
-		{"alarm", "rít khi lao vào săn", dp("raptor_screech", 0.6, 1.2)},
-		{"call", "gọi đàn bên con mồi vừa hạ", dp("chirp", 0.45, 1.22)},
-		{"growl", "lục khục, lách cách khi đuổi sát", dp("raptor_click", 0.45, 1.2)},
+		{"alarm", "rít khi lao vào săn", dp("achero_alarm", 0.6, 1)},
+		{"call", "gọi đàn bên con mồi vừa hạ", dp("achero_call", 0.45, 1)},
+		{"growl", "lục khục, lách cách khi đuổi sát", dp("achero_growl", 0.45, 1)},
+		{"attack", "gầm rít khi vồ", dp("achero_attack", 0.4, 1)},
 	}},
 	{"troodon", sim.CreatureTroodon, []dumpUse{
-		{"alarm", "rít khi phát hiện người", dp("troodon_shriek", 0.7, 1)},
-		{"growl", "lách cách trong họng khi bầy áp sát", dp("troodon_click", 0.5, 1)},
+		{"alarm", "rít khi phát hiện người", dp("troodon_alarm", 0.7, 1)},
+		{"growl", "lách cách trong họng khi bầy áp sát", dp("troodon_growl", 0.5, 1)},
+		{"attack", "rít vút lên khi cắn", dp("troodon_attack", 0.5, 1)},
 	}},
-	{"ptero", sim.CreaturePtero, []dumpUse{{"alarm", "rít khi lao xuống", dp("shriek", 0.7, 1)}}},
+	{"ptero", sim.CreaturePtero, []dumpUse{{"alarm", "rít khi lao xuống", dp("ptero_alarm", 0.7, 1)}}},
 	{"quetzal", sim.CreatureQuetzal, []dumpUse{
-		{"alarm", "rít khi lao vào", dp("shriek", 0.7, 1)},
-		{"alarm", "rít khi cất cánh bay lên", dp("shriek", 0.9, 1)},
+		{"alarm", "rít khi lao vào", dp("quetzal_alarm", 0.7, 1)},
+		{"alarm", "rít khi cất cánh bay lên", dp("quetzal_alarm", 0.9, 1)},
 	}},
-	{"anzu", sim.CreatureAnzu, []dumpUse{{"roar", "rít khi xòe mào nổi giận", dp("screech", 0.55, 1)}}},
+	{"anzu", sim.CreatureAnzu, []dumpUse{{"roar", "rít khi xòe mào nổi giận", dp("anzu_roar", 0.55, 1)}}},
 	{"plesio", sim.CreaturePlesio, nil},
-	{"spino", sim.CreatureSpino, []dumpUse{
-		{"roar", "gầm mở màn trận / nổi điên (gầm + khè cùng lúc)", []dumpPart{{"roar", 0.95, 1.12}, {"croc_hiss", 0.6, 0.8}}},
-	}},
-	{"carcharo", sim.CreatureCarcharo, []dumpUse{{"roar", "gầm mở màn trận / nổi điên", dp("roar", 1, 1.06)}}},
-	{"giganoto", sim.CreatureGiganoto, []dumpUse{{"roar", "gầm mở màn trận / nổi điên", dp("roar", 1, 0.82)}}},
+	{"spino", sim.CreatureSpino, []dumpUse{{"roar", "gầm mở màn trận / nổi điên (gầm lẫn tiếng khè)", dp("spino_roar", 0.95, 1)}}},
+	{"carcharo", sim.CreatureCarcharo, []dumpUse{{"roar", "gầm mở màn trận / nổi điên", dp("carcharo_roar", 1, 1)}}},
+	{"giganoto", sim.CreatureGiganoto, []dumpUse{{"roar", "gầm mở màn trận / nổi điên", dp("giganoto_roar", 1, 1)}}},
 }
 
 var dumpBeasts = []dumpSpecies{
-	{"mammoth", sim.CreatureMammoth, []dumpUse{{"alarm", "rống vòi khi lao tới", dp("trumpet", 0.8, 1)}}},
+	{"mammoth", sim.CreatureMammoth, []dumpUse{{"alarm", "rống vòi khi lao tới", dp("mammoth_alarm", 0.8, 1)}}},
 	{"sabre", sim.CreatureSabre, []dumpUse{
 		{"alarm", "gầm khi chọn con mồi", dp("sabre_roar", 0.85, 1)},
 		{"strike", "gầm gừ khi vồ", dp("sabre_snarl", 0.9, 1)},
 		{"growl", "gầm gừ khi rình đuổi", dp("sabre_growl", 0.7, 1)},
-		{"cower", "khè khi sợ", dp("hiss", 0.4, 1)},
+		{"cower", "khè khi sợ", dp("sabre_cower", 0.4, 1)},
 	}},
 	{"bear", sim.CreatureBear, []dumpUse{{"growl", "gầm gừ khi vả", dp("bear_growl", 0.55, 1.1)}}},
-	{"croc", sim.CreatureCroc, []dumpUse{{"alarm", "khè khi lao lên khỏi nước", dp("croc_hiss", 0.75, 1)}}},
-	{"brachy", sim.CreatureBrachy, []dumpUse{{"alarm", "khè khi lao lên khỏi ao", dp("croc_hiss", 0.6, 1.15)}}},
-	{"champso", sim.CreatureChampso, []dumpUse{{"alarm", "khè khi lao lên khỏi ao", dp("croc_hiss", 0.6, 1.35)}}},
+	{"croc", sim.CreatureCroc, []dumpUse{{"alarm", "khè khi lao lên khỏi nước", dp("croc_alarm", 0.75, 1)}}},
+	{"brachy", sim.CreatureBrachy, []dumpUse{{"alarm", "khè khi lao lên khỏi ao", dp("croc_alarm", 0.6, 1.15)}}},
+	{"champso", sim.CreatureChampso, []dumpUse{{"alarm", "khè khi lao lên khỏi ao", dp("croc_alarm", 0.6, 1.35)}}},
 	{"mosa", sim.CreatureMosa, nil},
 	{"kraken", sim.CreatureKraken, nil},
 	{"titanoboa", sim.CreatureTitanoboa, []dumpUse{
@@ -140,8 +142,8 @@ var dumpBeasts = []dumpSpecies{
 	}},
 	{"megalodon", sim.CreatureMegalodon, []dumpUse{{"roar", "quẫy nước mở màn trận (không có tiếng kêu)", dp("splash", 1, 0.6)}}},
 	{"mammothking", sim.CreatureMammothKing, []dumpUse{
-		{"roar", "rống vòi mở màn trận / nổi điên", dp("trumpet", 1, 0.72)},
-		{"special", "rống vòi khi chồm lên ra đòn", dp("trumpet", 0.9, 0.8)},
+		{"roar", "rống vòi mở màn trận / nổi điên", dp("mammothking_roar", 1, 1)},
+		{"special", "rống vòi khi chồm lên ra đòn", dp("mammothking_special", 0.9, 1)},
 	}},
 }
 
@@ -149,6 +151,9 @@ var dumpBeasts = []dumpSpecies{
 // its cries from voicesOf.
 func (sp dumpSpecies) uses() []dumpUse {
 	us := slices.Clone(sp.script)
+	if sp.kind == sim.CreatureNone {
+		return us // not a creature of the game yet
+	}
 	if v, ok := callOf(sp.kind); ok {
 		us = append(us, dumpUse{"call", "kêu tự do khi đi lang thang", dp(v.name, v.vol, v.rate)})
 	}
@@ -174,7 +179,7 @@ func (sp dumpSpecies) uses() []dumpUse {
 
 // dumpOrder is the order of a species' events, the first of a group naming
 // its file.
-var dumpOrder = []string{"roar", "roar_far", "call", "alarm", "herd", "hurt", "growl", "strike", "grab", "special", "cower", "death"}
+var dumpOrder = []string{"roar", "roar_far", "call", "alarm", "herd", "hurt", "growl", "attack", "strike", "grab", "special", "cower", "death"}
 
 // dumpGroup is the uses of one species that are the same sound at the same
 // rate: one set of files.
@@ -243,8 +248,9 @@ func renderVoice(bank map[string][][]float32, ps []dumpPart, i int, bus float32)
 	for _, p := range ps {
 		vs := bank[p.name]
 		data := vs[i%len(vs)]
-		m.add(&voice{data: data, rate: p.rate, gain: float32(p.vol), target: float32(p.vol), bus: busSFX})
-		frames = max(frames, int(math.Ceil(float64(len(data)-1)/p.rate))+1)
+		rate := p.rate * speedOf(p.name) // as play does: see realvoice.go
+		m.add(&voice{data: data, rate: rate, gain: float32(p.vol), target: float32(p.vol), bus: busSFX})
+		frames = max(frames, int(math.Ceil(float64(len(data)-1)/rate))+1)
 	}
 	buf := make([]byte, frames*8)
 	m.Read(buf)
@@ -399,7 +405,7 @@ func TestDumpCreatureVoices(t *testing.T) {
 			if si > 0 {
 				long = append(long, make([]float32, int((gapSpecies-between)*sampleRate))...)
 			}
-			fmt.Fprintf(&index, "\n[%s] %s (%s)\n", clock(float64(len(long))/sampleRate), sp.kind.Name(), sp.key)
+			fmt.Fprintf(&index, "\n[%s] %s (%s)\n", clock(float64(len(long))/sampleRate), sp.title(), sp.key)
 			for _, g := range sp.groups() {
 				n := variants(b, g.parts)
 				if n == 0 {
@@ -544,4 +550,12 @@ func TestVoiceDumpTableIsValid(t *testing.T) {
 			}
 		}
 	}
+}
+
+// title is the species' name in the index.
+func (sp dumpSpecies) title() string {
+	if sp.kind == sim.CreatureNone {
+		return "Ankylosaurus (chưa có trong game ở nhánh này)"
+	}
+	return sp.kind.Name()
 }

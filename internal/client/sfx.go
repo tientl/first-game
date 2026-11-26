@@ -215,7 +215,8 @@ func midiFreq(m float64) float64 { return 440 * math.Pow(2, (m-69)/12) }
 // --- sound effects ------------------------------------------------------------
 
 func genSFX() map[string][][]float32 {
-	voices := goVoiceSFX() // made alongside: see creaturevoice.go
+	voices := goVoiceSFX()         // made alongside: see creaturevoice.go
+	recorded := goRecordedVoices() // and decoded alongside: see realvoice.go
 	r := rand.New(rand.NewPCG(2026, 11))
 	s := make(map[string][][]float32)
 	add := func(name string, peak float64, x []float64) { s[name] = append(s[name], finish(x, peak)) }
@@ -523,6 +524,7 @@ func genSFX() map[string][][]float32 {
 	for name, vs := range <-voices {
 		s[name] = append(s[name], vs...)
 	}
+	addRecordedVoices(s, <-recorded) // last: a recorded voice replaces a synthesised one of its name
 	return s
 }
 

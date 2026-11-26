@@ -208,7 +208,7 @@ func hellSound(o, c protocol.CreatureView) bool {
 			if c.Kind == sim.CreatureChampso {
 				rate = 1.35 // the slender snout, a thinner hiss
 			}
-			callAt("croc_hiss", x, y, 0.6, rate, 16)
+			callAt("croc_alarm", x, y, 0.6, rate, 16)
 		case c.State == sim.CreatureStrike:
 			snd.playAt("chomp", x, y, 0.65, 0.1)
 		case c.State == sim.CreatureLurk:
@@ -218,23 +218,23 @@ func hellSound(o, c protocol.CreatureView) bool {
 		switch {
 		case c.State == sim.CreatureChase && o.State != sim.CreatureStrike:
 			if snd.ready("bellow", 700*time.Millisecond) {
-				snd.playAt("bellow", x, y, 0.9, 0.08)
+				snd.playAt("toro_alarm", x, y, 0.9, 0.08)
 			}
 		case c.State == sim.CreatureStrike:
 			snd.playAt("whack", x, y, 0.95, 0.08)
 		}
 	case sim.CreatureThesc:
 		if c.State == sim.CreatureFlee && o.State != sim.CreatureHurt && snd.ready("bellow", 700*time.Millisecond) {
-			snd.playAt("bellow", x, y, 0.5, 0.25)
+			snd.playAt("thesc_alarm", x, y, 0.5, 0.25)
 		}
 	case sim.CreatureOrnitho:
 		if c.State == sim.CreatureFlee && snd.ready("squeak", 500*time.Millisecond) {
-			snd.playAt("squeak", x, y, 0.4, 0.3)
+			snd.playAt("ornitho_alarm", x, y, 0.4, 0.3)
 		}
 	case sim.CreatureAnzu:
 		switch c.State {
 		case sim.CreatureRoar:
-			snd.playAt("screech", x, y, 0.55, 0.3)
+			snd.playAt("anzu_roar", x, y, 0.55, 0.3)
 		case sim.CreatureStrike:
 			snd.playAt("whack", x, y, 0.6, 0.12)
 		}
@@ -242,23 +242,23 @@ func hellSound(o, c protocol.CreatureView) bool {
 		switch {
 		case c.State == sim.CreatureChase && (o.State == sim.CreatureIdle || o.State == sim.CreatureWander):
 			if snd.ready("screech", 300*time.Millisecond) {
-				callAt("raptor_screech", x, y, 0.6, 1.2, 18) // a smaller throat, higher
+				callAt("achero_alarm", x, y, 0.6, 1, 18)
 			}
 		case c.State == sim.CreatureStrike:
-			snd.playAt("hiss", x, y, 0.4, 0.2)
+			snd.playAt("achero_attack", x, y, 0.4, 0.2)
 		case c.State == sim.CreatureEat && o.State == sim.CreatureChase:
-			callAt("chirp", x, y, 0.45, 1.22, 16) // the pack calls over its kill
+			callAt("achero_call", x, y, 0.45, 1, 16) // the pack calls over its kill
 		}
 	case sim.CreatureQuetzal:
 		switch c.State {
 		case sim.CreatureChase:
 			if o.State == sim.CreatureIdle || o.State == sim.CreatureWander {
-				snd.playAt("shriek", x, y, 0.7, 0.02)
+				snd.playAt("quetzal_alarm", x, y, 0.7, 0.02)
 			}
 		case sim.CreatureStrike:
 			snd.playAt("whack", x, y, 0.8, 0.08)
 		case sim.CreatureSoar:
-			snd.playAt("shriek", x, y, 0.9, 0.05)
+			snd.playAt("quetzal_alarm", x, y, 0.9, 0.05)
 		}
 	default:
 		return false

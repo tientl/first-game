@@ -68,10 +68,11 @@ func (g *Game) troodonSounds(old, cur protocol.Snapshot) {
 		switch c.State {
 		case sim.CreatureChase:
 			if o != sim.CreatureFlee && snd.ready("troodon_shriek", 2500*time.Millisecond) {
-				callAt("troodon_shriek", x, y, 0.7, 1, 20) // it has seen someone
+				callAt("troodon_alarm", x, y, 0.7, 1, 20) // it has seen someone
 			}
 		case sim.CreatureStrike:
 			snd.playAt("chomp", x, y, 0.55, 0.12)
+			snd.playAt("troodon_attack", x, y, 0.5, 0.08) // a quick rising shriek
 		}
 	}
 }

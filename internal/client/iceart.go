@@ -726,7 +726,7 @@ func iceSound(o, c protocol.CreatureView) bool {
 	case sim.CreatureMammoth:
 		switch {
 		case c.State == sim.CreatureChase && o.State != sim.CreatureStrike:
-			snd.playAt("trumpet", x, y, 0.8, 0.1)
+			snd.playAt("mammoth_alarm", x, y, 0.8, 0.1)
 		case c.State == sim.CreatureStrike:
 			snd.playAt("whack", x, y, 0.9, 0.08)
 		}
@@ -739,7 +739,7 @@ func iceSound(o, c protocol.CreatureView) bool {
 		case c.State == sim.CreatureStrike:
 			callAt("sabre_snarl", x, y, 0.9, 1, 16) // see predsound.go
 		case c.State == sim.CreatureCower:
-			snd.playAt("hiss", x, y, 0.4, 0.2)
+			snd.playAt("sabre_cower", x, y, 0.4, 0.2)
 		}
 	default:
 		return false

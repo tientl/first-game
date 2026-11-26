@@ -189,15 +189,14 @@ func bossSound(o, c protocol.CreatureView) bool {
 		case sim.CreatureTitanoboa:
 			callAt("hiss", x, y, 1, 0.5, 28)
 			callAt("croc_hiss", x, y, 0.8, 0.7, 28)
-		case sim.CreatureSpino:
-			callAt("roar", x, y, 0.95, 1.12, roarReach)
-			callAt("croc_hiss", x, y, 0.6, 0.8, 24)
+		case sim.CreatureSpino: // a crocodile's roar with its hiss in it
+			callAt("spino_roar", x, y, 0.95, 1, roarReach)
 		case sim.CreatureMammothKing:
-			callAt("trumpet", x, y, 1, 0.72, 30)
+			callAt("mammothking_roar", x, y, 1, 1, 30)
 		case sim.CreatureCarcharo:
-			callAt("roar", x, y, 1, 1.06, roarReach)
+			callAt("carcharo_roar", x, y, 1, 1, roarReach)
 		case sim.CreatureGiganoto:
-			callAt("roar", x, y, 1, 0.82, roarReach)
+			callAt("giganoto_roar", x, y, 1, 1, roarReach)
 		case sim.CreatureMegalodon:
 			callAt("splash", x, y, 1, 0.6, 24)
 		}
@@ -208,7 +207,7 @@ func bossSound(o, c protocol.CreatureView) bool {
 		snd.playAt("hiss", x, y, 0.8, 0.1)
 	case c.State == sim.CreatureSpecial:
 		if c.Kind == sim.CreatureMammothKing {
-			callAt("trumpet", x, y, 0.9, 0.8, 24)
+			callAt("mammothking_special", x, y, 0.9, 1, 24)
 		} else {
 			snd.playAt("splash", x, y, 0.5, 0.1)
 		}

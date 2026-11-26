@@ -4,7 +4,7 @@ import "testing"
 
 func TestTroodonSoundsAreUsable(t *testing.T) {
 	bank := genSFX()
-	for _, name := range []string{"troodon_call", "troodon_shriek", "troodon_click"} {
+	for _, name := range []string{"troodon_shriek", "troodon_click"} { // its call is recorded: see realvoice_test.go
 		vs := bank[name]
 		if len(vs) == 0 {
 			t.Errorf("%s: missing", name)
