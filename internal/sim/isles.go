@@ -45,15 +45,16 @@ const (
 // more of them, so a bigger world has more islands and wider seas, not just
 // bigger ones.
 const (
-	isleHomeR      = 0.12 // the home island's radius
-	isleLargeR     = 0.083
-	isleLargeRMax  = 0.112
+	isleHomeR      = 0.13 // the home island's radius
+	isleLargeR     = 0.093
+	isleLargeRMax  = 0.126
 	isleMediumR    = 0.03
 	isleMediumRMax = 0.056
 	isleIsletR     = 0.007
 	isleIsletRMax  = 0.017
 	isleAtollR     = 0.034
 	isleReach      = 1.62 // of the radius: how far an island's land can reach, peninsulas and all
+	isleRoom       = 1.2  // of the radius: how far apart islands are laid out
 	isleGapLarge   = 14   // tiles of sea at least between two islands' reach
 	isleGapSmall   = 5
 	isleStrait     = 0.3 // share of medium islands set a strait away from a large one
@@ -102,6 +103,11 @@ type isleBay struct{ x0, y0, x1, y1, r float64 }
 // reach is how far from its middle the island's land can lie.
 func (s *isle) reach() float64 { return s.r * s.elong * isleReach }
 
+// room is how much sea round its middle an island keeps to itself when the
+// islands are laid out: less than its reach, as a peninsula only reaches
+// out on one side; one that comes near another island makes a strait.
+func (s *isle) room() float64 { return s.r * s.elong * isleRoom }
+
 // isleScale is the factor island radii are multiplied by past 1024 tiles,
 // and how many more islands of each role there are.
 func isleScale(m float64) (rs, count float64) {
@@ -122,17 +128,17 @@ func planIsles(W, H int, seed uint32) []isle {
 	rad := func(lo, hi float64) float64 { return (lo + (hi-lo)*rng.Float64()) * m * rs }
 	var isles []isle
 	fits := func(s *isle, gap float64, partner int) bool {
-		re := s.reach()
-		if s.x-re < isleEdge || s.y-re < isleEdge || s.x+re > float64(W)-isleEdge || s.y+re > float64(H)-isleEdge {
+		if re := s.reach(); s.x-re < isleEdge || s.y-re < isleEdge || s.x+re > float64(W)-isleEdge || s.y+re > float64(H)-isleEdge {
 			return false
 		}
+		re := s.room()
 		for i := range isles {
 			o := &isles[i]
 			g := gap
 			if i == partner {
-				g = -0.25 * min(re, o.reach()) // a strait: as close as their reaches allow
+				g = -0.25 * min(re, o.room()) // a strait: as close as their shores allow
 			}
-			if math.Hypot(o.x-s.x, o.y-s.y) < o.reach()+re+g {
+			if math.Hypot(o.x-s.x, o.y-s.y) < o.room()+re+g {
 				return false
 			}
 		}
@@ -178,7 +184,7 @@ func planIsles(W, H int, seed uint32) []isle {
 			for try := 0; try < 60; try++ {
 				r := rad(isleMediumR, isleMediumRMax)
 				a := rng.Float64() * 2 * math.Pi
-				d := o.reach() + r*isleReach*0.9
+				d := o.room() + r*isleRoom*0.9
 				s := newIsle(rng, roleMedium, 0, o.x+math.Cos(a)*d, o.y+math.Sin(a)*d, r)
 				s.kind = mediumKind(math.Hypot(s.x-cx, s.y-cy)/(m/2), rng)
 				if fits(&s, isleGapSmall, slicesIndex(isles, o)) {
