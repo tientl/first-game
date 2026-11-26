@@ -15,12 +15,13 @@ func genPineHD(variant int, s float64, seed uint64, snowy bool) sprite {
 	c := markHD(newCanvas(int(math.Ceil(34*S)), int(math.Ceil(62*S))))
 	bx, by := float64(c.w/2), float64(c.h)-3*k // ground point
 	tw := math.Round(trunkHalf(s)*0.8) * k     // half the trunk's width
-	drawLimbHD(c, limb{bx, by, bx, by - 6*S, bx, by - 12*S, tw, tw * 0.85}, trunkRamp, 0.75, 7)
-	for _, side := range []float64{-1, 1} { // the foot spreads a little
-		drawLimbHD(c, limb{bx, by - 3*S, bx + side*tw*0.6, by - S, bx + side*tw*1.5, by, tw * 0.5, 0.5 * k}, trunkRamp, 0.75, 7)
-	}
 	tiers := 4 + variant%3
 	lean := (rng.Float64() - 0.5) * 2.5 * S
+	// A straight trunk of scaly plates up through the tiers, its foot
+	// flared over its roots, a few dead branches broken off under the boughs.
+	tk := trunkHD{bx: bx, by: by, tx: bx + lean*0.85, ty: by - 44*S, w0: tw, w1: tw * 0.3, flare: 0.5, bark: barkPlates, rp: barkPine, seed: uint32(seed)*5 + 7}
+	tk.draw(c, 3, tw*1.6)
+	tk.stubs(c, 3, 0.05, 0.16)
 	tex := 120 + uint32(variant)
 	for t := range tiers {
 		fk, ft := float64(t), float64(tiers)
@@ -73,5 +74,10 @@ func genPineHD(variant int, s float64, seed uint64, snowy bool) sprite {
 		}
 	}
 	c.outline(0.8)
+	g := groundGrass
+	if snowy {
+		g = groundSnow
+	}
+	dressFoot(c, tk, tw*1.6, g)
 	return trimmed(c, bx, by)
 }

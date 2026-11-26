@@ -174,6 +174,13 @@ go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
   costs (bytes, start-up, trees drawn ahead).
 - `shot -jungle`, `-at giant`, `-at hut` and `-move dx,dy` frame things for
   a look at their size.
+- Trunks at HD go through `trunkHD` (`trunkhd.go`): a taper, a bow, a flared
+  round foot, roots over the ground, a bark per kind (`barkKind`: furrowed,
+  smooth, plates, scales, fibre, rings, shaggy, dead) lit from the top left
+  with a rim on the far edge, dead stubs, moss on the shaded side, and
+  `dressFoot` laying grass, snow, sand or mud over the roots. Every bark
+  ramp is in `barkOf`, which is how `isTrunk` tells wood from leaves.
+  `shot -trunksheet` shows the foot of every kind of tree three times as big.
 
 ## The bosses and sea monsters
 

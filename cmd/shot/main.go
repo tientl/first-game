@@ -104,6 +104,7 @@ func main() {
 	devCon := flag.Bool("devconsole", false, "open the dev console (as with -dev in cmd/game), with a few commands run on the world; see dev.go")
 	critterHD := flag.Bool("critterhd", true, "the HD art of the code-drawn animals (false: the original density-1 art, to compare)")
 	scaleSheet := flag.Bool("scalesheet", false, "write the scale sheet instead of a frame: the player next to every tree, plant, rock and building, with heights (see internal/client/scalesheet.go); the heights are printed too")
+	trunkSheet := flag.Bool("trunksheet", false, "write the trunk sheet instead of a frame: the foot of every kind of tree close up, three times the size (see internal/client/trunksheet.go)")
 	costFlag := flag.Bool("cost", false, "print what the art drawn in code has cost once the frame is taken: the bytes of its images, the time to draw the start-up set and the trees drawn ahead, and the Go heap")
 	moveBy := flag.String("move", "", "dx,dy: stand this many tiles from where the other flags put the player (to stand behind a tree, at a door)")
 	scaleOnly := flag.String("scaleonly", "", "with -scalesheet: only the groups whose name contains this (trees, conifers, swamp, low, buildings, rocks, creatures)")
@@ -866,6 +867,9 @@ func main() {
 	if *scaleSheet {
 		g.sheet = game
 	}
+	if *trunkSheet {
+		g.trunks = game
+	}
 	if err := ebiten.RunGame(g); err != nil && !errors.Is(err, ebiten.Termination) {
 		log.Fatal(err)
 	}
@@ -900,6 +904,7 @@ type shooter struct {
 	done   bool
 	err    error
 	sheet  *client.Game // write its scale sheet instead of the frame
+	trunks *client.Game // write its trunk sheet instead of the frame
 	cost   bool         // print what the art has cost
 }
 
@@ -922,6 +927,9 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 	var final image.Image = img
 	if s.sheet != nil || s.cost {
 		printArtCost("at the frame")
+	}
+	if s.trunks != nil {
+		final = s.trunks.TrunkSheet()
 	}
 	if s.sheet != nil {
 		final = s.sheet.ScaleSheet()

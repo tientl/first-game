@@ -192,14 +192,36 @@ func genCypress(variant int, s float64) sprite {
 		crowns = append(crowns, flatCrown(x1, y1-s, r(6, 9)*s, 5*s, rng))
 		side = -side
 	}
-	for _, l := range limbs {
-		drawBark(c, l, cypressBark)
+	flareH := r(12, 16) * s
+	var tk trunkHD
+	if c.hd() {
+		// The trunk from the ground, its foot swelling into fluted
+		// buttresses, knees of root standing up from the mud about it.
+		tk = trunkHD{bx: bx, by: by, tx: tx, ty: top, w0: girth, w1: girth * 0.5, bend: (tx - bx) * 0.15, flare: 1.3, flutes: 5, bark: barkFibre, rp: barkCypress, seed: uint32(variant)*17 + 160}
+		knees := cypressKnees(tk, variant)
+		for _, kn := range knees {
+			if kn.by < by {
+				kn.draw(c, 0, 0)
+			}
+		}
+		tk.draw(c, 4, girth*1.5)
+		for _, kn := range knees {
+			if kn.by >= by {
+				kn.draw(c, 0, 0)
+			}
+		}
+		for _, l := range limbs[1:] {
+			drawLimbHD(c, l, barkCypress, 0.8, 161)
+		}
+	} else {
+		for _, l := range limbs {
+			drawBark(c, l, cypressBark)
+		}
 	}
 
 	// The flared foot: buttresses spreading out to the ground, with dark
 	// clefts between them.
-	flareH := r(12, 16) * s
-	for y := int(by - flareH); y <= int(by); y++ {
+	for y := int(by - flareH); y <= int(by) && !c.hd(); y++ {
 		f := (float64(y) + 0.5 - (by - flareH)) / flareH
 		hw := girth * (1 + 1.6*f*f*f)
 		for x := int(math.Floor(bx - hw - 1)); x <= int(math.Ceil(bx+hw+1)); x++ {
@@ -235,8 +257,14 @@ func genCypress(variant int, s float64) sprite {
 	for i, cr := range crowns {
 		leafCluster(leaves, cr.blobs, cr.cx, cr.cy, cr.rx, cr.ry, cypressLeaf, 170+uint32(variant)*13+uint32(i)*7)
 	}
+	if c.hd() {
+		tk.mossSide(c, 0.9)
+	}
 	c.over(leaves, 0, 0)
 	c.outline(0.75)
+	if c.hd() {
+		dressFoot(c, tk, girth*1.5, groundMud)
+	}
 
 	// Beards of moss, a few columns wide, longest in the middle, wispy at
 	// the ends. They go on after the outline, so they stay light.
@@ -299,14 +327,23 @@ func genSnag(variant int, s float64) sprite {
 		limbs = append(limbs, limb{x0, y0, (x0 + x1) / 2, (y0 + y1) / 2, x1, y1, max(0.6*hk, girth*0.45), 0.5 * hk})
 		side = -side
 	}
-	for _, l := range limbs {
-		drawBark(c, l, snagRamp)
+	var tk trunkHD
+	if c.hd() { // bleached and split, still on its roots
+		tk = trunkFrom(trunk, barkDead, barkSnag, 0.6, uint32(variant)*19+181)
+		tk.draw(c, 3, girth*1.5)
+		for _, l := range limbs[3:] {
+			drawLimbHD(c, l, barkSnag, 0.8, 182)
+		}
+	} else {
+		for _, l := range limbs {
+			drawBark(c, l, snagRamp)
+		}
 	}
 	// The snapped top: a few jagged teeth of wood.
 	for i := -2 * int(hk); i <= 2*int(hk); i++ {
 		x := int(math.Floor(tx)) + i
 		for k := range 1 + int(hashf(i/int(hk), variant, 182)*3*s*(1-0.3*float64((i+60)%int(hk)))) {
-			c.put(x, int(math.Floor(top))-1-k, snagRamp.at(2+i%2))
+			c.put(x, int(math.Floor(top))-1-k, barkSnag.at(3+i%2))
 		}
 	}
 	// Shelves of bracket fungus up one side.
@@ -340,6 +377,9 @@ func genSnag(variant int, s float64) sprite {
 		}
 	}
 	c.outline(0.75)
+	if c.hd() {
+		dressFoot(c, tk, girth*1.5, groundMud)
+	}
 	return trimmed(c, bx, by)
 }
 
@@ -582,4 +622,21 @@ func (g *Game) drawFloaters(dst drawTarget, cam camera, tx, ty int) {
 		sx, sy := cam.toScreen(f.x, f.y)
 		drawAt(dst, floaterSprite(f.kind, f.variant), sx, sy, 1, 1, 0, nil)
 	}
+}
+
+// cypressKnees are the knees of a bald cypress: stumps of root standing up
+// out of the mud round its foot, each a little trunk of its own.
+func cypressKnees(t trunkHD, variant int) []trunkHD {
+	k := hdK()
+	wb := t.footW()
+	var ks []trunkHD
+	for i := range 3 + variant%2 {
+		a := -0.1*math.Pi + 1.2*math.Pi*(float64(i)+0.5)/float64(3+variant%2) + (hashf(i, variant, 190)-0.5)*0.4
+		d := wb * (1.25 + 0.5*hashf(i, variant, 191))
+		x, y := t.bx+math.Cos(a)*d, t.by+math.Sin(a)*d*0.3+k
+		h := (3 + hashf(i, variant, 192)*4) * k
+		w := (1.1 + hashf(i, variant, 193)*0.8) * k
+		ks = append(ks, trunkHD{bx: x, by: y, tx: x + (hashf(i, variant, 194)-0.5)*w, ty: y - h, w0: w, w1: w * 0.3, flare: 0.5, bark: barkFibre, rp: barkCypress, seed: t.seed + uint32(i)*3 + 1})
+	}
+	return ks
 }

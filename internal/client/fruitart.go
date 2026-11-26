@@ -114,8 +114,14 @@ func genPalm(s float64, seed uint64, coconuts bool) sprite {
 	lean := math.Copysign(r(5, 9), r(-1, 1)) * s
 	tx, ty := bx+lean, by-r(40, 46)*s
 	trunk := limb{bx, by, bx + lean*0.1, (by + ty) / 2, tx, ty, 1.6 * s, 1.1 * s}
-	drawLimbIn(c, trunk, palmTrunk, 83)
-	for t := 0.04; t < 0.98; t += 0.07 * k / s { // the rings left by old fronds, a hand apart
+	var tk trunkHD
+	if c.hd() { // ringed, upright at its foot and curving over, thick at the bole
+		tk = trunkHD{bx: bx, by: by, tx: tx, ty: ty, w0: 1.3 * s, w1: 1.0 * s, lean: 1.7, flare: 0.8, bark: barkRinged, rp: barkPalm, seed: uint32(seed)*13 + 1}
+		tk.draw(c, 7, 0.9*s)
+	} else {
+		drawLimbIn(c, trunk, palmTrunk, 83)
+	}
+	for t := 0.04; t < 0.98 && !c.hd(); t += 0.07 * k / s { // the rings left by old fronds, a hand apart
 		x, y := trunk.at(t)
 		w := lerpf(trunk.w0, trunk.w1, t)
 		c.line(x-w, y, x+w, y, func(px, py int, _ float64) color.RGBA { return palmTrunk[0] })
@@ -141,6 +147,9 @@ func genPalm(s float64, seed uint64, coconuts bool) sprite {
 		}
 	}
 	c.outline(0.6)
+	if c.hd() {
+		dressFoot(c, tk, 0.9*s, groundSand)
+	}
 	return trimmed(c, bx, by)
 }
 

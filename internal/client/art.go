@@ -252,12 +252,8 @@ func sizeIdx(big bool) int {
 }
 
 func isTrunk(col color.RGBA) bool {
-	for _, t := range trunkRamp {
-		if t == col {
-			return true
-		}
-	}
-	return false
+	_, ok := barkOf[col] // see trunkhd.go
+	return ok
 }
 
 func genStump(s float64) sprite {
