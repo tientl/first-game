@@ -23,7 +23,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # teeth: the box of the mouth, where pale pixels are teeth.
 # Painted by hand-written descriptions in Go instead (internal/dinopaint,
 # cmd/dinopaint; see README.md here): this script leaves them alone.
-PAINTED = {'rex', 'trike'}
+PAINTED = {'rex', 'trike', 'toro'}
 
 CFG = {
     'rex':         dict(skin='scale', cell=(5, 4), eyes=[(87, 20, 88, 20)], slit=True, teeth=(82, 31, 105, 34)),

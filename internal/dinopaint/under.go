@@ -76,10 +76,11 @@ func PaintUnder(sp *Species, u *Under, guide image.Image, m *Painter) *image.NRG
 			continue
 		}
 		j := m.Part[i]
+		head := j < 0 || omit[j] || m.Pro[i] // the details (horns, eyes, spikes) are the head's
 		switch {
-		case j >= 0 && !omit[j]:
+		case !head:
 			p.In[i], keep[i] = true, true
-		case j >= 0:
+		default:
 			x, y := G(i%m.W, i/m.W)
 			if u.Region != nil && u.Region(x, y) > 0 {
 				continue
