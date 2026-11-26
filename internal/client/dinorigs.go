@@ -113,11 +113,12 @@ var dinoRigs = map[string]dinoRig{
 			{x0: 45, x1: 64, top: 56, r: 9, j: []rigPt{{53, 47}, {60, 65.5}, {49.5, 72}, {52, 83}, {65, 85}}},
 			{x0: 27, x1: 44, top: 56, r: 7, j: []rigPt{{40, 48}, {41, 60}, {33, 71}, {35, 83}, {45, 85}}},
 		},
-		head:  rigPart{pivot: rigPt{70, 39}, dir: headUp(math.Pi / 4), maxY: 56},
-		jaw:   [2]rigPt{{84, 33}, {103, 33}},
-		teeth: true,
-		far:   0b10,
-		tail:  rigPart{pivot: rigPt{38, 39}, dir: math.Pi, maxY: 50},
+		head:       rigPart{pivot: rigPt{70, 39}, dir: headUp(math.Pi / 4), maxY: 56},
+		jaw:        [2]rigPt{{84, 34}, {103, 34}}, // the upper teeth are above this line, in the drawing
+		drawnTeeth: true,
+		teeth:      true,
+		far:        0b10,
+		tail:       rigPart{pivot: rigPt{38, 39}, dir: math.Pi, maxY: 50},
 	},
 	"ornitho": {
 		file: "ornitho", stride: 3, runner: true,

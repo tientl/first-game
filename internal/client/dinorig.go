@@ -103,8 +103,12 @@ type dinoRig struct {
 	neck  rigPart  // the root of a long neck, which bends there too; the zero value when none
 	jaw   [2]rigPt // the corner of the mouth and the tip of the snout
 	teeth bool
-	tail  rigPart // the zero value when it has none to swing
-	wings [2]rigPart
+	// drawnTeeth: the upper teeth are in the drawing, above the line of the
+	// jaw, so they stay with the head when the jaw opens and only the lower
+	// ones are added.
+	drawnTeeth bool
+	tail       rigPart // the zero value when it has none to swing
+	wings      [2]rigPart
 }
 
 // rigPose is one pose worked from a rig.
@@ -198,7 +202,7 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 		return pr
 	}
 	if p.open != 0 && r.jaw[0] != r.jaw[1] {
-		openJaw(w, off(r.jaw[0]), off(r.jaw[1]), shift(r.head), p.open, r.teeth, kf)
+		openJaw(w, off(r.jaw[0]), off(r.jaw[1]), shift(r.head), p.open, r.teeth, r.drawnTeeth, kf)
 	}
 	if p.head != 0 {
 		turn(w, shift(r.head), p.head, joint)
@@ -365,15 +369,22 @@ func turn(c *canvas, pr rigPart, a float64, joint float64) {
 	y0, y1 := max(0, int(pr.pivot.y-reach)-1), min(c.h, int(pr.pivot.y+reach)+2)
 	ux, uy := math.Cos(pr.dir), math.Sin(pr.dir)
 	const steps = 12
-	var sn, cs [steps + 1]float64 // the angles between, for the joint; the last is the turn itself
+	var sn, cs [steps + 1]float64 // the angles between, for the joint, from none to the turn itself
+	cs[0] = 1
 	for k := 1; k <= steps; k++ {
 		sn[k], cs[k] = math.Sincos(-a * float64(k) / steps)
 	}
-	first := 1
+	first := 0 // as drawn, too: no crack left along the cut
 	if joint <= 0 {
 		first = steps
 	}
 	r2 := (reach + 1) * (reach + 1)
+	var filled []int // the pixels the joint was filled with
+	// The outline along the part's edge is not swept into the joint.
+	edge := func(x, y int) bool {
+		return x < 1 || y < 1 || x >= c.w-1 || y >= c.h-1 || src[y*c.w+x-1].A < 128 || src[y*c.w+x+1].A < 128 ||
+			src[(y-1)*c.w+x].A < 128 || src[(y+1)*c.w+x].A < 128
+	}
 	for y := y0; y < y1; y++ {
 		for x := x0; x < x1; x++ {
 			dx, dy := float64(x)+0.5-pr.pivot.x, float64(y)+0.5-pr.pivot.y
@@ -390,11 +401,64 @@ func turn(c *canvas, pr rigPart, a float64, joint float64) {
 					continue // only the band along the cut fills the joint
 				}
 				sx, sy := int(math.Floor(pr.pivot.x+fx)), int(math.Floor(pr.pivot.y+fy))
-				if sx >= 0 && sy >= 0 && sx < c.w && sy < c.h && in(sx, sy) {
+				if sx >= 0 && sy >= 0 && sx < c.w && sy < c.h && in(sx, sy) && (k == steps || !edge(sx, sy)) {
 					c.px[y*c.w+x] = src[sy*c.w+sx]
+					if k < steps {
+						filled = append(filled, y*c.w+x)
+					}
 					break
 				}
 			}
+		}
+	}
+	unspeck(c, filled)
+}
+
+// unspeck cleans a joint filled by sweeping the part through the angles
+// between: the outline along the part's edge, swept round with it, leaves
+// dark specks inside the body. A filled pixel with the body all round it
+// that is much darker than its neighbours takes the colour of one of them.
+func unspeck(c *canvas, filled []int) {
+	if len(filled) == 0 {
+		return
+	}
+	lumOf := func(q color.RGBA) float64 { return 0.3*float64(q.R) + 0.59*float64(q.G) + 0.11*float64(q.B) }
+	for range 2 {
+		src := append([]color.RGBA(nil), c.px...)
+		for _, o := range filled {
+			x, y := o%c.w, o/c.w
+			if x < 1 || y < 1 || x >= c.w-1 || y >= c.h-1 {
+				continue
+			}
+			var nb [8]color.RGBA
+			n, sum := 0, 0.0
+			for dy := -1; dy <= 1; dy++ {
+				for dx := -1; dx <= 1; dx++ {
+					if dx == 0 && dy == 0 {
+						continue
+					}
+					q := src[(y+dy)*c.w+x+dx]
+					if q.A < 128 {
+						n = -100 // at the edge: an outline belongs there
+					}
+					if n >= 0 {
+						nb[n] = q
+						n++
+						sum += lumOf(q)
+					}
+				}
+			}
+			if n != 8 || lumOf(src[o]) > 0.62*sum/8 {
+				continue
+			}
+			// The neighbour of middling brightness.
+			best, bd := nb[0], math.Inf(1)
+			for _, q := range nb {
+				if d := math.Abs(lumOf(q) - sum/8); d < bd {
+					best, bd = q, d
+				}
+			}
+			c.px[o] = best
 		}
 	}
 }
@@ -403,7 +467,7 @@ func turn(c *canvas, pr rigPart, a float64, joint float64) {
 // the corner of the mouth to the tip of the snout, turned a radians about the
 // corner. The wedge it opens is the mouth, with teeth along both jaws for a
 // meat-eater.
-func openJaw(c *canvas, corner, tip rigPt, head rigPart, a float64, teeth bool, kf float64) {
+func openJaw(c *canvas, corner, tip rigPt, head rigPart, a float64, teeth, drawnTeeth bool, kf float64) {
 	ux, uy := tip.x-corner.x, tip.y-corner.y
 	l := math.Hypot(ux, uy)
 	ux, uy = ux/l, uy/l
@@ -435,6 +499,10 @@ func openJaw(c *canvas, corner, tip rigPt, head rigPart, a float64, teeth bool, 
 			if along <= 0.5 || along > l || across < 0 || across > along*gape+0.5 {
 				continue
 			}
+			if kf > 1 {
+				c.px[y*c.w+x] = mouthHD(along/l, along/kf, across/kf, (along*gape-across)/kf, teeth, drawnTeeth)
+				continue
+			}
 			col := dinoMouth.pick(1-across/(along*gape+1), x, y)
 			// Teeth every third pixel of the drawing: a point each when
 			// there is room to draw one.
@@ -443,13 +511,10 @@ func openJaw(c *canvas, corner, tip rigPt, head rigPart, a float64, teeth bool, 
 				if int(u)%3 != at {
 					return 0
 				}
-				if kf <= 1 {
-					return 1.2
-				}
-				return kf * 1.5 * (1 - math.Abs(u-math.Floor(u)-0.5)*1.6)
+				return 1.2
 			}
 			switch {
-			case teeth && u > 2 && across < point(1):
+			case teeth && !drawnTeeth && u > 2 && across < point(1):
 				col = colTooth // along the upper jaw
 			case teeth && u > 3 && across > along*gape-point(2)+0.2:
 				col = colTooth // along the lower
@@ -470,6 +535,75 @@ func openJaw(c *canvas, corner, tip rigPt, head rigPart, a float64, teeth bool, 
 		}
 	}
 }
+
+// The inside of an open mouth at HD: dark, darkest at the back and under
+// the roof, a tongue along the floor, the gums and teeth along the jaws.
+var (
+	mouthIn    = mkRamp(0x120707, 0x200d0d, 0x321414, 0x451b1c, 0x582425)
+	mouthRoof  = hex(0x170909)
+	mouthGum   = mkRamp(0x3e1618, 0x5a2427, 0x76363a)
+	mouthTongu = mkRamp(0x4a1d21, 0x66292d, 0x84393b, 0xa04e4b, 0xb96a5f)
+	mouthTooth = mkRamp(0x7a6a52, 0xb2a07e, 0xd8caa6, 0xf2eacf, 0xfffaec)
+)
+
+// mouthHD is the colour inside an open mouth: s of the way from the corner
+// to the tip of the snout; u along the jaw, down below the upper jaw and up
+// above the lower one, in pixels of the drawing.
+func mouthHD(s, u, down, up float64, teeth, drawnTeeth bool) color.RGBA {
+	h := down + up
+	t := down / max(h, 0.01) // 0 at the roof, 1 at the floor
+	// A row of teeth: a cone every 2.2 pixels, lit down its front.
+	tooth := func(off, from float64, seed int) (bool, color.RGBA) {
+		k := math.Floor((u + off) / 2.2)
+		f := (u+off)/2.2 - k
+		w := 0.36
+		if math.Abs(f-0.5) > w || u < 2.5 {
+			return false, color.RGBA{}
+		}
+		shape := 1 - math.Abs(f-0.5)/w
+		long := 1.5 * (0.8 + 0.35*hashf(int(k), seed, 77)) * math.Min(1, 0.4+u/12)
+		if from > long*math.Pow(shape, 0.8) {
+			return false, color.RGBA{}
+		}
+		l := 0.75 - (f-0.5)/w*0.35 - 0.25*from/long
+		if f > 0.62 {
+			l -= 0.25
+		}
+		return true, mouthTooth.at(max(0, min(len(mouthTooth)-1, int(l*float64(len(mouthTooth))))))
+	}
+	if teeth {
+		if ok, c := tooth(0, up, 1); ok {
+			return c // along the lower jaw
+		}
+		if !drawnTeeth {
+			if ok, c := tooth(1.1, down, 2); ok {
+				return c
+			}
+		}
+	}
+	// The tongue lies along the floor, its back in the throat.
+	th := 0.5 * clamp01(1-sqr((s-0.42)/0.38))
+	switch {
+	case up < 0.45:
+		return mouthGum.at(1) // the gum of the lower jaw
+	case t > 1-th:
+		d := (t - (1 - th)) * h // how far below its top
+		switch {
+		case d < 0.4:
+			return mouthTongu.at(min(4, 2+int(s*3)))
+		case d < 1.1:
+			return mouthTongu.at(min(3, 1+int(s*2.5)))
+		}
+		return mouthTongu.at(1)
+	case down < 0.5:
+		return mouthGum.at(0)
+	case t < 0.25:
+		return mouthRoof
+	}
+	return mouthIn.at(min(len(mouthIn)-1, int(s*3.2+t*1.5)))
+}
+
+func sqr(v float64) float64 { return v * v }
 
 // crouch squashes the drawing towards the ground row gy.
 func crouch(c *canvas, gy, k float64) {
