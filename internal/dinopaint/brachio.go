@@ -61,17 +61,17 @@ func brachio() *Species {
 	)
 	return &Species{
 		Name:        "brachio",
-		GuideDetail: 0.35,
+		GuideDetail: 0.5,
 		Ink:         32,
 		Materials: []Material{
 			{Name: "hide", Seeds: []uint32{0x7b8c5e, 0x94a474, 0xa2ae8a, 0xbcc6a4, 0x869370, 0x63734a, 0x6a7757},
-				Ramp:   []uint32{0x10140e, 0x1a2018, 0x262e22, 0x343e2e, 0x46523e, 0x5a6850, 0x707e64, 0x8a987c},
+				Ramp:   []uint32{0x10160c, 0x1a2414, 0x26321c, 0x344226, 0x465630, 0x566a3c, 0x6c7e4a, 0x84945c},
 				Region: Poly(15, 99, 80, 99, 80, 113, 15, 113), Only: []string{"tan"}}, // the guide's nails are painted again
 			// The dark mottling, a net of blotches as a giraffe's.
 			{Name: "patch", Seeds: []uint32{0x4c5a38, 0x4e5a40, 0x353e2c, 0x374229, 0x404734, 0x20261c, 0x242c1c},
-				Ramp: []uint32{0x0e120a, 0x161c10, 0x1e2616, 0x28321c, 0x343f24, 0x404c2c, 0x4e5a36, 0x5e6a42}, Smooth: 0.4, Bias: 0.2},
+				Ramp: []uint32{0x080c06, 0x0e140a, 0x141c0e, 0x1c2614, 0x243018, 0x2e3a1e, 0x384626, 0x44522e}, Smooth: 0.25, Bias: 0.3},
 			// The near legs, a shade darker than the flank above them.
-			{Name: "leg", Ramp: []uint32{0x0e120c, 0x161c14, 0x20281c, 0x2c3626, 0x3a4632, 0x4c5a42, 0x606e54, 0x788668}},
+			{Name: "leg", Ramp: []uint32{0x0c120a, 0x141c10, 0x1e2a18, 0x2a3820, 0x38482a, 0x4a5c36, 0x5e7044, 0x748656}},
 			{Name: "tan", Seeds: []uint32{0x9f9e78, 0x7a7958, 0xc2c09a, 0xa09276, 0x5f5f48, 0x575742, 0xdddbb8, 0xeeecd2},
 				Ramp: []uint32{0x2e2c22, 0x423f30, 0x5a5640, 0x726e52, 0x8c8868, 0xa6a280, 0xbebb98, 0xd4d2b2}, Relief: 0.7, Smooth: 0.5},
 		},
