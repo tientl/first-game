@@ -153,7 +153,18 @@ func broadleafCanvas(shape treeShape, rp ramp, tex uint32, vines bool, s float64
 	case shapeRound:
 		tx, ty := bx+lean, by-26*s
 		trunkTo(tx, ty)
-		crowns = append(crowns, roundCrown(tx, by-33*s, r(13, 15)*s, rng))
+		if len(stout) == 0 {
+			crowns = append(crowns, roundCrown(tx, by-33*s, r(13, 15)*s, rng))
+			break
+		}
+		// A giant's crown is too big to read as one ball: lobes on limbs of
+		// their own, each shaded as its own mass, the lower ones in front.
+		R, cy := r(13, 15)*s, by-33*s
+		for _, p := range [][3]float64{{0, -0.55, 0.55}, {-0.55, -0.32, 0.5}, {0.55, -0.28, 0.5}, {-0.78, 0.12, 0.42}, {0.78, 0.16, 0.42}, {-0.28, 0.18, 0.5}, {0.3, 0.24, 0.47}} {
+			ex, ey := tx+p[0]*R, cy+p[1]*R
+			branch(tx, ty, ex, ey+p[2]*R*0.35, girth*0.42)
+			crowns = append(crowns, roundCrown(ex, ey, p[2]*R*r(0.95, 1.08), rng))
+		}
 	case shapeTall:
 		tx, ty := bx+lean*0.5, by-22*s
 		trunkTo(tx, ty)
@@ -404,6 +415,32 @@ func giantBark(c *canvas, trunk limb, by float64, seed uint64) {
 	}
 }
 
+// willowStrandHD hangs a willow's strand n pixels down from (x0, y0): a thin
+// stem swaying a little, narrow leaves hanging off it on alternate sides,
+// fewer and smaller towards the tip.
+func willowStrandHD(c *canvas, x0, y0, n int, rp ramp, lit float64, seed uint32, phase float64) {
+	drift := (hashf(x0, y0, seed) - 0.5) * 4 // where the tip ends, off the plumb
+	for i := range n {
+		t := float64(i) / float64(n)
+		y := y0 + i
+		x := x0 + int(math.Round(math.Sin(float64(i)*0.05+phase)*1.4+t*t*drift))
+		c.put(x, y, rp.pick(lit-0.4-t*0.15, x, y))
+		if i%4 != 1 || hashf(x0, i, seed) < t*0.55 {
+			continue
+		}
+		side := 1 - 2*((i/4)%2)
+		ln := 5 - int(t*2.5)
+		for j := range ln {
+			lx, ly := x+side*(1+j/2), y+j
+			l := lit + 0.12 - t*0.25 - float64(j)*0.07 + (hashf(lx, ly, seed)-0.5)*0.2
+			if side < 0 {
+				l += 0.08
+			}
+			c.put(lx, ly, rp.pick(l, lx, ly))
+		}
+	}
+}
+
 // leafStrandHD hangs a strand of small leaves n pixels down from (x, y0).
 func leafStrandHD(c *canvas, x, y0, n int, rp ramp, lit float64, seed uint32) {
 	for i := 0; i < n; i += 3 {
@@ -438,9 +475,11 @@ func crownUnderside(c *canvas) []int {
 func hangCurtains(c *canvas, rng *rand.Rand, rp ramp, s float64) {
 	if c.hd() {
 		bottom := crownUnderside(c)
-		for x := 1; x < c.w; x += 3 + rng.IntN(4) {
-			if y0 := bottom[x]; y0 >= 0 && rng.Float64() >= 0.2 {
-				leafStrandHD(c, x, y0-2, int((5+rng.Float64()*10)*s), rp, 0.55, 77)
+		for x := 1; x < c.w; x += 2 + rng.IntN(4) {
+			if y0 := bottom[x]; y0 >= 0 && rng.Float64() >= 0.15 {
+				n := int((5 + rng.Float64()*10) * s)
+				lit := 0.45 + 0.3*(1-float64(x)/float64(c.w)) + rng.Float64()*0.15 // lit from the left
+				willowStrandHD(c, x, y0-2, n, rp, lit, uint32(x)*7+77, rng.Float64()*6)
 			}
 		}
 		return

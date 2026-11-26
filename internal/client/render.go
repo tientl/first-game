@@ -680,7 +680,8 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 	if tint != nil && !((e.Kind == sim.EntityTree || e.Kind == sim.EntityGiantTree) && e.Ready && g.tileAt(int(e.TX), int(e.TY)) != sim.TileSnow) {
 		tint = nil
 	}
-	if solid := g.seeThrough(e, s, d); tint != nil || solid < 1 { // fading while it hides someone; see occlude.go
+	solid := g.seeThrough(e, s, d) // fading while it hides someone; see occlude.go
+	if tint != nil || solid < 1 {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(-s.ax, -s.ay)
 		op.GeoM.Skew(sway, 0)
@@ -706,7 +707,7 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		drawAt(dst, f, d.sx, d.sy-1, 0.45, 0.4, 0, nil) // in its mouth
 	}
 	if hasHive(e) {
-		g.drawHive(dst, e, s, d.sx, d.sy) // see jungleart.go
+		g.drawHive(dst, e, s, d.sx, d.sy, solid) // see jungleart.go
 	}
 	g.drawOvenFire(dst, e, d) // see cookrender.go
 }

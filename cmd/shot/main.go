@@ -50,7 +50,7 @@ func main() {
 	open := flag.Bool("open", false, "an open world instead of the 96x96 island")
 	sizes := flag.Bool("sizes", false, "with -menu: show the difficulty picker (it took the place of the world-size picker)")
 	size := flag.Int("size", 256, "open world size")
-	at := flag.String("at", "", "open world: stand at desert, marsh, pond (a swamp with ponds), cave, mountain, ash or lava; or by the nearest cavemouth, cavein, pyramid, village, path or giant (tree)")
+	at := flag.String("at", "", "open world: stand at desert, marsh, pond (a swamp with ponds), cave, mountain, ash or lava; or by the nearest cavemouth, cavein, pyramid, village, path, giant (tree) or hut (at its door)")
 	female := flag.Bool("female", false, "the player is a woman")
 	hair := flag.Int("hair", 0, "the player's hair style, 0 to 5")
 	hairColor := flag.Int("haircolor", 0, "the player's hair colour, 0 to 7")
@@ -71,6 +71,7 @@ func main() {
 	fight := flag.Bool("fight", false, "show the beasts' health: a few just hurt, with the damage floating up (use with -dinos)")
 	troodon := flag.Bool("troodon", false, "put a pack of night hunters round the player: one stalking, one leaping in, one biting, and two more watching from the dark (use with -time 0.9 for their eyes)")
 	woodsFlag := flag.Bool("woods", false, "put the woods round the player: a giant tree and a tree with beehives, banana trees, a troop of monkeys, and bees after the player")
+	jungleFlag := flag.Bool("jungle", false, "a clearing in the woods to see their size by: two giants of the old forest in full view, ordinary trees, banana trees and monkeys round the player")
 	dung := flag.Bool("dung", false, "with -farm: a fed bed, heaps of dung by a grazing three-horn, and dung in hand")
 	sea := flag.Bool("sea", false, "out at sea: the player sailing, a raft, a swimmer, a mosasaur and a giant squid")
 	armor := flag.Int("armor", 0, "the armour tier the player wears, 0 (none) to 4")
@@ -236,13 +237,15 @@ func main() {
 			}
 		}
 	}
-	if *at == "cavemouth" || *at == "cavein" || *at == "giant" {
+	if *at == "cavemouth" || *at == "cavein" || *at == "giant" || *at == "hut" {
 		k := sim.EntityCaveMouth
 		switch *at {
 		case "cavein":
 			k = sim.EntityCaveExit
 		case "giant": // in front of the nearest giant of the old forest (-move to step aside)
 			k = sim.EntityGiantTree
+		case "hut": // at the door of the nearest hut of a tribe
+			k = sim.EntityHut
 		}
 		best := math.Inf(1)
 		px, py := sx, sy
@@ -252,6 +255,9 @@ func main() {
 				sx, sy = float64(e.TX)+0.5, float64(e.TY)+2.5
 				if k == sim.EntityCaveExit {
 					sy = float64(e.TY) + 1.5 // where the way down arrives
+				}
+				if k == sim.EntityHut {
+					sy = float64(e.TY) + 1.45 // on the step before the doorway
 				}
 			}
 		})
@@ -556,6 +562,9 @@ func main() {
 	}
 	if *woodsFlag {
 		addWoods(&snap, sx, sy)
+	}
+	if *jungleFlag {
+		addJungle(&snap, sx, sy)
 	}
 	if *bodies {
 		addBodies(&snap, sx, sy)
@@ -1101,4 +1110,49 @@ func printArtCost(when string) {
 	}
 	fmt.Printf("art %s: %.1f MB of images drawn in code; start-up set drawn in %v; trees drawn ahead in %s; Go heap %.0f MB in use, %.0f MB from the OS\n",
 		when, float64(bytes)/(1<<20), startup.Round(time.Millisecond), ahead, float64(m.HeapInuse)/(1<<20), float64(m.Sys)/(1<<20))
+}
+
+// addJungle clears the woods round (sx, sy) and stands two giants of the old
+// forest there, far enough down the screen to be seen whole, with ordinary
+// trees behind for scale, banana trees and a few monkeys.
+func addJungle(snap *protocol.Snapshot, sx, sy float64) {
+	cx, cy := int16(math.Floor(sx)), int16(math.Floor(sy))
+	kept := snap.Entities[:0]
+	for _, e := range snap.Entities {
+		if e.TX < cx-15 || e.TX > cx+15 || e.TY < cy-11 || e.TY > cy+9 {
+			kept = append(kept, e)
+		}
+	}
+	snap.Entities = kept
+	id := sim.EntityID(1 << 26)
+	put := func(k sim.EntityKind, dx, dy int16, big bool, v uint8) {
+		id++
+		snap.Entities = append(snap.Entities, protocol.EntityView{ID: id, Kind: k, TX: cx + dx, TY: cy + dy, Ready: true, Big: big, Var: v})
+	}
+	// One giant of each look (picked by the tile, as in the game).
+	look := func(dx, dy int16) uint32 { return sim.HashTile(int(cx+dx), int(cy+dy)) / 8 % 2 }
+	put(sim.EntityGiantTree, -7, 3, true, 1) // with a hive
+	gx, gy := int16(8), int16(4)
+	for _, d := range [][2]int16{{8, 4}, {9, 4}, {7, 4}, {8, 5}, {9, 3}, {10, 4}, {7, 3}} {
+		if look(d[0], d[1]) != look(-7, 3) {
+			gx, gy = d[0], d[1]
+			break
+		}
+	}
+	put(sim.EntityGiantTree, gx, gy, true, 0)
+	put(sim.EntityTree, -1, -4, true, 0)
+	put(sim.EntityTree, 3, -6, true, 0)
+	put(sim.EntityTree, -12, -5, false, 0)
+	put(sim.EntityTree, 12, -4, true, 0)
+	put(sim.EntityBananaTree, 3, 1, true, 0)
+	put(sim.EntityBananaTree, -3, 2, true, 0)
+	put(sim.EntityBerryBush, 1, 3, false, 0)
+	put(sim.EntityGrassTuft, -1, 2, false, 0)
+	cid := sim.CreatureID(1 << 28)
+	monkey := func(dx, dy float64, st sim.CreatureState, left bool) {
+		cid++
+		snap.Creatures = append(snap.Creatures, protocol.CreatureView{ID: cid, Kind: sim.CreatureMonkey, X: float32(sx + dx), Y: float32(sy + dy), State: st, FaceLeft: left})
+	}
+	monkey(4.2, 1.6, sim.CreatureEat, true)
+	monkey(-4.5, 4.2, sim.CreatureIdle, false)
 }

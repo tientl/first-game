@@ -350,8 +350,8 @@ func hasHive(e protocol.EntityView) bool {
 }
 
 // drawHive hangs the hive on tree e drawn as s at (sx, sy), with its bees
-// about it.
-func (g *Game) drawHive(dst drawTarget, e protocol.EntityView, s sprite, sx, sy float64) {
+// about it; solid is how solid the tree is drawn (see seeThrough).
+func (g *Game) drawHive(dst drawTarget, e protocol.EntityView, s sprite, sx, sy float64, solid float32) {
 	a := woodsArtOf()
 	h := a.hive
 	if e.Fuel > 0 {
@@ -366,7 +366,12 @@ func (g *Game) drawHive(dst drawTarget, e protocol.EntityView, s sprite, sx, sy 
 		side = -1
 	}
 	hx, hy := math.Round(sx+side*s.ax*0.18), math.Round(sy-s.ay*0.5)
-	drawAt(dst, h, hx, hy, k, k, 0, nil)
+	var fade color.Color
+	if solid < 1 { // fading with its tree
+		a := uint8(255 * solid)
+		fade = color.RGBA{a, a, a, a}
+	}
+	drawAt(dst, h, hx, hy, k, k, 0, fade)
 	if g.darknessNow() < 0.5 { // bees are about by day
 		g.drawBees(dst, hx, hy+9*k, 4, 7*k, uint32(e.ID))
 	}

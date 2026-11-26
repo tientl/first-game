@@ -530,3 +530,33 @@ func genTotemHD() sprite {
 	c.outline(0.8)
 	return mkUp(c, 8*k, 68*k)
 }
+
+// torchStickHD is the torch stand at HD: a stake as high as the player's
+// shoulder, its head a bundle of dry grass bound on with two thongs and
+// charred at the top, where the flame sits (see tribalrender.go).
+func torchStickHD() sprite {
+	const k = HDDensity
+	c := hdCanvas(8, 31)
+	drawLimbHD(c, limb{4 * k, 29 * k, 4.3 * k, 18 * k, 4 * k, 7 * k, 1.3 * k, 1.05 * k}, trunkRamp, 0.82, 951)
+	knotHD(c, 4.3*k, 19*k, 1.4, trunkRamp)
+	c.ellipse(4*k, 4.6*k, 2.5*k, 3.5*k, func(x, y int, nx, ny float64) color.RGBA {
+		l := lum(nx, ny)*0.75 + 0.18 + (hashf(x/2, 0, 952)-0.5)*0.35 // straws running up it
+		col := thatchRamp.pick(l, x, y)
+		if ny < 0 { // charred, the soot creeping down the straws
+			col = mix(hex(0x1c130e), col, clamp01((ny+0.75)*1.6+(hashf(x/2, y/3, 953)-0.5)*0.5))
+		}
+		return col
+	})
+	for _, cy := range []float64{3.6, 6.4} { // the thongs of hide
+		y0 := int(cy * k)
+		for y := y0; y < y0+2; y++ {
+			for x := 0; x < c.w; x++ {
+				if c.opaque(x, y) {
+					c.put(x, y, loinRamp.pick(0.6-float64(y-y0)*0.4-float64(x%3)*0.08, x, y))
+				}
+			}
+		}
+	}
+	c.outline(0.7)
+	return mkUp(c, 4*k, 29*k)
+}

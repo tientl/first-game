@@ -42,12 +42,12 @@ func (g *Game) floraShadow(e protocol.EntityView) float64 {
 	}
 	if !e.Ready {
 		return [sim.NumFlora]float64{sim.FloraGourd: 30, sim.FloraPitcher: 20, sim.FloraVine: 14, sim.FloraNightshade: 26,
-			sim.FloraAloe: 14, sim.FloraMoss: 28, sim.FloraMangrove: 30, sim.FloraWildSquash: 26}[f]
+			sim.FloraAloe: 14, sim.FloraMoss: 28, sim.FloraMangrove: 30 * mangroveS, sim.FloraWildSquash: 26}[f]
 	}
 	return [sim.NumFlora]float64{
 		sim.FloraBamboo: 30, sim.FloraGourd: 30, sim.FloraPitcher: 20, sim.FloraFlax: 14, sim.FloraVine: 22,
 		sim.FloraPoisonMushroom: 14, sim.FloraNightshade: 26, sim.FloraAloe: 20, sim.FloraHerb: 16, sim.FloraMoss: 28,
-		sim.FloraMangrove: 34, sim.FloraHorsetail: 16, sim.FloraWildRice: 16, sim.FloraWildCorn: 20, sim.FloraWildSquash: 28,
+		sim.FloraMangrove: 34 * mangroveS, sim.FloraHorsetail: 16, sim.FloraWildRice: 16, sim.FloraWildCorn: 20, sim.FloraWildSquash: 28,
 	}[f]
 }
 

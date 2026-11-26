@@ -283,13 +283,22 @@ func genSeaweedHD(full bool) (*canvas, float64, float64) {
 
 // --- the mangrove ----------------------------------------------------------------------------
 
+// mangroveS is how much bigger the mangrove stands than it was first drawn:
+// on its stilts, its crown three times the player's height. The leaves and
+// the rings of the bark keep their size, so the bigger tree has more of them.
+const mangroveS = 1.65
+
 func genMangroveHD(full bool) (*canvas, float64, float64) {
-	f := newFlo(52, 68)
+	const S = mangroveS
+	const T = 1.45 // how much thicker the wood is drawn
+	f := newFlo(int(math.Ceil(52*S)), int(math.Ceil(55*S))+7)
 	rng := rand.New(rand.NewPCG(86, 29))
-	const bx, base = 26.0, 61.0
-	const oy = 6.0 // room above the crown
+	bx, base := math.Round(26*S), math.Ceil(55*S)+1
+	// P is a point of the first drawing, dx from the trunk and h above the
+	// ground, where it stands now.
+	P := func(dx, h float64) [2]float64 { return [2]float64{bx + dx*S, base - h*S} }
 	bark := func(s, v, l float64, col color.RGBA) color.RGBA {
-		if u := s*9 + v*0.4; u-math.Floor(u) < 0.14 {
+		if u := s*9*S + v*0.4; u-math.Floor(u) < 0.14 {
 			return toneOf(mangroveBark, l*0.86-0.1) // rings on the bark
 		}
 		return col
@@ -300,13 +309,15 @@ func genMangroveHD(full bool) (*canvas, float64, float64) {
 	roots := []root{{-13, 13, 0.8, -0.14}, {12, 15, 0.8, -0.14}, {-5, 11, 0.75, -0.14}, {6, 12, 0.75, -0.12},
 		{-18, 17, 0.95, 0}, {17.5, 16, 0.95, 0}, {-10, 14, 1, 0.02}, {10.5, 13, 1, 0.02}, {-3, 10, 0.9, 0.04}, {3.5, 9.5, 0.9, 0.04}}
 	for i, r := range roots {
-		top := [2]float64{bx + r.dx*0.08, base - r.h}
-		foot := [2]float64{bx + r.dx, base + 0.4 + float64(i%3)*0.5}
-		f.stalk(mangroveBark, r.r*1.25, r.r*0.75, r.bias, top, [2]float64{bx + r.dx*0.75, base - r.h - 1.5}, [2]float64{bx + r.dx*1.02, base - r.h*0.55}, foot, bark)
+		foot := P(r.dx, 0)
+		foot[1] += 0.4 + float64(i%3)*0.5
+		f.stalk(mangroveBark, r.r*1.25*T, r.r*0.75*T, r.bias, P(r.dx*0.08, r.h), P(r.dx*0.75, r.h+1.5), P(r.dx*1.02, r.h*0.55), foot, bark)
 		if i >= 4 && i < 8 { // a root off the root, half way down
-			mx, my := bx+r.dx*0.92, base-r.h*0.6
+			mx, mh := r.dx*0.92, r.h*0.6
 			side := math.Copysign(1, r.dx)
-			f.stalk(mangroveBark, r.r*0.7, r.r*0.5, r.bias-0.05, [2]float64{mx, my}, [2]float64{mx + side*3, my + 1}, [2]float64{mx + side*4.5, base - 3}, [2]float64{mx + side*4.6, base + 0.8}, bark)
+			foot := P(mx+side*4.6, 0)
+			foot[1] += 0.8
+			f.stalk(mangroveBark, r.r*0.7*T, r.r*0.5*T, r.bias-0.05, P(mx, mh), P(mx+side*3, mh-1), P(mx+side*4.5, 3), foot, bark)
 		}
 	}
 	// The trunk rises from where the roots meet, short and crooked.
@@ -314,30 +325,36 @@ func genMangroveHD(full bool) (*canvas, float64, float64) {
 	if !full {
 		th = 15
 	}
-	f.stalk(mangroveBark, 2.1, 1.5, 0.02, [2]float64{bx, base - 8}, [2]float64{bx - 1.5, base - 16}, [2]float64{bx + 2, base - 22}, [2]float64{bx + 0.5, base - th}, bark)
+	f.stalk(mangroveBark, 2.1*T, 1.5*T, 0.02, P(0, 8), P(-1.5, 16), P(2, 22), P(0.5, th), bark)
 	if !full { // felled: a pale cut on the stump
-		f.c.ellipse((bx+0.9)*fk, (base-th)*fk, 1.9*fk, 0.9*fk, func(x, y int, nx, ny float64) color.RGBA { return woodEndHD(x, y, nx, ny, 4, 86) })
+		cut := P(0.9, th)
+		f.c.ellipse(cut[0]*fk, cut[1]*fk, 1.9*T*fk, 0.9*T*fk, func(x, y int, nx, ny float64) color.RGBA { return woodEndHD(x, y, nx, ny, 4, 86) })
 		return f.done(0.66, bx, base)
 	}
-	for _, b := range [][4]float64{{-0.5, 26, -11, 36}, {0.8, 27, 11, 38}, {0.5, 29, 1, 42}} {
-		f.stalk(mangroveBark, 1.3, 0.7, 0, [2]float64{bx + b[0], base - b[1]}, [2]float64{bx + b[0], base - b[1] - 3}, [2]float64{bx + b[2]*0.7, base - b[3] + 2}, [2]float64{bx + b[2], base - b[3]}, bark)
+	for _, b := range [][4]float64{{-0.5, 26, -11, 36}, {0.8, 27, 11, 38}, {0.5, 29, 1, 42}, {-0.3, 24, -16, 31}, {0.4, 25, 15, 33}} {
+		f.stalk(mangroveBark, 1.3*T, 0.7*T, 0, P(b[0], b[1]), P(b[0], b[1]+3), P(b[2]*0.7, b[3]-2), P(b[2], b[3]), bark)
 	}
-	// The crown: thick, glossy leaves in a broad low dome.
-	blobs := scaledBlobs([]blob{{13, 19 + oy, 8.5}, {39, 20 + oy, 8.5}, {26, 12 + oy, 10.5}, {18, 12 + oy, 8}, {34, 11.5 + oy, 8}, {26, 20 + oy, 9}, {8, 23 + oy, 5}, {44, 24 + oy, 5}})
-	leafClusterHD(f.c, blobs, bx*fk, (16+oy)*fk, 21*fk, 13*fk, mangroveLeaf, 866, leafLook{4.8, 4.6, 2})
-	for i := 0; i < 9; i++ { // old leaves turning yellow, as mangrove leaves do
-		x, y := 7+rng.Float64()*38, oy+6+rng.Float64()*19
-		if f.c.opaque(int(x*fk), int(y*fk)) {
-			leafHD(f.c, x*fk, y*fk, 3.6, 1.7, 0.5+rng.Float64()*2, mkRamp(0x7c7c24, 0xa4a030, 0xc8c044, 0xe4dc6c), 0.55)
+	// The crown: thick, glossy leaves in a broad low dome. Its blobs are
+	// those of the first drawing (x across it, y down from its top).
+	var blobs []blob
+	for _, b := range []blob{{13, 25, 8.5}, {39, 26, 8.5}, {26, 18, 10.5}, {18, 18, 8}, {34, 17.5, 8}, {26, 26, 9}, {8, 29, 5}, {44, 30, 5}} {
+		p := P(b.x-26, 61-b.y)
+		blobs = append(blobs, blob{p[0], p[1], b.r * S})
+	}
+	cc := P(0, 61-22)
+	leafClusterHD(f.c, scaledBlobs(blobs), cc[0]*fk, cc[1]*fk, 21*S*fk, 13*S*fk, mangroveLeaf, 866, leafLook{4.8, 4.6, 2})
+	for i := 0; i < 24; i++ { // old leaves turning yellow, as mangrove leaves do
+		p := P(7+rng.Float64()*38-26, 61-(12+rng.Float64()*19))
+		if f.c.opaque(int(p[0]*fk), int(p[1]*fk)) {
+			leafHD(f.c, p[0]*fk, p[1]*fk, 3.6, 1.7, 0.5+rng.Float64()*2, mkRamp(0x7c7c24, 0xa4a030, 0xc8c044, 0xe4dc6c), 0.55)
 		}
 	}
-	for i := 0; i < 9; i++ { // the seedlings: green pencils hanging under the leaves
-		x := 9 + float64(i)*4.2 + rng.Float64()*2
-		y := oy + 24 + 3.5*math.Sin(float64(i)*1.3) + rng.Float64()*2
-		if !f.c.opaque(int(x*fk), int((y-1.5)*fk)) {
+	for i := 0; i < 16; i++ { // the seedlings: green pencils hanging under the leaves
+		p := P(9+float64(i)*2.4+rng.Float64()*1.2-26, 61-(30+3.5*math.Sin(float64(i)*1.3)+rng.Float64()*2))
+		if !f.c.opaque(int(p[0]*fk), int((p[1]-1.5)*fk)) {
 			continue
 		}
-		pr := aCap(x, y, x+0.2, y+4+rng.Float64()*1.5, 0.3, 0.42)
+		pr := aCap(p[0], p[1], p[0]+0.2, p[1]+4+rng.Float64()*1.5, 0.3, 0.42)
 		f.q.fill(pr, shd(mangroveLeaf, pr, 0.8, 0.22))
 	}
 	return f.done(0.66, bx, base)
@@ -346,11 +363,11 @@ func genMangroveHD(full bool) (*canvas, float64, float64) {
 // genMangroveRipples is the rings the stilt roots stand in, drawn under a
 // mangrove that grows in the water.
 func genMangroveRipples() (*canvas, float64, float64) {
-	c := hdCanvas(52, 14)
-	const bx, by = 26.0 * fk, 7.0 * fk
+	c := hdCanvas(int(math.Ceil(52*mangroveS)), 14)
+	bx, by := math.Round(26*mangroveS)*fk, 7.0*fk
 	for i, dx := range []float64{-18, -10, -3, 3.5, 10.5, 17.5, -14, 14} {
 		rx := 4.2 + float64(i%3)
-		cx, cy := bx+dx*fk, by+float64(i%3)*1.5
+		cx, cy := bx+dx*mangroveS*fk, by+float64(i%3)*1.5
 		for k := 0; k < 40; k++ {
 			a := 2 * math.Pi * float64(k) / 40
 			if (k+i)%5 == 0 {

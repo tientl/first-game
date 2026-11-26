@@ -766,9 +766,15 @@ func genSapling(s sim.SeedKind) sprite {
 	return mkUp(c, 6, 11)
 }
 
+// glowTreeS is how much bigger the glowing tree is drawn than first designed.
+const glowTreeS = 1.6
+
 // genGlowPlant draws a plant that glows at night, and a mask of just its
 // glowing parts. lit is false for one picked bare, which does not glow.
 func genGlowPlant(v int, lit bool) (sprite, sprite) {
+	if v == 2 && envHD {
+		return glowTreeHD(lit) // see hdglow.go
+	}
 	type part struct {
 		e    ell
 		glow bool
@@ -806,14 +812,25 @@ func genGlowPlant(v int, lit bool) (sprite, sprite) {
 				parts = append(parts, part{ell{x1, y1 + float64(k)*3.2, 0.9, 1.1}, true, []ramp{glowCyan, glowViolet}[i%2]})
 			}
 		}
+		// Drawn at glowTreeS of that: a tree twice the player's height and more.
+		w, h, ax, ay = int(math.Ceil(34*glowTreeS)), int(math.Ceil(52*glowTreeS)), 17*glowTreeS, 51*glowTreeS
+		for i := range stems {
+			for j := range stems[i] {
+				stems[i][j] *= glowTreeS
+			}
+		}
+		for i := range parts {
+			p := &parts[i].e
+			p.x, p.y, p.rx, p.ry = p.x*glowTreeS, p.y*glowTreeS, p.rx*glowTreeS, p.ry*glowTreeS
+		}
 	}
 	c, m := newEnvCanvas(w, h), newEnvCanvas(w, h)
 	if v == 2 && envHD {
-		c.lw = 4 // the tree's trunk and boughs
+		c.lw = 6 // the tree's trunk and boughs
 	}
 	for _, s := range stems {
 		thick := 0.0
-		if v == 2 && s[1] > 20 {
+		if v == 2 && s[1] > 20*glowTreeS {
 			thick = 1
 		}
 		for o := -thick; o <= thick; o++ {
@@ -1281,6 +1298,9 @@ func genTrap(set bool) sprite {
 }
 
 func genTorchStick() sprite {
+	if envHD {
+		return torchStickHD()
+	}
 	c := newEnvCanvas(6, 30) // a torch stands to the player's shoulder
 	c.line(3, 29, 3, 5, func(x, y int, t float64) color.RGBA { return trunkRamp.pick(0.6, x, y) })
 	c.line(2, 29, 2, 5, func(x, y int, t float64) color.RGBA { return trunkRamp.pick(0.35, x, y) })
