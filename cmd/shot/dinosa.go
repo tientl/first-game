@@ -23,10 +23,10 @@ func putDinosA(snap *protocol.Snapshot, sx, sy float64, coast bool) {
 	}
 	put(sim.CreatureBrachio, -7.5, -4.5, sim.CreatureIdle, false)
 	put(sim.CreatureToro, -3.2, -3, sim.CreatureIdle, false)
-	put(sim.CreatureStego, 1, -4.8, sim.CreatureIdle, true)
-	put(sim.CreatureThesc, -1.6, -1, sim.CreatureIdle, true)
+	put(sim.CreatureStego, -1.2, -6.4, sim.CreatureIdle, true)
+	put(sim.CreatureThesc, -1.4, -1.4, sim.CreatureIdle, true)
 	put(sim.CreatureTrike, -5.8, -0.8, sim.CreatureIdle, false)
-	put(sim.CreatureRex, 3.4, -1.6, sim.CreatureIdle, true)
+	put(sim.CreatureRex, 3.2, -4.6, sim.CreatureIdle, true)
 	if coast {
 		put(sim.CreaturePlesio, -2.4, 3.6, sim.CreatureIdle, true)
 		put(sim.CreaturePlesio, -6, 5.4, sim.CreatureLurk, false)

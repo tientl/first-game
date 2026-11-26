@@ -58,6 +58,14 @@ guide (`dinos/<name>.png`): open it enlarged with a grid to measure.
    `Shape`. With no joint filled, a long neck bends about a pivot on the
    outside of the bend (the top of the neck, to lower it), so the bend
    folds over the throat instead of opening a gap.
+   **Legs** (`RegisterLegs`, `legmask.go`): name each rig leg's parts, in the
+   rig's order, and the painter also writes `<name>_legs.png` (which pixels
+   are which leg) and `<name>_legsunder.png` (the far legs whole where the
+   near ones hide them). The rig (`dinolegmask.go`) then cuts each leg along
+   its painted outline instead of in columns, so a stride leaves no chips,
+   straight edges or holes. More helpers for a description's details:
+   `Plate` (a stegosaur's plates), `RimSpikes` (a frill's), `Gloss` (wet
+   skin), `Fuzz` (a fuzzy coat), `Trace`/`Clear` (drawn water), `Tint`.
 7. Paint, add the name to `PAINTED` in `gen.py`, and look:
 
    ```sh
