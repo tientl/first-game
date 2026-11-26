@@ -186,3 +186,86 @@ func quetzalFly() *Species {
 		},
 	}
 }
+
+func init() { Register(pteroPerch()) }
+
+var (
+	pteroDarkMem = []uint32{0x140a08, 0x20100c, 0x2e1610, 0x3e1e14, 0x502818, 0x64321e, 0x783e24, 0x8c4c2c}
+	pteroGrey    = []uint32{0x1c1612, 0x2a221c, 0x3a3026, 0x4c4032, 0x5e5040, 0x726250, 0x887662, 0x9e8c76}
+)
+
+func pteroPerch() *Species {
+	finger := []float64{32.4, 31.5, 29.5, 27.4, 26.6, 23.2, 23.6, 18.6, 20.4, 14.4, 18.4, 11.6}
+	arm := []float64{33.2, 23.5, 32.6, 28.5, 32.3, 33.5}
+	wing := Poly(14, 12, 17.5, 10.4, 19.8, 11.2, 24.4, 17, 31.6, 26.6, 33.2, 31, 30.5, 33.6, 22.5, 33.2, 19, 30, 15, 22, 13.6, 16)
+	body := Blend(1.6,
+		Ellipse(30.5, 25, 5.2, 4.8, 0),
+		Cone(31.6, 21.5, 3.6, 36.2, 13, 2.4),
+		Ellipse(38, 11.8, 2.8, 2.4, 0),
+	)
+	hind := Union(Cone(22.4, 29.2, 2.1, 20.6, 33, 1.3), Cone(20.6, 33, 1.2, 20.8, 36.4, 1.0), Cone(20.4, 37, 0.9, 26.6, 37.3, 0.6))
+	hind2 := Union(Cone(25.6, 31.5, 1.3, 25, 35.2, 1.0), Cone(24.6, 36.2, 0.8, 28.6, 36.8, 0.55))
+	foreArm := Union(Cone(33.2, 24, 1.9, 32.5, 33, 1.4), Cone(32.5, 33, 1.3, 34.6, 36, 1.0), Cone(34.2, 37, 0.9, 39.6, 37.4, 0.6))
+	crest := Poly(27, 1.6, 29.6, 1.4, 33, 4, 37, 7, 39.5, 8, 38.5, 10.4, 36.5, 10.6, 35, 9.8, 31.5, 7.6, 28, 4.6)
+	beak := Poly(41.6, 8.6, 44.6, 9.8, 48, 10.8, 51.5, 12, 54, 13.2, 55.6, 14.5, 53.5, 15.6, 50, 16, 45, 16.2, 41, 16, 40.8, 12.4)
+	return &Species{
+		Name:        "ptero_perch",
+		GuideDetail: 0.4,
+		Ink:         34,
+		Materials: []Material{
+			{Name: "membrane", Seeds: []uint32{0x93552f, 0x764426, 0xb47642, 0x673b21, 0x905e35, 0xa67b4b, 0xcf9a5e, 0x5c3824, 0x402719}, Ramp: pteroMembrane, Relief: 0.05},
+			{Name: "dark", Seeds: []uint32{0x6e3a22, 0x4a2618, 0x582e1b, 0x3b1e13, 0x4d2918, 0x3e2013, 0x2c1610, 0x23120d, 0x341b11, 0x29150d, 0x1f0f0b}, Ramp: pteroDarkMem, Relief: 0.05},
+			{Name: "tan", Seeds: []uint32{0xb08a58, 0x8e6840, 0x86725a, 0x7b613e, 0x6a5038, 0x6c4c30, 0x948871, 0xa79e8b, 0x8f8877, 0x7f7461, 0x989488, 0xaca186, 0x9e8c6a, 0x867051, 0x695339, 0x967652, 0xc0a074}, Ramp: pteroTan},
+			{Name: "cream", Seeds: []uint32{0xfdf6e2, 0xeee2c6, 0xd4c2a2, 0xe2c898, 0xf6e6c0, 0xb09a7c}, Ramp: pteroCream},
+			{Name: "grey", Seeds: []uint32{0x5a4a3a, 0x504436, 0x4a4134, 0x362c23, 0x3a3026, 0x726451, 0x9b9381}, Ramp: pteroGrey},
+			{Name: "crest", Seeds: []uint32{0xffc050, 0xf88a2e, 0xe0541e, 0xb03018, 0x6e2418}, Ramp: pteroCrest, Region: crest, Over: true,
+				Only: []string{"cream", "tan", "grey"}},
+			{Name: "beak", Seeds: []uint32{0xf8e69a, 0xe8c860, 0xc8a240, 0x9c7a2c, 0x6e5420, 0xffd84a}, Ramp: pteroBeak, Relief: 0.3, Region: beak, Over: true,
+				Only: []string{"cream", "tan", "grey"}},
+		},
+		Recolor: []Recolor{
+			{Region: wing, From: []string{"tan", "cream"}, To: "membrane"},                 // the bones are painted again
+			{Region: Circle(40.5, 11.2, 1.3), From: []string{"beak", "grey"}, To: "cream"}, // so is the eye
+		},
+		Parts: []Part{
+			{Name: "hind2", Shape: hind2, Far: true, Round: 1, Soft: 0.5, Scale: 0.6},
+			{Name: "body", Shape: body, Round: 3.6, Soft: 0.8, Muscles: []Muscle{
+				Mu(30.5, 24, 3.6, 3.4, 0, 0.8), // the chest
+				Mu(38, 11.2, 1.8, 1.4, 0, 0.5), // the head
+			}},
+			{Name: "crest", Shape: crest, Round: 1, Soft: 0.5, Scale: 0.6},
+			{Name: "beak", Shape: beak, Round: 1.1, Soft: 0.4, Scale: 0.5},
+			{Name: "wing", Shape: wing, Round: 2.4, Soft: 0.8, Scale: 0.8, Muscles: []Muscle{Mu(19, 17, 3, 4.5, -0.6, 0.8)}},
+			{Name: "hind", Shape: hind, Round: 1.2, Soft: 0.5, Scale: 0.6, Muscles: []Muscle{Mu(22, 30, 1.6, 1.6, 0, 0.5)}},
+			{Name: "foreArm", Shape: foreArm, Round: 1.4, Soft: 0.5, Scale: 0.6},
+		},
+		Skin: Skin{Flank: 1.0, Back: 1.2, Belly: 0.9, BackDepth: 1, BellyDepth: 1, Relief: 0.6, Seed: 61},
+		Folds: []Fold{
+			{Pts: []float64{15.5, 15, 19.5, 21.5, 24.5, 28.5}, N: 4, DX: 1.3, DY: -0.5, Depth: 1.1}, // the folded membrane's pleats
+			{Pts: []float64{15, 19, 18, 25, 21.5, 30.5}, N: 2, DX: 1.1, DY: -0.6, Depth: 0.8},
+		},
+		Details: func(p *Painter) {
+			p.Plumage(&Plumage{Seed: 31, Edge: 0.35, Tracts: []Tract{
+				{Name: "fur", Region: Poly(26, 13, 37.5, 9.5, 39, 14, 37.5, 26, 34, 31, 26, 31), Parts: []string{"body"},
+					Flow: Along(37.5, 10.5, 34.5, 16, 31.5, 21, 29.5, 26, 28.5, 31), Len: 1.3, Wid: 0.6, Hair: true, Relief: 0.8, Fluff: 0.3, Snap: true},
+			}})
+			p.Membrane(MembraneSpec{Region: wing, Mat: []string{"membrane", "dark"},
+				Fibres: Along(finger...), Gap: 0.9, Fibre: 0.05, Flat: 0.15,
+				Camber: Path(pts3(finger, 0)...), Glow: 0.5, GlowW: 1.4, GlowRamp: pteroGlow,
+				Free: Poly(10, 8, 18, 9, 22, 30, 12, 34),
+				Bones: []Bone{
+					{Pts: finger, R: 0.8, R1: 0.45, Ramp: pteroBone},
+					{Pts: arm, R: 1.2, R1: 0.95, Ramp: pteroBone, Shade: -0.05},
+				}, Seed: 13})
+			p.Plane(PlaneSpec{Region: crest, Mat: []string{"crest"}, Tilt: 0.9, Angle: -0.72, Gap: 1.0, Lines: 0.06,
+				FromX: 37.5, FromY: 8.5, Fall: 0.05, Seed: 15})
+			p.Beak(BeakSpec{Mat: "beak", Ridge: []float64{41.8, 8.8, 46, 10.3, 51, 11.9, 55.4, 14.2}, Mouth: []float64{41.6, 13.4, 47, 14.2, 54.4, 14.6},
+				Gloss: 0.22, LowerShadow: 0.4, GrainSeed: 11})
+			p.Eye(EyeSpec{X: 40.5, Y: 11.3, R: 0.75, Iris: []uint32{0x5a3a08, 0x8e600c, 0xc89216, 0xf0c22e, 0xffda54, 0xffec96}, Lid: 0.18, Squint: 1.15})
+			// The claws of the feet and the hand on the ground.
+			for _, c := range [][4]float64{{26.2, 37.1, 27.7, 37.7}, {28.2, 36.6, 29.6, 37.3}, {39.2, 37.2, 40.6, 37.8}, {37.6, 37.4, 38.6, 38.2}} {
+				p.Claw(c[0], c[1], c[2], c[3], 0.55, 0.15, anzuClaws)
+			}
+		},
+	}
+}

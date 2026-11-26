@@ -66,7 +66,7 @@ func (p *Painter) Beak(b BeakSpec) {
 			v -= tipDark * smoothstep(0.78, 1, u)
 			switch {
 			case math.Abs(dm) < 0.2:
-				v -= 0.35 // the line of the mouth
+				v -= 0.5 // the line of the mouth
 			case dm > 0 && dm < 0.55:
 				v += 0.08 // the lower beak's lit edge
 			case dm > 0:
