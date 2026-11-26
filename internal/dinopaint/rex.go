@@ -118,6 +118,8 @@ func rex() *Species {
 			{Pts: []float64{55, 63.6, 57.8, 66.6}, N: 2, DY: 1.4, Depth: 1.3},                       // behind the knee
 			{Pts: []float64{48.6, 74.5, 51.6, 74.2}, N: 4, DY: 1.9, Depth: 0.7},                     // across the metatarsus
 			{Pts: []float64{57.3, 83.5, 57.1, 86}, N: 2, DX: 2.4, Depth: 1.2},                       // between the knuckles
+			{Pts: []float64{54.2, 83.2, 57.5, 83.5, 61, 84.1}, N: 1, Depth: 1.8},                    // where the near toe lies over the middle one
+			{Pts: []float64{36, 82.8, 39, 83.1, 42, 83.7}, N: 1, Depth: 1.4},
 			{Pts: []float64{56.8, 81.7, 56.7, 83.6}, N: 2, DX: 2.3, Depth: 0.9},
 			{Pts: []float64{32.4, 74, 35.6, 73.8}, N: 4, DY: 1.9, Depth: 0.6},
 			{Pts: []float64{38.4, 82.6, 38.3, 85.8}, N: 2, DX: 2.2, Depth: 0.9},
@@ -135,10 +137,10 @@ func rexDetails(p *Painter) {
 	// Claws: on the toes of both feet, the dewclaw and the two fingers. A
 	// foot's claws stay inside the columns the rig cuts its leg from
 	// (45-64 for the near leg, 27-44 for the far one).
-	p.Claw(41.0, 84.5, 44.4, 86.0, 1.3, 0.35, clawHorn[:4])
+	p.Claw(41.0, 84.4, 44.5, 86.0, 1.4, 0.4, clawHorn[:5])
 	p.Claw(59.9, 82.7, 62.8, 84.1, 1.2, 0.3, clawHorn[:5])
 	p.Claw(61.2, 84.5, 64.5, 86.0, 1.5, 0.45, clawHorn)
-	p.Claw(49.6, 80.2, 48.1, 82.2, 0.8, 0.2, clawHorn[:5])
-	p.Claw(79.6, 53.2, 81.6, 55.2, 0.7, 0.3, clawHorn)
-	p.Claw(78.6, 54.2, 79.8, 56.6, 0.6, 0.2, clawHorn)
+	p.Claw(49.5, 79.8, 47.9, 82.0, 1.05, 0.3, clawHorn)
+	p.Claw(79.3, 52.9, 81.9, 55.4, 1.0, 0.35, clawHorn)
+	p.Claw(78.1, 53.9, 79.6, 56.8, 0.9, 0.25, clawHorn)
 }
