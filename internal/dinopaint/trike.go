@@ -17,6 +17,8 @@ func init() {
 	Register(trike())
 	// The shoulders and the neck under the frill, for when the head turns.
 	RegisterUnder("trike", &Under{Parts: []string{"frill", "head"}, Mat: "hide"})
+	// Its legs, in the rig's order, cut as painted.
+	RegisterLegs("trike", LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}})
 }
 
 func trike() *Species {

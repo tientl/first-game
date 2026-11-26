@@ -18,6 +18,8 @@ func init() {
 	// The withers and the chest under the root of the neck, for when it bends
 	// down to eat.
 	RegisterUnder("brachio", &Under{Parts: []string{"neck", "head"}, Mat: "hide"})
+	// Its legs, in the rig's order, cut as painted.
+	RegisterLegs("brachio", LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}})
 }
 
 // brachioNeck is the neck's middle line, from its root to the head, and

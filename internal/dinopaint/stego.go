@@ -19,7 +19,11 @@ var (
 	stegoRust = []uint32{0x1c0c06, 0x2c140a, 0x40200e, 0x582c12, 0x703a18, 0x8a4a1e, 0xa45c26, 0xbc7030}
 )
 
-func init() { Register(stego()) }
+func init() {
+	Register(stego())
+	// Its legs, in the rig's order, cut as painted.
+	RegisterLegs("stego", LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}})
+}
 
 // The plates, back to front: the far row first, darker, between the near
 // ones.

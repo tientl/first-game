@@ -15,6 +15,8 @@ func init() {
 	Register(toro())
 	// The shoulders and the neck under the frill, for when the head turns.
 	RegisterUnder("toro", &Under{Parts: []string{"frill", "head"}, Mat: "hide"})
+	// Its legs, in the rig's order, cut as painted.
+	RegisterLegs("toro", LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}})
 }
 
 func toro() *Species {

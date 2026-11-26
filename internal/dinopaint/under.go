@@ -51,6 +51,13 @@ func LookupUnder(name string) (*Under, bool) { u, ok := unders[name]; return u, 
 // PaintUnder paints the under-layer of species sp, whose painting m is,
 // over its guide.
 func PaintUnder(sp *Species, u *Under, guide image.Image, m *Painter) *image.NRGBA {
+	img, _ := paintUnder(sp, u, guide, m)
+	return img
+}
+
+// paintUnder is PaintUnder, and the painting of the body without the
+// head's parts it was taken from.
+func paintUnder(sp *Species, u *Under, guide image.Image, m *Painter) (*image.NRGBA, *Painter) {
 	omit := map[int]bool{}
 	for _, n := range u.Parts {
 		if j := m.PartID(n); j >= 0 {
@@ -126,5 +133,5 @@ func PaintUnder(sp *Species, u *Under, guide image.Image, m *Painter) *image.NRG
 			set(i, p.Out[i], 255)
 		}
 	}
-	return img
+	return img, p
 }

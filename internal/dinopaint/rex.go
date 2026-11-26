@@ -13,7 +13,11 @@ var (
 	amberIris = []uint32{0x5a2206, 0x8e420a, 0xc66e10, 0xeea024, 0xffc94a, 0xffe58e}
 )
 
-func init() { Register(rex()) }
+func init() {
+	Register(rex())
+	// Its legs, in the rig's order, cut as painted.
+	RegisterLegs("rex", LegMask{{"nearLeg", "nearToe2"}, {"farLeg", "farToe2"}})
+}
 
 func rex() *Species {
 	// The feet: the ball of the foot, then two toes seen from the side, the
