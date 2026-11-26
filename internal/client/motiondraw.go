@@ -32,13 +32,8 @@ func (g *Game) drawDying(dst drawTarget, p protocol.PlayerView, d drawable) bool
 	}
 	x, y := d.sx, d.sy
 	switch fr {
-	case 4: // going over: the slump, turned about the knees towards the back
-		lo, up := moDie.keys(dir, 3)
-		way := -1.0
-		if dir == sim.DirLeft {
-			way = 1
-		}
-		drawFig(dst, figDraw{b: b, armor: armor, up: up, lo: lo, tint: tint, rot: way * 0.75}, x, y)
+	case 4: // going over backwards, half way down to how the body lies
+		drawFig(dst, figDraw{b: b, armor: armor, up: upKey{dir: sim.DirDown, anim: upFallen}, tint: tint, rot: -math.Pi / 4}, x+9, y-1)
 	case 5: // down, on the back, as the body lies
 		dust(dst, x, y, age-moDie.startOf(5), uint32(p.ID))
 		g.drawLaidBody(dst, p, d)

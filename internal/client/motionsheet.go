@@ -41,8 +41,8 @@ type reel struct {
 
 // A cell of the sheets, in art pixels, and where the feet stand in it.
 const (
-	cellW, cellH = 64, 54
-	cellX, cellY = 32, 46
+	cellW, cellH = 84, 64
+	cellX, cellY = 42, 56
 )
 
 var (
@@ -466,6 +466,3 @@ var (
 	_ = fmt.Sprint
 	_ = ebiten.NewImage
 )
-
-// The reels of the motions drawn by other files: filled in as they come.
-func (g *Game) rideReels() []reel { return nil }

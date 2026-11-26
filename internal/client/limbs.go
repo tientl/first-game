@@ -127,6 +127,13 @@ type upKey struct {
 
 const upSit = 0x80
 
+// legNear and legFar, in a loKey's frame, draw only the near leg or only
+// the far one (sideways): a rider's, on either side of the mount (ride.go).
+const (
+	legNear = 0x40
+	legFar  = 0x20
+)
+
 type loKey struct {
 	dir   sim.Dir
 	anim  loAnim
@@ -240,6 +247,7 @@ type lowerPose struct {
 }
 
 func lowerPoseOf(k loKey) lowerPose {
+	k.frame &^= legNear | legFar
 	if k.anim >= loMotion {
 		return motionPose(motionID(k.anim-loMotion), int(k.frame), k.dir).lo
 	}
@@ -894,7 +902,14 @@ func bakeUpper(l sim.Look, w sim.Wear, k upKey, heads headCache) upperCanvas {
 func bakeLower(l sim.Look, w sim.Wear, k loKey) (*canvas, lowerPose) {
 	p := lowerPoseOf(k)
 	g := newLimbGen(l.Sanitized(), w)
-	g.legs(k.dir, p)
+	switch { // one leg by itself: a rider's, either side of the mount
+	case k.frame&legNear != 0:
+		g.leg(legGeo(k.dir, 0, p), 0, 2.8, k.dir)
+	case k.frame&legFar != 0:
+		g.leg(legGeo(k.dir, 1, p), 0.16, 2.8, k.dir)
+	default:
+		g.legs(k.dir, p)
+	}
 	innerLines(0.4, g.L)
 	g.L.c.outline(0.72)
 	return g.L.c, p

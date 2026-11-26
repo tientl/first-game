@@ -149,7 +149,7 @@ func cropSprite(c *canvas, ax, ay float64) sprite {
 	return spriteHD(n.image(), ax-float64(x0)/HDDensity, ay-float64(y0)/HDDensity)
 }
 
-var blanketFur = mkRamp(0x3a2618, 0x553823, 0x744e31, 0x946a43, 0xb48a5c, 0xd2ad7d)
+var blanketFur = mkRamp(0x4a3424, 0x6b4d34, 0x8c6a48, 0xab8a63, 0xc8aa80, 0xe2cba3)
 
 // blanket lays a fur over the laid-down figure on c from column x0 (the
 // shoulders) to the feet, as far as cover (0 to 1) of the way up from the
@@ -191,7 +191,7 @@ func blanket(c *canvas, x0, cover float64, thin bool) {
 		}
 		return out
 	}
-	mask := grow(grow(in, 4, false), 2, true) // closed: the gaps between the limbs filled
+	mask := grow(grow(in, 3, false), 2, true) // closed: the gaps between the limbs filled
 	from := float64(maxX) + 2 - cover*(float64(maxX)+2-x0)
 	if thin {
 		from = math.Max(from, x0+22)
@@ -247,6 +247,9 @@ func blanket(c *canvas, x0, cover float64, thin bool) {
 				}
 			case hem < 4:
 				l = 0.25 // the shadow under it
+			}
+			if depth[i] <= 1 && hem >= 4 && hashf(x/2, y/2, 814) < 0.3 {
+				continue // the fur's edge in tufts: what is under shows
 			}
 			col := toneOf(blanketFur, l)
 			if depth[i] <= 1 { // the edge

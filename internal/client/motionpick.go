@@ -105,7 +105,7 @@ func (g *Game) noteMotions(old, cur protocol.Snapshot) {
 					side = -1
 				}
 				st.mountX = (float64(c.X)-float64(p.X))*TileW - back*side
-				st.mountY = (float64(c.Y)-float64(p.Y))*TileH - height + riderLegsTall
+				st.mountY = (float64(c.Y)-float64(p.Y))*TileH - height + riderHip
 			}
 		}
 		switch {

@@ -392,6 +392,13 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		}
 		if d.creature {
 			c := g.curr.Creatures[d.idx]
+			if c.Ridden { // the rider's far leg, behind it; see ridehd.go
+				for _, i := range riders {
+					if p := g.curr.Players[i]; p.Mount == c.ID {
+						g.drawRiderBehind(dst, p, c, d)
+					}
+				}
+			}
 			g.drawCreature(dst, c, d)
 			if c.Ridden {
 				for _, i := range riders {

@@ -52,6 +52,7 @@ const (
 	moSwim                // a breaststroke: reach, sweep out, pull in, shoot forward, glide
 	moTread               // treading water: hands sculling, legs turning, bobbing
 	moRideIdle            // astride a beast standing still: breathing
+	moRideWide            // astride a broad back (the Ankylosaurus): upright, the knees wide, rocking
 	moSleep               // lying asleep: on the back, on one side, the other, curled on the ground; each breathing in and out
 	moWake                // sitting up out of sleep, standing, a stretch and a yawn
 	numMotions
@@ -101,6 +102,7 @@ var motions = [numMotions]motionDef{
 	moSwim:       {"swim", []int{70, 70, 70, 70, 70, 70, 70, 70}, true, "walk"},
 	moTread:      {"tread water", []int{220, 200, 220, 220, 200, 220}, true, "idle"},
 	moRideIdle:   {"ride (still)", []int{700, 450, 700, 450}, true, "idle"},
+	moRideWide:   {"ride (broad back)", []int{150, 150, 150, 150, 150, 150, 150, 150}, true, "walk"},
 	moSleep:      {"sleep", []int{1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500}, false, "sit"},
 	moWake:       {"wake", []int{170, 150, 150, 260, 300, 170}, false, "spellcast"},
 }
@@ -253,7 +255,7 @@ func motionKey(m motionID, f int, side, back bool) kp {
 		return scoopKey(m, f, side)
 	case moSitDown, moSit, moStandUp:
 		return sitKey(m, f, side)
-	case moMount, moDismount, moRide, moRideRun:
+	case moMount, moDismount, moRide, moRideRun, moRideWide:
 		return rideKey(m, f, side)
 	case moRideIdle:
 		k := rideKey(moRide, 0, side)
@@ -428,7 +430,7 @@ func hurtKey(f int, side bool) kp {
 	k := kp{a0: armRest, a1: armRest}
 	fl := armJ{sh: -1.2, el: 0.5, ab: 0.4}
 	if !side {
-		fl = armJ{sh: 0.3, el: 0.5, ab: 1.6}
+		fl = armJ{sh: 0.35, el: 0.7, ab: 1.05}
 	}
 	switch f {
 	case 0, 1:
@@ -771,9 +773,19 @@ func rideKey(m motionID, f int, side bool) kp {
 		seat.a0, seat.a1 = armJ{sh: 0.85, el: 1.1, ab: 0.2}, armJ{sh: 0.85, el: 1.1, ab: 0.2}
 	}
 	switch m {
-	case moRide, moRideRun:
+	case moRide, moRideRun, moRideWide:
 		ph := (float64(f) + 0.5) / 8
 		run := m == moRideRun
+		if m == moRideWide { // a slow rocking gait on a broad back: the thighs spread over it
+			k := seat
+			k.l0, k.l1 = legJ{f: 9, u: 15, pitch: 0.5}, legJ{f: 11, u: 16, pitch: 0.5}
+			k.a0, k.a1 = armJ{sh: 0.6, el: 1.2, ab: 0.25}, armJ{sh: 0.55, el: 1.25, ab: 0.25}
+			k.drop = -0.8 * math.Abs(math.Sin(2*math.Pi*ph))
+			k.roll = 0.04 * math.Sin(2*math.Pi*ph)
+			k.tilt = -0.03 + 0.04*math.Sin(2*math.Pi*ph)
+			k.lagY = math.Round(math.Sin(2 * math.Pi * ph))
+			return k
+		}
 		amp := 1.0
 		if run {
 			amp = 2.4
@@ -781,10 +793,11 @@ func rideKey(m motionID, f int, side bool) kp {
 		k := seat
 		k.drop = -amp * math.Abs(math.Sin(2*math.Pi*ph)) // up off the seat each stride
 		k.tilt = 0.05 + 0.03*math.Sin(2*math.Pi*ph)
-		if run {
-			k.tilt = 0.26 + 0.05*math.Sin(2*math.Pi*ph)
-			k.nod = -0.1
-			k.a0.sh, k.a1.sh = 1.15, 1.1
+		if run { // a jockey on a running biped: low over its neck, the knees up
+			k.tilt = 0.3 + 0.05*math.Sin(2*math.Pi*ph)
+			k.nod = -0.18
+			k.a0, k.a1 = armJ{sh: 0.75, el: 0.9, ab: 0.1, out: 1}, armJ{sh: 0.7, el: 0.95, ab: 0.1}
+			k.l0, k.l1 = legJ{f: 15, u: 15, pitch: 0.6}, legJ{f: 16, u: 16, pitch: 0.6}
 			k.lagX, k.lagY = -2, math.Round(1.5*math.Sin(2*math.Pi*ph))
 		}
 		k.l0.f += 1.5 * math.Sin(2*math.Pi*ph)
@@ -916,19 +929,19 @@ func swimKey(f int, side, back bool) kp {
 	var k kp
 	type st struct{ sh, el, ab, lift, kf, ku float64 }
 	s := [8]st{
-		{0.95, 0.05, 0.1, 0, -9, 4},
-		{0.9, 0.1, 0.15, 0, -9, 4},
-		{0.55, 0.25, 0.55, -1, -6, 6},
-		{0.15, 1.9, 0.35, -2.5, 2, 10},
-		{0.35, 2.2, 0.15, -2, 5, 12},
-		{0.75, 1.0, 0.1, -0.5, -12, 3},
-		{0.95, 0.15, 0.08, 0.5, -11, 3},
-		{0.95, 0.05, 0.1, 0.5, -10, 4},
+		{1.25, 0.05, 0.1, 0, -9, 4},
+		{1.2, 0.1, 0.15, 0, -9, 4},
+		{0.75, 0.25, 0.55, -1, -6, 6},
+		{0.25, 1.9, 0.35, -2.5, 2, 10},
+		{0.45, 2.3, 0.15, -2, 5, 12},
+		{0.95, 1.0, 0.1, -0.5, -12, 3},
+		{1.25, 0.15, 0.08, 0.5, -11, 3},
+		{1.25, 0.05, 0.1, 0.5, -10, 4},
 	}[f]
 	if side {
 		k.a0 = armJ{sh: s.sh, el: s.el, ab: 0.05, out: 1}
 		k.a1 = armJ{sh: s.sh - 0.08, el: s.el, ab: 0.05}
-		k.tilt, k.nod = 0.62, -0.55-0.12*clamp01(-s.lift/2)
+		k.tilt, k.nod = 0.45, -0.42-0.12*clamp01(-s.lift/2)
 		k.l0 = legJ{f: s.kf, u: s.ku, pitch: 0.6}
 		k.l1 = legJ{f: s.kf - 2, u: s.ku + 1, pitch: 0.6}
 		k.lagX = -2
@@ -936,7 +949,7 @@ func swimKey(f int, side, back bool) kp {
 		// From the front or the back the arms sweep out to the sides
 		// and in.
 		ab := [8]float64{0.25, 0.4, 1.15, 0.7, 0.2, 0.15, 0.2, 0.25}[f]
-		k.a0 = armJ{sh: math.Max(0.6, s.sh+0.4), el: s.el * 0.8, ab: ab}
+		k.a0 = armJ{sh: math.Max(0.6, s.sh+0.1), el: s.el * 0.8, ab: ab}
 		k.a1 = k.a0
 		k.tilt = 0.35
 		k.nod = -0.2

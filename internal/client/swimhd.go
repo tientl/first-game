@@ -91,6 +91,12 @@ func (g *Game) drawSwimmerHD(dst drawTarget, p protocol.PlayerView, d drawable) 
 		return
 	}
 	sink := lerpf(wadeSink, deepSink, smooth(depth))
+	if m == moSwim && (dir == sim.DirLeft || dir == sim.DirRight) {
+		sink -= 3 * smooth(depth) // lying forward on the water: the shoulders and the reach show
+	}
+	if m == moSwim {
+		g.drawWake(dst, p, d)
+	}
 	g.drawInWater(dst, p, d, sink, 0, func(buf drawTarget, x, y float64) {
 		lo, up := m.keys(dir, fr)
 		var armor *armorArt
@@ -212,20 +218,6 @@ func (g *Game) drawStrokeFX(dst drawTarget, p protocol.PlayerView, d drawable, m
 			dot(ax, ay, 0.8-0.15*i, 1)
 		}
 	}
-	// The wake: a V of foam trailing behind, broken, fading.
-	for i := 1; i <= 7; i++ {
-		ph := math.Mod(t*0.03+float64(i)*0.31, 1)
-		back := float64(i)*3 + ph*2
-		spread := float64(i) * 1.1
-		for s := -1.0; s <= 1; s += 2 {
-			x := d.sx - float64(fx)*back + s*spread*math.Abs(float64(fy)) + s*0.4*float64(i)*(1-math.Abs(float64(fx)))
-			y := d.sy + 1 - float64(fy)*back*0.7 + s*spread*0.45*math.Abs(float64(fx))
-			if fx == 0 {
-				x = d.sx + s*spread
-			}
-			dot(x, y, 0.6*(1-float64(i)/8)*(1-ph*0.5), 2)
-		}
-	}
 	// A splash where the hands go in, as they shoot forward (frame 5).
 	if st := g.moveState(p.ID); fr == 5 || fr == 6 {
 		u := math.Mod(st.swim.ph*float64(moSwim.frames())-5, 2) / 2
@@ -304,5 +296,26 @@ func (g *Game) waterReels() []reel {
 			g.drawWader(dst, p, d)
 			sheetFord = false
 		}, bg: reelWater},
+	}
+}
+
+// drawWake draws the V of foam a swimmer leaves behind, broken and fading:
+// before the swimmer, as it lies behind them.
+func (g *Game) drawWake(dst drawTarget, p protocol.PlayerView, d drawable) {
+	t := float64(g.frame) + float64(p.ID)*17
+	fx, fy := p.Dir.Delta()
+	for i := 1; i <= 6; i++ {
+		ph := math.Mod(t*0.03+float64(i)*0.31, 1)
+		back := float64(i)*2.6 + ph*2
+		spread := float64(i) * 1.0
+		a := 0.55 * (1 - float64(i)/7) * (1 - ph*0.5)
+		for s := -1.0; s <= 1; s += 2 {
+			x := d.sx - float64(fx)*back
+			y := d.sy + 1 - float64(fy)*back*0.75 + s*spread*0.42*math.Abs(float64(fx))
+			if fx == 0 {
+				x = d.sx + s*(2.5+spread)
+			}
+			fillRect(dst, float32(math.Round(x)), float32(math.Round(y)), 2, 1, premul(color.RGBA{232, 244, 250, 255}, a), false)
+		}
 	}
 }

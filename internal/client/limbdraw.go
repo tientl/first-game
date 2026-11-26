@@ -114,15 +114,16 @@ func (b *bodyArt) lower(k loKey) *lowerArt {
 
 // figDraw is a jointed figure to draw: its halves, what it wears and holds.
 type figDraw struct {
-	b     *bodyArt
-	armor *armorArt // nil for none
-	up    upKey
-	lo    loKey
-	tint  color.Color
-	s     float64 // scale; 0 is 1
-	rot   float64
-	push  float64 // how far the body leans into a blow, in art pixels
-	abed  bool    // under a blanket: the legs are not drawn
+	b        *bodyArt
+	armor    *armorArt // nil for none
+	up       upKey
+	lo       loKey
+	tint     color.Color
+	s        float64 // scale; 0 is 1
+	rot      float64
+	push     float64 // how far the body leans into a blow, in art pixels
+	abed     bool    // under a blanket: the legs are not drawn
+	legsOnly bool    // only the legs: a rider's far leg, drawn behind the mount
 	// item draws what the hand holds, the hand at (hx, hy), its forearm
 	// turned swing towards the facing.
 	item func(dst drawTarget, hx, hy, swing float64)
@@ -212,6 +213,10 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 	}
 	layer(upFar)
 	layer(upBack)
+	if f.legsOnly {
+		put(lo.legs, nil, false)
+		return ux, uy, skew, u
+	}
 	if !f.abed {
 		put(lo.legs, nil, false)
 	}
@@ -432,6 +437,11 @@ func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, l
 		out := reach(age)
 		f.up = upKey{dir, upThrust, uint8(math.Round(lerpf(2, atkFrames-1, out)))}
 	case p.Mount == 0:
+		if fr, dx, dy, ok := g.dismounting(p); ok { // down off a beast; see ridehd.go
+			f.lo, f.up = moDismount.keys(dir, fr)
+			x, y = x+dx, y+dy
+			break
+		}
 		if m, fr, ok := g.motionOf(p, !still); ok {
 			l2, u2 := m.keys(dir, fr)
 			f.up = u2
