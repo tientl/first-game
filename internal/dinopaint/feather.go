@@ -45,6 +45,7 @@ type Tract struct {
 	Camber   float64 // how much a vane curves over its shaft (0: 0.05, or 0.13 with a shaft)
 	TipMat   string  // the tips of the feathers are this material (a pale fringe, a dark edge)
 	TipGuide bool    // only where the drawing has that material near the tip
+	TipElse  string  // and the drawing's marks of it that are not at a tip become this: flecks made feather tips
 	TipLen   float64 // how far down from the tip, in feather lengths (0: 0.2)
 	Mat      string  // all its feathers this material ("": the guide's)
 }
@@ -446,8 +447,11 @@ func (p *Painter) Plumage(pl *Plumage) {
 			if tl == 0 {
 				tl = 0.2
 			}
-			if o.u > 1-tl && (!tr.TipGuide || q.tipMarked(o.f, tr)) {
-				p.Mat[i] = p.MatID(tr.TipMat)
+			switch tip := p.MatID(tr.TipMat); {
+			case o.u > 1-tl && (!tr.TipGuide || q.tipMarked(o.f, tr)):
+				p.Mat[i] = tip
+			case tr.TipElse != "" && p.Mat[i] == tip:
+				p.Mat[i] = p.MatID(tr.TipElse)
 			}
 		}
 		if len(tr.Parts) > 0 && o.f.part >= 0 {
@@ -614,7 +618,7 @@ func (q *plumage) tipMarked(f *feather, tr *Tract) bool {
 	if f.tip == 0 {
 		f.tip = 2
 		m := q.p.MatID(tr.TipMat)
-		r := 0.75
+		r := 0.55
 		for py := int((f.ty - r) * K); py <= int((f.ty+r)*K); py++ {
 			for px := int((f.tx - r) * K); px <= int((f.tx+r)*K); px++ {
 				x, y := G(px, py)
