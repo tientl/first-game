@@ -142,6 +142,10 @@ type loKey struct {
 
 // gaitDef is a way of going: cycle art pixels of ground to a stride of both
 // legs, each foot down for duty of it and lifted lift image pixels between.
+// The walk dips two pixels at each contact and rises at the passing pose, as
+// LPC's walk dips one of its 47 (bounce negative: low with both feet down);
+// the run sinks as a foot takes the weight and rises in the air, three of
+// LPC's pixels, five or six of ours (see HD_ART.md).
 type gaitDef struct {
 	cycle, duty, lift  float64
 	crouch, bounce     float64 // the hips' drop, and how far it rises in the air, image pixels
@@ -150,7 +154,7 @@ type gaitDef struct {
 }
 
 var (
-	stepGait = gaitDef{cycle: 19, duty: 0.6, lift: 5, arm: 0.4, elbow: 0.15, elbow1: 0.3}
+	stepGait = gaitDef{cycle: 19, duty: 0.6, lift: 5, crouch: 1, bounce: -1, arm: 0.5, elbow: 0.15, elbow1: 0.3}
 	runGait  = gaitDef{cycle: 46, duty: 0.32, lift: 13, crouch: 3.5, bounce: 2.5, arm: 0.9, elbow: 1.3, elbow1: 0.25, lean: 0.12}
 )
 
