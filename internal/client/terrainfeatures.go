@@ -47,6 +47,7 @@ func (t *terrain) setRelief(r []sim.Relief) {
 		}
 	}
 	t.feat = reliefFeatures(t.w, t.h, t.tiles, r)
+	t.depth = seaDepths(t.w, t.h, t.tiles, r) // see terrainsea.go
 }
 
 // What lies near each tile, so the bake skips what is not there (most of
@@ -269,7 +270,9 @@ func (t *terrain) reliefShade(c color.RGBA, hx, hy int, u, v float64) color.RGBA
 	if a := at(sim.VarOutcrop); a > 0 && hashf(fdiv(hx, 2), fdiv(hy, 2), 982) < 0.05*a {
 		c = mix(c, hex(0xa9b26e), 0.6) // lichen
 	}
-	if a := at(sim.VarDunes); a > 0 {
+	if a := at(sim.VarDunes); a > 0 && t.tile(tx, ty) == sim.TileSand {
+		c = beachDunes(c, hx, hy, a) // see terrainsea.go
+	} else if a > 0 {
 		s := math.Sin((float64(hx)*0.35+float64(hy)*0.9)/3.4 + 5*vnoise(float64(hx)/80, float64(hy)/60, 983))
 		c = scaleCol(c, 1+0.08*s*a)
 	}

@@ -105,6 +105,22 @@ func main() {
 	}
 	fmt.Println()
 	fmt.Printf("islands: %d\n", len(w.Islands()))
+	// The beaches: how deep the sand is straight inland from each tile of
+	// sand on the shore (see sim.BeachDepths).
+	if bd, shore := w.BeachDepths(); len(bd) > 0 {
+		ds := make([]int, len(bd))
+		wide := 0
+		for i, b := range bd {
+			ds[i] = b.N
+			if b.N >= 5 {
+				wide++
+			}
+		}
+		sort.Ints(ds)
+		q := func(p float64) int { return ds[min(len(ds)-1, int(p*float64(len(ds))))] }
+		fmt.Printf("beaches: %d of %d shore tiles sandy; depth p10 %d, p25 %d, median %d, p75 %d, p90 %d; %.0f%% at least 5 deep\n",
+			len(bd), shore, q(0.1), q(0.25), q(0.5), q(0.75), q(0.9), 100*float64(wide)/float64(len(bd)))
+	}
 	ents := map[string]int{}
 	w.EachEntityIn(0, 0, W, H, func(e sim.Entity) { ents[e.Kind.Name()]++ })
 	crs := map[string]int{}

@@ -50,7 +50,8 @@ func worldHash(w *World) uint64 {
 }
 
 // goldenWorlds are worlds of every older style, with the digest each made
-// when StyleIsles was added (StyleIsles itself: when StyleWoods was). A
+// when StyleIsles was added (StyleIsles itself: when StyleWoods was;
+// StyleWoods: when StyleBeaches was). A
 // change to generation must never change them: saves keep only the seed and
 // style, and regenerate the terrain from it; an older save's woods are
 // thinned by telling the trees of the world as it was made (thinwoods.go).
@@ -71,6 +72,8 @@ var goldenWorlds = []struct {
 	{StyleSeas, 11, SizeLarge, 0x81a3e39fa5e3573f},
 	{StyleIsles, 7, SizeMedium, 0x8227ef130cb50cf6},
 	{StyleIsles, 11, SizeLarge, 0xe72383ba4feab520},
+	{StyleWoods, 7, SizeMedium, 0x37d7fffed95b64bd},
+	{StyleWoods, 11, SizeLarge, 0x3697e41d31d3f72e},
 }
 
 func TestOlderStylesGenerateAsBefore(t *testing.T) {
@@ -81,6 +84,39 @@ func TestOlderStylesGenerateAsBefore(t *testing.T) {
 		}
 		if got := worldHash(w); got != g.want {
 			t.Errorf("style %d seed %d size %d: digest %#x, want %#x", g.style, g.seed, g.size, got, g.want)
+		}
+	}
+}
+
+// goldenRelief is the digest of the relief (levels and variants) of worlds
+// of the older styles that have one, as each made when StyleBeaches was
+// added: the client draws the ground from it, so it must not change either.
+var goldenRelief = []struct {
+	style WorldStyle
+	seed  uint64
+	size  int
+	want  uint64
+}{
+	{StyleIsles, 7, SizeMedium, 0x2fca9269f95872cc},
+	{StyleIsles, 11, SizeLarge, 0x786d9383d492a24d},
+	{StyleWoods, 7, SizeMedium, 0x474bc54a6fa098fc},
+	{StyleWoods, 11, SizeLarge, 0xacecdb3a07441921},
+}
+
+func TestOlderReliefIsAsBefore(t *testing.T) {
+	for _, g := range goldenRelief {
+		w, err := Generate(GenConfig{Seed: g.seed, Width: g.size, Height: g.size, Style: g.style})
+		if err != nil {
+			t.Fatal(err)
+		}
+		h := fnv.New64a()
+		b := make([]byte, len(w.relief))
+		for i, r := range w.relief {
+			b[i] = byte(r)
+		}
+		h.Write(b)
+		if got := h.Sum64(); got != g.want {
+			t.Errorf("style %d seed %d size %d: relief digest %#x, want %#x", g.style, g.seed, g.size, got, g.want)
 		}
 	}
 }

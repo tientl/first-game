@@ -27,7 +27,9 @@ import (
 //   - 2, a waterfall: red how far down it the texel is (0 at the lip), blue's
 //     low bits which way it pours (0 south, 1 east, 2 north, 3 west);
 //   - 3, still water: blue's bit 5 set for the shallows of the sea (red is how
-//     much is shallow, 0.5 at their edge), clear for a lake (red its depth).
+//     much of the light rippling over them shows: 1 where they are
+//     shallowest, fading to 0 towards the deep), clear for a lake (red its
+//     depth).
 
 // waterTexel is the water map's texel for chunk pixel (x, y), the middle of
 // an art pixel; ok=false where no water moves.
@@ -83,18 +85,10 @@ func (b *bake) waterTexel(x, y int, u, v float64) (tx [4]byte, ok bool) {
 		}
 		return [4]byte{byte(clamp01(-s/2.6) * 255), 0, 3 << 6, 255}, true
 	}
-	if sh := t.shallowShare(u, v); sh > 0.25 {
-		return [4]byte{byte(clamp01(sh) * 255), 0, 3<<6 | 32, 255}, true
+	if l := t.seaLight(u, v); l > 0.01 { // see terrainsea.go
+		return [4]byte{byte(clamp01(l) * 255), 0, 3<<6 | 32, 255}, true
 	}
 	return tx, false
-}
-
-// shallowShare is how much of sea point (u, v) is shallows, warped as
-// shallowSea draws them.
-func (t *terrain) shallowShare(u, v float64) float64 {
-	wu := u + (vnoise(u*0.35, v*0.35, 958)-0.5)*1.2 + (vnoise(u*1.6, v*1.6, 1330)-0.5)*0.25
-	wv := v + (vnoise(u*0.35+5, v*0.35, 959)-0.5)*1.2 + (vnoise(u*1.6+4, v*1.6, 1331)-0.5)*0.25
-	return cornersAt(wu, wv).share(func(x, y int) bool { return t.tile(x, y) == sim.TileShallow })
 }
 
 // waterShaderSrc draws the moving water from a chunk's water map.
@@ -221,21 +215,22 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 	} else if kind == 3.0 {
 		sea := aux >= 32.0
 		if sea {
-			// Light rippling over the sand of the shallows.
-			c1 := noise(w*0.085 + vec2(Time*0.18, Time*0.11))
-			c2 := noise(w*0.11 + vec2(-Time*0.14, Time*0.19) + 5.0)
-			ca := 1.0 - abs(c1-c2)*9.0
-			if ca > 0.0 && n.r > 0.55 {
-				a = 0.16 * ca
-			}
-			// Foam along the drop at the shallows' edge, coming and going.
-			sh := mix(mix(t00.r, t10.r, f.x), mix(t01.r, t11.r, f.x), f.y)
-			e := 1.0 - abs(sh-0.52)/0.045
-			if e > 0.0 {
-				p := 0.5 + 0.5*sin(Time*1.7+w.x*0.07+w.y*0.05)
-				if hash(floor(w*1.5)+floor(Time*4.0)) < e*p*0.9 {
-					a = max(a, 0.55)
+			// Light rippling over the sand of the shallows, plainer the
+			// shallower they are, fading out over the deep: three drifting
+			// fields, a thread of light where two of them meet, together a
+			// loose net.
+			l := mix(mix(t00.r, t10.r, f.x), mix(t01.r, t11.r, f.x), f.y)
+			c1 := noise(w*0.07 + vec2(Time*0.16, Time*0.1))
+			c2 := noise(w*0.095 + vec2(-Time*0.13, Time*0.17) + 5.0)
+			c3 := noise(w*0.06 + vec2(Time*0.08, -Time*0.14) + 11.0)
+			ca := max(1.0-abs(c1-c2)*11.0, 1.0-abs(c2-c3)*11.0)
+			if ca > 0.0 && l > 0.0 {
+				a = 0.13 * ca * l
+				a = floor(a*20.0+0.5) / 20.0 // finer steps than the rest: it fades
+				if a <= 0.0 {
+					return vec4(0)
 				}
+				return vec4(light*a, a)
 			}
 		} else {
 			// A lake: still, the sky's light lying on it in long faint

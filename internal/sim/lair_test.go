@@ -9,7 +9,7 @@ import (
 // lairWorld is a generated world with both of the demo's lairs in it.
 func lairWorld(t *testing.T) *World {
 	t.Helper()
-	w, err := Generate(GenConfig{Seed: 11, Width: 320, Height: 320, Style: StyleLatest})
+	w, err := Generate(GenConfig{Seed: 13, Width: 320, Height: 320, Style: StyleLatest})
 	if err != nil {
 		t.Fatal(err)
 	}

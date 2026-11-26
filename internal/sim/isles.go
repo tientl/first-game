@@ -515,11 +515,15 @@ func (w *World) islesTerrain(seed uint32) (sx, sy int) {
 	w.laySpits(im, seed)   // sand spits closing off lagoons; see coast.go
 	w.evenHeights(im)      // see heights.go
 	toSea := w.seaDistance(30)
-	levels := w.isleLevels(im, toSea, seed)
+	var beach *beachField
+	if w.style >= StyleBeaches {
+		beach = w.beachWidths(im, seed) // see beaches.go
+	}
+	levels := w.isleLevels(im, toSea, beach, seed)
 	for i, l := range levels {
 		w.relief[i] = w.relief[i].withLevel(int(l))
 	}
-	w.paintIsles(im, toSea, seed)
+	w.paintIsles(im, toSea, beach, seed)
 	w.raiseCliffs(im, seed)      // see heights.go
 	w.runRivers(im, toSea, seed) // see rivers.go
 	w.fillShallows(im, seed)     // see coast.go
@@ -542,8 +546,9 @@ const (
 )
 
 // paintIsles gives every land tile its ground by the island's kind, its
-// height and its level, and the variants within each biome.
-func (w *World) paintIsles(im *isleMap, toSea []uint8, seed uint32) {
+// height and its level, and the variants within each biome; beach is nil
+// in worlds made before StyleBeaches.
+func (w *World) paintIsles(im *isleMap, toSea []uint8, beach *beachField, seed uint32) {
 	W := w.width
 	for i, t := range w.tiles {
 		if t != TileGrass {
@@ -554,22 +559,29 @@ func (w *World) paintIsles(im *isleMap, toSea []uint8, seed uint32) {
 			continue
 		}
 		x, y := float64(i%W)+0.5, float64(i/W)+0.5
-		t, v := s.paint(float64(im.h[i]), w.relief[i].Level(), int(toSea[i]), x, y, seed)
+		t, v := s.paint(float64(im.h[i]), w.relief[i].Level(), int(toSea[i]), beach.at(i), x, y, seed)
 		w.tiles[i] = t
 		w.relief[i] = w.relief[i].withVariant(v)
 	}
 }
 
 // paint is the ground at (x, y) on island s: h its height (0 to 1), level
-// its height level and sea how many tiles it lies from the sea.
-func (s *isle) paint(h float64, level, sea int, x, y float64, seed uint32) (Tile, GroundVariant) {
+// its height level, sea how many tiles it lies from the sea and shore its
+// beach (in worlds made since StyleBeaches; see beaches.go).
+func (s *isle) paint(h float64, level, sea int, shore beachSpot, x, y float64, seed uint32) (Tile, GroundVariant) {
 	// A little dither at every border, so neighbouring biomes reach into
 	// each other in fingers and islands instead of meeting in a line.
 	jit := 0.05 * (unit(hash2(int32(x), int32(y), seed+0x5e1)) - 0.5)
 	woods := fbm(x/22+57, y/22+213, seed+311, 4) + jit
 	wet := fbm(x/30+71, y/30+29, seed+42, 3) + jit
 	fine := fbm(x/7+19, y/7+3, seed+313, 2)
-	beach := float64(sea) <= isleBeach+2.2*(fbm(x/16, y/16, seed+314, 2)-0.5)*2 && level == 0
+	var beach bool
+	if shore.ok {
+		// The inland edge of the sand wanders a little.
+		beach = level == 0 && shore.ed <= shore.bw+0.9*(fbm(x/5+7.1, y/5+2.3, seed+0xbe2, 2)-0.5)*2
+	} else {
+		beach = float64(sea) <= isleBeach+2.2*(fbm(x/16, y/16, seed+314, 2)-0.5)*2 && level == 0
+	}
 	switch {
 	case s.role == roleAtoll || s.role == roleIslet:
 		if beach || sea <= 1 || s.role == roleIslet && h < 0.35 {
@@ -594,6 +606,13 @@ func (s *isle) paint(h float64, level, sea int, x, y float64, seed uint32) (Tile
 			if fine > 0.5 {
 				return TileAsh, VarPlain // black sand
 			}
+		}
+		if shore.ok {
+			// Dunes at the back of the widest beaches.
+			if shore.bw >= beachDunes && shore.ed > 0.55*shore.bw && fbm(x/8+3.7, y/8+11.2, seed+0xbe3, 2) > 0.42 {
+				return TileSand, VarDunes
+			}
+			return TileSand, VarPlain
 		}
 		if fine > 0.72 {
 			return TileSand, VarDunes
