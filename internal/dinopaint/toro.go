@@ -51,7 +51,7 @@ func toro() *Species {
 	beak := Poly(75.6, 40.4, 79.4, 39.4, 83.4, 41, 85.4, 44, 84.8, 47.6, 81.4, 48.8, 77.4, 47.8, 75.6, 44.6)
 	return &Species{
 		Name:        "toro",
-		GuideDetail: 0.5,
+		GuideDetail: 0.6,
 		Ink:         31,
 		// The horns are painted again, smoothly: the guide's, above the
 		// face, are cut out of the silhouette first.
@@ -75,7 +75,7 @@ func toro() *Species {
 				Ramp:   []uint32{0x17191e, 0x22262c, 0x2e343a, 0x3c434a, 0x4c555c, 0x5e6970, 0x748087, 0x8e9aa0},
 				Region: Poly(14, 54, 60, 54, 60, 63, 14, 63), Only: []string{"ivory", "belly"}}, // the guide's nails are painted again
 			{Name: "patch", Seeds: []uint32{0x34404e, 0x222a34},
-				Ramp: []uint32{0x10131c, 0x181c28, 0x202634, 0x2a3242, 0x343e50, 0x404c60, 0x4e5c70, 0x5e6c80}, Smooth: 0.55, Bias: 0.1},
+				Ramp: []uint32{0x0c0f16, 0x131720, 0x1a1f2c, 0x222938, 0x2c3446, 0x364054, 0x424e64, 0x505e76}, Smooth: 0.55, Bias: 0.15},
 			{Name: "belly", Seeds: []uint32{0x969282, 0x716e62, 0xbab6a2, 0xa09276, 0x625f54, 0x494840},
 				Ramp: []uint32{0x2a2820, 0x3a372c, 0x4c4839, 0x605b48, 0x767058, 0x8c866c, 0xa49e84, 0xbcb69e}, Relief: 0.7},
 			{Name: "red", Seeds: []uint32{0xa82c24, 0xc84430, 0x821e1e, 0x7a2626},

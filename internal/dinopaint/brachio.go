@@ -65,23 +65,25 @@ func brachio() *Species {
 		Ink:         32,
 		Materials: []Material{
 			{Name: "hide", Seeds: []uint32{0x7b8c5e, 0x94a474, 0xa2ae8a, 0xbcc6a4, 0x869370, 0x63734a, 0x6a7757},
-				Ramp:   []uint32{0x161c12, 0x222a1a, 0x303a24, 0x424e30, 0x56643e, 0x6c7c50, 0x869664, 0xa2b07e},
+				Ramp:   []uint32{0x10140e, 0x1a2018, 0x262e22, 0x343e2e, 0x46523e, 0x5a6850, 0x707e64, 0x8a987c},
 				Region: Poly(15, 99, 80, 99, 80, 113, 15, 113), Only: []string{"tan"}}, // the guide's nails are painted again
 			// The dark mottling, a net of blotches as a giraffe's.
 			{Name: "patch", Seeds: []uint32{0x4c5a38, 0x4e5a40, 0x353e2c, 0x374229, 0x404734, 0x20261c, 0x242c1c},
-				Ramp: []uint32{0x0e120a, 0x161c10, 0x1e2616, 0x28321c, 0x343f24, 0x404c2c, 0x4e5a36, 0x5e6a42}, Smooth: 0.6, Bias: 0.1},
+				Ramp: []uint32{0x0e120a, 0x161c10, 0x1e2616, 0x28321c, 0x343f24, 0x404c2c, 0x4e5a36, 0x5e6a42}, Smooth: 0.4, Bias: 0.2},
+			// The near legs, a shade darker than the flank above them.
+			{Name: "leg", Ramp: []uint32{0x0e120c, 0x161c14, 0x20281c, 0x2c3626, 0x3a4632, 0x4c5a42, 0x606e54, 0x788668}},
 			{Name: "tan", Seeds: []uint32{0x9f9e78, 0x7a7958, 0xc2c09a, 0xa09276, 0x5f5f48, 0x575742, 0xdddbb8, 0xeeecd2},
-				Ramp: []uint32{0x22201a, 0x343226, 0x4a4634, 0x605c44, 0x787456, 0x908c6a, 0xa8a482, 0xc0bc9c}, Relief: 0.7, Smooth: 0.5},
+				Ramp: []uint32{0x2e2c22, 0x423f30, 0x5a5640, 0x726e52, 0x8c8868, 0xa6a280, 0xbebb98, 0xd4d2b2}, Relief: 0.7, Smooth: 0.5},
 		},
 		Recolor: []Recolor{
 			// Down the legs the drawing's dark is their shading.
-			{Region: Cut(Union(nearHind, farHind, farFore, nearFore), body.Grow(-1.5)), From: []string{"patch"}, To: "hide"},
+			{Region: Cut(Union(nearHind, nearFore), body.Grow(-1.5)), From: []string{"patch"}, To: "hide"},
 		},
 		Parts: []Part{
-			{Name: "farHind", Shape: farHind, Far: true, Round: 4, Scale: 0.85, Muscles: []Muscle{
+			{Name: "farHind", Shape: farHind, Far: true, Round: 4, Scale: 0.85, Mat: "patch", Muscles: []Muscle{
 				Mu(41, 79, 4.8, 6, 0, 1.2),
 			}},
-			{Name: "farFore", Shape: farFore, Far: true, Round: 4, Scale: 0.85, Muscles: []Muscle{
+			{Name: "farFore", Shape: farFore, Far: true, Round: 4, Scale: 0.85, Mat: "patch", Muscles: []Muscle{
 				Mu(55, 79, 4.6, 6, 0, 1.2),
 			}},
 			{Name: "body", Shape: body, Round: 10, Muscles: []Muscle{
@@ -107,13 +109,13 @@ func brachio() *Species {
 				Mu(98, 9.6, 2.4, 2, 0, 0.8),       // the cheek
 				Mu(104.4, 11.4, 2.6, 1.6, 0, 0.7), // the snout
 			}},
-			{Name: "nearHind", Shape: nearHind, Round: 5.6, Onto: "body", Seam: Below(15, 74, 40, 74), Muscles: []Muscle{
+			{Name: "nearHind", Shape: nearHind, Round: 5.6, Mat: "leg", Onto: "body", Seam: Below(15, 74, 40, 74), Muscles: []Muscle{
 				Mu(29, 75, 6.4, 8, 0, 2.0),        // the thigh
 				Mu(29.8, 90, 3.4, 2.6, 0, 0.7),    // the knee
 				Mu(29.8, 96, 3.6, 4, 0, 0.6),      // the shin
 				Mu(30.4, 106.6, 5.6, 2.8, 0, 0.8), // the foot
 			}},
-			{Name: "nearFore", Shape: nearFore, Round: 5.6, Onto: "body", Seam: Below(56, 75, 76, 72), Muscles: []Muscle{
+			{Name: "nearFore", Shape: nearFore, Round: 5.6, Mat: "leg", Onto: "body", Seam: Below(56, 75, 76, 72), Muscles: []Muscle{
 				Mu(66, 74, 6, 7.5, 0, 1.8),     // the upper arm
 				Mu(65.6, 90, 3.4, 2.6, 0, 0.7), // the elbow
 				Mu(65.8, 96, 3.6, 4, 0, 0.6),   // the forearm

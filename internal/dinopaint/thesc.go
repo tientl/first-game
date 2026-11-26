@@ -61,7 +61,7 @@ func thesc() *Species {
 				Mu(17.5, 20, 3.2, 3.6, 0.2, 1.1),   // the thigh
 				Mu(16.8, 26.2, 1.4, 1.8, 0.8, 0.5), // the calf
 			}},
-			{Name: "body", Shape: body, Round: 5, Soft: 0.65, Muscles: []Muscle{
+			{Name: "body", Shape: body, Round: 3.6, Soft: 0.6, Muscles: []Muscle{
 				Mu(24, 13.5, 7, 3.6, 0, 0.9),     // the hips
 				Mu(19, 16.5, 6, 4.5, 0, 0.8),     // the belly and ribs
 				Mu(31.5, 14.5, 3, 3.4, 0.3, 0.9), // the chest
@@ -90,7 +90,7 @@ func thesc() *Species {
 		Skin: Skin{Flank: 1.35, Back: 2.0, Belly: 1.05, BackDepth: 3, BellyDepth: 3, Relief: 1.1, Seed: 53},
 		Osteoderms: []Row{
 			// A row of little scutes down the back, as the drawing's flecks.
-			{X0: 6, X1: 33, Off: 0.6, Gap: 1.9, R: 0.55, Crest: 0.3, Parts: []string{"body"}},
+			{X0: 6, X1: 33, Off: 0.7, Gap: 1.9, R: 0.55, Parts: []string{"body"}},
 		},
 		Folds: []Fold{
 			{Pts: []float64{35.6, 9, 35, 11, 35.2, 13}, N: 2, DX: 1.1, DY: -0.2, Depth: 0.8}, // the neck
@@ -104,7 +104,7 @@ func thesc() *Species {
 }
 
 func thescDetails(p *Painter) {
-	p.Eye(EyeSpec{X: 41.2, Y: 7.7, R: 0.78, Iris: thescEye, Lid: 0.22, Squint: 1.2})
+	p.Eye(EyeSpec{X: 41.2, Y: 7.6, R: 0.92, Iris: thescEye, Lid: 0.22, Squint: 1.2})
 	p.Nostril(46.2, 9.9, 0.4, 0.28, -0.3)
 	// The toes' claws, the far foot's darker; the little hand's.
 	p.Claw(30.3, 32.3, 31.9, 33.1, 0.8, 0.2, thescClaw)

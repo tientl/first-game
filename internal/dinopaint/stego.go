@@ -21,17 +21,17 @@ func init() { Register(stego()) }
 // ones.
 var stegoPlates = []PlateSpec{
 	// The far row.
-	{BX0: 29.4, BY0: 21.5, BX1: 37.4, BY1: 20.5, TX: 33.6, TY: 5.4, Bulge: 1.2},
-	{BX0: 43.2, BY0: 20, BX1: 50.6, BY1: 20, TX: 47, TY: 2.8, Bulge: 1.2},
-	{BX0: 53.6, BY0: 21.5, BX1: 60.4, BY1: 22.6, TX: 57.2, TY: 6.6, Bulge: 1.1},
-	{BX0: 60.8, BY0: 25.5, BX1: 67.4, BY1: 26.5, TX: 64.6, TY: 14.2, Bulge: 0.9},
+	{BX0: 29.4, BY0: 21.5, BX1: 37.4, BY1: 20.5, TX: 33.6, TY: 6, Bulge: 1.6},
+	{BX0: 43.2, BY0: 20, BX1: 50.6, BY1: 20, TX: 47, TY: 3.6, Bulge: 1.6},
+	{BX0: 53.6, BY0: 21.5, BX1: 60.4, BY1: 22.6, TX: 57.2, TY: 6.6, Bulge: 1.5},
+	{BX0: 60.8, BY0: 25.5, BX1: 67.4, BY1: 26.5, TX: 64.6, TY: 14.2, Bulge: 1.2},
 	// The near row.
-	{BX0: 18.6, BY0: 29.6, BX1: 25.8, BY1: 28.2, TX: 21.8, TY: 17.2, Bulge: 0.9}, // clear of the tail's joint, at 17.5
-	{BX0: 22.5, BY0: 24.5, BX1: 31.2, BY1: 22.5, TX: 27.8, TY: 8.8, Bulge: 1.3},
-	{BX0: 35.8, BY0: 20.5, BX1: 44.4, BY1: 19.8, TX: 40.4, TY: 2.6, Bulge: 1.4},
-	{BX0: 48.6, BY0: 20.2, BX1: 56.2, BY1: 20.8, TX: 52.4, TY: 5.8, Bulge: 1.2},
-	{BX0: 56.8, BY0: 23.2, BX1: 64.2, BY1: 24.8, TX: 61, TY: 10.8, Bulge: 1.1},
-	{BX0: 63.6, BY0: 28.5, BX1: 70.4, BY1: 29.5, TX: 67, TY: 19.8, Bulge: 0.9},
+	{BX0: 18.6, BY0: 29.6, BX1: 25.8, BY1: 28.2, TX: 21.8, TY: 17.2, Bulge: 1.2}, // clear of the tail's joint, at 17.5
+	{BX0: 22.5, BY0: 24.5, BX1: 31.2, BY1: 22.5, TX: 27.8, TY: 9.4, Bulge: 1.8},
+	{BX0: 35.8, BY0: 20.5, BX1: 44.4, BY1: 19.8, TX: 40.4, TY: 3.4, Bulge: 1.9},
+	{BX0: 48.6, BY0: 20.2, BX1: 56.2, BY1: 20.8, TX: 52.4, TY: 6.4, Bulge: 1.6},
+	{BX0: 56.8, BY0: 23.2, BX1: 64.2, BY1: 24.8, TX: 61, TY: 10.8, Bulge: 1.5},
+	{BX0: 63.6, BY0: 28.5, BX1: 70.4, BY1: 29.5, TX: 67, TY: 19.8, Bulge: 1.2},
 }
 
 const stegoFar = 4 // the first four plates are the far row
@@ -61,6 +61,7 @@ func stego() *Species {
 	body := Blend(3,
 		tail,
 		Ellipse(45, 29.8, 24, 11, 0),
+		Ellipse(45, 22.5, 19, 6, 0),  // the high back under the plates
 		Ellipse(63, 34, 7.5, 7.5, 0), // the shoulders
 	)
 	head := Blend(2,
@@ -68,10 +69,6 @@ func stego() *Species {
 		Poly(71, 33.4, 75, 32.8, 80, 33.4, 84, 34.6, 87.6, 36.4, 90.4, 38.6, 91.2, 41.2, 89.8, 43.4, 84, 43.8, 78, 42.8, 72.5, 42.2, 69.5, 41),
 	)
 	beak := Poly(86.2, 39, 89, 38.4, 91.4, 40.6, 91, 43.2, 88, 44, 86, 43.2)
-	var plates []SDF
-	for _, s := range stegoPlates {
-		plates = append(plates, s.Shape())
-	}
 	return &Species{
 		Name:        "stego",
 		GuideDetail: 0.4,
@@ -88,9 +85,12 @@ func stego() *Species {
 			{Region: Poly(0, 0, 92, 0, 92, 56, 0, 56), From: []string{"plate", "bone"}, To: "hide"},
 		},
 		Materials: []Material{
-			{Name: "hide", Seeds: []uint32{0x495d2a, 0x445c30, 0x5a7640, 0x64803a, 0x728f52, 0x81a04d, 0x8ca866, 0x9fbb64, 0xbcd284, 0x1c2612, 0x1f2c17, 0x304322, 0x31401d},
+			{Name: "hide", Seeds: []uint32{0x495d2a, 0x445c30, 0x5a7640, 0x64803a, 0x728f52, 0x81a04d, 0x8ca866, 0x9fbb64, 0xbcd284},
 				Ramp:   stegoHide,
 				Region: Poly(30, 49, 75, 49, 75, 57, 30, 57), Only: []string{"bone", "belly"}}, // the guide's nails are painted again
+			// The dark green blotches all over it, as drawn.
+			{Name: "mottle", Seeds: []uint32{0x1c2612, 0x1f2c17, 0x304322, 0x31401d, 0x2b2f1b, 0x29371d, 0x2c3819},
+				Ramp: []uint32{0x0a0f08, 0x10180c, 0x172210, 0x1e2c14, 0x263818, 0x30461e, 0x3c5426, 0x4a642e}, Smooth: 0.6, Bias: 0.12},
 			{Name: "belly", Seeds: []uint32{0x99874b, 0xa09276, 0x938b74, 0x76743c, 0xc4c074, 0xe0dc98, 0x9e9c54},
 				Ramp: []uint32{0x2a2814, 0x3c381c, 0x524c28, 0x686234, 0x807a42, 0x989252, 0xb0aa66, 0xc8c280}, Relief: 0.7},
 			{Name: "plate", Seeds: []uint32{0xe0882a, 0xc4621c, 0xf47a4a, 0xe45232, 0xc4301e, 0x9a4216, 0x6a2a12, 0x4e130c}, Ramp: stegoHide},

@@ -31,12 +31,12 @@ func (s PlateSpec) outline() []float64 {
 		px, py = -px, -py
 	}
 	side := func(bx, by, sgn float64, pts []float64, rev bool) []float64 {
-		// A cubic from the base to the point: broadest a third of the way
-		// up, rounding over into the point.
-		c1x := lerp(bx, s.TX, 0.3) + sgn*px*2.4*s.Bulge
-		c1y := lerp(by, s.TY, 0.3) + sgn*py*2.4*s.Bulge
-		c2x := lerp(bx, s.TX, 0.85) + sgn*px*1.6*s.Bulge
-		c2y := lerp(by, s.TY, 0.85) + sgn*py*1.6*s.Bulge
+		// A cubic from the base to the point: broadest a little under half way
+		// up, rounding bluntly over into the point.
+		c1x := lerp(bx, s.TX, 0.4) + sgn*px*2.6*s.Bulge
+		c1y := lerp(by, s.TY, 0.4) + sgn*py*2.6*s.Bulge
+		c2x := lerp(bx, s.TX, 0.9) + sgn*px*2.0*s.Bulge
+		c2y := lerp(by, s.TY, 0.9) + sgn*py*2.0*s.Bulge
 		const n = 14
 		var seg []float64
 		for i := 0; i <= n; i++ {
@@ -166,7 +166,7 @@ func (p *Painter) Plate(s PlateSpec) {
 		case d < 0.4/K*1.5 && base < 0.5:
 			// The outline: dark, lighter where the edge faces the light.
 			return Mix(pick(s.Rim, 0.15+0.3*lit+s.Shade), Ink, 0.55-0.35*lit)
-		case d < 0.85 && base < 0.5:
+		case d < 1.2 && base < 0.5:
 			// The thin edge: the light shines through it, brightest where it
 			// faces away from the light and is lit from behind.
 			return pick(s.Rim, 0.55+0.25*lit+0.15*(1-lit)*smoothstep(0.3, 1, along)+s.Shade+0.15*(v-0.55))
