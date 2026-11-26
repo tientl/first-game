@@ -191,6 +191,7 @@ func (g *Game) drawDev(screen *ebiten.Image, sw, sh int) {
 	if d == nil {
 		return
 	}
+	uiBreak() // over the hotbar's HD icons: see iconhd.go
 	tag := "DEV"
 	tw := float32(g.textWidth(tag))
 	panel(screen, 250, 12, tw+16, 24)

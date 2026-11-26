@@ -127,6 +127,9 @@ func main() {
 	days := flag.Float64("days", 0, "let this many days go by for what grows: stumps, saplings, young trees, the woods filling their gaps (see internal/sim/regrow.go)")
 	regrowStrip := flag.Bool("regrow", false, "put the stages a felled tree grows back through in a row right of the player: stump, sapling, young tree, grown tree")
 	realState := flag.Bool("real", false, "show every entity as it is (by default every ninth shows harvested, to see those states too)")
+	exact := flag.Bool("exact", false, "draw on a screen exactly -w by -h pixels, whatever size the window gets (a window taller than the desktop is cut short, and a 1061-pixel screen is not 1080p: the interface is drawn at scale 1, not 2)")
+	iconHD := flag.Bool("iconhd", true, "the HD item icons, at the screen's own resolution (false: the old 16x16 icons, scaled up; see internal/client/iconhd.go)")
+	iconSheet := flag.Bool("iconsheet", false, "write the icon sheet instead of a frame: every HD item icon next to its old one, in 1080p hotbar slots and three times as big")
 	flag.Parse()
 	client.SetMeasureCanopy(*canopyFlag)
 	client.SetHeroHD(*herohd)
@@ -134,6 +137,7 @@ func main() {
 	client.SetHDTest(*hdTest)
 	client.SetEnvHD(*envHD)
 	client.SetCritterHD(*critterHD)
+	client.SetIconHD(*iconHD)
 	client.SetSubPixel(*subPixel)
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
@@ -937,6 +941,9 @@ func main() {
 		inner = &menuGame{m}
 	}
 	g := &shooter{inner: inner, frames: *frames, out: *out, crop: *crop, cost: *costFlag, gifN: *gifN, gifStep: max(1, *gifStep), bench: *benchN}
+	if *exact {
+		g.fixW, g.fixH = *winW, *winH
+	}
 	if *benchN > 0 {
 		ebiten.SetVsyncEnabled(false)
 		ebiten.SetTPS(ebiten.SyncWithFPS)
@@ -946,6 +953,9 @@ func main() {
 	}
 	if *trunkSheet {
 		g.trunks = game
+	}
+	if *iconSheet {
+		g.icons = game
 	}
 	if err := ebiten.RunGame(g); err != nil && !errors.Is(err, ebiten.Termination) {
 		log.Fatal(err)
@@ -985,12 +995,14 @@ type shooter struct {
 	err    error
 	sheet  *client.Game // write its scale sheet instead of the frame
 	trunks *client.Game // write its trunk sheet instead of the frame
+	icons  *client.Game // write its icon sheet instead of the frame
 	cost   bool         // print what the art has cost
 
 	gifN, gifStep int           // -gif: frames to keep, and game frames between them
 	gifFrames     []*image.RGBA // kept so far
 	gifAt         int           // the game frame the last was kept at
 	bench         int           // -bench: frames to time
+	fixW, fixH    int           // -exact: the screen's size, whatever the window's
 	benchTimes    []time.Duration
 	benchLast     time.Time
 }
@@ -1036,6 +1048,9 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 	if s.trunks != nil {
 		final = s.trunks.TrunkSheet()
 	}
+	if s.icons != nil {
+		final = s.icons.IconSheet()
+	}
 	if s.sheet != nil {
 		final = s.sheet.ScaleSheet()
 		printArtCost("with the whole sheet drawn")
@@ -1064,7 +1079,12 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 	s.err, s.done = err, true
 }
 
-func (s *shooter) Layout(w, h int) (int, int) { return s.inner.Layout(w, h) }
+func (s *shooter) Layout(w, h int) (int, int) {
+	if s.fixW > 0 {
+		return s.fixW, s.fixH
+	}
+	return s.inner.Layout(w, h)
+}
 
 type menuGame struct{ m *client.Menu }
 

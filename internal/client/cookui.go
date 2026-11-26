@@ -370,7 +370,7 @@ func (g *Game) drawCook(screen *ebiten.Image, sw, sh int) {
 	ly := py + 40
 	sideW := pw - (sx - px) - 18
 	for _, l := range cookLines(cv.Kind) {
-		drawIcon(screen, g.art.icons[l.item], sx, ly+2, 2, 1)
+		g.drawItem(screen, l.item, sx, ly+2, 32, 1)
 		g.text(screen, l.name, sx+38, ly-2, colWhite, text.AlignStart, 1)
 		y := ly + 15
 		for _, line := range wrapText(l.needs, sideW-38) {
