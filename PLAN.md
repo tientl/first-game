@@ -60,6 +60,8 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 - [x] **Nhân vật có khớp tay chân** (giữ cách vẽ bằng code, như khủng long `dinolegs.go`): vai–khuỷu–cổ tay, hông–gối–cổ chân xoay quanh khớp; đi, chạy 8–12 khung, bàn chân không trượt, tay vung ngược chân; chém, đâm, bổ, đấm có lấy đà – ra đòn – thu về; áo choàng, tóc, râu đung đưa trễ nhịp; đủ 4 hướng, mọi kiểu ngoại hình, giáp, đồ cầm tay khớp với bàn tay.
 - [ ] **Tỉ lệ**: dựa vào độ cao nhân vật hiện tại, tăng độ cao của các thứ khác (cây, thú, công trình…) cho cân.
+  - [x] **Cây, cây cỏ, công trình, đá**: lấy người chơi (cao 93 px ở 1080p) làm thước, vẽ lại ở cỡ mới (thêm lá, vỏ cây, ván, đá chứ không phóng to): cây thường 3–5 lần người, cây lá kim 3–5, bách tán, gỗ đỏ, bụt mọc 5–6, cây cổ thụ khổng lồ 7 lần (rễ bạnh, vỏ nứt, rêu, hốc cây); bụi ngang hông, cỏ ngang đùi, hoa và cây trồng ngang gối; cửa ra vào cao 1,2 lần người (cửa gỗ, lều, cửa hang, kim tự tháp); tường rào, đuốc, cột cờ, cột tô-tem, cây đước, cây phát sáng theo cỡ người. Vẫn đứng trên ô cũ, va chạm không đổi. Cây, mái lều che người hay thú đứng sau thì mờ đi. Cây to vẽ khi cần (`lazyart.go`). Bảng so sánh: `go run ./cmd/shot -w 1920 -h 1080 -scalesheet`.
+  - [ ] **Thú**: chưa đổi cỡ. Hiện so với người: thằn lằn săn mồi 1,1 lần, hổ răng kiếm 0,9, gấu 0,8, ba sừng 1,5, phiến lưng 1,7, voi ma mút 2,4, bạo chúa 2,3, cổ dài 3,5 (cổ dài và phiến lưng còn nhỏ so với thật).
 - [ ] **Hoạt ảnh sinh vật**: mỗi sinh vật có đi, chạy, lấy đà, cắn, quất đuôi để tấn công; 8 hoặc 16 khung cho mượt.
 
 ## 3. Giao diện và điều khiển
