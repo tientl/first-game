@@ -713,6 +713,7 @@ var (
 const (
 	tbEyeU, tbEyeV = 14.0, -10.4
 	tbTip          = 40.0 // the tip of its snout
+	tbCorner       = 11.0 // the corner of its mouth, just behind the eye
 )
 
 // tbLipUp is where the skull's lip runs, in its frame; tbLipLow the jaw's.
@@ -771,9 +772,9 @@ func (rd *tbRender) head(hp tbHeadPos, p tbPose) {
 	if p.gape > 0.03 {
 		rd.mouth(fr, fj, p)
 		// the far row of teeth, in the dark of its mouth
-		for u := 2.5; u < tbTip-4; u += 3 {
-			rd.tooth(fr, u-1.2, tbLipUp(u)+0.5, tbToothLen(u, 5)*0.75, 0.8, 1, 0.42)
-			rd.tooth(fj, u-0.4, tbLipLow(u)-0.5, tbToothLen(u, 6)*0.65, 0.75, -1, 0.42)
+		for _, u := range []float64{15, 19.5, 24, 28.5, 33} {
+			rd.tooth(fr, u-1.2, tbLipUp(u)+0.4, tbToothLen(u, 5)*0.7, 1, 1, 0.4)
+			rd.tooth(fj, u-0.4, tbLipLow(u)-0.4, tbToothLen(u, 6)*0.6, 0.95, -1, 0.4)
 		}
 	}
 	if p.tongue > 0 {
@@ -794,7 +795,7 @@ func (rd *tbRender) head(hp tbHeadPos, p tbPose) {
 		}
 		l := 0.1 + q.l*0.86
 		switch {
-		case u > -7 && v < tbLipLow(u)+1.5: // the lip
+		case v < tbLipLow(u)+1.5*smooth(clamp01((u-tbCorner+4)/5)): // the lip, from the corner of its mouth
 			if f := u / 3.2; f-math.Floor(f) < 0.1 {
 				l -= 0.12
 			}
@@ -823,7 +824,7 @@ func (rd *tbRender) head(hp tbHeadPos, p tbPose) {
 			return color.RGBA{}
 		}
 		l := 0.06 + q.l*0.88
-		if u > -8 && v > tbLipUp(u)-2.2 {
+		if v > tbLipUp(u)-2.2*smooth(clamp01((u-tbCorner+4)/5)) { // the lip, from the corner of its mouth
 			if f := u / 3.2; f-math.Floor(f) < 0.1 {
 				l -= 0.12
 			}
@@ -877,23 +878,17 @@ func (rd *tbRender) head(hp tbHeadPos, p tbPose) {
 	for _, o := range [][3]float64{{0, 0, 1.1}, {0.4, 0.3, 0.7}} {
 		rd.c.dotPx(nx+o[0]*fr.k1(), ny+o[1]*fr.k1(), o[2]*fr.k1(), tbInk)
 	}
-	// The teeth: a row along each jaw, longest in the middle, every one
-	// curved back, and a great fang near the front of each jaw.
+	// The teeth: eight or so along each jaw from the corner of its mouth,
+	// longest towards the front, every one curved back, and great fangs.
 	const fangUp, fangUp2, fangLow = 27.5, tbTip - 3.5, 30.5
 	if p.gape > 0.12 {
-		for u := 0.5; u < tbTip-3; u += 3 {
-			if math.Abs(u-fangLow) < 1.8 {
-				continue
-			}
-			rd.tooth(fj, u, tbLipLow(u)+0.25, tbToothLen(u, 0), 1, -1, 1)
+		for _, u := range []float64{13.2, 16.4, 19.6, 22.8, 26, 34, 36.6} {
+			rd.tooth(fj, u, tbLipLow(u)+0.25, tbToothLen(u, 0), 1.3, -1, 1)
 		}
 		rd.tooth(fj, fangLow, tbLipLow(fangLow)+0.25, 8*min(1, p.gape*1.6), 1.55, -1, 1)
 	}
-	for u := 1.0; u < tbTip-2; u += 2.9 {
-		if math.Abs(u-fangUp) < 2 || math.Abs(u-fangUp2) < 1.6 {
-			continue
-		}
-		rd.tooth(fr, u, tbLipUp(u)-0.2, tbToothLen(u, 1)*clamp01(p.gape*3), 1, 1, 1)
+	for _, u := range []float64{12.6, 15.8, 19, 22.2, 24.9, 30.6, 33.4, 38.8} {
+		rd.tooth(fr, u, tbLipUp(u)-0.2, tbToothLen(u, 1)*clamp01(p.gape*3), 1.3, 1, 1)
 	}
 	rd.tooth(fr, fangUp, tbLipUp(fangUp)-0.2, 10, 1.8, 1, 1)
 	rd.tooth(fr, fangUp2, tbLipUp(fangUp2)-0.2, 6.5, 1.35, 1, 1)
@@ -903,7 +898,7 @@ func (rd *tbRender) head(hp tbHeadPos, p tbPose) {
 // tbToothLen is how long the tooth of a row at u is: short at the back,
 // longest towards the front, each a little different.
 func tbToothLen(u float64, row uint32) float64 {
-	return (2.1 + 1.9*smooth(clamp01((u+2)/26))) * (0.9 + 0.2*hashf(int(u*10), int(row), 972))
+	return (3.1 + 1.6*smooth(clamp01((u-tbCorner)/18))) * (0.9 + 0.2*hashf(int(u*10), int(row), 972))
 }
 
 // mouth paints the inside of the open mouth between the lips: a throat
@@ -931,32 +926,56 @@ func (rd *tbRender) mouth(fr, fj bossFrame, p tbPose) {
 		if um > lerpf(tbTip-1, tbTip-2, t)-inset*math.Sin(t*math.Pi) {
 			return color.RGBA{} // the air between the tips of its jaws
 		}
-		depth := smooth(clamp01((um + 7) / 42)) // 0 down its throat, 1 at the front
+		// The corner of its mouth, rounded; behind it its cheek closes the head.
+		corner := tbCorner + 5*(2*t-1)*(2*t-1)
+		if um < corner {
+			return rd.cheek(fr, um, e1, t, corner-um)
+		}
+		depth := smooth(clamp01((um - tbCorner) / (tbTip - tbCorner))) // 0 down its throat, 1 at the front
 		mid := 1 - math.Abs(2*t-1)
-		lit := depth * (1 - 0.5*mid)
-		col := mix(hex(0x080205), hex(0x34101a), clamp01(lit*1.7))
+		lit := depth * (1 - 0.6*mid)
+		col := mix(hex(0x060104), hex(0x24080e), clamp01(lit*1.6))
 		if t < 0.5 { // the palate faces down, out of the light
-			col = mix(col, hex(0x5a2531), clamp01((lit-0.35)*1.3))
-			if f := um / 2.3; f-math.Floor(f) < 0.2 && t < 0.4 && um > -2 {
-				ridge := (1 - (f-math.Floor(f))/0.2) * clamp01((0.4-t)/0.2) * depth
-				col = mix(col, hex(0x7c4450), 0.24*ridge) // the ridges across its roof
+			col = mix(col, hex(0x3c1620), clamp01((lit-0.45)*1.4))
+			if f := um / 2.6; f-math.Floor(f) < 0.2 && t < 0.38 {
+				ridge := (1 - (f-math.Floor(f))/0.2) * clamp01((0.38-t)/0.2) * depth
+				col = mix(col, hex(0x5c2a34), 0.3*ridge) // the ridges across its roof
 			}
 		} else { // its floor, lit from above
-			col = mix(col, hex(0x6a2c38), clamp01((lit-0.3)*1.4))
+			col = mix(col, hex(0x481a24), clamp01((lit-0.4)*1.4))
 		}
-		if e := min(e1, e2); e < 1.7 { // the gums, softly shaded
-			gum := hex(0x6a2c36)
+		if e := min(e1, e2); e < 0.75 { // the gums: a thin line along each lip
+			gum := hex(0x5a2430)
 			if e2 < e1 {
-				gum = hex(0x82404c)
+				gum = hex(0x6e3440)
 			}
-			gum = mix(hex(0x2a0c12), gum, 0.35+0.65*depth)
-			col = mix(col, gum, 0.8*smooth(1-e/1.7))
-			if e < 0.32 {
-				col = hex(0x1c070c) // where the lip meets them
+			col = mix(col, mix(hex(0x200a10), gum, 0.4+0.6*depth), 0.85*smooth(1-e/0.75))
+			if e < 0.28 {
+				col = hex(0x1a060b) // where the lip meets them
 			}
+		}
+		if d := um - corner; d < 1.4 {
+			col = mix(col, hex(0x040102), 0.6*(1-d/1.4)) // the fold deep in its corner
 		}
 		return col
 	})
+}
+
+// cheek colours the skin stretched between its jaws behind the corner of
+// its mouth: um art units from the hinge, e1 down from the upper lip, t
+// (0..1) across, toCorner short of the corner.
+func (rd *tbRender) cheek(fr bossFrame, um, e1, t, toCorner float64) color.RGBA {
+	e, mx, my, id := tbPlates(um, e1, 2.3, 986)
+	l := 0.3 + 0.2*(1-t) + 0.12*math.Sin(math.Pi*clamp01((um+9)/(tbCorner+9))) // its bulge
+	l += rd.plateLight(fr, e, mx, my) * 0.8
+	if toCorner < 2.5 {
+		l -= 0.24 * (1 - toCorner/2.5) // drawn into the corner
+	}
+	rp := tbMoss
+	if hashf(id, 0, 987) < 0.2 {
+		rp = tbBronze
+	}
+	return tbTone(rp, l*0.88)
 }
 
 // tongueStroke paints a slim, round, tapering stroke along pts (frame units
@@ -1030,28 +1049,28 @@ func (rd *tbRender) tongue(fr, fj bossFrame, p tbPose) {
 	if p.gape >= 0.15 {
 		f = fj
 		// along the floor of its mouth, clear of the teeth, the tip raised
-		tip := 17 + 13*tg
-		body = [][2]float64{{-3, -2.1}, {7, -2.6}, {tip - 6, -3}, {tip - 2, -3.5 - 1.2*tg}, {tip, -4.2 - 2.4*tg}}
+		tip := 24 + 9*tg
+		body = [][2]float64{{tbCorner + 1.5, -2}, {tbCorner + 6, -2.9}, {tip - 7, -2.5}, {tip - 3, -3.2 - 1.1*tg}, {tip, -4.4 - 2.2*tg}}
 	} else {
 		f = fr
 		out := tbTip + 10*tg
 		body = [][2]float64{{tbTip - 12, 1.3}, {tbTip - 2, 1.2}, {out - 4, 1.4 + 0.4*tg}, {out, 1.9 + 0.7*tg}}
 	}
-	rd.tongueStroke(f, body, 1.25, 0.6)
+	rd.tongueStroke(f, body, 1, 0.45)
 	// the fork
 	a, b := body[len(body)-2], body[len(body)-1]
 	ang := math.Atan2(b[1]-a[1], b[0]-a[0])
 	l := 4.5 * (0.5 + 0.5*tg)
 	for _, s := range []float64{-0.42, 0.42} {
 		rd.tongueStroke(f, [][2]float64{b, {b[0] + math.Cos(ang+s*0.6)*l*0.5, b[1] + math.Sin(ang+s*0.6)*l*0.5},
-			{b[0] + math.Cos(ang+s)*l, b[1] + math.Sin(ang+s)*l}}, 0.55, 0.16)
+			{b[0] + math.Cos(ang+s)*l, b[1] + math.Sin(ang+s)*l}}, 0.45, 0.14)
 	}
 }
 
 // drool hangs a strand or two of spittle between its jaws.
 func (rd *tbRender) drool(fr, fj bossFrame, amt float64) {
 	c := rd.c
-	for i, s := range [][3]float64{{13, 11, 0.32}, {22, 19.5, 0.22}} {
+	for i, s := range [][3]float64{{17, 15, 0.3}, {25, 22.5, 0.2}} {
 		ax, ay := fr.at(s[0], tbLipUp(s[0])+0.2)
 		bx, by := fj.at(s[1], tbLipLow(s[1])-0.2)
 		sag := math.Hypot(bx-ax, by-ay) * s[2] * amt
