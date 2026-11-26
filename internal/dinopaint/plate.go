@@ -18,6 +18,10 @@ type PlateSpec struct {
 	Shade              float64  // added to its light: below 0 for a plate on the far side
 	Grooves            int      // the blood vessels' grooves fanning up from the base
 	Seed               uint32
+	// Vein, when set, draws the grooves as pale streaks in these colours,
+	// VeinW wide at the root (guide pixels), as a striped plate's.
+	Vein  []uint32
+	VeinW float64
 }
 
 // outline is the plate's edge as a polygon: the base, then a curve up the
@@ -142,9 +146,14 @@ func (p *Painter) Plate(s PlateSpec) {
 		if math.Abs(across) < 0.3 && along > 0.1 && along < 0.92 {
 			v += 0.07 // the ridge catches the light
 		}
-		if gd, gt := groove(x, y); gd < 0.2 && d > 0.6 {
+		gd, gt := groove(x, y)
+		vein := false
+		switch {
+		case s.Vein != nil:
+			vein = gd < s.VeinW*(1-0.55*gt) && d > 0.5
+		case gd < 0.2 && d > 0.6:
 			v -= 0.15 * (1 - 0.5*gt)
-		} else if gd < 0.45 && d > 0.6 {
+		case gd < 0.45 && d > 0.6:
 			v += 0.04
 		}
 		// The edge: which way it faces.
@@ -170,6 +179,9 @@ func (p *Painter) Plate(s PlateSpec) {
 			// The thin edge: the light shines through it, brightest where it
 			// faces away from the light and is lit from behind.
 			return pick(s.Rim, 0.55+0.25*lit+0.15*(1-lit)*smoothstep(0.3, 1, along)+s.Shade+0.15*(v-0.55))
+		}
+		if vein {
+			return pick(s.Vein, v+0.1-0.25*gt)
 		}
 		return pick(s.Face, v)
 	})

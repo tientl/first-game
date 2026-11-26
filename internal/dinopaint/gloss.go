@@ -88,3 +88,21 @@ func (p *Painter) Clear(s SDF) {
 		}
 	}
 }
+
+// Tint mixes everything painted inside s, details too, t of the way
+// towards colour c, fading in over soft guide pixels from the edge.
+func (p *Painter) Tint(s SDF, c uint32, t, soft float64) {
+	col := rgb(c)
+	for py := 0; py < p.H; py++ {
+		for px := 0; px < p.W; px++ {
+			i := py*p.W + px
+			if !p.In[i] {
+				continue
+			}
+			x, y := G(px, py)
+			if d := -s(x, y); d > 0 {
+				p.Out[i] = Mix(p.Out[i], col, t*smoothstep(0, soft, d))
+			}
+		}
+	}
+}
