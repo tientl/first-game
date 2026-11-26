@@ -32,7 +32,9 @@ import (
 //     what stations hold, and the buffs of dishes.
 //   - 17: the wild plants of flora.go (some stand in the water) and crops of
 //     four kinds; an older world keeps the plants a fresh one would grow.
-const SaveVersion = 17
+//   - 18: everyone starts in a fur loincloth and clothes are things carried
+//     (clothes.go); a player of an older save is given the clothes they wore.
+const SaveVersion = 18
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -318,6 +320,9 @@ func Load(d SaveData) (*World, error) {
 		}
 		if d.Version < 5 && ps.Slots.Count(ItemPickaxe) == 0 {
 			ps.Slots.Add(ItemPickaxe, 1) // they could already mine: keep that
+		}
+		if d.Version < 18 {
+			ps.Slots.dress() // they were dressed already: keep that
 		}
 		if name := cleanName(ps.Name); name != "" {
 			ps.Name = name

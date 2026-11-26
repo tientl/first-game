@@ -71,7 +71,7 @@ func (b *bodyArt) upper(k upKey) *upperArt {
 			u.hand[i].x, u.hand[i].swing = -u.hand[i].x, -u.hand[i].swing
 		}
 	} else {
-		c := bakeUpper(b.look, k, b.limbs.heads)
+		c := bakeUpper(b.look, b.wear, k, b.limbs.heads)
 		for i, l := range c.layer {
 			u.layer[i] = limbSprite(l)
 		}
@@ -102,7 +102,7 @@ func (b *bodyArt) lower(k loKey) *lowerArt {
 		k.dir = sim.DirLeft
 		l.legs = mirrorSprite(l.legs)
 	} else {
-		c, p := bakeLower(b.look, k)
+		c, p := bakeLower(b.look, b.wear, k)
 		l.legs, l.bob, l.lean = limbSprite(c), -p.drop/HDDensity, p.lean
 		if k.dir != sim.DirRight {
 			l.lean = 0
@@ -204,6 +204,7 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 	if !f.abed {
 		put(lo.legs, nil, false)
 	}
+	layer(upBody)
 	layer(upShirt)
 	if f.armor != nil {
 		put(f.armor.whole[dir][0], nil, true)
@@ -334,7 +335,7 @@ func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, l
 	if armor >= sim.TierDiamond && (l.Hair == sim.HairSpiky || l.Hair == sim.HairBun) {
 		l.Hair = sim.HairShort // under the skull cap; see drawArmored
 	}
-	f := figDraw{b: g.art.body(l), up: up, lo: lo, tint: playerColors[int(p.ID)%len(playerColors)]}
+	f := figDraw{b: g.art.bodyIn(l, p.Wear), up: up, lo: lo, tint: playerColors[int(p.ID)%len(playerColors)]}
 	if armor > sim.TierStone {
 		f.armor = g.art.armor(armor, l.Female)
 	}

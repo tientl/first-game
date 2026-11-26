@@ -129,6 +129,9 @@ func (g *figGen) braid(l *figLayer, r ramp, x, y0, y1 float64, tie color.RGBA) {
 func (g *figGen) head(d sim.Dir, shut bool) {
 	f := &g.f
 	l := g.look
+	if l.Hair == sim.HairShaggy {
+		l.Hair = sim.HairLong // the stiff figure has no mane of its own
+	}
 	sk, hr := g.sk, g.hr
 	side, up := d == sim.DirRight, d == sim.DirUp
 	T := g.T

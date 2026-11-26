@@ -449,7 +449,7 @@ func (g *Game) drawFigure(dst drawTarget, p protocol.PlayerView, dir sim.Dir, fr
 	if armor >= sim.TierDiamond && (l.Hair == sim.HairSpiky || l.Hair == sim.HairBun) {
 		l.Hair = sim.HairShort // under the skull cap; see drawArmored
 	}
-	b := g.art.body(l)
+	b := g.art.bodyIn(l, p.Wear)
 	sideways := dir == sim.DirLeft || dir == sim.DirRight
 	hide := armNone
 	switch {

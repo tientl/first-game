@@ -45,7 +45,7 @@ var skinTones = [sim.NumSkinTones]struct {
 }
 
 // hairNames are the hair styles' names, by sim.HairStyle.
-var hairNames = [sim.NumHairStyles]string{"Ngắn", "Mào dựng", "Bob tết", "Dài", "Bím dài", "Búi cao"}
+var hairNames = [sim.NumHairStyles]string{"Ngắn", "Mào dựng", "Bob tết", "Dài", "Bím dài", "Búi cao", "Bờm xù"}
 
 // SetLook sets the look of the character made for a new game; it is sent
 // to the server on joining. A player the save already knows keeps the
@@ -82,24 +82,38 @@ type bodyArt struct {
 	head                   *ebiten.Image         // facing the viewer: the map marker
 
 	look  sim.Look
+	wear  sim.Wear              // the clothes on the jointed figure; see cavefig.go
 	bare  [numArmSides]*bareArt // without one arm, for a punch; see punch.go
 	fists *fistArt              // the arms thrown out in a punch
 	limbs limbArt               // the jointed figure's frames; see limbdraw.go
 }
 
-// body returns the sprites of look l, drawing them on first use. It must be
-// called inside the game loop, where images can be created.
-func (a *art) body(l sim.Look) *bodyArt {
+// bodyKey names the sprites of a look in its clothes.
+type bodyKey struct {
+	look sim.Look
+	wear sim.Wear
+}
+
+// body returns the sprites of look l in nothing but its furs.
+func (a *art) body(l sim.Look) *bodyArt { return a.bodyIn(l, 0) }
+
+// bodyIn returns the sprites of look l wearing w, drawing them on first
+// use. It must be called inside the game loop, where images can be created.
+func (a *art) bodyIn(l sim.Look, w sim.Wear) *bodyArt {
 	l = l.Sanitized()
-	if b, ok := a.bodies[l]; ok {
+	if !(playerHD && playerJointed) {
+		w = 0 // only the jointed figure changes its clothes
+	}
+	key := bodyKey{l, w}
+	if b, ok := a.bodies[key]; ok {
 		return b
 	}
-	b := &bodyArt{head: genHeadMark(l), look: l}
+	b := &bodyArt{head: genHeadMark(l), look: l, wear: w}
 	if a.bodies == nil {
-		a.bodies = make(map[sim.Look]*bodyArt)
+		a.bodies = make(map[bodyKey]*bodyArt)
 	}
 	if playerHD && playerJointed { // its frames are drawn as they are shown: see limbdraw.go
-		a.bodies[l] = b
+		a.bodies[key] = b
 		return b
 	}
 	if playerHD { // see lookhd.go
@@ -122,10 +136,7 @@ func (a *art) body(l sim.Look) *bodyArt {
 		b.back[sim.DirLeft][f], b.legs[sim.DirLeft][f] = mirrorSprite(b.back[sim.DirRight][f]), mirrorSprite(b.legs[sim.DirRight][f])
 		b.shirt[sim.DirLeft][f], b.top[sim.DirLeft][f] = mirrorSprite(b.shirt[sim.DirRight][f]), mirrorSprite(b.top[sim.DirRight][f])
 	}
-	if a.bodies == nil {
-		a.bodies = make(map[sim.Look]*bodyArt)
-	}
-	a.bodies[l] = b
+	a.bodies[key] = b
 	return b
 }
 

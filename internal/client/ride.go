@@ -80,7 +80,7 @@ func (g *Game) drawRider(dst drawTarget, p protocol.PlayerView, c protocol.Creat
 		if arms {
 			g.drawFigure(dst, p, dir, 0, x, fy, 0, tint, 0, fp)
 		} else {
-			drawBody(dst, g.art.body(p.Look), dir, 0, x, fy, 1, 0, tint)
+			drawBody(dst, g.art.bodyIn(p.Look, p.Wear), dir, 0, x, fy, 1, 0, tint)
 		}
 		if !arms || fp.hand == poseRest {
 			g.drawHeld(dst, p.Held, dir, x, fy, 0, 0)

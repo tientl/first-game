@@ -319,9 +319,11 @@ func sRot(a shape, cx, cy, ang float64) shape {
 
 // newLimbGen is a figGen on the jointed figure's canvas: lookhd.go's frame
 // with room round it.
-func newLimbGen(l sim.Look) *figGen {
+func newLimbGen(l sim.Look, wear sim.Wear) *figGen {
 	g := newFigGen(l, limbW, limbH)
+	g.wear = wear
 	g.FA, g.A, g.AO, g.TO = newFigLayer(limbW, limbH), newFigLayer(limbW, limbH), newFigLayer(limbW, limbH), newFigLayer(limbW, limbH)
+	g.U = newFigLayer(limbW, limbH)
 	g.f.ox = limbPad * HDDensity
 	return g
 }
@@ -378,11 +380,30 @@ func legGeo(d sim.Dir, i int, p lowerPose) legGeom {
 	return g
 }
 
-// leg draws one leg on L: the trouser leg down over the knee, the
-// cross-bound wraps of the shin, the boot and its fur cuff. dim darkens the
-// far leg; toe is how far the toe points sideways; side is the figure seen
-// from the side, the boot at its full length.
-func (g *figGen) leg(lg legGeom, dim, toe float64, side bool) {
+// leg draws one leg on L, facing view (never DirLeft): bare and barefoot
+// (cavefig.go), or with what is worn: the trouser leg down over the knee and
+// the cross-bound wraps of the shin, the boot and its fur cuff. dim darkens
+// the far leg; toe is how far the toe points sideways. From the side a
+// foot is seen at its full length.
+func (g *figGen) leg(lg legGeom, dim, toe float64, view sim.Dir) {
+	if g.wear&sim.WearLegWraps != 0 {
+		g.wrappedLeg(lg, dim)
+	} else {
+		g.bareLeg(lg, dim, view)
+	}
+	switch {
+	case g.wear&sim.WearBoots != 0:
+		g.boot(lg, dim, toe, view == sim.DirRight)
+	default:
+		if g.wear&sim.WearLegWraps != 0 {
+			g.f.n++ // a part of its own under the wraps
+		}
+		g.bareFoot(lg, dim, toe, view)
+	}
+}
+
+// wrappedLeg draws the trouser leg and the wraps of a leg.
+func (g *figGen) wrappedLeg(lg legGeom, dim float64) {
 	f := &g.f
 	rt0, rt1, rs0, rs1 := 5.2, 4.3, 4.1, 3.3
 	if g.look.Female {
@@ -411,7 +432,12 @@ func (g *figGen) leg(lg legGeom, dim, toe float64, side bool) {
 		}
 		return wrapHD.at(max(i, 0))
 	})
+}
 
+// boot draws a leg's boot and its fur cuff.
+func (g *figGen) boot(lg legGeom, dim, toe float64, side bool) {
+	f := &g.f
+	sx, sy := lg.ax-lg.kx, lg.ay-lg.ky
 	ax, ay := math.Round(lg.ax*2)/2, lg.ay
 	sn, cs := math.Sin(lg.pitch), math.Cos(lg.pitch)
 	hw, tw, cw := 3.9, 4.4, 4.6 // half the boot's width, its toe's and its cuff's
@@ -435,14 +461,14 @@ func (g *figGen) legs(d sim.Dir, p lowerPose) {
 	a, b := legGeo(d, 0, p), legGeo(d, 1, p)
 	switch {
 	case d == sim.DirRight:
-		g.leg(b, 0.16, 2.8, true) // the far one first
-		g.leg(a, 0, 2.8, true)
+		g.leg(b, 0.16, 2.8, d) // the far one first
+		g.leg(a, 0, 2.8, d)
 	case a.ay < b.ay: // the one nearer the viewer over the other
-		g.leg(a, 0.1, 1.4, false)
-		g.leg(b, 0, -1.4, false)
+		g.leg(a, 0.1, 1.4, d)
+		g.leg(b, 0, -1.4, d)
 	default:
-		g.leg(b, 0, -1.4, false)
-		g.leg(a, 0.1, 1.4, false)
+		g.leg(b, 0, -1.4, d)
+		g.leg(a, 0.1, 1.4, d)
 	}
 }
 
@@ -462,9 +488,9 @@ func skirtAt(lg legGeom, t, drop float64) (x, y float64) {
 	return lerpf(lg.hx, lg.kx, t), lerpf(lg.hy, lg.ky, t) - drop
 }
 
-// skirtOf is the skirt of the upper half k: swung by a stride's legs, laid
-// over a rider's thighs.
-func skirtOf(k upKey, female bool) skirt {
+// skirtOf is the skirt of the upper half k, its hem hanging from t of the
+// way down the thigh: swung by a stride's legs, laid over a rider's thighs.
+func skirtOf(k upKey, t float64) skirt {
 	var p lowerPose
 	switch {
 	case k.frame&upSit != 0:
@@ -478,7 +504,6 @@ func skirtOf(k upKey, female bool) skirt {
 	default:
 		return skirt{}
 	}
-	t := skirtT(female)
 	_, y0 := skirtAt(legGeo(k.dir, 0, lowerPose{}), t, 0)
 	s := skirt{set: true, fx: -sFar, bx: sFar}
 	for i := 0; i < 2; i++ {
@@ -576,7 +601,7 @@ func (a armGeom) sleeve(female bool) shape {
 }
 
 // arm draws arm i: its sleeve on sl, in the shirt's greys, and its fist on
-// hd.
+// hd; without a tunic the arm is bare, on hd too.
 func (g *figGen) arm(sl, hd *figLayer, d sim.Dir, i int, a armGeom) {
 	f := &g.f
 	bias, lit := 0.12, 0.1
@@ -592,21 +617,25 @@ func (g *figGen) arm(sl, hd *figLayer, d sim.Dir, i int, a armGeom) {
 		lit = 0.1
 	}
 	female := g.look.Female
-	s := a.sleeve(female)
-	fx, fy := a.wx-a.ex, a.wy-a.ey
-	n := math.Hypot(fx, fy)
-	f.fill(sl, s, func(x, y int, _ float64) color.RGBA {
-		i := int((s.lum(x, y, 3) + bias) * 6)
-		if !female && n > 2.5 { // a turned cuff
-			switch t := ((float64(x)+0.5-a.wx)*fx + (float64(y)+0.5-a.wy)*fy) / n; {
-			case t > -2:
-				i--
-			case t > -3:
-				i++
+	if g.wear&sim.WearTunic == 0 {
+		g.bareArm(hd, a, bias*0.5)
+	} else {
+		s := a.sleeve(female)
+		fx, fy := a.wx-a.ex, a.wy-a.ey
+		n := math.Hypot(fx, fy)
+		f.fill(sl, s, func(x, y int, _ float64) color.RGBA {
+			i := int((s.lum(x, y, 3) + bias) * 6)
+			if !female && n > 2.5 { // a turned cuff
+				switch t := ((float64(x)+0.5-a.wx)*fx + (float64(y)+0.5-a.wy)*fy) / n; {
+				case t > -2:
+					i--
+				case t > -3:
+					i++
+				}
 			}
-		}
-		return shirtHD.at(max(i, 0))
-	})
+			return shirtHD.at(max(i, 0))
+		})
+	}
 	x0, y0 := math.Round(a.hx-a.size/2), math.Round(a.hy-a.size/2)
 	h := sBox(x0, y0, x0+a.size, y0+a.size, 2.2*a.size/6)
 	f.fill(hd, h, bevel(g.sk, h, a.size/2, lit))
@@ -648,7 +677,7 @@ func (hc headCache) get(l sim.Look, k headKey) *headArt {
 	if h, ok := hc[k]; ok {
 		return h
 	}
-	g := newLimbGen(l)
+	g := newLimbGen(l, 0)
 	g.lagX, g.lagY = k.lagX, k.lagY
 	g.tallHead(k.dir, k.shut)
 	h := &headArt{g.B, g.T, g.f.n}
@@ -669,11 +698,12 @@ func layOver(dst, src *figLayer, base uint16) {
 }
 
 // The layers of the upper half of a frame, in the order they are drawn.
-// The legs go between upBack and upShirt, the armour over upShirt and its
+// The legs go between upBack and upBody, the armour over upShirt and its
 // headgear over upTop.
 const (
 	upFar      = iota // the far arm's sleeve, in the shirt's greys
-	upBack            // its hand, and hair behind the body
+	upBack            // its hand (the arm, when bare), and hair behind the body
+	upBody            // the bare trunk and the fur about the hips
 	upShirt           // the clothes, in greys for the player's colour
 	upArms            // the sleeves
 	upTop             // the head, the hands, the belt and the mantle
@@ -691,11 +721,12 @@ type upperCanvas struct {
 	arm   [2]armGeom
 }
 
-// bakeUpper draws the upper half of look l for key k (never DirLeft).
-func bakeUpper(l sim.Look, k upKey, heads headCache) upperCanvas {
+// bakeUpper draws the upper half of look l wearing w for key k (never
+// DirLeft).
+func bakeUpper(l sim.Look, w sim.Wear, k upKey, heads headCache) upperCanvas {
 	l = l.Sanitized()
 	p := upperPoseOf(k)
-	g := newLimbGen(l)
+	g := newLimbGen(l, w)
 	f := &g.f
 	var out upperCanvas
 	for i := range out.arm {
@@ -711,12 +742,14 @@ func bakeUpper(l sim.Look, k upKey, heads headCache) upperCanvas {
 	each(armBehind, func(i int, a armGeom) { g.arm(g.FA, g.B, k.dir, i, a) })
 	g.hook = func() {
 		each(armMid, func(i int, a armGeom) {
-			f.clear(g.T, a.sleeve(l.Female)) // the belt goes under the arm
+			if w&sim.WearTunic != 0 {
+				f.clear(g.T, a.sleeve(l.Female)) // the belt goes under the arm
+			}
 			g.arm(g.A, g.T, k.dir, i, a)
 		})
 		f.oy = max(-1, min(1, p.lagY)) // the mantle, a moment behind
 	}
-	g.tallBody(k.dir, skirtOf(k, l.Female))
+	g.tallBody(k.dir, skirtOf(k, skirtT(l.Female, w)))
 	f.oy = 0
 	h := heads.get(l, headKey{k.dir, p.shut, p.lagX, p.lagY})
 	layOver(g.B, h.B, f.n)
@@ -724,18 +757,18 @@ func bakeUpper(l sim.Look, k upKey, heads headCache) upperCanvas {
 	f.n += h.n
 	each(armOver, func(i int, a armGeom) { g.arm(g.AO, g.TO, k.dir, i, a) })
 
-	innerLines(0.4, g.FA, g.B, g.S, g.A, g.T)
+	innerLines(0.4, g.FA, g.B, g.U, g.S, g.A, g.T)
 	innerLines(0.4, g.AO, g.TO)
-	rimLayers(g.FA.c, g.B.c, g.S.c, g.A.c, g.T.c)
+	rimLayers(g.FA.c, g.B.c, g.U.c, g.S.c, g.A.c, g.T.c)
 	rimLayers(g.AO.c, g.TO.c)
-	out.layer = [numUpLayers]*canvas{g.FA.c, g.B.c, g.S.c, g.A.c, g.T.c, g.AO.c, g.TO.c}
+	out.layer = [numUpLayers]*canvas{g.FA.c, g.B.c, g.U.c, g.S.c, g.A.c, g.T.c, g.AO.c, g.TO.c}
 	return out
 }
 
-// bakeLower draws the legs of look l for key k (never DirLeft).
-func bakeLower(l sim.Look, k loKey) (*canvas, lowerPose) {
+// bakeLower draws the legs of look l wearing w for key k (never DirLeft).
+func bakeLower(l sim.Look, w sim.Wear, k loKey) (*canvas, lowerPose) {
 	p := lowerPoseOf(k)
-	g := newLimbGen(l.Sanitized())
+	g := newLimbGen(l.Sanitized(), w)
 	g.legs(k.dir, p)
 	innerLines(0.4, g.L)
 	g.L.c.outline(0.72)

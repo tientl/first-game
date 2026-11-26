@@ -2,6 +2,7 @@ package client
 
 import (
 	"image"
+	"math"
 	"os"
 	"testing"
 
@@ -74,7 +75,7 @@ func TestDumpTallSheet(t *testing.T) {
 // five and a half heads tall, the hands hanging to the middle of the thigh.
 func TestTallFigureProportions(t *testing.T) {
 	for _, female := range []bool{false, true} {
-		u := bakeUpper(sim.Look{Female: female, Hair: sim.HairPonytail}, upKey{dir: sim.DirDown}, headCache{})
+		u := bakeUpper(sim.Look{Female: female, Hair: sim.HairPonytail}, limbWear, upKey{dir: sim.DirDown}, headCache{})
 		top := -1
 		c := u.layer[upTop]
 		for i, p := range c.px {
@@ -91,5 +92,118 @@ func TestTallFigureProportions(t *testing.T) {
 		if hand < hipY+3 || hand > hipY+thighLen*0.6 {
 			t.Errorf("female %v: the hand hangs to row %.1f, the hips are on %.1f and the knees on %.1f", female, hand, hipY, hipY+thighLen)
 		}
+	}
+}
+
+// TestDumpCave writes the figure as everyone starts, in furs and barefoot:
+// cave_base.png (a man and a woman of three skin colours from the side, the
+// front and the back), cave_wear.png (each of the clothes put on, and the
+// armours over bare skin), cave_poses.png (blows, a start, swimming, riding)
+// and cave_walk.gif and cave_run.gif (from the side):
+//
+//	CAVE_DUMP=dir go test ./internal/client -run DumpCave
+func TestDumpCave(t *testing.T) {
+	dir := os.Getenv("CAVE_DUMP")
+	if dir == "" {
+		t.Skip("set CAVE_DUMP to a folder")
+	}
+	defer func(w sim.Wear) { limbWear = w }(limbWear)
+	const k, cw, ch = 4, 200, 440
+	dirs := []sim.Dir{sim.DirDown, sim.DirRight, sim.DirUp}
+	looks := func(female bool) []sim.Look {
+		return []sim.Look{
+			{Female: female, Hair: sim.HairShaggy, HairColor: 0, Skin: 1},
+			{Female: female, Hair: sim.HairShaggy, HairColor: 2, Skin: 0},
+			{Female: female, Hair: sim.HairShaggy, HairColor: 1, Skin: 4},
+		}
+	}
+	img := limbBackdrop(9*cw, 2*ch)
+	for fi := 0; fi < 2; fi++ {
+		for li, l := range looks(fi == 1) {
+			for di, d := range dirs {
+				limbShot(img, l, upKey{dir: d}, loKey{dir: d}, headCache{}, (li*3+di)*cw+cw/2, fi*ch+ch-36, k, 0, 0)
+			}
+		}
+	}
+	limbPNG(t, dir+"/cave_base.png", img)
+
+	// Each of the clothes, then all of them; every hair on bare shoulders.
+	wears := []sim.Wear{0, sim.WearTunic, sim.WearMantle, sim.WearLegWraps, sim.WearBoots, sim.WearAll}
+	img = limbBackdrop(len(wears)*3*150, 4*330)
+	for fi := 0; fi < 2; fi++ {
+		l := sim.Look{Female: fi == 1, Hair: sim.HairShaggy, HairColor: uint8(fi * 3), Skin: uint8(fi)}
+		for wi, w := range wears {
+			limbWear = w
+			for di, d := range dirs {
+				limbShot(img, l, upKey{dir: d}, loKey{dir: d}, headCache{}, (wi*3+di)*150+75, fi*330+300, 3, 0, 0)
+			}
+		}
+		limbWear = 0
+		for ti := sim.TierCopper; ti <= sim.TierDiamond; ti++ {
+			for di, d := range dirs {
+				fx, fy := ((int(ti)-1)*3+di)*150+75, (2+fi)*330+300
+				limbShot(img, l, upKey{dir: d}, loKey{dir: d}, headCache{}, fx, fy, 3, 0, 0)
+				B, H := armorLayersTall(ti, l.Female, d)
+				tallOver(img, B, fx, fy, 3)
+				tallOver(img, H, fx, fy, 3)
+			}
+		}
+		for h := 0; h < 2; h++ {
+			hl := sim.Look{Female: fi == 1, Hair: sim.HairStyle([2]int{0, 3}[h] + fi), HairColor: 5, Skin: 3}
+			for di, d := range dirs {
+				limbShot(img, hl, upKey{dir: d}, loKey{dir: d}, headCache{}, ((4+h)*3+di)*150+75, (2+fi)*330+300, 3, 0, 0)
+			}
+		}
+	}
+	limbPNG(t, dir+"/cave_wear.png", img)
+
+	// What the body does besides walking.
+	man, woman := looks(false)[0], looks(true)[1]
+	type pose struct {
+		up upKey
+		lo loKey
+	}
+	var poses []pose
+	for _, d := range []sim.Dir{sim.DirRight, sim.DirDown, sim.DirUp} {
+		poses = append(poses,
+			pose{upKey{d, upPunch, 0}, loKey{dir: d}}, pose{upKey{d, upPunch, atkFrames - 1}, loKey{dir: d}},
+			pose{upKey{d, upChop, 0}, loKey{dir: d}}, pose{upKey{d, upChop, atkFrames - 1}, loKey{dir: d}},
+			pose{upKey{d, upThrust, 3}, loKey{dir: d}}, pose{upKey{dir: d, anim: upFling}, loKey{dir: d}},
+			pose{upKey{d, upSwim, 1}, loKey{dir: d}}, pose{upKey{d, upStand, upSit}, loKey{dir: d, anim: loSit}},
+			pose{upKey{d, upRun, 2}, loKey{d, loRun, 4}}, pose{upKey{dir: d, anim: upAsleep}, loKey{dir: d}})
+	}
+	img = limbBackdrop(10*170, 6*330)
+	for i, p := range poses {
+		for li, l := range []sim.Look{man, woman} {
+			limbShot(img, l, p.up, p.lo, headCache{}, i%10*170+85, (i/10*2+li)*330+300, 3, 0, 0)
+		}
+	}
+	limbPNG(t, dir+"/cave_poses.png", img)
+
+	for name, an := range map[string][2]uint8{"walk": {uint8(loWalk), uint8(upWalk)}, "run": {uint8(loRun), uint8(upRun)}} {
+		const gk, cell = 4, 360
+		heads := []headCache{{}, {}}
+		var frames []*image.RGBA
+		for f := 0; f < loFrames; f++ {
+			fr := limbBackdrop(2*cell, 460)
+			for li, l := range []sim.Look{man, woman} {
+				limbShot(fr, l, upKey{sim.DirRight, upAnim(an[1]), uint8(f * upFrames / loFrames)}, loKey{sim.DirRight, loAnim(an[0]), uint8(f)},
+					heads[li], li*cell+cell/2, 420, gk, 0, 0)
+			}
+			frames = append(frames, fr)
+		}
+		gd, speed := stepGait, 0.75
+		if name == "run" {
+			gd, speed = runGait, 1.6
+		}
+		limbGIF(t, dir+"/cave_"+name+".gif", frames, max(2, int(math.Round(gd.cycle/speed/loFrames*100/60))))
+		strip := limbBackdrop(8*240, 2*330)
+		for f := 0; f < 8; f++ {
+			for li, l := range []sim.Look{man, woman} {
+				limbShot(strip, l, upKey{sim.DirRight, upAnim(an[1]), uint8(f)}, loKey{sim.DirRight, loAnim(an[0]), uint8(2 * f)},
+					heads[li], f*240+120, li*330+300, 3, 0, 0)
+			}
+		}
+		limbPNG(t, dir+"/cave_"+name+"_strip.png", strip)
 	}
 }

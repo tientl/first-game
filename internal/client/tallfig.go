@@ -7,12 +7,14 @@ import (
 	"survivalgame/internal/sim"
 )
 
-// The body of the jointed figure (limbs.go): a Norse settler five and a half
-// heads tall. A man is broad in the shoulder: a belted tunic to the middle
-// of the thigh in the player's colour, a fur mantle pinned with a brooch. A
-// woman is slighter: an apron dress to below the knee over a lighter shift,
-// pinned with two brooches and a string of beads, a fur collar. The arms
-// and the legs are limbs.go's, the head tallhead.go's.
+// The clothes of the jointed figure (limbs.go), five and a half heads tall.
+// Bare it is cavefig.go's: a fur loincloth and nothing else. The tunic and
+// the mantle are things made and carried (sim.Wear). A man is broad in the
+// shoulder: a belted tunic to the middle of the thigh in the player's
+// colour, a fur mantle pinned with a brooch. A woman is slighter: an apron
+// dress to below the knee over a lighter shift, pinned with two brooches
+// and a string of beads, a fur collar. The arms and the legs are limbs.go's,
+// the head tallhead.go's.
 //
 // Image pixels, the middle on column 27: the crown on row 27, the chin on
 // 43, the shoulders on 49, the belt on 67, the hips on 74, the knees on 95
@@ -24,12 +26,18 @@ const (
 	beltY    = 67.0
 )
 
-// skirtT is how far down the thigh a hem hangs from: see skirtOf.
-func skirtT(female bool) float64 {
-	if female {
+// skirtT is how far down the thigh the hem of what is worn hangs from: a
+// tunic's or a dress's, or the fur's about the hips. See skirtOf.
+func skirtT(female bool, wear sim.Wear) float64 {
+	switch tunic := wear&sim.WearTunic != 0; {
+	case tunic && female:
 		return 1
+	case tunic:
+		return 0.5
+	case female:
+		return (skirtHemF - hipY) / thighLen
 	}
-	return 0.5
+	return (loinHem - hipY) / thighLen
 }
 
 // tallTorso is the tunic or the dress without the arms, facing d (never
@@ -70,10 +78,48 @@ func tallTorso(female bool, d sim.Dir, sk skirt) (torso shape, hemAt func(x floa
 	return sPoly(16, 46.5, 38, 46.5, 38, 55, 35.6, 67, 36.6, 74, 38, r, 27, mid, 16, l, 17.4, 74, 18.4, 67, 16, 55), hemAt
 }
 
-// tallBody draws the clothes on S, in greys for the player's colour, and
-// the neck, the belt and the mantle on T. The hook is run between the belt
-// and the mantle, for the arms.
+// tallBody draws the body: bare on U (cavefig.go), or under a tunic the
+// clothes on S, in greys for the player's colour, and the neck and the belt
+// on T; then the mantle on T, if one is worn. The hook is run before the
+// mantle, for the arms.
 func (g *figGen) tallBody(d sim.Dir, sk skirt) {
+	f := &g.f
+	female, up, side := g.look.Female, d == sim.DirUp, d == sim.DirRight
+	if g.wear&sim.WearTunic == 0 {
+		g.bareBody(d, sk)
+		if g.hook != nil {
+			g.hook()
+		}
+	} else {
+		g.tunic(d, sk)
+	}
+	if g.wear&sim.WearMantle == 0 {
+		return
+	}
+	switch {
+	case female && side:
+		m := sBox(21.5, 45.5, 33, 50.5, 2.4).jag(1.1, 3, 48.5, 23)
+		f.fill(g.T, m, furShade(furHD, m, 3.5, 0.02, 33))
+	case female:
+		m := sBox(17, 45.5, 37, 50.5, 2.4).jag(1.1, 3, 48.5, 23)
+		f.fill(g.T, m, furShade(furHD, m, 3.5, 0.02, 33))
+	case side:
+		m := sBox(20, 45.5, 34.6, 50.5, 3).or(sEll(27, 50.5, 7.4, 4.8)).jag(1.4, 3.4, 51.5, 21)
+		f.fill(g.T, m, furShade(furHD, m, 4, 0, 31))
+		g.brooch(33.2, 52, 2.2, true)
+	case up:
+		m := sBox(12.5, 45.5, 41.5, 57, 3.5).jag(1.7, 4, 54, 21)
+		f.fill(g.T, m, furShade(furHD, m, 5, 0, 31))
+	default:
+		m := sBox(12.5, 45.5, 41.5, 50, 2.5).or(sEll(16.2, 50.5, 5.2, 4.6)).or(sEll(37.8, 50.5, 5.2, 4.6)).jag(1.4, 3.4, 51.5, 21)
+		f.fill(g.T, m, furShade(furHD, m, 4, 0, 31))
+		g.brooch(19.5, 52, 2.4, true)
+	}
+}
+
+// tunic draws a man's tunic or a woman's dress on S, and the neck, the belt
+// and the dress's brooches on T; the hook is run after the belt.
+func (g *figGen) tunic(d sim.Dir, sk skirt) {
 	f := &g.f
 	female, up, side := g.look.Female, d == sim.DirUp, d == sim.DirRight
 	torso, hemAt := tallTorso(female, d, sk)
@@ -200,12 +246,8 @@ func (g *figGen) tallBody(d sim.Dir, sk skirt) {
 
 	switch {
 	case female && side:
-		m := sBox(21.5, 45.5, 33, 50.5, 2.4).jag(1.1, 3, 48.5, 23)
-		f.fill(g.T, m, furShade(furHD, m, 3.5, 0.02, 33))
 		g.brooch(32, 53, 2, false)
 	case female:
-		m := sBox(17, 45.5, 37, 50.5, 2.4).jag(1.1, 3, 48.5, 23)
-		f.fill(g.T, m, furShade(furHD, m, 3.5, 0.02, 33))
 		if !up {
 			// Two oval brooches with a string of beads between.
 			for i := 0; i < 5; i++ {
@@ -219,17 +261,6 @@ func (g *figGen) tallBody(d sim.Dir, sk skirt) {
 			g.brooch(22, 53, 2, false)
 			g.brooch(32, 53, 2, false)
 		}
-	case side:
-		m := sBox(20, 45.5, 34.6, 50.5, 3).or(sEll(27, 50.5, 7.4, 4.8)).jag(1.4, 3.4, 51.5, 21)
-		f.fill(g.T, m, furShade(furHD, m, 4, 0, 31))
-		g.brooch(33.2, 52, 2.2, true)
-	case up:
-		m := sBox(12.5, 45.5, 41.5, 57, 3.5).jag(1.7, 4, 54, 21)
-		f.fill(g.T, m, furShade(furHD, m, 5, 0, 31))
-	default:
-		m := sBox(12.5, 45.5, 41.5, 50, 2.5).or(sEll(16.2, 50.5, 5.2, 4.6)).or(sEll(37.8, 50.5, 5.2, 4.6)).jag(1.4, 3.4, 51.5, 21)
-		f.fill(g.T, m, furShade(furHD, m, 4, 0, 31))
-		g.brooch(19.5, 52, 2.4, true)
 	}
 }
 

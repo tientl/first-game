@@ -69,7 +69,7 @@ func TestPlayerStanceFeetStayPlanted(t *testing.T) {
 		// Drawn, a planted boot's sole is on the ground row.
 		for f := 0; f < loFrames; f++ {
 			k := loKey{sim.DirRight, anim, uint8(f)}
-			c, p := bakeLower(sim.Look{}, k)
+			c, p := bakeLower(sim.Look{}, limbWear, k)
 			flat := false
 			for i := 0; i < 2; i++ {
 				if l := p.leg[i]; l.u == 0 && l.pitch == 0 {
@@ -121,6 +121,10 @@ func TestLimbFramesDiffer(t *testing.T) {
 	}
 }
 
+// limbWear is the clothes the figures of limbShot and the dumps have on:
+// none, the furs everyone starts in.
+var limbWear sim.Wear
+
 func limbTint(q color.RGBA) color.RGBA {
 	tint := playerColors[1]
 	return color.RGBA{uint8(int(q.R) * int(tint.R) / 255), uint8(int(q.G) * int(tint.G) / 255), uint8(int(q.B) * int(tint.B) / 255), 255}
@@ -136,8 +140,8 @@ func limbShot(img *image.RGBA, l sim.Look, up upKey, lo loKey, heads headCache, 
 		up.dir = sim.DirRight
 	}
 	lo.dir = up.dir
-	uc := bakeUpper(l, up, heads)
-	lc, lp := bakeLower(l, lo)
+	uc := bakeUpper(l, limbWear, up, heads)
+	lc, lp := bakeLower(l, limbWear, lo)
 	skew := 0.0
 	if up.dir == sim.DirRight {
 		skew = math.Tan(lp.lean)
@@ -199,6 +203,7 @@ func limbShot(img *image.RGBA, l sim.Look, up upKey, lo loKey, heads headCache, 
 	put(uc.layer[upFar], true, true)
 	put(uc.layer[upBack], false, true)
 	put(lc, false, false)
+	put(uc.layer[upBody], false, true)
 	put(uc.layer[upShirt], true, true)
 	put(uc.layer[upArms], true, true)
 	put(uc.layer[upTop], false, true)
@@ -449,7 +454,7 @@ func TestDumpLimbAnim(t *testing.T) {
 			n int
 		}{{upStand, 1}, {upWalk, upFrames}, {upRun, upFrames}, {upPunch, atkFrames}, {upPunchOff, atkFrames}, {upChop, atkFrames}, {upThrust, atkFrames}, {upFling, 1}, {upSwim, 4}} {
 			for f := 0; f < an.n; f++ {
-				u := bakeUpper(looks[0], upKey{d, an.a, uint8(f)}, hc)
+				u := bakeUpper(looks[0], limbWear, upKey{d, an.a, uint8(f)}, hc)
 				for _, c := range u.layer {
 					bytes += area(c)
 				}
@@ -461,7 +466,7 @@ func TestDumpLimbAnim(t *testing.T) {
 			n int
 		}{{loStand, 1}, {loWalk, loFrames}, {loRun, loFrames}, {loSit, 1}} {
 			for f := 0; f < an.n; f++ {
-				c, _ := bakeLower(looks[0], loKey{d, an.a, uint8(f)})
+				c, _ := bakeLower(looks[0], limbWear, loKey{d, an.a, uint8(f)})
 				bytes += area(c)
 				n++
 			}
@@ -469,8 +474,8 @@ func TestDumpLimbAnim(t *testing.T) {
 	}
 	took := time.Since(start)
 	start = time.Now()
-	bakeUpper(looks[1], upKey{dir: sim.DirRight}, headCache{})
-	bakeLower(looks[1], loKey{dir: sim.DirRight})
+	bakeUpper(looks[1], limbWear, upKey{dir: sim.DirRight}, headCache{})
+	bakeLower(looks[1], limbWear, loKey{dir: sim.DirRight})
 	first := time.Since(start)
 	start = time.Now()
 	for _, d := range []sim.Dir{sim.DirDown, sim.DirUp, sim.DirRight} {

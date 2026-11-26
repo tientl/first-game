@@ -21,6 +21,7 @@ const (
 	HairLong                      // long, down the back
 	HairPonytail                  // pulled back into a tail
 	HairBun                       // tied up in a bun on top
+	HairShaggy                    // long and unkempt, to the shoulders
 	NumHairStyles
 )
 

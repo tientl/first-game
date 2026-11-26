@@ -75,7 +75,7 @@ type art struct {
 	chest, chestOpen              sprite
 
 	// Player sprites, one set per look (body, hair), drawn on first use; see look.go.
-	bodies map[sim.Look]*bodyArt
+	bodies map[bodyKey]*bodyArt
 	armors map[armorKey]*armorArt // drawn on first use; see armorart.go
 
 	beasts creatureArt                 // animals; see creatures.go
@@ -184,6 +184,7 @@ func newArt() *art {
 	redrawItemIcons(&a.icons) // see itemicons.go
 	bossItemIcons(&a.icons)   // the legendary items; see bosses.go
 	genCookIcons(&a.icons)    // see cookicons.go
+	clothesIcons(&a.icons)    // see clothesart.go
 	a.cook = genCookArt()
 	return a
 }

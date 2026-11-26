@@ -362,6 +362,30 @@ func (g *figGen) tallHead(d sim.Dir, shut bool) {
 			hair(wide.and(m.above(34)).sub(opening).or(curt))
 			lock(14, 22, 10.6, 36, 12, 54, 2.3, 0.7)
 			lock(40, 22, 43.4, 36, 42, 54, 2.3, 0.7)
+		case sim.HairShaggy: // a mane never cut or combed: ragged to the shoulders, tufts standing out of it
+			back := g.tallLagged(sBox(16.4, 33, 37.6, 55, 3.4).jag(2.6, 2.7, 42, 47))
+			f.fill(g.B, back, hairShadeK(hr, back, 5, cx, cy, g.seed+3, hk))
+			opening := sFn(func(x, y float64) float64 {
+				u := x/2.3 + 40
+				top := 30.3 + 1.5*math.Abs(u-math.Floor(u)-0.5)*hashf(int(math.Floor(u)), 2, g.seed) // a ragged fringe
+				hw := 6.3 * math.Pow(clamp01((y-top)/2.4), 0.6)
+				return math.Max(top-y, math.Abs(x-27.3)-hw)
+			})
+			mane := m.ell(27, 28.6, 22.6, 21.4).jag(1.3, 2.6, 0, 45)
+			curt := sBox(16.4, 31, 21.3, 52.5, 1.8).or(sBox(32.7, 31, 37.6, 52.5, 1.8)).jag(2.4, 2.3, 42, 49)
+			hair(mane.and(m.above(35)).sub(opening).or(curt))
+			for _, k := range [][8]float64{
+				{22.4, 26.8, 18.6, 25.4, 16.2, 28.4, 1.6, 0.5}, // tufts standing out of it
+				{31.8, 26.6, 35.8, 25, 38, 28, 1.6, 0.5},
+				{25.4, 25.6, 26.6, 22.6, 29.6, 22.8, 1.4, 0.5},
+				{24, 27.6, 22.6, 30.6, 22.2, 33.6, 1.5, 0.6}, // locks over the brow
+				{29.6, 27.6, 32.4, 30, 33.2, 33.2, 1.5, 0.6},
+				{27, 26.8, 27.8, 29.4, 26.6, 31.6, 1.3, 0.5},
+				{19, 36, 16.4, 43, 18.2, 50.5, 1.5, 0.6}, // and down the cheeks
+				{35.2, 36, 37.6, 43, 36, 50, 1.5, 0.6},
+			} {
+				hair(sLock(k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]))
+			}
 		case sim.HairPonytail, sim.HairBun: // pulled back off the brow
 			if l.Hair == sim.HairBun {
 				bun(27)
@@ -393,6 +417,20 @@ func (g *figGen) tallHead(d sim.Dir, shut bool) {
 			hair(m.jag(wide.and(m.above(46.5)), 1.8, 3.4, 42.5, 41))
 		case sim.HairLong:
 			hair(wide.and(m.above(42)).or(sBox(18, 30, 36, 57.5, 4.5)).jag(1.6, 3, 54, 43))
+		case sim.HairShaggy:
+			mane := m.ell(27, 28.6, 22.6, 21.4)
+			hair(mane.and(m.above(42)).or(sBox(16.6, 30, 37.4, 55, 4.5)).jag(2.6, 2.7, 0, 47))
+			for _, k := range [][8]float64{
+				{22.4, 26.8, 18.6, 25.4, 16.2, 28.4, 1.6, 0.5},
+				{31.8, 26.6, 35.8, 25, 38, 28, 1.6, 0.5},
+				{25.4, 25.6, 26.6, 22.6, 29.6, 22.8, 1.4, 0.5},
+				{20.6, 33, 18.6, 43, 20, 51.5, 1.9, 0.6}, // matted locks down the back
+				{24.6, 35, 23.2, 45, 25, 54, 2, 0.6},
+				{29.4, 34, 31.4, 44, 29.6, 53, 2, 0.6},
+				{33.4, 33, 35.6, 42, 34.2, 50.5, 1.9, 0.6},
+			} {
+				hair(sLock(k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]))
+			}
 		case sim.HairPonytail, sim.HairBun:
 			if l.Hair == sim.HairBun {
 				bun(27)
@@ -432,6 +470,22 @@ func (g *figGen) tallHead(d sim.Dir, shut bool) {
 			hair(wide.and(bobCut).and(m.above(42)).or(hang))
 			fringe()
 			lock(30, 28, 29, 40, 25, 51, 2.3, 0.7)
+		case sim.HairShaggy:
+			mane := m.ell(25, 28.6, 22, 21.4)
+			hang := sPoly(m.x(5), m.y(18), m.x(31.6), m.y(18), m.x(31.4), m.y(40), 26.8, 46, 25.4, 54.5, 16.4, 54.5, 15.4, 36).jag(2.6, 2.7, 38, 47)
+			hair(mane.and(bobCut).and(m.above(42)).jag(1.3, 2.6, 0, 45).or(hang))
+			lock(27, 15, 31, 22, 31.5, 30.5, 3.6, 0.8) // a heavy fringe, down to the brow
+			lock(31, 14, 39, 19, 41, 28.5, 4, 0.8)
+			lock(36, 13, 45, 16, 48.6, 27, 4, 0.8)
+			lock(30, 28, 30, 40, 27, 50, 2.8, 0.8) // down the cheek
+			for _, k := range [][8]float64{
+				{20.6, 28.4, 17, 27, 15, 30, 1.6, 0.5}, // tufts standing out behind
+				{19.6, 34, 15.6, 34.6, 14, 38.4, 1.6, 0.5},
+				{24, 25.4, 24.6, 22.6, 27.6, 22.4, 1.4, 0.5},
+				{20, 40, 17.6, 46, 19.6, 52, 1.8, 0.6},
+			} {
+				hair(sLock(k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]))
+			}
 		case sim.HairPonytail:
 			hair(E.and(swept))
 			g.tallBraid(T, hr, m.x(11.5), 39, 58, hairTie)

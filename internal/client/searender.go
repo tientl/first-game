@@ -101,7 +101,7 @@ func (g *Game) sailFrame(b protocol.BoatView) int {
 // drawSwimmer draws p in the water at d: the head and shoulders above the
 // surface, rings spreading round them.
 func (g *Game) drawSwimmer(dst drawTarget, p protocol.PlayerView, d drawable) {
-	b := g.art.body(p.Look)
+	b := g.art.bodyIn(p.Look, p.Wear)
 	dir := p.Dir & 3
 	tint := playerColors[int(p.ID)%len(playerColors)]
 	bob := math.Round(math.Sin(float64(g.frame)*0.12+float64(p.ID)) * 1)

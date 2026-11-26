@@ -459,6 +459,7 @@ var devItemAliases = map[string]ItemKind{
 	"herb": ItemHerb, "moss": ItemMoss, "seaweed": ItemSeaweed, "lily": ItemLily, "lotusseed": ItemLotusSeed, "lotus": ItemLotusSeed,
 	"horsetail": ItemHorsetail, "rice": ItemRice, "corn": ItemCorn, "squash": ItemSquash, "squashseed": ItemSquashSeed,
 	"toadskin": ItemToadSkin, "poisongland": ItemPoisonGland, "glowgland": ItemGlowGland,
+	"tunic": ItemTunic, "mantle": ItemMantle, "legwraps": ItemLegWraps, "boots": ItemBoots,
 }
 
 // devBeastAliases are English names for the beasts.

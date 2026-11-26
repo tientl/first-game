@@ -77,7 +77,13 @@ const (
 	RecipeRoastCorn   = RecipeRoastRice + 1
 	RecipeRoastSquash = RecipeRoastCorn + 1
 
-	NumRecipes = RecipeRoastSquash + 1
+	// Clothes: see clothes.go.
+	RecipeTunic    = RecipeRoastSquash + 1
+	RecipeMantle   = RecipeTunic + 1
+	RecipeLegWraps = RecipeMantle + 1
+	RecipeBoots    = RecipeLegWraps + 1
+
+	NumRecipes = RecipeBoots + 1
 )
 
 // Recipe turns ingredients into either a structure placed in front of the

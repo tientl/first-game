@@ -106,6 +106,7 @@ func TestVersion3InventoryBecomesSlots(t *testing.T) {
 	p := mustPlayer(t, w2, w2.AddPlayer("Cũ"))
 	// The pickaxe comes from the version 5 upgrade: boulders were mined by hand.
 	want := InventoryWith(Ingredient{ItemWood, 4}, Ingredient{ItemBerry, 2}, Ingredient{ItemAxe, 1}, Ingredient{ItemPickaxe, 1})
+	want.dress() // and the clothes from the version 18 one
 	if p.Inv != want {
 		t.Fatalf("upgraded inventory = %v, want %v", p.Inv, want)
 	}

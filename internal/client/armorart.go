@@ -282,7 +282,7 @@ func (g *Game) drawArmored(dst drawTarget, p protocol.PlayerView, dir sim.Dir, f
 	if p.Armor >= sim.TierDiamond && (l.Hair == sim.HairSpiky || l.Hair == sim.HairBun) {
 		l.Hair = sim.HairShort
 	}
-	b, a := g.art.body(l), g.art.armor(p.Armor, l.Female)
+	b, a := g.art.bodyIn(l, p.Wear), g.art.armor(p.Armor, l.Female)
 	drawAt(dst, b.back[dir][frame], x, y-bob, 1, 1, 0, nil)
 	drawAt(dst, b.legs[dir][frame], x, y, 1, 1, 0, nil)
 	drawAt(dst, b.shirt[dir][frame], x, y-bob, 1, 1, 0, tint)

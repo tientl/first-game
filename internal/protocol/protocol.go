@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 42
+const Version = 43
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -201,6 +201,7 @@ type PlayerView struct {
 	HasAxe    bool           // carries an axe
 	AxeTier   sim.Tier       // what the best axe carried is made of
 	Armor     sim.Tier       // what the best armour carried is made of; 0 (stone) means none
+	Wear      sim.Wear       // the clothes carried, drawn on them; see sim/clothes.go
 	Held      sim.ItemKind   // what is in the selected hotbar slot, drawn in the hand
 	Asleep    bool           // in bed: drawn lying down
 	Look      sim.Look       // body and hair

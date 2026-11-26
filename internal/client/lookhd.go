@@ -75,8 +75,11 @@ type figGen struct {
 	seed       uint32
 
 	// The jointed figure (limbs.go): the layers of the arms, what to draw
-	// between the belt and the mantle, and how far what hangs trails.
+	// between the belt and the mantle, and how far what hangs trails; the
+	// layer of the bare body, and the clothes over it (cavefig.go).
 	FA, A, AO, TO *figLayer
+	U             *figLayer
+	wear          sim.Wear
 	hook          func()
 	lagX, lagY    float64
 }

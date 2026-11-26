@@ -51,7 +51,7 @@ func main() {
 	size := flag.Int("size", 256, "open world size")
 	at := flag.String("at", "", "open world: stand at desert, marsh, pond (a swamp with ponds), cave, mountain, ash or lava")
 	female := flag.Bool("female", false, "the player is a woman")
-	hair := flag.Int("hair", 0, "the player's hair style, 0 to 5")
+	hair := flag.Int("hair", 0, "the player's hair style, 0 to 6 (6: the shaggy mane)")
 	hairColor := flag.Int("haircolor", 0, "the player's hair colour, 0 to 7")
 	skin := flag.Int("skin", 0, "the player's skin tone, 0 to 5")
 	create := flag.Bool("create", false, "show the character screen of a new game")
@@ -73,6 +73,7 @@ func main() {
 	dung := flag.Bool("dung", false, "with -farm: a fed bed, heaps of dung by a grazing three-horn, and dung in hand")
 	sea := flag.Bool("sea", false, "out at sea: the player sailing, a raft, a swimmer, a mosasaur and a giant squid")
 	armor := flag.Int("armor", 0, "the armour tier the player wears, 0 (none) to 4")
+	wear := flag.Int("wear", 0, "the clothes the player has on, bits added up: 1 tunic, 2 mantle, 4 leg wraps, 8 boots (15: all; 0: the furs everyone starts in)")
 	bagFrom := flag.Int("bagfrom", 0, "fill every slot with one item kind each, counting up from this one (to review the icons with -overlay bag)")
 	prey := flag.Bool("prey", false, "put a raptor right in front of the player, so -acting shows a blow at a beast (-frames picks the moment)")
 	punch := flag.String("punch", "", "a blow by hand at a rabbit put in front of the player: jab, or cross for the other hand; nothing is held unless -held says so")
@@ -427,6 +428,7 @@ func main() {
 	}
 	snap.Players[0].Look = sim.Look{Female: *female, Hair: sim.HairStyle(*hair), HairColor: uint8(*hairColor), Skin: uint8(*skin)}
 	snap.Players[0].Armor = sim.Tier(*armor)
+	snap.Players[0].Wear = sim.Wear(*wear)
 	snap.Players[1].Held = sim.ItemBerry
 	if snap.Players[0].Held == sim.ItemTorch {
 		snap.Self.TorchFuel = sim.TorchBurnTicks * 2 / 3

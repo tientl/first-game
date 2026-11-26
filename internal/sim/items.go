@@ -146,7 +146,14 @@ const (
 	ItemToadSkin    // from the green toad
 	ItemPoisonGland // from the green toad: later poison arrows
 	ItemGlowGland   // from the glow toad
-	itemsEnd        // new items go above this line
+
+	// Clothes, worn from the bag over the fur loincloth everyone starts in: see clothes.go.
+	ItemTunic    // a belted tunic; on a woman an apron dress
+	ItemMantle   // a fur mantle for the shoulders
+	ItemLegWraps // trousers and cross-bound leg wraps
+	ItemBoots    // fur-cuffed hide boots
+
+	itemsEnd // new items go above this line
 
 	// The head of each kind of beast, a trophy: HeadItem(k). They sit at a
 	// fixed place so new items above never move them.

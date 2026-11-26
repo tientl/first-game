@@ -797,7 +797,7 @@ func (g *Game) drawStanding(dst drawTarget, p protocol.PlayerView, d drawable) {
 	case p.Armor > sim.TierStone:
 		g.drawArmored(dst, p, dir, frame, d.sx, d.sy, bob, tint)
 	default:
-		drawBody(dst, g.art.body(p.Look), dir, frame, d.sx, d.sy, 1, bob, tint)
+		drawBody(dst, g.art.bodyIn(p.Look, p.Wear), dir, frame, d.sx, d.sy, 1, bob, tint)
 	}
 	if !heldBehind(dir) && !inFist {
 		hand()
@@ -828,7 +828,7 @@ func (g *Game) drawSleeper(dst drawTarget, p protocol.PlayerView, d drawable) {
 	// Turned a quarter left: the feet anchor goes to the foot of the bed and
 	// the head to the pillow. Breathing lifts the blanket a pixel.
 	fx, fy := d.sx+10, d.sy-6
-	b := g.art.body(p.Look)
+	b := g.art.bodyIn(p.Look, p.Wear)
 	if playerHD && playerJointed { // see limbdraw.go
 		// The tall figure is longer than the bed: its legs are under the
 		// blanket, and only the rest of it is drawn.

@@ -90,6 +90,7 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			HasAxe:    hasAxe,
 			AxeTier:   axeTier,
 			Armor:     armor,
+			Wear:      p.Inv.Worn(),
 			Held:      p.Held(),
 			Cast:      cast,
 			BobX:      float32(bobX),

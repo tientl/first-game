@@ -65,6 +65,7 @@ func TestAnOldSaveLoadsIntoTheBiggerBag(t *testing.T) {
 	got := w2.players[w2.AddPlayer("a")]
 	want := Inventory{}
 	want[0], want[29] = Slot{ItemAxe, 1}, Slot{ItemBerry, 7}
+	want.dress() // the version 18 upgrade: see clothes.go
 	if got.Inv != want {
 		t.Errorf("after load the inventory is %v, want %v", got.Inv, want)
 	}
