@@ -77,11 +77,12 @@ var dinoRigs = map[string]dinoRig{
 			hind(22, 31, 23, rigPt{25, 19}, rigPt{27.5, 24}, rigPt{24.5, 28.5}, rigPt{25.5, 34}, rigPt{31.5, 35.5}),
 			hind(12, 21, 23, rigPt{15, 19}, rigPt{17.5, 24}, rigPt{14.5, 28.5}, rigPt{15.5, 34}, rigPt{21.5, 35.5}),
 		},
-		head:  rigPart{pivot: rigPt{31, 10}, dir: headUp(0.5), maxY: 14},
-		jaw:   [2]rigPt{{40.5, 8}, {48, 8.4}},
-		teeth: true,
-		far:   0b10,
-		tail:  rigPart{pivot: rigPt{14, 10}, dir: math.Pi, maxY: 18},
+		head:       rigPart{pivot: rigPt{31, 10}, dir: headUp(0.5), maxY: 14},
+		jaw:        [2]rigPt{{40.5, 8}, {48, 8.4}}, // the upper teeth are above this line, in the drawing
+		drawnTeeth: true,
+		teeth:      true,
+		far:        0b10,
+		tail:       rigPart{pivot: rigPt{14, 10}, dir: math.Pi, maxY: 23}, // all the rump behind the hips, down to the legs
 	},
 	"achero": {
 		file: "achero", stride: 2.5, runner: true,
