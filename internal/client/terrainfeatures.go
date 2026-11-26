@@ -349,7 +349,7 @@ func (t *terrain) rampPixel(c color.RGBA, hx, hy int, u, v, a float64) color.RGB
 	segEdge := across + 9*hashf(row, 0, 1404) - seg*13
 	switch {
 	case m < 2.2:
-		return stepStone.at(0) // the riser's shadow
+		return mix(stepStone.at(1), earth, 0.35) // the riser's shadow
 	case m < 3.6:
 		return stepStone.at(4 + int(tone*1.9)) // the front edge of the tread, lit
 	case m < 8:

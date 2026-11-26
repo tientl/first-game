@@ -281,7 +281,7 @@ func riverWater(hx, hy int, u, v, fx, fy, depth, fast float64) color.RGBA {
 	across := -u*fy + v*fx
 	s := vnoise(across*5, along*0.6, 969) - 0.5
 	l := 0.86 - 0.8*depth + s*0.08 + 0.12*fast
-	if fast > 0 && vnoise(across*16+0.3*vnoise(u*9, v*9, 1309), along*3.5, 1308) > 0.8-0.12*fast {
+	if fast > 0 && vnoise(across*9+0.4*vnoise(u*5, v*5, 1309), along*1.4, 1308) > 0.76-0.1*fast {
 		return foamHD.g(0.2+0.3*fast, hx, hy)
 	}
 	// In steps, not a smooth ramp: the bed, the shallows, the deep.
@@ -597,7 +597,7 @@ func coralHead(hx, hy int, dens float64) (color.RGBA, bool) {
 	for oy := -1; oy <= 1; oy++ {
 		for ox := -1; ox <= 1; ox++ {
 			h := hash2(int32(cx+ox), int32(cy+oy), 1336)
-			if float64(h&0xffff)/65536 >= dens*0.75 {
+			if float64(h&0xffff)/65536 >= dens*0.5 {
 				continue
 			}
 			pk := hash2(int32(fdiv(cx+ox, 4)), int32(fdiv(cy+oy, 4)), 1340)
