@@ -168,9 +168,10 @@ var dinoRigs = map[string]dinoRig{
 	},
 	"plesio": {
 		file: "plesio", ax: 23, ay: 45,
-		head:  rigPart{pivot: rigPt{34, 40}, dir: headUp(0.9), maxY: 45},
-		jaw:   [2]rigPt{{51.5, 9.5}, {60.5, 9.6}},
-		teeth: true,
+		head:       rigPart{pivot: rigPt{34, 40}, dir: headUp(0.9), maxY: 45},
+		jaw:        [2]rigPt{{51.5, 10.15}, {60.6, 10.25}}, // the upper teeth are above this line, in the drawing
+		teeth:      true,
+		drawnTeeth: true,
 	},
 	"pteroPerch": {file: "ptero_perch", ax: 28, ay: 38},
 	// The fliers are seen from above, heading right: the far wing up the
