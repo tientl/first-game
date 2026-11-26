@@ -841,7 +841,7 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 	case sim.CreatureOrnitho, sim.CreatureAnzu:
 		return 13
 	case sim.CreatureThesc:
-		return 18
+		return 30 // drawn long and low now (thesc.png)
 	case sim.CreatureAchero:
 		return 12
 	case sim.CreatureTroodon:

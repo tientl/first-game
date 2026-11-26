@@ -136,15 +136,16 @@ var dinoRigs = map[string]dinoRig{
 		tail: rigPart{pivot: rigPt{13, 19}, dir: math.Pi, maxY: 25},
 	},
 	"thesc": {
-		file: "thesc", stride: 2.5,
-		legs: []rigLimb{
-			hind(23, 31, 25, rigPt{27, 20}, rigPt{28.5, 25}, rigPt{25, 28}, rigPt{25.5, 31.5}, rigPt{31, 32.5}),
-			hind(13, 22, 25, rigPt{17.5, 20}, rigPt{18.5, 25}, rigPt{15, 28}, rigPt{15.5, 31.5}, rigPt{21, 32.5}),
+		// Drawn again long and low (2026-11): the joints measured on the new drawing.
+		file: "thesc", stride: 4,
+		legs: []rigLimb{ // the near leg, then the far one behind it
+			hind(70, 86, 32, rigPt{73, 24}, rigPt{80, 33}, rigPt{74.4, 42.6}, rigPt{76.6, 46.2}, rigPt{84.6, 46.8}),
+			hind(56, 69, 32, rigPt{65, 24}, rigPt{70.6, 33.6}, rigPt{64.2, 42.6}, rigPt{66, 46.2}, rigPt{73.4, 46.8}),
 		},
-		head: rigPart{pivot: rigPt{33, 10.5}, dir: headUp(0.6), maxY: 15},
-		jaw:  [2]rigPt{{41, 11}, {47, 11.4}},
+		head: rigPart{pivot: rigPt{101, 18}, dir: headUp(0.25), maxY: 24},
+		jaw:  [2]rigPt{{117.6, 16.4}, {124.4, 16.8}},
 		far:  0b10,
-		tail: rigPart{pivot: rigPt{12, 13}, dir: math.Pi, maxY: 20},
+		tail: rigPart{pivot: rigPt{60, 17}, dir: math.Pi, maxY: 26},
 	},
 	"anzu": {
 		file: "anzu", stride: 3,
