@@ -16,12 +16,25 @@ var (
 func init() { Register(rex()) }
 
 func rex() *Species {
+	// The feet: the ball of the foot, then two toes seen from the side, the
+	// outer one in front and low, the middle one behind it and longer, each
+	// in three knuckles. The far foot is the same, smaller and darker.
+	nearBall := Ellipse(51.6, 83.4, 3.0, 2.6, 0.1)
+	nearToe := Path([3]float64{53.2, 84.2, 1.75}, [3]float64{56.6, 84.6, 1.45}, [3]float64{59.6, 85.0, 1.15}, [3]float64{61.9, 85.3, 0.85})
+	nearToe2 := Path([3]float64{53.4, 82.2, 1.45}, [3]float64{56.8, 82.0, 1.2}, [3]float64{59.9, 82.5, 0.95}, [3]float64{62.3, 83.3, 0.7})
+	farBall := Ellipse(35.2, 83.4, 2.8, 2.5, 0.1)
+	farToe := Path([3]float64{36.8, 84.2, 1.6}, [3]float64{39.8, 84.6, 1.3}, [3]float64{42.3, 85.1, 0.85})
+	farToe2 := Path([3]float64{37, 82.2, 1.35}, [3]float64{40, 82.1, 1.1}, [3]float64{42.5, 82.8, 0.7})
+	finger1 := Cone(78.0, 52.2, 0.75, 80.1, 52.9, 0.55) // the near finger
+	finger2 := Cone(77.5, 52.9, 0.72, 78.4, 54.8, 0.52) // the far one, behind
+	feet := Union(nearBall, nearToe, nearToe2, farBall, farToe, farToe2)
+	hand := Union(Cone(76.2, 52.1, 1.3, 78.2, 52.5, 1.05), finger1, finger2)
 	// The masses, in depth order.
 	farLeg := Union(
-		Cone(41, 49, 8.5, 40.5, 60, 5.5),      // thigh
-		Cone(40.5, 60, 5.2, 34, 71, 3.4),      // shin
-		Cone(34, 71, 3.4, 35, 81.5, 2.8),      // metatarsus
-		Cone(35, 83.2, 2.8, 41.2, 84.9, 1.35), // toes
+		Cone(41, 49, 8.5, 40.5, 60, 5.5), // thigh
+		Cone(40.5, 60, 5.2, 34, 71, 3.4), // shin
+		Cone(34, 71, 3.4, 35, 81.5, 2.8), // metatarsus
+		farBall, farToe,
 	)
 	body := Blend(3,
 		Path([3]float64{-1, 37.2, 0.8}, [3]float64{12, 36.6, 2.8}, [3]float64{24, 37, 5.8}, [3]float64{35, 39.5, 9.5}), // the tail
@@ -31,27 +44,35 @@ func rex() *Species {
 		Poly(77, 21, 84, 14, 89, 12.5, 95, 14.5, 102, 15.5, 107, 19, 108, 27, 107, 33, 104, 40, 84, 40.5, 78, 36), // the head
 	)
 	jaw := Poly(82.5, 33.7, 105.5, 33.4, 105, 36.5, 102.5, 39.6, 86, 40.2, 81.6, 38.5) // the lower jaw
+	// The little arm: upper arm, elbow, forearm, and a hand of two fingers,
+	// spread, each with its claw.
 	arm := Union(
-		Cone(70, 44, 2.9, 72.6, 50.2, 2.2), // upper arm
-		Cone(72.6, 50.2, 2.1, 77.6, 52.6, 1.6),
-		Cone(77.6, 52.6, 1.5, 80.2, 53.6, 1.0), // the hand
+		Cone(69.8, 44.2, 2.7, 71.3, 50.2, 2.0),   // upper arm
+		Cone(71.3, 50.3, 1.85, 76.2, 52.1, 1.35), // forearm
+		Cone(76.2, 52.1, 1.3, 78.2, 52.5, 1.05),  // the hand
+		finger1,
 	)
 	nearLeg := Union(
 		Cone(49, 47, 10.8, 57, 61, 5.2), // the great drumstick of the thigh
 		Cone(58, 62, 5, 50, 72, 3.4),    // shin
 		Cone(50, 72, 3.4, 51.5, 81.5, 2.9),
-		Cone(51.5, 83.2, 3.0, 54.5, 84.6, 2.1), // the ball of the foot
-		Cone(54, 84.3, 2.0, 61.6, 85.1, 1.15),  // the near toe
+		nearBall, nearToe,
 	)
-	nearToe2 := Cone(53.5, 82.6, 1.75, 60.2, 83.3, 1.0) // the middle toe, a little behind
 	return &Species{
 		Name:        "rex",
 		GuideDetail: 0.3,
 		Ink:         44,
-		Add:         []SDF{Cone(54, 84.3, 2.0, 61.6, 85.1, 1.15), nearToe2, Cone(35, 83.2, 2.8, 41.2, 84.9, 1.35)},
-		// The tip of the far toe reaches under the near leg in the guide; the
-		// rig would take it for the near foot's.
-		Remove: []SDF{Poly(44.6, 81.6, 48.4, 81.6, 48.4, 88, 44.6, 88)},
+		// The guide's toes and hand are drawn again, toe by toe and finger by
+		// finger.
+		Add: []SDF{feet, hand},
+		Remove: []SDF{
+			Cut(Poly(53.8, 78.5, 67, 78.5, 67, 89, 53.8, 89), feet),
+			Cut(Poly(37.6, 78.8, 44.6, 78.8, 44.6, 89, 37.6, 89), feet),
+			Cut(Poly(76.6, 50, 84, 50, 84, 58.5, 76.6, 58.5), hand),
+			// The tip of the far toe reaches under the near leg in the guide;
+			// the rig would take it for the near foot's.
+			Poly(44.6, 81.6, 48.4, 81.6, 48.4, 88, 44.6, 88),
+		},
 		Materials: []Material{
 			{Name: "back", Seeds: []uint32{0x6b5e38, 0x857748, 0xa0915e, 0x918355, 0x7b6e48},
 				Ramp: []uint32{0x2a221c, 0x3b3224, 0x4e442c, 0x625735, 0x776a3f, 0x8c7e4a, 0xa39459, 0xbcad72}},
@@ -66,10 +87,14 @@ func rex() *Species {
 				Ramp: []uint32{0x2a1f18, 0x36281d, 0x433223, 0x523d2a, 0x624a33, 0x74583c, 0x886848, 0x9a7a58}},
 		},
 		Parts: []Part{
+			{Name: "farToe2", Shape: farToe2, Far: true, Round: 1.3, Soft: 0.45, Scale: 0.6, Mat: "far", Muscles: []Muscle{
+				Mu(38.5, 81.9, 1.3, 0.9, 0, 0.5), Mu(41.2, 82.3, 1.0, 0.7, 0, 0.4),
+			}},
 			{Name: "farLeg", Shape: farLeg, Far: true, Round: 4, Scale: 0.8, Mat: "far", Muscles: []Muscle{
 				Mu(41, 52, 6, 7, 0, 1.6),                                           // the thigh
 				Mu(38, 64.5, 3, 3.5, 0.5, 0.8),                                     // the calf
-				Mu(37.2, 83.8, 1.2, 1.0, 0, 0.5), Mu(39.6, 84.2, 1.0, 0.9, 0, 0.4), // knuckles
+				Mu(35.2, 83.6, 2.2, 1.8, 0, 0.6),                                   // the ball of the foot
+				Mu(38.3, 84.3, 1.4, 1.1, 0, 0.6), Mu(41.1, 84.8, 1.1, 0.8, 0, 0.5), // knuckles
 			}},
 			{Name: "body", Shape: body, Round: 9, RoundAt: func(x, y float64) float64 { return lerp(7.5, 4.5, smoothstep(74, 84, x)) }, Muscles: []Muscle{
 				Mu(81, 24.5, 4.5, 5.5, 0.3, 2.3),   // the jaw muscle behind the eye
@@ -91,20 +116,27 @@ func rex() *Species {
 			{Name: "jaw", Shape: jaw, Round: 2.6, Soft: 0.6, Scale: 0.8, Muscles: []Muscle{
 				Mu(91, 36.5, 8, 2.2, 0.05, 0.7),
 			}},
-			{Name: "arm", Shape: arm, Round: 2.2, Soft: 0.5, Scale: 0.65, Mat: "flank", Onto: "body", Seam: Below(64, 46.5, 76, 44.5), Muscles: []Muscle{
-				Mu(70.8, 46.2, 2.2, 2.8, 0.3, 0.8),
+			{Name: "finger2", Shape: finger2, Round: 0.7, Soft: 0.35, Scale: 0.5, Mat: "flank", Muscles: []Muscle{
+				Mu(78, 53.8, 0.6, 0.8, 0.5, 0.3),
 			}},
-			{Name: "nearToe2", Shape: nearToe2, Round: 1.6, Soft: 0.5, Scale: 0.7, Muscles: []Muscle{
-				Mu(55.6, 82.6, 1.1, 0.9, 0, 0.4), Mu(58, 82.9, 1.0, 0.8, 0, 0.35),
+			{Name: "arm", Shape: arm, Round: 1.8, Soft: 0.4, Scale: 0.6, Mat: "flank", Onto: "body", Seam: Below(64, 46.5, 76, 44.5), Muscles: []Muscle{
+				Mu(70.6, 46.4, 2.0, 2.8, 0.3, 0.9),   // the upper arm
+				Mu(73.8, 51.3, 2.4, 1.2, 0.35, 0.55), // the forearm
+				Mu(71.4, 50.2, 1.1, 1.1, 0, 0.35),    // the elbow
+				Mu(79.0, 52.6, 0.9, 0.5, 0.35, 0.25), // the finger
+			}},
+			{Name: "nearToe2", Shape: nearToe2, Round: 1.4, Soft: 0.45, Scale: 0.6, Muscles: []Muscle{
+				Mu(55.1, 81.9, 1.5, 1.0, 0, 0.55), Mu(58.4, 82.1, 1.3, 0.85, 0, 0.45), Mu(61.1, 82.8, 0.9, 0.6, 0, 0.3),
 			}},
 			{Name: "nearLeg", Shape: nearLeg, Round: 7, Onto: "body", Seam: Below(30, 50, 66, 44), Muscles: []Muscle{
-				Mu(48.5, 46.5, 8, 9.5, -0.3, 2.3),                                                                   // the drumstick
-				Mu(56, 52.5, 4, 7.5, -0.35, 1.3),                                                                    // the front of the thigh
-				Mu(42.5, 53.5, 3.6, 6, 0.2, 0.9),                                                                    // the back of the thigh
-				Mu(59, 63.5, 2.2, 2.2, 0, 0.7),                                                                      // the knee
-				Mu(53.5, 66, 3.4, 3.4, 0.6, 1.1),                                                                    // the calf
-				Mu(50, 72, 2, 2, 0, 0.4),                                                                            // the ankle
-				Mu(56, 84.4, 1.3, 1.1, 0, 0.5), Mu(58.6, 84.6, 1.2, 1.0, 0, 0.45), Mu(60.8, 84.8, 1.0, 0.9, 0, 0.4), // knuckles
+				Mu(48.5, 46.5, 8, 9.5, -0.3, 2.3),                                                                     // the drumstick
+				Mu(56, 52.5, 4, 7.5, -0.35, 1.3),                                                                      // the front of the thigh
+				Mu(42.5, 53.5, 3.6, 6, 0.2, 0.9),                                                                      // the back of the thigh
+				Mu(59, 63.5, 2.2, 2.2, 0, 0.7),                                                                        // the knee
+				Mu(53.5, 66, 3.4, 3.4, 0.6, 1.1),                                                                      // the calf
+				Mu(50, 72, 2, 2, 0, 0.4),                                                                              // the ankle
+				Mu(51.6, 83.6, 2.4, 2.0, 0, 0.7),                                                                      // the ball of the foot
+				Mu(54.9, 84.3, 1.6, 1.3, 0, 0.6), Mu(58.1, 84.8, 1.4, 1.1, 0, 0.55), Mu(60.8, 85.1, 1.0, 0.8, 0, 0.4), // knuckles
 			}},
 		},
 		Skin: Skin{Flank: 1.75, Back: 3.6, Belly: 1.35, BackDepth: 5, BellyDepth: 5, Seed: 11},
@@ -117,12 +149,14 @@ func rex() *Species {
 			{Pts: []float64{79.5, 21.5, 78.6, 25.5, 78.4, 29}, N: 2, DX: -2.6, DY: 1.2, Depth: 1.2}, // behind the skull
 			{Pts: []float64{55, 63.6, 57.8, 66.6}, N: 2, DY: 1.4, Depth: 1.3},                       // behind the knee
 			{Pts: []float64{48.6, 74.5, 51.6, 74.2}, N: 4, DY: 1.9, Depth: 0.7},                     // across the metatarsus
-			{Pts: []float64{57.3, 83.5, 57.1, 86}, N: 2, DX: 2.4, Depth: 1.2},                       // between the knuckles
-			{Pts: []float64{54.2, 83.2, 57.5, 83.5, 61, 84.1}, N: 1, Depth: 1.8},                    // where the near toe lies over the middle one
-			{Pts: []float64{36, 82.8, 39, 83.1, 42, 83.7}, N: 1, Depth: 1.4},
-			{Pts: []float64{56.8, 81.7, 56.7, 83.6}, N: 2, DX: 2.3, Depth: 0.9},
+			{Pts: []float64{56.6, 83.3, 56.6, 85.9}, N: 2, DX: 3.0, DY: 0.35, Depth: 1.3},           // between the knuckles of the near toe
+			{Pts: []float64{56.8, 80.9, 56.8, 82.9}, N: 2, DX: 3.1, DY: 0.4, Depth: 1.0},            // and of the middle one
+			{Pts: []float64{39.8, 83.5, 39.8, 85.7}, N: 1, Depth: 1.1},
+			{Pts: []float64{40, 81.2, 40, 82.9}, N: 1, Depth: 0.8},
+			{Pts: []float64{48.6, 82.6, 50.4, 85.6}, N: 1, Depth: 0.8}, // the heel's pad
 			{Pts: []float64{32.4, 74, 35.6, 73.8}, N: 4, DY: 1.9, Depth: 0.6},
-			{Pts: []float64{38.4, 82.6, 38.3, 85.8}, N: 2, DX: 2.2, Depth: 0.9},
+			{Pts: []float64{71.4, 49.6, 72.6, 51.4}, N: 1, Depth: 0.9}, // the elbow
+			{Pts: []float64{76.3, 51.2, 76.5, 53.0}, N: 1, Depth: 0.9}, // the wrist
 		},
 		Details: rexDetails,
 	}
@@ -137,10 +171,15 @@ func rexDetails(p *Painter) {
 	// Claws: on the toes of both feet, the dewclaw and the two fingers. A
 	// foot's claws stay inside the columns the rig cuts its leg from
 	// (45-64 for the near leg, 27-44 for the far one).
-	p.Claw(41.0, 84.4, 44.5, 86.0, 1.4, 0.4, clawHorn[:5])
-	p.Claw(59.9, 82.7, 62.8, 84.1, 1.2, 0.3, clawHorn[:5])
-	p.Claw(61.2, 84.5, 64.5, 86.0, 1.5, 0.45, clawHorn)
-	p.Claw(49.5, 79.8, 47.9, 82.0, 1.05, 0.3, clawHorn)
-	p.Claw(79.3, 52.9, 81.9, 55.4, 1.0, 0.35, clawHorn)
-	p.Claw(78.1, 53.9, 79.6, 56.8, 0.9, 0.25, clawHorn)
+	// The far foot's, darker.
+	p.Claw(42.0, 84.8, 44.8, 86.1, 1.3, 0.35, clawHorn[:5])
+	p.Claw(42.2, 82.6, 44.9, 83.8, 1.1, 0.3, clawHorn[:4])
+	p.Claw(32.7, 79.6, 31.3, 81.6, 0.9, 0.25, clawHorn[:4])
+	// The near foot's: the middle toe's, the near toe's, the dewclaw.
+	p.Claw(62.0, 83.1, 64.9, 84.3, 1.2, 0.35, clawHorn[:5])
+	p.Claw(61.6, 85.0, 64.8, 86.3, 1.45, 0.4, clawHorn)
+	p.Claw(49.2, 79.6, 47.6, 81.9, 1.0, 0.3, clawHorn)
+	// The fingers'.
+	p.Claw(78.3, 54.7, 78.7, 56.9, 0.8, 0.3, clawHorn)
+	p.Claw(80.0, 52.7, 81.9, 54.6, 0.85, 0.35, clawHorn)
 }
