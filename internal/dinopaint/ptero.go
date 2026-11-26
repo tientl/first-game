@@ -102,3 +102,87 @@ func pts3(xy []float64, r float64) [][3]float64 {
 	}
 	return out
 }
+
+// Quetzalcoatlus. dinos/quetzal_fly.png, 92 x 96: flying, seen from above
+// as the Pteranodon is, its slate wings edged in pale bone, a cream and
+// orange neck, a red crest with a dark crown and a long yellow beak tipped
+// red. Its rig is "quetzalFly": the wings turn about (30.2, 36.1) and
+// (30.2, 55.9).
+
+var (
+	quetzalWing  = []uint32{0x0e1018, 0x161a24, 0x1e2432, 0x283040, 0x323c50, 0x3e4a60, 0x4c5a72, 0x5e6c84}
+	quetzalGlow  = []uint32{0x2a2630, 0x3e3640, 0x58484e, 0x765a5a, 0x946e64, 0xb08672, 0xc8a084, 0xdcbc9c}
+	quetzalTaupe = []uint32{0x221a14, 0x34281e, 0x483a2a, 0x5e4c38, 0x766048, 0x8e785a, 0xa6906e, 0xbca886}
+	quetzalOrng  = []uint32{0x3a160a, 0x5a2210, 0x7c3216, 0x9e461e, 0xbc5c28, 0xd27634, 0xe49446, 0xf2b462}
+	quetzalRed   = []uint32{0x300808, 0x4c0c0e, 0x6c1214, 0x8e1a1a, 0xb02620, 0xcc3a2a, 0xe2563a, 0xf27c54}
+	quetzalSlate = []uint32{0x101014, 0x18181e, 0x22222a, 0x2e2e38, 0x3a3a46, 0x484856, 0x585868, 0x6a6a7c}
+)
+
+func init() { Register(quetzalFly()) }
+
+func quetzalFly() *Species {
+	farBone := []float64{31.5, 37.6, 33.5, 32, 35, 27, 36.6, 23.6, 38.5, 20.4, 39.6, 18.4, 38.6, 15, 37.6, 11.5, 35.8, 8.4, 32.6, 5.6, 28, 2.8, 24, 0.9}
+	nearBone := []float64{31, 53, 33, 56.5, 34.6, 60.5, 35.6, 64, 37.6, 68, 38.8, 70.5, 40, 72.5, 38.8, 75, 37.8, 78, 35.8, 81.5, 31.8, 84.5, 27.6, 86.6, 24.4, 88.4}
+	farWing := Poly(22, -0.5, 25.5, 0.8, 30, 3, 34, 5.6, 37.6, 8.6, 39, 12, 40, 16, 42.5, 18.8, 41.5, 22, 39.5, 27, 37.6, 32, 36, 36.6, 34, 38.6,
+		29, 38.6, 5, 38.4, 7, 36, 12, 32, 16, 26.5, 18.4, 19, 19.5, 12, 20, 4)
+	nearWing := Poly(30, 51, 35.5, 52.5, 37, 58, 39.5, 64.5, 41.4, 69.5, 42.4, 71.6, 41, 74, 39.6, 77, 37, 81.5, 33, 84, 28.5, 86.8, 25, 88.6,
+		23.5, 89.6, 20.6, 88, 20, 80, 19.5, 74, 18, 68, 15.5, 63, 12, 58.5, 8.5, 55.5, 5.5, 53.5, 4.5, 52.6, 14, 51.4)
+	body := Blend(1.5,
+		Ellipse(21, 45.2, 11, 3.6, 0),
+		Cone(30, 45, 3.0, 50, 44.6, 1.9),
+	)
+	head := Ellipse(54.6, 44.9, 3.2, 2.2, 0)
+	legs := Union(Cone(14, 39.6, 1.1, 4.5, 39.2, 0.7), Cone(15, 45.2, 1.1, 6.5, 45.4, 0.8), Cone(14, 51.4, 1.1, 4.5, 52, 0.7))
+	crest := Poly(49, 38.2, 57, 38, 58.6, 41, 57.5, 44.6, 52, 45, 49.3, 44, 48.8, 41)
+	beak := Poly(57.4, 43, 64, 43, 74, 43.6, 79.5, 44.6, 82.8, 46.2, 81.4, 47.4, 77, 48.4, 67, 49, 59, 49.2, 57.5, 47.5)
+	return &Species{
+		Name:        "quetzal_fly",
+		GuideDetail: 0.4,
+		Ink:         34,
+		Materials: []Material{
+			{Name: "wing", Seeds: []uint32{0x2c3342, 0x3e4858, 0x546274, 0x1e222d, 0x12141c}, Ramp: quetzalWing, Relief: 0.05},
+			{Name: "cream", Seeds: []uint32{0xcdb594, 0xe9dabb, 0xfbf3df, 0xd8caa8, 0xd5cfbe, 0xc6b99f, 0xb8a888}, Ramp: pteroCream},
+			{Name: "taupe", Seeds: []uint32{0xa6896a, 0x7a6044, 0x4e3c2a, 0x94846a, 0x6e604c}, Ramp: quetzalTaupe},
+			{Name: "orange", Seeds: []uint32{0xcf873c, 0xae6228, 0x86451e, 0xb07333}, Ramp: quetzalOrng},
+			{Name: "red", Seeds: []uint32{0xe85236, 0xf88a5c, 0xc22a22, 0x90181a, 0x5e0e12}, Ramp: quetzalRed},
+			{Name: "crown", Seeds: []uint32{0x34323c}, Ramp: quetzalSlate},
+			{Name: "beak", Seeds: []uint32{0xfbe694, 0xeecb5a, 0xd2a436, 0xa87a22, 0x7a5216, 0xffe27a}, Ramp: pteroBeak, Relief: 0.3, Region: beak, Over: true,
+				Only: []string{"cream", "taupe", "orange", "wing"}},
+		},
+		Recolor: []Recolor{
+			{Region: Union(farWing, nearWing), From: []string{"cream", "taupe", "orange"}, To: "wing"}, // the leading edge is painted as bone
+			{Region: Poly(0, 0, 92, 0, 92, 37.6, 0, 37.6), From: []string{"crown"}, To: "wing"},
+		},
+		Parts: []Part{
+			{Name: "farWing", Shape: farWing, Round: 2, Soft: 0.8, Scale: 0.8},
+			{Name: "nearWing", Shape: nearWing, Round: 2, Soft: 0.8, Scale: 0.8},
+			{Name: "legs", Shape: legs, Round: 0.9, Soft: 0.5, Scale: 0.5, Mat: "cream"},
+			{Name: "body", Shape: body, Round: 3, Soft: 0.7, Muscles: []Muscle{
+				Mu(22, 44.6, 7, 2.4, 0, 0.7),
+			}},
+			{Name: "head", Shape: head, Round: 1.8, Soft: 0.5, Scale: 0.5, Muscles: []Muscle{Mu(54.4, 44.2, 2, 1.2, 0, 0.5)}},
+			{Name: "crest", Shape: crest, Round: 1, Soft: 0.5, Scale: 0.6},
+			{Name: "beak", Shape: beak, Round: 1.1, Soft: 0.4, Scale: 0.5},
+		},
+		Skin: Skin{Flank: 1.0, Back: 1.2, Belly: 0.9, BackDepth: 1, BellyDepth: 1, Relief: 0.5, Seed: 59},
+		Details: func(p *Painter) {
+			p.Plumage(&Plumage{Seed: 29, Edge: 0.35, Tracts: []Tract{
+				{Name: "fur", Region: Poly(8, 40.4, 49.6, 41, 50, 48.6, 8, 49.6), Parts: []string{"body"},
+					Flow: Along(50, 44.6, 40, 44.6, 30, 44.8, 20, 45, 9, 45.5), Len: 1.4, Wid: 0.6, Hair: true, Relief: 0.8, Fluff: 0.3, Snap: true},
+			}})
+			wing := func(region SDF, bone []float64, fan Coords, free SDF) {
+				p.Membrane(MembraneSpec{Region: region, Mat: []string{"wing"},
+					Fibres: fan, Gap: 1.25, Fibre: 0.12, Flat: 0.55, Distal: 0.12, DistalFrom: 18, DistalTo: 36,
+					Camber: Path(pts3(bone, 0)...), Glow: 0.5, GlowW: 2.2, GlowRamp: quetzalGlow, Free: free,
+					Bones: []Bone{{Pts: bone, R: 1.35, R1: 0.5, Ramp: pteroBone}}, Seed: 9})
+			}
+			wing(farWing, farBone, Fan(31, 38, 14, -1.78), Poly(-1, -1, 22, -1, 37, 20, 33, 37, -1, 37))
+			wing(nearWing, nearBone, Fan(31, 53, 14, 1.77), Poly(-1, 97, 22, 97, 38, 72, 33, 54, -1, 54))
+			p.Plane(PlaneSpec{Region: crest, Mat: []string{"red", "crown"}, Tilt: 0.8, Angle: 0.1, Gap: 1.0, Lines: 0.06,
+				FromX: 57, FromY: 40, Fall: 0.03, Seed: 11})
+			p.Beak(BeakSpec{Mat: "beak", Ridge: []float64{57.6, 43.1, 66, 43.2, 75, 43.9, 82.6, 46.1}, Mouth: []float64{58, 46.1, 68, 46.2, 77, 46.4, 82, 46.7},
+				Gloss: 0.22, LowerShadow: 0.3, GrainSeed: 9})
+			p.Eye(EyeSpec{X: 57, Y: 46.6, R: 0.7, Iris: pteroEye, Lid: 0.15, Squint: 1.1})
+		},
+	}
+}
