@@ -669,6 +669,8 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		return // flat: drawn with the soil, under everything
 	case e.Kind == sim.EntityGiantRoot:
 		return // part of the giant, drawn whole from its front
+	case e.Kind == sim.EntityGrave && g.graveFalling(e):
+		return // its player is still falling; see motiondraw.go
 	case e.Kind == sim.EntityLairProp:
 		g.drawLairProp(dst, e, d) // see lairrender.go
 		return
@@ -725,6 +727,9 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 
 func (g *Game) drawPlayer(dst drawTarget, p protocol.PlayerView, d drawable) {
 	if p.Dead {
+		if g.drawDying(dst, p, d) { // the fall first; see motiondraw.go
+			return
+		}
 		drawAt(dst, g.art.tombstone, d.sx, d.sy, 1, 1, 0, nil)
 		return
 	}

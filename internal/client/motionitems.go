@@ -110,7 +110,7 @@ func (g *Game) deedItems(dst drawTarget, f *figDraw, p protocol.PlayerView, m mo
 			if dir == sim.DirUp {
 				return // before the face, out of sight
 			}
-			g.drawIcon(dst, k, x, y, 0.42, side, -side*0.9*tip)
+			g.drawIconAny(dst, k, x, y, 0.42, side, -side*0.9*tip)
 		}
 	case moDrink:
 		tip := [7]float64{0, 0.2, 1, 1, 0.9, 0, 0}[fr]
@@ -118,7 +118,7 @@ func (g *Game) deedItems(dst drawTarget, f *figDraw, p protocol.PlayerView, m mo
 			if dir == sim.DirUp && tip > 0.5 {
 				return
 			}
-			g.drawIcon(dst, k, hx+side*1.5, hy-1.5, 0.4, side, -side*(0.3+1.5*tip))
+			g.drawIconAny(dst, k, hx+side*1.5, hy-1.5, 0.4, side, -side*(0.3+1.5*tip))
 		}
 	case moScoop:
 		vessel := k
@@ -129,7 +129,7 @@ func (g *Game) deedItems(dst drawTarget, f *figDraw, p protocol.PlayerView, m mo
 			}
 		}
 		f.item = func(dst drawTarget, hx, hy, _ float64) {
-			g.drawIcon(dst, vessel, hx+side*1.5, hy, 0.4, side, 0)
+			g.drawIconAny(dst, vessel, hx+side*1.5, hy, 0.4, side, 0)
 			if t := age - m.startOf(2); t >= 0 && t < 70 { // where it went in
 				ripples(dst, hx+side*2, hy+2, t)
 			}
@@ -144,16 +144,59 @@ func (g *Game) deedItems(dst drawTarget, f *figDraw, p protocol.PlayerView, m mo
 	case moThrow:
 		f.item = func(dst drawTarget, hx, hy, _ float64) {
 			if fr < 4 { // let go on frame 4: the pile flies from there (drops.go)
-				g.drawIcon(dst, k, hx+side, hy, 0.38, side, 0)
+				g.drawIconAny(dst, k, hx+side, hy, 0.38, side, 0)
 			}
 		}
 	}
 }
 
-// drawIcon draws item k's bag icon at (x, y), scale of its size, mirrored
-// for side -1 and turned by turn.
-func (g *Game) drawIcon(dst drawTarget, k sim.ItemKind, x, y, scale, side, turn float64) {
+// heldIcon is item k's HD icon for drawing size art pixels across in the
+// world, and true; or false if it has none (iconhd.go).
+func heldIcon(k sim.ItemKind, size float64) (*ebiten.Image, bool) {
+	img := hdIcon(k, max(8, int(math.Round(size*HDDensity))))
+	return img, img != nil
+}
+
+// drawIcon draws item k's HD icon at (x, y), scale of its bag size (16 art
+// pixels), mirrored for side -1 and turned by turn. It reports false, and
+// draws nothing, for an item that has no HD icon.
+func (g *Game) drawIcon(dst drawTarget, k sim.ItemKind, x, y, scale, side, turn float64) bool {
 	if !k.Valid() {
+		return false
+	}
+	img, ok := heldIcon(k, 16*scale)
+	if !ok {
+		return false
+	}
+	n := float64(img.Bounds().Dx())
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(-n/2, -n/2)
+	op.GeoM.Scale(side/HDDensity, 1.0/HDDensity)
+	op.GeoM.Rotate(turn)
+	op.GeoM.Translate(x, y)
+	if turn == 0 {
+		op.Filter = ebiten.FilterNearest
+	} else {
+		op.Filter = ebiten.FilterLinear
+	}
+	drawImageD(dst, img, scaleBack(op), HDDensity)
+	return true
+}
+
+// scaleBack undoes the 1/HDDensity drawImageD puts in front of op: drawIcon
+// writes its GeoM in art pixels already.
+func scaleBack(op *ebiten.DrawImageOptions) *ebiten.DrawImageOptions {
+	var m ebiten.GeoM
+	m.Scale(HDDensity, HDDensity)
+	m.Concat(op.GeoM)
+	op.GeoM = m
+	return op
+}
+
+// drawIconAny is drawIcon, falling back on the old 16 x 16 icon drawn
+// smooth at that scale.
+func (g *Game) drawIconAny(dst drawTarget, k sim.ItemKind, x, y, scale, side, turn float64) {
+	if g.drawIcon(dst, k, x, y, scale, side, turn) || !k.Valid() {
 		return
 	}
 	icon := g.art.icons[k]
@@ -174,11 +217,15 @@ func (g *Game) drawIcon(dst drawTarget, k sim.ItemKind, x, y, scale, side, turn 
 // from the end nearest the mouth: sideways the end towards the face, from
 // the front its top.
 func (g *Game) drawFood(dst drawTarget, k sim.ItemKind, dir sim.Dir, x, y, scale, eaten float64) {
-	icon := g.art.icons[k]
-	if icon == nil {
-		return
+	img, hd := heldIcon(k, 16*scale)
+	dens := HDDensity
+	if !hd {
+		img, dens = g.art.icons[k], 1
+		if img == nil {
+			return
+		}
 	}
-	b := icon.Bounds()
+	b := img.Bounds()
 	w, h := b.Dx(), b.Dy()
 	side := facingSide(dir)
 	r := image.Rect(0, 0, w, h)
@@ -190,8 +237,16 @@ func (g *Game) drawFood(dst drawTarget, k sim.ItemKind, dir sim.Dir, x, y, scale
 			r.Min.Y = cut
 		}
 	}
-	sub := icon.SubImage(r.Add(b.Min)).(*ebiten.Image)
+	sub := img.SubImage(r.Add(b.Min)).(*ebiten.Image)
 	op := &ebiten.DrawImageOptions{}
+	if hd { // drawImageD takes the image to art pixels first
+		op.GeoM.Translate((float64(r.Min.X)-float64(w)/2)/HDDensity, (float64(r.Min.Y)-float64(h)/2)/HDDensity)
+		op.GeoM.Scale(side, 1)
+		op.GeoM.Translate(x, y)
+		op.Filter = ebiten.FilterNearest
+		drawImageD(dst, sub, op, dens)
+		return
+	}
 	op.GeoM.Translate(float64(r.Min.X)-float64(w)/2, float64(r.Min.Y)-float64(h)/2)
 	op.GeoM.Scale(scale*side, scale)
 	op.GeoM.Translate(x, y)

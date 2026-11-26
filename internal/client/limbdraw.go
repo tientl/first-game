@@ -177,6 +177,9 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 		}
 		op.GeoM.Scale(s, s)
 		if f.rot != 0 {
+			if upper { // the hips' drop goes with the figure as it turns
+				op.GeoM.Translate(0, -lo.bob*s)
+			}
 			op.GeoM.Rotate(f.rot)
 		}
 		op.GeoM.Translate(px, py)

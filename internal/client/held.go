@@ -132,15 +132,19 @@ func (g *Game) drawHeldAt(dst drawTarget, k sim.ItemKind, dir sim.Dir, hx, hy fl
 		f := g.art.flames[(g.frame/4)%flameFrames]
 		drawAt(dst, f, math.Round(x+math.Sin(tilt)*up), math.Round(y-math.Cos(tilt)*up)+1, 0.4, 0.45, 0, nil)
 	default:
+		// Held a little out from the hand, at half its bag size: an HD icon
+		// baked at that size (iconhd.go), else a half-size linear draw of
+		// the old one, which averages each 2x2 block of it, a clean pixel-art
+		// shrink, as long as it lands on whole pixels.
+		cx, cy := math.Round(hx+side*2), math.Round(hy+2)
+		if g.drawIcon(dst, k, cx, cy, 0.5, side, 0) {
+			return
+		}
 		icon := g.art.icons[k]
 		if icon == nil {
 			return
 		}
-		// Held a little out from the hand. A half-size linear draw averages
-		// each 2x2 block of the icon, a clean pixel-art shrink, as long as it
-		// lands on whole pixels.
 		b := icon.Bounds()
-		cx, cy := math.Round(hx+side*2), math.Round(hy+2)
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(-float64(b.Dx())/2, -float64(b.Dy())/2)
 		op.GeoM.Scale(0.5*side, 0.5)
