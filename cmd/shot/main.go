@@ -24,6 +24,7 @@ import (
 
 	"survivalgame/internal/client"
 	"survivalgame/internal/protocol"
+	"survivalgame/internal/server"
 	"survivalgame/internal/sim"
 )
 
@@ -112,8 +113,12 @@ func main() {
 	scaleTitle := flag.String("scaletitle", "", "with -scalesheet: a heading for the sheet")
 	subPixel := flag.Bool("subpixel", true, "let the camera and moving things sit between art pixels, on screen pixels (false: whole art pixels, as before HD art)")
 	reveal := flag.Bool("reveal", false, "the whole map seen: no fog on the map (M) and the minimap")
-	styleFlag := flag.Int("style", -1, "with -open: the world style to make (default: the latest; 7 is the archipelago before the designed islands)")
+	styleFlag := flag.Int("style", -1, "with -open: the world style to make (default: the latest; 7 is the archipelago before the designed islands, 8 the designed islands before the woods were spaced)")
+	canopyFlag := flag.Bool("canopy", false, "print the share of the view the canopy covers: the drawings of trees and the like, taller than a player (see internal/client/canopyshare.go)")
+	oldSave := flag.Bool("oldsave", false, "with -open: save the world as a game from before the woods were thinned (version 19) and load it again, which thins them (see internal/sim/thinwoods.go)")
+	loadSave := flag.String("load", "", "load this save file (a copy of one) instead of making a world, an older one thinned as the game would; stand where its first player stood (-move is from there)")
 	flag.Parse()
+	client.SetMeasureCanopy(*canopyFlag)
 	client.SetHeroHD(*herohd)
 	client.SetScaleOnly(*scaleOnly, *scaleTitle)
 	client.SetHDTest(*hdTest)
@@ -140,9 +145,34 @@ func main() {
 			style = sim.WorldStyle(*styleFlag)
 		}
 	}
-	w, err := sim.Generate(sim.GenConfig{Seed: *seed, Width: N, Height: N, Style: style})
-	if err != nil {
-		log.Fatal(err)
+	var w *sim.World
+	var err error
+	var savedAt []float64 // where the save's first player stood
+	switch {
+	case *loadSave != "":
+		f, ferr := server.ReadSave(*loadSave)
+		if ferr != nil {
+			log.Fatal(ferr)
+		}
+		if w, err = sim.Load(f.World); err != nil {
+			log.Fatal(err)
+		}
+		N, _ = w.Size()
+		*open = true
+		if ps := f.World.Players; len(ps) > 0 {
+			savedAt = []float64{ps[0].X, ps[0].Y}
+		}
+	default:
+		if w, err = sim.Generate(sim.GenConfig{Seed: *seed, Width: N, Height: N, Style: style}); err != nil {
+			log.Fatal(err)
+		}
+		if *oldSave {
+			d := w.Save()
+			d.Version = 19 // the last version before the woods were thinned
+			if w, err = sim.Load(d); err != nil {
+				log.Fatal(err)
+			}
+		}
 	}
 	_, mapH := w.Size() // taller than N when caves lie under the islands
 	surfH := 0
@@ -150,6 +180,9 @@ func main() {
 		surfH = w.SurfaceHeight()
 	}
 	sx, sy := w.Spawn()
+	if savedAt != nil {
+		sx, sy = savedAt[0], savedAt[1]
+	}
 	if *coast {
 		tiles := w.Tiles()
 		// In an open world, a beach by the sea rather than a marsh pond:
@@ -890,6 +923,9 @@ func main() {
 	}
 	if g.err != nil {
 		log.Fatal(g.err)
+	}
+	if *canopyFlag {
+		log.Printf("canopy covers %.0f%% of the view; own figure silhouetted: %v", 100*client.CanopyShare(), client.SelfSilhouetted())
 	}
 	log.Printf("wrote %s", *out)
 }

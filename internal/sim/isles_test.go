@@ -6,9 +6,11 @@ import (
 	"time"
 )
 
+// genIsles makes a world of the designed islands, as a new game is made:
+// since StyleWoods, with its woods spaced (see woods.go).
 func genIsles(t *testing.T, seed uint64, size int) *World {
 	t.Helper()
-	return genStyle(t, StyleIsles, seed, size)
+	return genStyle(t, StyleLatest, seed, size)
 }
 
 func TestIslesAreDeterministic(t *testing.T) {
@@ -345,7 +347,7 @@ func TestIslesSaveAndLoad(t *testing.T) {
 	w.AddPlayer("a")
 	stepN(w, 10)
 	d := w.Save()
-	if d.Style != StyleIsles || d.Version != SaveVersion {
+	if d.Style != StyleLatest || d.Version != SaveVersion {
 		t.Fatalf("saved style %d version %d", d.Style, d.Version)
 	}
 	l, err := Load(d)

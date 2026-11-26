@@ -82,6 +82,7 @@ type figure struct {
 // seeThrough.
 func (g *Game) noteFigures(list []drawable) {
 	g.figures = g.figures[:0]
+	hiddenSelf.cover = 0 // see hiddenself.go
 	for _, d := range list {
 		switch {
 		case d.isPlayer:
@@ -121,6 +122,9 @@ func (g *Game) seeThrough(e protocol.EntityView, s sprite, d drawable) float32 {
 						fx := f.sx + f.hw*(float64(i)-1)
 						if m.at((fx-left)*k, (fy-top)*k) {
 							hit++
+							if f.mine {
+								noteSelfCover(j*figSamplesX + i) // see hiddenself.go
+							}
 						}
 					}
 				}

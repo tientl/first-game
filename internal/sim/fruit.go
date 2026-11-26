@@ -63,7 +63,8 @@ func IsFruitStump(k EntityKind, v uint8) bool { return v == fruitStumpVar && IsF
 func (e *Entity) FruitStump() bool { return IsFruitStump(e.Kind, e.Var) }
 
 // scatterFruit plants fruit trees on free tiles. It has its own rng so the
-// rest of the world does not shift.
+// rest of the world does not shift. In the newest worlds a fruit tree keeps
+// its distance from the other trees like any tree (see woods.go).
 func (w *World) scatterFruit(rng *rand.Rand) {
 	for ty := 0; ty < w.height; ty++ {
 		for tx := 0; tx < w.width; tx++ {
@@ -71,7 +72,7 @@ func (w *World) scatterFruit(rng *rand.Rand) {
 			t := w.tiles[ty*w.width+tx]
 			for _, f := range fruitTrees {
 				if r < f.share[t] {
-					if w.canPlace(tx, ty) {
+					if w.canPlace(tx, ty) && !w.crowdedFruit(f.kind, tx, ty) {
 						w.addEntity(f.kind, tx, ty)
 					}
 					break

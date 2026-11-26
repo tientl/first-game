@@ -415,9 +415,11 @@ func swampTree(size int, h uint32) sprite {
 
 var mushroomLogs [2]sprite // bare, then with mushrooms
 
-// onLog reports whether mushroom e grows on a rotting log: most do in the swamp.
+// onLog reports whether mushroom e grows on a rotting log: most do in the
+// swamp and in the woods, where the logs lie between the trees.
 func (g *Game) onLog(e protocol.EntityView) bool {
-	return e.Kind == sim.EntityMushroom && g.tileAt(int(e.TX), int(e.TY)) == sim.TileMarsh &&
+	t := g.tileAt(int(e.TX), int(e.TY))
+	return e.Kind == sim.EntityMushroom && (t == sim.TileMarsh || t == sim.TileForest) &&
 		sim.HashTile(int(e.TX), int(e.TY))%3 != 0
 }
 

@@ -37,7 +37,10 @@ import (
 //   - 19: worlds of StyleIsles: designed islands with shallows, cliffs, ramps,
 //     rivers and fords, and the 2048-tile size. Nothing older changes, but an
 //     older game would make the wrong world of such a save, so it must refuse it.
-const SaveVersion = 19
+//   - 20: worlds of StyleWoods, whose trees are spaced by their crowns, with
+//     trails and undergrowth (woods.go); an older save has its woods thinned
+//     once on loading (thinwoods.go), sparing what players planted or built by.
+const SaveVersion = 20
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -247,6 +250,18 @@ func Load(d SaveData) (*World, error) {
 			}
 		}
 	}
+	// Before version 20 the woods were as thick as they were made, and are
+	// thinned once (see thinwoods.go). Where each tree of the world as it was
+	// made stood tells the wild trees from the planted ones.
+	var made map[EntityID][2]int
+	if d.Version < 20 {
+		made = make(map[EntityID][2]int)
+		for _, e := range w.entities {
+			if e.Kind == EntityTree {
+				made[e.ID] = [2]int{e.TX, e.TY}
+			}
+		}
+	}
 	clear(w.entities)
 	clear(w.active)
 	clear(w.occ)
@@ -307,6 +322,9 @@ func Load(d SaveData) (*World, error) {
 	w.loadStations(d.Stations)
 	if d.Version < 15 {
 		w.dressLairs() // the bones, the nest and the ruin of each lair: see lair.go
+	}
+	if d.Version < 20 {
+		w.thinWoods(made)
 	}
 	for _, e := range fresh {
 		if w.canHold(e.Kind, e.Var, e.TX, e.TY) {

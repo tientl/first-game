@@ -129,6 +129,9 @@ func TestLoadingAnOlderSaveGivesTreesAndBouldersASize(t *testing.T) {
 	}
 	for id, e := range w.entities {
 		got := w2.entities[id]
+		if got == nil && e.Kind == EntityTree && id != hitTree {
+			continue // thinned out of the woods on loading: see thinwoods.go
+		}
 		if got == nil {
 			t.Fatalf("%s %d lost on load", e.Kind.Name(), id)
 		}
