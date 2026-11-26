@@ -10,7 +10,18 @@ package dinopaint
 // beak opens about (39.5, 11.5) along the line to (46, 11.8), and the tail
 // turns about (11, 24).
 
-func init() { Register(anzu()) }
+func init() {
+	Register(anzu())
+	// The legs swing whole from the hip, the near thigh under the folded
+	// wing and the flank (thigh.go).
+	RegisterThighs("anzu", &Thighs{
+		Legs:       LegMask{{"nearLeg"}, {"farLeg"}},
+		FrontParts: []string{"wing"},
+		Front:      Poly(11, 18, 38, 18, 38, 31.4, 11, 31.4),
+		Thigh:      []SDF{Cone(27, 33, 4.1, 27.5, 40, 2.8), Cone(17.8, 33, 3.8, 17.5, 40, 2.6)},
+		Coat:       Plumed(anzuPlumage),
+	})
+}
 
 var (
 	anzuIris  = []uint32{0x5a3204, 0x8e5608, 0xc88412, 0xf0ac26, 0xffc84c, 0xffe08c}

@@ -64,7 +64,9 @@ type rigPart struct {
 	pivot rigPt
 	dir   float64
 	maxY  float64
-	all   bool // the whole drawing
+	all   bool   // the whole drawing
+	not   []bool // pixels never its, w to a row (the legs as they stepped)
+	w     int
 }
 
 // tester is has with the trigonometry done once, for a loop over pixels.
@@ -74,6 +76,9 @@ func (p rigPart) tester() func(x, y float64) bool {
 	}
 	ux, uy := math.Cos(p.dir), math.Sin(p.dir)
 	return func(x, y float64) bool {
+		if p.not != nil && x >= 0 && y >= 0 && int(x) < p.w && p.not[int(y)*p.w+int(x)] {
+			return false
+		}
 		return y < p.maxY && (x-p.pivot.x)*ux+(y-p.pivot.y)*uy > 0
 	}
 }
@@ -188,10 +193,11 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 	gx, gy := ax0*kf+float64(pad), ay0*kf+float64(pad)
 	joint := max(4, float64(low.h)/12) * kf // how deep a band of the neck fills its joint
 
-	bob := 0.0 // how far the body has sunk on its legs, in canvas pixels
+	bob := 0.0      // how far the body has sunk on its legs, in canvas pixels
+	var legs []bool // the pixels the legs drew, which no other part takes when it turns
 	if (p.step != 0 || p.cycle != 0) && len(r.legs) > 0 {
 		if r.jointed() {
-			bob = stepJoints(w, r, p, pad, k)
+			bob, legs = stepJoints(w, r, p, pad, k)
 		} else {
 			bob = stepLegs(w, r, p, pad, base.h, k) // no joints measured: the legs lean whole
 		}
@@ -200,6 +206,7 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 	shift := func(pr rigPart) rigPart {
 		pr.pivot = off(pr.pivot)
 		pr.maxY = pr.maxY*kf + float64(pad) + bob
+		pr.not, pr.w = legs, w.w
 		return pr
 	}
 	if p.open != 0 && r.jaw[0] != r.jaw[1] {
@@ -225,6 +232,7 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 	}
 	if p.tail != 0 && r.tail.maxY != 0 {
 		turn(w, shift(r.tail), p.tail, 4*kf) // + lifts a tail that points back
+		despeck(w, 0, 0, w.w, w.h, 2) // a strand of its fuzz or a feather tip turned off it
 	}
 	if p.wings != 0 {
 		for i, wg := range r.wings {

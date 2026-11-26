@@ -15,7 +15,18 @@ var (
 	raptorTeeth = []uint32{0x6e5e4a, 0x9c8c70, 0xc8ba98, 0xe8dec2, 0xfaf6e6}
 )
 
-func init() { Register(dakota()) }
+func init() {
+	Register(dakota())
+	// The legs swing whole from the hip, the near thigh under the folded
+	// wing and the flank over the hip (thigh.go).
+	RegisterThighs("dakota", &Thighs{
+		Legs:       LegMask{{"nearLeg"}, {"farLeg"}},
+		FrontParts: []string{"wing"},
+		Front:      Poly(29, 12, 43, 12, 43, 20.2, 29, 20.2),
+		Thigh:      []SDF{Cone(35.6, 21.2, 3.8, 37.3, 24, 3), Cone(25.4, 21, 3.7, 27.2, 24, 2.9)},
+		Coat:       Plumed(dakotaPlumage),
+	})
+}
 
 func dakota() *Species {
 	farLeg := Union(

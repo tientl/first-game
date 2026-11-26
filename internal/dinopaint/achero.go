@@ -9,7 +9,18 @@ package dinopaint
 // (29.6, 6.8), the jaw opens about (37, 5) along the line to (42.5, 5.2), and
 // the tail turns about (16, 9.4).
 
-func init() { Register(achero()) }
+func init() {
+	Register(achero())
+	// The legs swing whole from the hip, the near thigh under the folded
+	// wing and the flank (thigh.go).
+	RegisterThighs("achero", &Thighs{
+		Legs:       LegMask{{"nearLeg"}, {"farLeg"}},
+		FrontParts: []string{"wing"},
+		Front:      Poly(14, 3, 34, 3, 34, 13.6, 14, 13.6),
+		Thigh:      []SDF{Cone(26.2, 15, 3, 27.4, 18, 2.3), Cone(18.6, 15, 2.9, 19.6, 18, 2.2)},
+		Coat:       Plumed(acheroPlumage),
+	})
+}
 
 var redIris = []uint32{0x4a0c04, 0x7a1806, 0xb22e0c, 0xe25014, 0xff7a2a, 0xffa860}
 

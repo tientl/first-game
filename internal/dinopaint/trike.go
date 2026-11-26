@@ -13,12 +13,23 @@ var (
 	greenIris = []uint32{0x3a2a08, 0x6a4a0a, 0x9c7210, 0xcaa024, 0xeed054, 0xfff0a0}
 )
 
+// trikeThighs are its legs' upper parts, thigh and upper arm, which turn whole
+// with the hip and the shoulder: near hind, far hind, far fore, near fore.
+var trikeThighs = []SDF{
+	Cone(20, 33, 6.7, 21, 44, 4.3), Cone(30, 34, 5.5, 30.5, 44, 3.8),
+	Cone(39, 34, 5.5, 38.5, 44, 3.8), Cone(48.5, 34.5, 6.1, 48, 44, 4.3),
+}
+
 func init() {
 	Register(trike())
 	// The shoulders and the neck under the frill, for when the head turns.
 	RegisterUnder("trike", &Under{Parts: []string{"frill", "head"}, Mat: "hide"})
-	// Its legs, in the rig's order, cut as painted.
-	RegisterLegs("trike", LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}})
+	// Its legs, in the rig's order, cut as painted and swung whole from the
+	// hip and the shoulder (thigh.go).
+	RegisterThighs("trike", &Thighs{
+		Legs:  LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}},
+		Thigh: trikeThighs,
+	})
 }
 
 func trike() *Species {

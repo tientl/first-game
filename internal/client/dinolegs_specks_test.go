@@ -2,16 +2,18 @@ package client
 
 import "testing"
 
-// TestStridesLeaveNoSpecks: no frame of a feathered biped's walk or run
-// leaves bits of a turned leg about it: no loose specks, and few hairlines
-// (a pixel with one solid neighbour of four, or none) below the hips, where
-// a shred of thigh, a feather tip or a joint's filling turned the wrong way
-// would hang. The claws' and feathers' own tips are a few each frame.
+// TestStridesLeaveNoSpecks: no frame of a walking beast's walk, run or
+// sprint leaves bits of a turned leg about it: no loose specks, and few
+// hairlines (a pixel with one solid neighbour of four, or none) below the
+// hips, where a shred of thigh, a feather tip or a joint's filling turned
+// the wrong way would hang. The claws' and feathers' own tips are a few
+// each frame; the fuzzy one's tufts, more.
 func TestStridesLeaveNoSpecks(t *testing.T) {
-	for _, sp := range []string{"dakota", "achero", "troodon", "ornitho", "anzu"} {
+	limit := map[string]float64{"rex": 14, "trike": 14, "toro": 14, "stego": 14, "brachio": 14, "thesc": 40}
+	for _, sp := range []string{"dakota", "achero", "troodon", "ornitho", "anzu", "rex", "thesc", "trike", "toro", "stego", "brachio"} {
 		r := dinoRigs[sp]
 		hair, frames := 0, 0
-		for _, amp := range []float64{1, 1.25} {
+		for _, amp := range []float64{1, 1.25, 1.4} {
 			for f := range gaitFrames {
 				c, _, _, ok := rigCanvas(r, stridePose(rigPose{}, f, amp))
 				if !ok {
@@ -24,8 +26,12 @@ func TestStridesLeaveNoSpecks(t *testing.T) {
 				frames++
 			}
 		}
-		if per := float64(hair) / float64(frames); per > 10 {
-			t.Errorf("%s: %.1f hairline pixels below the hips a frame (at most 10)", sp, per)
+		most := limit[sp]
+		if most == 0 {
+			most = 10
+		}
+		if per := float64(hair) / float64(frames); per > most {
+			t.Errorf("%s: %.1f hairline pixels below the hips a frame (at most %g)", sp, per, most)
 		}
 	}
 }

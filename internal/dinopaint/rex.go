@@ -15,8 +15,12 @@ var (
 
 func init() {
 	Register(rex())
-	// Its legs, in the rig's order, cut as painted.
-	RegisterLegs("rex", LegMask{{"nearLeg", "nearToe2"}, {"farLeg", "farToe2"}})
+	// Its legs, in the rig's order, cut as painted and swung whole from the
+	// hip, the great drumstick and all (thigh.go).
+	RegisterThighs("rex", &Thighs{
+		Legs:  LegMask{{"nearLeg", "nearToe2"}, {"farLeg", "farToe2"}},
+		Thigh: []SDF{Cone(49, 47, 11.3, 57, 61, 5.7), Cone(41, 49, 9, 40.5, 60, 6)},
+	})
 }
 
 func rex() *Species {

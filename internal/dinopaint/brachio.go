@@ -13,13 +13,24 @@ var (
 	brachioIris = []uint32{0x4a2a04, 0x7a4a06, 0xb07808, 0xdca414, 0xffc838, 0xffe68a}
 )
 
+// brachioThighs are its legs' upper parts, thigh and upper arm, which turn whole
+// with the hip and the shoulder: near hind, far hind, far fore, near fore.
+var brachioThighs = []SDF{
+	Cone(29, 68, 8.9, 30, 90, 6.6), Cone(41, 74, 6.9, 41.5, 90, 5.5),
+	Cone(55, 74, 6.5, 54.5, 90, 5.4), Cone(66, 67, 7.9, 65.5, 90, 6.6),
+}
+
 func init() {
 	Register(brachio())
 	// The withers and the chest under the root of the neck, for when it bends
 	// down to eat.
 	RegisterUnder("brachio", &Under{Parts: []string{"neck", "head"}, Mat: "hide"})
-	// Its legs, in the rig's order, cut as painted.
-	RegisterLegs("brachio", LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}})
+	// Its legs, in the rig's order, cut as painted and swung whole from the
+	// hip and the shoulder (thigh.go).
+	RegisterThighs("brachio", &Thighs{
+		Legs:  LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}},
+		Thigh: brachioThighs,
+	})
 }
 
 // brachioNeck is the neck's middle line, from its root to the head, and

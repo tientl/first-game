@@ -16,9 +16,10 @@ import "image/color"
 // number it has in it, and the columns it reaches across.
 type legOwner struct {
 	mask, under *canvas
+	body        *canvas // the body where the legs hide it, if the legs swing whole (dinolegthigh.go)
 	n           uint8
 	pad         int
-	x0, x1      int // in canvas pixels
+	x0, x1, y0  int // in canvas pixels
 }
 
 // legOwnerOf is leg i of drawing file at density k, in a canvas padded by
@@ -31,18 +32,21 @@ func legOwnerOf(file string, i, pad, k int) *legOwner {
 	if m == nil || u == nil || u.w != m.w || u.h != m.h {
 		return nil
 	}
-	o := &legOwner{mask: m, under: u, n: uint8(i + 1), pad: pad, x0: m.w, x1: -1}
+	o := &legOwner{mask: m, under: u, n: uint8(i + 1), pad: pad, x0: m.w, x1: -1, y0: m.h}
+	if b := dinoImage(file+"_legsbody", true); b != nil && b.w == m.w && b.h == m.h {
+		o.body = b
+	}
 	for y := 0; y < m.h; y++ {
 		for x := 0; x < m.w; x++ {
 			if q := m.px[y*m.w+x]; q.A >= 128 && (q.R == o.n || q.G == o.n) {
-				o.x0, o.x1 = min(o.x0, x), max(o.x1, x)
+				o.x0, o.x1, o.y0 = min(o.x0, x), max(o.x1, x), min(o.y0, y)
 			}
 		}
 	}
 	if o.x1 < 0 {
 		return nil
 	}
-	o.x0, o.x1 = o.x0+pad, o.x1+pad
+	o.x0, o.x1, o.y0 = o.x0+pad, o.x1+pad, o.y0+pad
 	return o
 }
 

@@ -54,6 +54,15 @@ func main() {
 				}
 			}
 		}
+		if t, ok := dinopaint.LookupThighs(sp.Name); ok {
+			mask, under, body := dinopaint.PaintThighs(sp, t, g, p)
+			for name, img := range map[string]image.Image{"_legs.png": mask, "_legsunder.png": under, "_legsbody.png": body} {
+				if err := save(filepath.Join(*out, sp.Name+name), img); err != nil {
+					fmt.Fprintln(os.Stderr, "dinopaint:", err)
+					os.Exit(1)
+				}
+			}
+		}
 		if u, ok := dinopaint.LookupUnder(sp.Name); ok {
 			if err := save(filepath.Join(*out, sp.Name+"_under.png"), dinopaint.PaintUnder(sp, u, g, p)); err != nil {
 				fmt.Fprintln(os.Stderr, "dinopaint:", err)

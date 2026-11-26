@@ -11,12 +11,23 @@ var (
 	toroHoof  = []uint32{0x2e2c2a, 0x5c5850, 0x8e887a, 0xbab4a2, 0xdcd8c8}
 )
 
+// toroThighs are its legs' upper parts, thigh and upper arm, which turn whole
+// with the hip and the shoulder: near hind, far hind, far fore, near fore.
+var toroThighs = []SDF{
+	Cone(21.5, 37.5, 7.9, 22.5, 49.5, 5.5), Cone(32.5, 39, 6.5, 33, 49.5, 4.9),
+	Cone(42, 39, 6.5, 41.5, 49.5, 4.9), Cone(53, 40.5, 6.7, 52.5, 49.5, 5.5),
+}
+
 func init() {
 	Register(toro())
 	// The shoulders and the neck under the frill, for when the head turns.
 	RegisterUnder("toro", &Under{Parts: []string{"frill", "head"}, Mat: "hide"})
-	// Its legs, in the rig's order, cut as painted.
-	RegisterLegs("toro", LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}})
+	// Its legs, in the rig's order, cut as painted and swung whole from the
+	// hip and the shoulder (thigh.go).
+	RegisterThighs("toro", &Thighs{
+		Legs:  LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}},
+		Thigh: toroThighs,
+	})
 }
 
 func toro() *Species {

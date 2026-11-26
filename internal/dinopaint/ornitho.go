@@ -10,7 +10,18 @@ package dinopaint
 // (31, 18) and the head about (35.2, 3.6); the beak opens about (41, 7)
 // along the line to (46.5, 7.2); the tail turns about (13, 19).
 
-func init() { Register(ornitho()) }
+func init() {
+	Register(ornitho())
+	// The legs swing whole from the hip, the near thigh under the folded
+	// wing and the flank (thigh.go).
+	RegisterThighs("ornitho", &Thighs{
+		Legs:       LegMask{{"nearLeg"}, {"farLeg"}},
+		FrontParts: []string{"wing"},
+		Front:      Poly(13, 12, 35, 12, 35, 24.2, 13, 24.2),
+		Thigh:      []SDF{Cone(26.4, 26.6, 4.3, 28.3, 31.8, 2.8), Cone(17.4, 26.6, 4.1, 19.3, 31.8, 2.7)},
+		Coat:       Plumed(ornithoPlumage),
+	})
+}
 
 var (
 	ornithoBeak = []uint32{0x3a2808, 0x58400e, 0x785a16, 0x987420, 0xb88e2a, 0xd2a836, 0xe6c250, 0xf4dc7c}

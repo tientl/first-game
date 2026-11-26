@@ -22,7 +22,18 @@ import (
 // draws it again in every pose (internal/client/troodon.go: eyeOf,
 // redrawEye): the painting marks it with them.
 
-func init() { Register(troodon()) }
+func init() {
+	Register(troodon())
+	// The legs swing whole from the hip, the near thigh under the flank and
+	// the folded arm (thigh.go).
+	RegisterThighs("troodon", &Thighs{
+		Legs:       LegMask{{"nearLeg"}, {"farLeg"}},
+		FrontParts: []string{"arm"},
+		Front:      Poly(20, 8, 35, 8, 35, 16.8, 20, 16.8),
+		Thigh:      []SDF{Ellipse(27.6, 19.8, 3.7, 4.3, 0.35), Ellipse(18.1, 19.8, 3.7, 4.3, 0.35)},
+		Coat:       Plumed(troodonPlumage),
+	})
+}
 
 // The eye's two ambers, as in the drawing.
 var troodonAmber = [2]color.NRGBA{rgb(0xffb71e), rgb(0xffdd62)}

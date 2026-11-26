@@ -19,10 +19,21 @@ var (
 	stegoRust = []uint32{0x1c0c06, 0x2c140a, 0x40200e, 0x582c12, 0x703a18, 0x8a4a1e, 0xa45c26, 0xbc7030}
 )
 
+// stegoThighs are its legs' upper parts, thigh and upper arm, which turn whole
+// with the hip and the shoulder: near hind, far hind, far fore, near fore.
+var stegoThighs = []SDF{
+	Cone(40.5, 33, 6.9, 41.5, 45, 5.1), Cone(50, 35, 5.7, 50.5, 45, 4.5),
+	Cone(58, 37, 4.9, 57.5, 45, 4.1), Cone(66, 36.5, 5.9, 65.5, 45, 4.9),
+}
+
 func init() {
 	Register(stego())
-	// Its legs, in the rig's order, cut as painted.
-	RegisterLegs("stego", LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}})
+	// Its legs, in the rig's order, cut as painted and swung whole from the
+	// hip and the shoulder (thigh.go).
+	RegisterThighs("stego", &Thighs{
+		Legs:  LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}},
+		Thigh: stegoThighs,
+	})
 }
 
 // The plates, back to front: the far row first, darker, between the near

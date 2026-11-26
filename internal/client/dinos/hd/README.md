@@ -63,7 +63,16 @@ guide (`dinos/<name>.png`): open it enlarged with a grid to measure.
    are which leg) and `<name>_legsunder.png` (the far legs whole where the
    near ones hide them). The rig (`dinolegmask.go`) then cuts each leg along
    its painted outline instead of in columns, so a stride leaves no chips,
-   straight edges or holes. More helpers for a description's details:
+   straight edges or holes. **Thighs** (`RegisterThighs`, `thigh.go`), which
+   every walking species has now, go further: each leg is cut whole from
+   the hip or shoulder, its thigh or upper arm (`Thigh`, a shape per leg)
+   bending from the body as the stride swings it. The painter writes the
+   legs' mask (blue: what of the body is in front of the near legs,
+   `Front`/`FrontParts`, and what turns with the thigh), the legs whole
+   where something hides them (`_legsunder.png`, the near thigh's top under
+   a folded wing, the far legs up into the hip), and the body where the legs
+   hide it (`_legsbody.png`, with the species' `Coat`), which shows as a
+   thigh swings off it (`dinolegthigh.go`). More helpers for a description's details:
    `Plate` (a stegosaur's plates), `RimSpikes` (a frill's), `Gloss` (wet
    skin), `Fuzz` (a fuzzy coat), `Trace`/`Clear` (drawn water), `Tint`.
 7. Paint, add the name to `PAINTED` in `gen.py`, and look:

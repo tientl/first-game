@@ -22,8 +22,14 @@ var (
 
 func init() {
 	Register(thesc())
-	// Its legs, in the rig's order, cut as painted.
-	RegisterLegs("thesc", LegMask{{"nearLeg"}, {"farLeg"}})
+	// Its legs, in the rig's order, cut as painted and swung whole from the
+	// hip, the fuzzy thigh and all (thigh.go).
+	RegisterThighs("thesc", &Thighs{
+		Legs: LegMask{{"nearLeg"}, {"farLeg"}},
+		Thigh: []SDF{Blend(2, Ellipse(73, 26, 8.8, 9.8, 0), Cone(73, 25, 6.8, 80, 33, 4)),
+			Blend(2, Ellipse(65, 26, 7, 8.4, 0), Cone(65, 26, 5.4, 70.6, 33.6, 3.4))},
+		Coat: func(p *Painter) { p.Fuzz(thescFuzz) },
+	})
 }
 
 func thesc() *Species {
@@ -129,6 +135,11 @@ func thesc() *Species {
 	}
 }
 
+// thescFuzz is its coat: fine filaments over the body, the upper arms, the
+// thighs and the root of the tail, lying back along it, tufted at the
+// outline.
+var thescFuzz = FuzzSpec{Region: Cut(Poly(36, 0, 112, 0, 112, 35, 36, 35), Poly(104, 0, 126, 0, 126, 24, 104, 24)), Flow: 2.9, Len: 0.9, Dens: 0.5, Seed: 7}
+
 func thescDetails(p *Painter) {
 	// Small pale cream spots over the shoulders and flanks, round, where the
 	// drawing has them.
@@ -147,7 +158,7 @@ func thescDetails(p *Painter) {
 	}
 	// The coat: fine filaments over the body, the upper arms, the thighs
 	// and the root of the tail, lying back along it, tufted at the outline.
-	p.Fuzz(FuzzSpec{Region: Cut(Poly(36, 0, 112, 0, 112, 35, 36, 35), Poly(104, 0, 126, 0, 126, 24, 104, 24)), Flow: 2.9, Len: 0.9, Dens: 0.5, Seed: 7})
+	p.Fuzz(thescFuzz)
 	p.Eye(EyeSpec{X: 118.2, Y: 13.3, R: 0.9, Iris: thescEye, Lid: 0.15, Squint: 1.15})
 	// The pale ring round the eye.
 	p.Fill(Cut(Ellipse(118.2, 13.3, 1.9, 1.6, 0), Ellipse(118.2, 13.3, 1.45, 1.2, 0)), false, func(px, py int, d float64) color.NRGBA {
