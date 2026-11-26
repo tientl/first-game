@@ -90,11 +90,12 @@ var dinoRigs = map[string]dinoRig{
 			hind(17, 24, 17, rigPt{20, 14}, rigPt{21.5, 18}, rigPt{19, 21}, rigPt{20, 25.5}, rigPt{24.5, 26}),
 			hind(9, 16, 17, rigPt{12.5, 14}, rigPt{13.5, 18}, rigPt{11.5, 21}, rigPt{12.5, 25.5}, rigPt{16.5, 26}),
 		},
-		head:  rigPart{pivot: rigPt{23.6, 6.8}, dir: headUp(0.5), maxY: 10},
-		jaw:   [2]rigPt{{31, 5}, {36.5, 5.2}},
-		teeth: true,
-		far:   0b10,
-		tail:  rigPart{pivot: rigPt{11, 8}, dir: math.Pi, maxY: 13},
+		head:       rigPart{pivot: rigPt{23.6, 6.8}, dir: headUp(0.5), maxY: 10},
+		jaw:        [2]rigPt{{31, 5}, {36.5, 5.2}}, // the upper teeth are above this line, in the drawing
+		drawnTeeth: true,
+		teeth:      true,
+		far:        0b10,
+		tail:       rigPart{pivot: rigPt{11, 8}, dir: math.Pi, maxY: 17}, // the rump down to the legs
 	},
 	"troodon": {
 		file: "troodon", stride: 3, runner: true,
