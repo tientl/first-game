@@ -33,6 +33,7 @@ type swingInfo struct {
 	tier  sim.Tier // of the tool swung
 	beast bool     // at a creature: by hand, a punch (see punch.go)
 	cross bool     // a punch thrown with the other hand than the last
+	high  bool     // by hand at a tree.s ripe fruit: a reach up, not a crouch
 }
 
 // A chop, in frames at 60 a second: overhead, down onto the target, a small
@@ -142,6 +143,8 @@ func (g *Game) whatSwing(old protocol.Snapshot, oldAt map[[2]int]protocol.Entity
 			continue
 		}
 		switch {
+		case sim.IsFruitTree(e.Kind) && e.Ready:
+			return swingInfo{kind: swingHand, high: true}
 		case e.Kind == sim.EntityTree || e.Kind == sim.EntityWall || e.Kind == sim.EntityCactus,
 			sim.IsFruitTree(e.Kind) && !e.Ready: // a bare fruit tree is felled
 			return tool(sim.ToolAxe, swingAxe, p.AxeTier)

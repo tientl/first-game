@@ -126,6 +126,9 @@ type figDraw struct {
 	// item draws what the hand holds, the hand at (hx, hy), its forearm
 	// turned swing towards the facing.
 	item func(dst drawTarget, hx, hy, swing float64)
+	// pair, if set, is drawn with item: what is held in both hands (a bowl),
+	// or in the other one, the hands at (hx, hy) and (ox, oy).
+	pair func(dst drawTarget, hx, hy, ox, oy float64)
 }
 
 // playerTop is how far above a player's feet their name goes, in art
@@ -194,6 +197,11 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 		if f.item != nil {
 			hx, hy := handPoint(h, ux, uy, skew)
 			f.item(dst, hx, hy, h.swing*side)
+		}
+		if f.pair != nil {
+			hx, hy := handPoint(h, ux, uy, skew)
+			ox, oy := handPoint(u.hand[1], ux, uy, skew)
+			f.pair(dst, hx, hy, ox, oy)
 		}
 	}
 	if !h.over && heldBehind(dir) {
@@ -359,7 +367,22 @@ func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, l
 	fp, punching := g.punchPose(p)
 	jolt, jolted := g.jolting(p.ID)
 	fist := 0
+	// A blow or a motion sets the arms; standing, the legs too (a stance,
+	// a lunge, a crouch). Striding, the legs go on striding.
+	still := lo.anim == loStand
+	pose := func(m motionID, fr int) {
+		l2, u2 := m.keys(dir, fr)
+		f.up = u2
+		if still {
+			f.lo = l2
+		}
+	}
+	gm, gf, gathering := g.gathering(p)
 	switch {
+	case jolted: // struck: LPC's hurt, a flinch; the flash and the hop are drawJolted's
+		pose(moHurt, moHurt.frameAt(float64(jolt)))
+	case gathering:
+		pose(gm, gf)
 	case punching:
 		pose, anim := fp.hand, upPunch
 		if fp.off != poseRest {
@@ -367,43 +390,52 @@ func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, l
 		}
 		f.up = upKey{dir, anim, map[armPose]uint8{poseWind: 0, poseHalf: 3, poseFull: atkFrames - 1}[pose]}
 		f.push = fp.lean
-	case jolted && jolt < joltFling:
-		f.up = upKey{dir: dir, anim: upFlingOff}
-		if fistHolds(p.Held) {
-			f.up.anim = upFling
-		}
 	case g.cleaving(p): // outlasts the working pose; see battleaxe.go
 		ps := cleavePoseFor(dir)
-		f.up = upKey{dir, upChop, atkFrame(cleaveAngle(ps, age), ps.back, ps.down)}
+		pose(moChop, int(atkFrame(cleaveAngle(ps, age), ps.back, ps.down)))
 		f.item = gripped(func(d drawable) { g.drawCleave(dst, p, d, 0) })
 	case p.Acting && isSword(p.Held):
-		a := slashAngle(min(1, age/slashFrames))
-		f.up = upKey{dir, upChop, atkFrame(a, slashFrom, slashTo)}
-		f.push = clamp01((a - 0.4) / 1.2)
+		k := min(1, age/slashFrames)
+		if g.backhand(p) {
+			pose(moBackslash, int(atkFrame(backslashAngle(k), backslashFrom, backslashTo)))
+		} else {
+			a := slashAngle(k)
+			pose(moSlash, int(atkFrame(a, slashFrom, slashTo)))
+			f.push = 0.5 * clamp01((a-0.4)/1.2)
+		}
 		f.item = gripped(func(d drawable) { g.drawSlash(dst, p, d, 0) })
 	case p.Acting && (w.kind == swingAxe || w.kind == swingPick || w.kind == swingHoe):
 		a := chopAngle(age)
-		f.up = upKey{dir, upChop, atkFrame(a, chopRaised, chopImpact)}
-		f.push = clamp01((a - 0.4) / 1.2)
+		pose(moChop, int(atkFrame(a, chopRaised, chopImpact)))
+		f.push = 0.5 * clamp01((a-0.4)/1.2)
 		f.item = gripped(func(d drawable) { g.drawSwing(dst, p, d, 0, 0) })
-	case p.Acting && (w.kind == swingThrust || w.kind == swingHand):
-		out := reach(age)
-		k := uint8(math.Round(lerpf(2, atkFrames-1, out)))
+	case p.Acting && w.kind == swingThrust:
+		// LPC's thrust on the server's clock: drawn back for two frames, out
+		// in the third (the blow lands), held, and back.
+		fr := thrustFrame(age)
+		pose(moThrust, fr)
+		out := clamp01(reach(age))
 		turn := 0.0
-		if w.kind == swingThrust {
-			if age < 2 {
-				k = 0 // drawn back first
-			}
-			f.push = out
-			if dir == sim.DirLeft || dir == sim.DirRight {
-				turn = 0.3 * out // levelled at the beast
-			}
+		if dir == sim.DirLeft || dir == sim.DirRight {
+			turn = 0.3 * out // levelled at the beast
 		}
-		f.up = upKey{dir, upThrust, k}
+		f.push = 0.5 * out
 		f.item = func(dst drawTarget, hx, hy, swing float64) {
 			heldTurn = turn
 			g.drawHeldAt(dst, p.Held, dir, hx, hy)
 			heldTurn = 0
+		}
+	case p.Acting && w.kind == swingHand:
+		out := reach(age)
+		f.up = upKey{dir, upThrust, uint8(math.Round(lerpf(2, atkFrames-1, out)))}
+	case p.Mount == 0:
+		if m, fr, ok := g.motionOf(p, !still); ok {
+			l2, u2 := m.keys(dir, fr)
+			f.up = u2
+			if still || m == moStandUp {
+				f.lo = l2
+			}
+			g.deedItems(dst, &f, p, m, fr)
 		}
 	}
 	ux, uy, skew, u := drawFig(dst, f, x, y)
