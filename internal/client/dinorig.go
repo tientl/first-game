@@ -369,11 +369,14 @@ func turn(c *canvas, pr rigPart, a float64, joint float64) {
 	x0, x1 := max(0, int(pr.pivot.x-reach)-1), min(c.w, int(pr.pivot.x+reach)+2)
 	y0, y1 := max(0, int(pr.pivot.y-reach)-1), min(c.h, int(pr.pivot.y+reach)+2)
 	ux, uy := math.Cos(pr.dir), math.Sin(pr.dir)
-	const steps = 12
-	var sn, cs [steps + 1]float64 // the angles between, for the joint, from none to the turn itself
+	// The angles between, for the joint, from none to the turn itself: close
+	// enough that the joint's far side is swept without gaps, or a long neck
+	// bowed low leaves a comb of rays over the shoulders.
+	steps := max(12, min(160, int(math.Ceil(math.Abs(a)*reach))))
+	sn, cs := make([]float64, steps+1), make([]float64, steps+1)
 	cs[0] = 1
 	for k := 1; k <= steps; k++ {
-		sn[k], cs[k] = math.Sincos(-a * float64(k) / steps)
+		sn[k], cs[k] = math.Sincos(-a * float64(k) / float64(steps))
 	}
 	first := 0 // as drawn, too: no crack left along the cut
 	if joint <= 0 {

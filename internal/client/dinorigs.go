@@ -152,7 +152,9 @@ var dinoRigs = map[string]dinoRig{
 			hind(23, 36, 36, rigPt{27, 31}, rigPt{27.5, 40}, rigPt{25.5, 46.5}, rigPt{27, 52}, rigPt{35.5, 54}),
 			hind(13, 22, 36, rigPt{18, 31}, rigPt{17.5, 40}, rigPt{16, 45}, rigPt{17.5, 52}, rigPt{22.5, 54}),
 		},
-		head: rigPart{pivot: rigPt{30.5, 24.5}, dir: headUp(1.1), maxY: 26},
+		// The neck bows from its root: a cut across it there, clear of the
+		// back, so bowing low sweeps only the neck's own width.
+		head: rigPart{pivot: rigPt{31, 22.5}, dir: headUp(0.785), maxY: 26},
 		jaw:  [2]rigPt{{39.5, 11.5}, {46, 11.8}},
 		far:  0b10,
 		tail: rigPart{pivot: rigPt{11, 24}, dir: math.Pi, maxY: 33},
