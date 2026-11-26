@@ -303,7 +303,8 @@ func loinShape(female bool, d sim.Dir, sk skirt) (s shape, kx, ky float64) {
 		}
 		fy, by := hem, hem
 		if sk.set {
-			fx, bx = math.Max(fx, sk.fx+room), math.Min(bx, sk.bx-room)
+			// Swung, but not so far that its ragged corner comes away in a sliver.
+			fx, bx = math.Min(math.Max(fx, sk.fx+room), 39.5), math.Max(math.Min(bx, sk.bx-room), 15.5)
 			fy, by = hem+sk.fy, hem+sk.by
 		}
 		s = rag(sPoly(w0, top, w1, top, h1, top+6, fx, fy+1.5, bx, by+1.5, h0, top+6), math.Min(fy, by))
@@ -367,6 +368,7 @@ func (g *figGen) loincloth(d sim.Dir, sk skirt) {
 		}
 		return fur(x, y, bias)
 	})
+	f.dropSpecks(g.U, f.n, 6)
 	// The knot, and its two ends hanging.
 	for _, e := range [2][3]float64{{0.6, 6.4, 1.2}, {-0.9, 4.6, 1.1}} {
 		end := sLock(kx, ky, kx+out*e[0]*1.6, ky+e[1]*0.5, kx+out*e[0], ky+e[1], e[2], 0.6)
@@ -377,37 +379,289 @@ func (g *figGen) loincloth(d sim.Dir, sk skirt) {
 	f.fill(g.U, knot, bevel(loinHideHD, knot, 1.7, 0.08))
 }
 
-// bareArm draws arm a on l bare: the round of the shoulder, the swell of
-// the upper arm and the forearm, all one skin. A man's is thick.
-func (g *figGen) bareArm(l *figLayer, a armGeom, bias float64) {
-	f := &g.f
-	r0, r1, r2, r3, rd := 4.2, 3.5, 3.8, 2.6, 4.9
-	if g.look.Female {
-		r0, r1, r2, r3, rd = 3.1, 2.6, 2.7, 2.1, 3.5
-	}
-	ux, uy := a.ex-a.sx, a.ey-a.sy
-	n := math.Max(math.Hypot(ux, uy), 0.01)
-	ux, uy = ux/n, uy/n
-	// The upper arm swells in the middle; the shoulder stays round however
-	// the arm is turned.
-	mx, my := a.sx+ux*n*0.55, a.sy+uy*n*0.55
-	upper := sCap(a.sx, a.sy, mx, my, r0, r0+0.2).or(sCap(mx, my, a.ex, a.ey, r0+0.2, r1))
-	fore := sCap(a.ex, a.ey, a.wx, a.wy, r2, r3)
-	delt := sEll(a.sx+ux*0.6, a.sy+uy*0.6+0.4, rd-0.5, rd)
-	arm := upper.or(fore).or(delt)
-	f.fill(l, arm, func(x, y int, _ float64) color.RGBA {
-		fx, fy := float64(x)+0.5, float64(y)+0.5
-		var v float64
-		switch dd, df := delt.d(fx, fy), fore.d(fx, fy); {
-		case dd < 0:
-			v = delt.lum(x, y, rd-0.6) + 0.05
-			if dd > -1.1 && upper.d(fx, fy) < -0.6 && (fx-a.sx)*ux+(fy-a.sy)*uy > 2 {
-				v -= 0.2 // where it ends on the arm
+// dropSpecks clears the pixels of part p on l that lie in islands of fewer
+// than n: the tip of a rag that its jagged edge has cut off from the rest.
+func (f *figHD) dropSpecks(l *figLayer, p uint16, n int) {
+	c := l.c
+	seen := make([]bool, len(c.px))
+	var comp, stack []int
+	for i := range c.px {
+		if seen[i] || l.part[i] != p || c.px[i].A == 0 {
+			continue
+		}
+		comp, stack = comp[:0], append(stack[:0], i)
+		seen[i] = true
+		for len(stack) > 0 {
+			j := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			comp = append(comp, j)
+			x, y := j%c.w, j/c.w
+			for _, d := range [4][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+				if nx, ny := x+d[0], y+d[1]; c.in(nx, ny) {
+					if k := ny*c.w + nx; !seen[k] && l.part[k] == p && c.px[k].A > 0 {
+						seen[k] = true
+						stack = append(stack, k)
+					}
+				}
 			}
-		case df < 0 && df < upper.d(fx, fy):
-			v = fore.lum(x, y, r2)
-		default:
-			v = upper.lum(x, y, r0)
+		}
+		if len(comp) < n {
+			for _, j := range comp {
+				c.px[j], l.part[j] = color.RGBA{}, 0
+			}
+		}
+	}
+}
+
+// sEllAxis is an ellipse about (cx, cy) with radius ra along the unit
+// direction (ux, uy) and rb across it: a muscle along a limb.
+func sEllAxis(cx, cy, ux, uy, ra, rb float64) shape {
+	r, m := math.Max(ra, rb), math.Min(ra, rb)
+	return shape{cx - r, cy - r, cx + r, cy + r, func(x, y float64) float64 {
+		dx, dy := x-cx, y-cy
+		a, b := (dx*ux+dy*uy)/ra, (dx*uy-dy*ux)/rb
+		return (math.Sqrt(a*a+b*b) - 1) * m
+	}}
+}
+
+// unitOf is (x, y) made a unit long, and how long it was.
+func unitOf(x, y float64) (ux, uy, n float64) {
+	n = math.Max(math.Hypot(x, y), 0.01)
+	return x / n, y / n, n
+}
+
+// prof is how far a limb reaches from its axis along its length: pairs of
+// t (0 at one joint, 1 at the next) and the reach there, eased between.
+type prof []float64
+
+func (p prof) at(t float64) float64 {
+	t = clamp01(t)
+	for i := 2; i < len(p); i += 2 {
+		if t <= p[i] {
+			s := (t - p[i-2]) / math.Max(p[i]-p[i-2], 1e-6)
+			return lerpf(p[i-1], p[i+1], smooth(s))
+		}
+	}
+	return p[len(p)-1]
+}
+
+func (p prof) scaled(k float64) prof {
+	q := append(prof{}, p...)
+	for i := 1; i < len(q); i += 2 {
+		q[i] *= k
+	}
+	return q
+}
+
+func (p prof) most() float64 {
+	r := 0.0
+	for i := 1; i < len(p); i += 2 {
+		r = math.Max(r, p[i])
+	}
+	return r
+}
+
+// sLimb is a limb from (ax, ay) to (bx, by): t of the way along it, it
+// reaches out.at(t) to the side the unit (px, py) points to, square to the
+// limb, and in.at(t) to the other. Its ends are round.
+func sLimb(ax, ay, bx, by, px, py float64, out, in prof) shape {
+	ux, uy, n := unitOf(bx-ax, by-ay)
+	r := math.Max(out.most(), in.most())
+	return shape{math.Min(ax, bx) - r, math.Min(ay, by) - r, math.Max(ax, bx) + r, math.Max(ay, by) + r, func(x, y float64) float64 {
+		dx, dy := x-ax, y-ay
+		s, c := dx*ux+dy*uy, dx*px+dy*py
+		w := out
+		if c < 0 {
+			w = in
+		}
+		switch {
+		case s < 0:
+			return math.Hypot(s, c) - w.at(0)
+		case s > n:
+			return math.Hypot(s-n, c) - w.at(1)
+		}
+		return math.Abs(c) - w.at(s/n)
+	}}
+}
+
+// The reach of a bare arm from its axis, a man's, down the upper arm and
+// the forearm: on the outside (seen from the front or the back) and on the
+// inside, or in front and behind (seen from the side). The shoulder's cap
+// is widest a little below the joint and ends half way down the outside of
+// the arm; the arm narrows to the elbow; the forearm is fullest just below
+// the elbow, on the thumb's side, and slim at the wrist.
+var (
+	upperOut = prof{0, 4.3, 0.14, 4.85, 0.32, 4.3, 0.48, 3.05, 0.56, 3.0, 0.72, 3.15, 0.88, 2.65, 1, 2.2}
+	upperIn  = prof{0, 3.3, 0.3, 3.0, 0.6, 3.2, 0.84, 2.5, 1, 2.1}
+	foreOut  = prof{0, 2.3, 0.2, 2.95, 0.36, 2.85, 0.62, 2.2, 0.86, 1.65, 1, 1.6}
+	foreIn   = prof{0, 2.05, 0.32, 2.6, 0.52, 2.45, 0.78, 1.8, 1, 1.5}
+
+	upperFront = prof{0, 3.7, 0.25, 3.55, 0.45, 3.0, 0.62, 3.35, 0.8, 3.05, 1, 2.45}
+	upperBack  = prof{0, 3.8, 0.25, 4.0, 0.45, 3.75, 0.7, 3.0, 1, 2.6}
+	foreFront  = prof{0, 2.6, 0.2, 3.15, 0.4, 2.85, 0.7, 2.15, 1, 1.7}
+	foreBack   = prof{0, 2.7, 0.15, 2.65, 0.5, 2.3, 1, 1.7}
+
+	// A woman's, from the front or the back: slimmer, the muscles hardly marked.
+	upperOutF = prof{0, 3.3, 0.15, 3.55, 0.36, 3.1, 0.56, 2.55, 0.8, 2.45, 1, 1.95}
+	upperInF  = prof{0, 2.7, 0.4, 2.5, 0.75, 2.3, 1, 1.85}
+	foreOutF  = prof{0, 1.95, 0.25, 2.35, 0.6, 1.85, 1, 1.35}
+	foreInF   = prof{0, 1.8, 0.35, 2.1, 0.75, 1.55, 1, 1.3}
+)
+
+// armMuscle is a muscle that bulges on a bare arm: on the upper arm or the
+// forearm, s pixels down it and c across (towards p or q, as a fraction of
+// the reach there), ra long and rb wide.
+type armMuscle struct {
+	fore          bool
+	s, c, ra, rb  float64
+	strong, light float64 // how much it bulges, and how much lighter it is
+}
+
+// bareArm draws arm i of a figure facing d bare, on l: the cap of the
+// shoulder coming to a point half way down the outside of the arm, the
+// biceps in front and the triceps behind, the arm narrowing to the elbow,
+// the forearm full below the elbow and slim at the wrist. It is lit as a
+// limb, and each muscle as a bulge on it. A woman's is slighter and less
+// marked.
+func (g *figGen) bareArm(l *figLayer, a armGeom, bias float64, d sim.Dir, i int) {
+	f := &g.f
+	side, back := d == sim.DirRight, d == sim.DirUp
+	k, mk := 1.0, 1.0 // how thick the arm is, and how marked its muscles
+	if g.look.Female {
+		k, mk = 0.8, 0.4
+	}
+	ux, uy, n := unitOf(a.ex-a.sx, a.ey-a.sy)
+	vx, vy, m := unitOf(a.wx-a.ex, a.wy-a.ey)
+	// p and q point across the upper arm and the forearm: to the front of
+	// the arm seen from the side, where the biceps is, and away from the
+	// body seen from the front or the back.
+	px, py, qx, qy := uy, -ux, vy, -vx
+	if !side {
+		lat := 1.0 - 2*float64(i)
+		if px*lat < 0 || px == 0 && py > 0 {
+			px, py = -px, -py
+		}
+		if qx*lat < 0 || qx == 0 && qy > 0 {
+			qx, qy = -qx, -qy
+		}
+	}
+	uo, ui, fo, fi := upperOut, upperIn, foreOut, foreIn
+	switch {
+	case side:
+		uo, ui, fo, fi = upperFront.scaled(k), upperBack.scaled(k), foreFront.scaled(k), foreBack.scaled(k)
+	case g.look.Female:
+		uo, ui, fo, fi = upperOutF, upperInF, foreOutF, foreInF
+	}
+	upper := sLimb(a.sx, a.sy, a.ex, a.ey, px, py, uo, ui)
+	fore := sLimb(a.ex, a.ey, a.wx, a.wy, qx, qy, fo, fi)
+
+	var muscles []armMuscle
+	switch {
+	case side:
+		muscles = []armMuscle{
+			{false, 1.9, 0, 4.6, 4.2, 0.9, 0.04},    // the shoulder's cap
+			{false, 8.3, 0.35, 4.2, 2.5, 0.7, 0.03}, // the biceps
+			{false, 5.6, -0.45, 4.6, 2.5, 0.5, 0},   // the triceps
+			{true, 3.4, 0.3, 3.8, 2.4, 0.6, 0.02},   // the forearm's mass
+		}
+	case back:
+		muscles = []armMuscle{
+			{false, 2, 0.15, 4.6, 4.2, 0.9, 0.04},
+			{false, 6.6, 0.1, 5, 3, 0.8, 0.02},     // the triceps
+			{true, 3.3, 0.35, 3.8, 2.4, 0.6, 0.02}, // down the outside of the forearm
+		}
+	default:
+		muscles = []armMuscle{
+			{false, 2.2, 0.2, 4.4, 4.3, 1.3, 0.02},
+			{false, 8.6, -0.15, 4.0, 2.6, 1.3, 0.03}, // the biceps
+			{true, 2.8, 0.45, 3.4, 2.2, 0.9, 0.04},   // the thumb's side of the forearm
+			{true, 4.4, -0.35, 3.8, 2.1, 0.6, 0},     // and the other
+		}
+	}
+	type bump struct {
+		s             shape
+		cx, cy, round float64
+		fore          bool
+		strong, light float64
+	}
+	bumps := make([]bump, len(muscles))
+	for j, mu := range muscles {
+		ax, ay, bx, by, cx, cy, r := a.sx, a.sy, ux, uy, px, py, ui.at(mu.s/n)
+		if mu.fore {
+			ax, ay, bx, by, cx, cy, r = a.ex, a.ey, vx, vy, qx, qy, fi.at(mu.s/m)
+		}
+		if mu.c > 0 {
+			if mu.fore {
+				r = fo.at(mu.s / m)
+			} else {
+				r = uo.at(mu.s / n)
+			}
+		}
+		x, y := ax+bx*mu.s+cx*mu.c*r, ay+by*mu.s+cy*mu.c*r
+		bumps[j] = bump{sEllAxis(x, y, bx, by, mu.ra*k, mu.rb*k), x, y, mu.rb * k, mu.fore, mu.strong * mk, mu.light * mk}
+	}
+	flat := lum(0, 0)
+	// away is the way the light goes, on the screen: a bulge throws its
+	// shadow that way.
+	const awayX, awayY = 0.62, 0.78
+
+	// The forearm lies over the upper arm unless it goes away from the viewer.
+	foreTop := !back
+	f.fill(l, upper.or(fore), func(x, y int, _ float64) color.RGBA {
+		fx, fy := float64(x)+0.5, float64(y)+0.5
+		du, df := upper.d(fx, fy), fore.d(fx, fy)
+		onFore := df < 0 && (foreTop || du >= 0)
+		// The limb is lit softly, so that its muscles show on it, each lit
+		// on its own and throwing a little shadow below it.
+		var v float64
+		if onFore {
+			v = fore.lum(x, y, fo.at(0.3))
+		} else {
+			v = upper.lum(x, y, uo.at(0.4))
+		}
+		v = flat + (v-flat)*0.4
+		for _, b := range bumps {
+			if b.fore != onFore {
+				continue
+			}
+			switch e := b.s.d(fx, fy); {
+			case e < 0:
+				v += (b.s.lum(x, y, b.round)-flat)*b.strong + b.light
+			case e < 0.85:
+				if dx, dy, _ := unitOf(fx-b.cx, fy-b.cy); dx*awayX+dy*awayY > 0.35 {
+					v -= 0.13 * b.strong
+				}
+			}
+		}
+		s := (fx-a.sx)*ux + (fy-a.sy)*uy // down the upper arm
+		c := (fx-a.sx)*px + (fy-a.sy)*py // across it
+		if !onFore {
+			// Where the shoulder's cap ends on the arm: in a point half way
+			// down its outside, seen from the front or the back, and in a
+			// point in the middle seen from the side.
+			r := uo.at(s / n)
+			if c < 0 {
+				r = ui.at(s / n)
+			}
+			cn := c / math.Max(r, 0.1)
+			if side {
+				if math.Abs(s-n*(0.52-0.2*math.Abs(cn))) < 0.55 {
+					v -= 0.16 * mk
+				}
+			} else if cn > 0.1 && math.Abs(s-n*(0.28+0.22*cn)) < 0.6 {
+				v -= 0.16 * mk
+			}
+		} else {
+			t := (fx-a.ex)*vx + (fy-a.ey)*vy // down the forearm
+			e := (fx-a.ex)*qx + (fy-a.ey)*qy
+			switch {
+			case back && t < 1.2 && math.Abs(e) < 1.3: // the point of the elbow
+				v += 0.12
+			case !back && t < 1.3 && e < -0.2 && e > -2.2*k: // the crook of the elbow
+				v -= 0.24
+			case t > m-1.6: // the wrist
+				v -= 0.06
+			}
 		}
 		return g.skin(skinBand(v + bias))
 	})

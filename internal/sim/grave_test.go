@@ -3,10 +3,12 @@ package sim
 import "testing"
 
 func TestABodyLooksLikeItsPlayer(t *testing.T) {
-	for _, l := range []Look{{}, {Female: true, Hair: HairBun, HairColor: NumHairColors - 1, Skin: NumSkinTones - 1}} {
-		got, col := GraveLook(int32(packGraveLook(l, 13)))
-		if got != l.Sanitized() || col != 13 {
-			t.Errorf("look %+v came back as %+v, colour %d", l, got, col)
+	for i, l := range []Look{{}, {Female: true, Hair: HairShaggy, HairColor: NumHairColors - 1, Skin: NumSkinTones - 1}} {
+		wear := []Wear{0, WearTunic | WearBoots}[i]
+		fuel := int32(packGraveLook(l, 13, wear))
+		got, col := GraveLook(fuel)
+		if got != l.Sanitized() || col != 13 || GraveWear(fuel) != wear {
+			t.Errorf("look %+v in %b came back as %+v in %b, colour %d", l, wear, got, GraveWear(fuel), col)
 		}
 	}
 }

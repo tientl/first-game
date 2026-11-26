@@ -2,6 +2,7 @@ package client
 
 import (
 	"image"
+	"image/color"
 	"math"
 	"os"
 	"testing"
@@ -180,15 +181,21 @@ func TestDumpCave(t *testing.T) {
 	}
 	limbPNG(t, dir+"/cave_poses.png", img)
 
+	// The strides from the side, the front and the back, over a line where
+	// the figure stands: a planted foot is on it.
 	for name, an := range map[string][2]uint8{"walk": {uint8(loWalk), uint8(upWalk)}, "run": {uint8(loRun), uint8(upRun)}} {
-		const gk, cell = 4, 360
-		heads := []headCache{{}, {}}
+		const gk, cell, rowH = 3, 210, 350
+		heads := make([]headCache, 6)
 		var frames []*image.RGBA
 		for f := 0; f < loFrames; f++ {
-			fr := limbBackdrop(2*cell, 460)
+			fr := limbBackdrop(3*cell, 2*rowH)
 			for li, l := range []sim.Look{man, woman} {
-				limbShot(fr, l, upKey{sim.DirRight, upAnim(an[1]), uint8(f * upFrames / loFrames)}, loKey{sim.DirRight, loAnim(an[0]), uint8(f)},
-					heads[li], li*cell+cell/2, 420, gk, 0, 0)
+				for di, d := range []sim.Dir{sim.DirRight, sim.DirDown, sim.DirUp} {
+					fx, fy := di*cell+cell/2, li*rowH+rowH-24
+					groundLine(fr, fx, fy, 90)
+					limbShot(fr, l, upKey{d, upAnim(an[1]), uint8(f * upFrames / loFrames)}, loKey{d, loAnim(an[0]), uint8(f)},
+						heads[li*3+di], fx, fy, gk, 0, 0)
+				}
 			}
 			frames = append(frames, fr)
 		}
@@ -197,13 +204,29 @@ func TestDumpCave(t *testing.T) {
 			gd, speed = runGait, 1.6
 		}
 		limbGIF(t, dir+"/cave_"+name+".gif", frames, max(2, int(math.Round(gd.cycle/speed/loFrames*100/60))))
-		strip := limbBackdrop(8*240, 2*330)
+		strip := limbBackdrop(8*240, 4*330)
 		for f := 0; f < 8; f++ {
 			for li, l := range []sim.Look{man, woman} {
 				limbShot(strip, l, upKey{sim.DirRight, upAnim(an[1]), uint8(f)}, loKey{sim.DirRight, loAnim(an[0]), uint8(2 * f)},
-					heads[li], f*240+120, li*330+300, 3, 0, 0)
+					heads[li*3], f*240+120, li*330+300, 3, 0, 0)
 			}
+			groundLine(strip, f*240+120, 2*330+300, 90)
+			limbShot(strip, man, upKey{sim.DirUp, upAnim(an[1]), uint8(f)}, loKey{sim.DirUp, loAnim(an[0]), uint8(2 * f)},
+				heads[2], f*240+120, 2*330+300, 3, 0, 0)
+			groundLine(strip, f*240+120, 3*330+300, 90)
+			limbShot(strip, man, upKey{sim.DirDown, upAnim(an[1]), uint8(f)}, loKey{sim.DirDown, loAnim(an[0]), uint8(2 * f)},
+				heads[1], f*240+120, 3*330+300, 3, 0, 0)
 		}
 		limbPNG(t, dir+"/cave_"+name+"_strip.png", strip)
+	}
+}
+
+// groundLine marks the row a figure stands on, w pixels either side of
+// (x, y): darker than the grass, under where the soles go.
+func groundLine(img *image.RGBA, x, y, w int) {
+	for i := x - w; i <= x+w; i++ {
+		if image.Pt(i, y).In(img.Rect) {
+			img.SetRGBA(i, y, color.RGBA{70, 104, 58, 255})
+		}
 	}
 }

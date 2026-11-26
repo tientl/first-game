@@ -269,6 +269,10 @@ func Load(d SaveData) (*World, error) {
 			e.HP = maxHP(e.Kind, false) // a few blows at it are not kept: older saves hold the one hit of picking
 		}
 		switch e.Kind {
+		case EntityGrave:
+			if d.Version < 18 {
+				e.Fuel |= int(WearAll) << graveWearShift // they fell dressed
+			}
 		case EntityFlora:
 			if e.Var >= uint8(NumFlora) {
 				continue

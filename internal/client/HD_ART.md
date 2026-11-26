@@ -104,9 +104,24 @@ it and pick one with a flag, or make both from the same code with
   `CRITTER_DUMP=dir go test ./internal/client -run DumpCritters -v` writes a
   sheet (old above new, then the moving frames) and GIFs of each animal, and
   what drawing them costs.
-- Not density-aware yet: the sprite export in `export.go`, the fallen body
-  (`bodyart.go`) and the map's head marker, which still use the density-1
-  figure.
+- Everyone starts as a caveman: the jointed figure bare (`cavefig.go`), a
+  man in a fur loincloth, a woman in a fur wrap and skirt, both barefoot.
+  The clothes (`sim.Wear`, made and carried like armour) go over it: the
+  tunic and the mantle in `tallfig.go`, leg wraps and boots in `limbs.go`.
+  A bare arm is a limb whose reach from its axis is given down its length
+  on each side (`prof`, `sLimb`), lit softly, with each muscle (the cap of
+  the shoulder, biceps, triceps, the forearm's masses) lit as a bulge of
+  its own on it. The head (`tallhead.go`) has small eyes under the brow and
+  a man an untrimmed beard (`beardShade`); with the long braid of hair his
+  beard is plaited at the chin. Seen from the front or the back a stride is
+  drawn shallower than the ground it covers (`legK`), so the feet stay on
+  the line the figure stands on. `CAVE_DUMP=dir go test ./internal/client
+  -run DumpCave` writes sheets of both figures, each of the clothes, the
+  poses, and GIFs of the walk and the run from the side, the front and the
+  back.
+- The fallen body and its bones (`bodyart.go`) are the jointed figure laid
+  down, in what it wore; the map's head marker is its head. Not
+  density-aware yet: the sprite export in `export.go`.
 
 ## Checking
 

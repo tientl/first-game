@@ -385,8 +385,11 @@ func (g *Game) drawHeadMark(dst *ebiten.Image, x, y float32, scale float64, c co
 	b := head.Bounds()
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(-float64(b.Dx())/2, -float64(b.Dy())/2)
-	op.GeoM.Scale(scale, scale)
+	op.GeoM.Scale(scale/headMarkDens, scale/headMarkDens)
 	op.GeoM.Translate(math.Round(float64(x)), math.Round(float64(y)))
+	if scale != headMarkDens {
+		op.Filter = ebiten.FilterLinear // the head is drawn finer than it is shown
+	}
 	dst.DrawImage(head, op)
 }
 

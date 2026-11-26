@@ -12,13 +12,6 @@ import (
 // hair of lookhd_head.go's big head, cut to its size: headMap carries each
 // lock over.
 
-// Eyes, one letter a pixel: K lid, W white, P pupil, I iris, i iris lit
-// from below. The outer corner is on the left.
-var (
-	eyeTall     = []string{"KKK", "WPI", "WPi"}
-	eyeTallSide = []string{"KKK", "WIP", "WiP"}
-)
-
 // headMap carries a point of the big head, whose skull is 36 by 33 about
 // (27, 31), to the tall figure's, 14 by 17 about (cx, 35).
 type headMap struct{ cx, kx, ky float64 }
@@ -115,22 +108,11 @@ func (g *figGen) tallHead(d sim.Dir, shut bool) {
 	sk, hr := g.sk, g.hr
 	side, up := d == sim.DirRight, d == sim.DirUp
 	T := g.T
-	iris := irisColors[l.Skin]
-	pal := func(ch byte) (color.RGBA, bool) {
-		switch ch {
-		case 'K':
-			return eyeDark, true
-		case 'W':
-			return eyeWhite, true
-		case 'P':
-			return mix(eyeDark, iris, 0.12), true
-		case 'I':
-			return iris, true
-		case 'i':
-			return mix(iris, colWhite, 0.42), true
-		}
-		return color.RGBA{}, false
-	}
+	// The eye's colours: the iris dark, its colour only a tinge; the white
+	// dulled by the shade it is in; the lashes and the line of the lid.
+	irisCol := mix(irisColors[l.Skin], eyeDark, 0.62)
+	whiteCol := mix(eyeWhite, sk[4], 0.3)
+	lash := mix(eyeDark, sk[2], 0.35)
 	blush := skinTones[l.Skin].blush
 	lips := mix(blush, mouthDark, 0.5)
 	brow := hr[2]
@@ -184,50 +166,79 @@ func (g *figGen) tallHead(d sim.Dir, shut bool) {
 	dot := func(x, y int, c color.RGBA) { f.dot(T, x, y, c) }
 	switch d {
 	case sim.DirDown:
-		if shut {
-			for x := 0; x < 3; x++ {
-				dot(22+x, 36, eyeDark)
-				dot(29+x, 36, eyeDark)
+		// A grown face: each eye small and set in the shade of the brow, a
+		// dark iris with a little of the white beside it towards the nose;
+		// the nose lit down its bridge. A man's brows lie heavy on a ridge,
+		// the eyes deep under it, and his nose is broad; a woman's brows
+		// are fine, her upper lids marked, her lips full.
+		for _, e := range [2][2]int{{22, 1}, {31, -1}} {
+			x0, x1, x2 := e[0], e[0]+e[1], e[0]+2*e[1] // the outer corner, the iris, the inner corner
+			if l.Female {
+				dot(x0, 33, mix(brow, sk[3], 0.5))
+				dot(x1, 33, brow)
+				dot(x2, 33, brow)
+				dot(x0, 34, lash)
+				dot(x1, 34, mix(lash, sk[3], 0.35))
+				dot(x2, 34, sk[3])
+			} else {
+				dot(x0-e[1], 33, mix(brow, sk[3], 0.45))
+				dot(x0, 33, brow)
+				dot(x1, 33, brow)
+				dot(x2, 33, brow)
+				dot(x0-e[1], 34, sk[3])
+				dot(x0, 34, sk[2])
+				dot(x1, 34, sk[2])
+				dot(x2, 34, sk[3])
 			}
-		} else {
-			f.stamp(T, 22, 35, eyeTall, false, pal)
-			f.stamp(T, 29, 35, eyeTall, true, pal)
-		}
-		for x := 21; x <= 24; x++ { // the brows
-			if l.Female && x == 21 {
-				dot(x, 34, brow)
-				dot(53-x, 34, brow)
-				continue
+			switch {
+			case shut:
+				dot(x0, 35, sk[3])
+				dot(x1, 35, mix(lash, sk[2], 0.3))
+				dot(x2, 35, mix(lash, sk[3], 0.45))
+			case l.Female:
+				dot(x0, 35, sk[3])
+				dot(x1, 35, irisCol)
+				dot(x2, 35, whiteCol)
+			default:
+				dot(x0, 35, sk[2])
+				dot(x1, 35, irisCol)
+				dot(x2, 35, whiteCol)
 			}
-			dot(x, 33, brow)
-			dot(53-x, 33, brow)
-			if !l.Female && x >= 23 {
-				dot(x, 34, mix(brow, sk[3], 0.35))
-				dot(53-x, 34, mix(brow, sk[3], 0.35))
-			}
+			dot(x1, 36, sk[3]) // the lower lid
 		}
 		if l.Female {
-			if !shut { // lashes
-				dot(21, 35, eyeDark)
-				dot(32, 35, eyeDark)
+			for _, x := range [2]int{22, 31} { // a little colour in the cheeks
+				dot(x, 38, mix(sk[4], blush, 0.4))
 			}
-			for _, x := range [4]int{22, 23, 30, 31} { // rosy cheeks
-				dot(x, 39, mix(sk[4], blush, 0.6))
-			}
+			// The nose: a glint on its bridge, a soft shadow under it.
+			dot(26, 37, sk[5])
+			dot(26, 38, sk[5])
+			dot(27, 38, sk[3])
+			dot(26, 39, sk[3])
+			dot(27, 39, sk[3])
+			// The lips, the lower one catching the light.
+			dot(25, 41, mix(sk[3], lips, 0.45))
 			dot(26, 41, lips)
 			dot(27, 41, lips)
-			dot(25, 41, mix(sk[3], lips, 0.45))
 			dot(28, 41, mix(sk[3], lips, 0.45))
+			dot(26, 42, mix(lips, sk[4], 0.55))
 		} else {
-			dot(22, 39, mix(sk[4], blush, 0.7)) // weathered cheeks
-			dot(31, 39, mix(sk[4], blush, 0.7))
+			dot(22, 37, sk[5]) // the cheekbones, the lit one bright
+			dot(31, 37, sk[4])
+			// The nose: lit down its bridge, in shade down its far side, broad
+			// and in shadow at the nostrils.
+			dot(26, 35, sk[4])
+			dot(26, 36, sk[5])
+			dot(26, 37, sk[5])
+			dot(26, 38, sk[5])
+			dot(27, 36, sk[3])
+			dot(27, 37, sk[3])
+			dot(27, 38, sk[3])
+			dot(25, 39, sk[3])
+			dot(26, 39, sk[2])
+			dot(27, 39, sk[2])
+			dot(28, 39, sk[3])
 		}
-		// The nose: a glint on its bridge, a shadow under it.
-		dot(26, 37, sk[5])
-		dot(26, 38, sk[5])
-		dot(27, 38, sk[3])
-		dot(26, 39, sk[3])
-		dot(27, 39, sk[2])
 	case sim.DirRight:
 		nose := sPoly(34.4, 35.6, 36.4, 38.6, 36, 39.6, 34, 39.8)
 		if l.Female {
@@ -240,19 +251,34 @@ func (g *figGen) tallHead(d sim.Dir, shut bool) {
 			return sk[4]
 		})
 		dot(34, 40, sk[2])
-		if shut {
-			for x := 31; x <= 33; x++ {
-				dot(x, 36, eyeDark)
-			}
+		// The eye, seen from the side: the iris at its front, the white
+		// behind it, under the lid; a man's under the ridge of his brow.
+		if l.Female {
+			dot(31, 33, mix(brow, sk[3], 0.5))
+			dot(32, 33, brow)
+			dot(33, 33, brow)
+			dot(31, 34, lash)
+			dot(32, 34, mix(lash, sk[3], 0.35))
+			dot(33, 34, mix(lash, sk[3], 0.35))
 		} else {
-			f.stamp(T, 31, 35, eyeTallSide, false, pal)
-		}
-		for x := 30; x <= 33; x++ {
-			dot(x, 33, brow)
-			if !l.Female && x >= 32 {
-				dot(x, 34, mix(brow, sk[3], 0.35))
+			for x := 30; x <= 34; x++ {
+				dot(x, 33, brow)
 			}
+			dot(30, 34, sk[3])
+			dot(31, 34, sk[2])
+			dot(32, 34, sk[2])
+			dot(33, 34, sk[2])
+			dot(34, 34, sk[3])
+			dot(32, 37, sk[3]) // the hollow under the eye
 		}
+		if shut {
+			dot(32, 35, mix(lash, sk[2], 0.3))
+			dot(33, 35, mix(lash, sk[3], 0.45))
+		} else {
+			dot(32, 35, whiteCol)
+			dot(33, 35, irisCol)
+		}
+		dot(33, 36, sk[3])
 		// The ear.
 		ear := sEll(26.6, 36.8, 1.6, 2.3)
 		f.add(T, ear, func(x, y int, dd float64) color.RGBA {
@@ -265,9 +291,7 @@ func (g *figGen) tallHead(d sim.Dir, shut bool) {
 			return sk[4]
 		})
 		if l.Female {
-			dot(34, 35, eyeDark)
-			dot(30, 39, mix(sk[4], blush, 0.6))
-			dot(31, 39, mix(sk[4], blush, 0.6))
+			dot(31, 39, mix(sk[4], blush, 0.45))
 			dot(33, 41, lips)
 			dot(34, 41, lips)
 		} else {
@@ -516,32 +540,76 @@ func (g *figGen) tallHead(d sim.Dir, shut bool) {
 		}
 	}
 
-	// A man's beard: a moustache parted under the nose, a full beard and a
-	// short braid with a gold bead.
+	// A man's beard, never trimmed: from the sideburns over the cheeks and
+	// the jaw, a moustache hanging past the corners of the mouth, ragged
+	// locks of it down to the chest. With the long braid of hair it is
+	// shorter and plaited at the chin instead.
 	if !l.Female {
 		br := g.br
-		bs := func(s shape) shader { return hairShadeK(br, s, 2.6, m.cx, 35, g.seed+9, hk) }
+		braided := l.Hair == sim.HairPonytail
+		bs := func(s shape, cx float64) shader { return beardShade(br, s, cx, 39, g.seed+9) }
+		lip := mix(lips, br[2], 0.45)
+		var b, moustache shape
+		var locks []shape
+		var mx, my, bx, by float64 // the mouth, and where a plait hangs from
 		switch d {
 		case sim.DirDown:
-			b := sPoly(20, 36.5, 21.6, 37, 22.3, 39.7, 24.6, 40.5, 27, 40.8, 29.4, 40.5, 31.7, 39.7, 32.4, 37, 34, 36.5,
-				34, 41.5, 32.6, 45.5, 30, 48, 27, 49, 24, 48, 21.4, 45.5, 20, 41.5).jag(1.1, 2.2, 45, 51)
-			f.fill(T, b, bs(b))
-			dot(26, 41, mouthDark)
-			dot(27, 41, mouthDark)
-			for _, s := range []shape{
-				sLock(26.8, 40, 24.6, 39.5, 22.4, 41.8, 1.3, 0.6),
-				sLock(27.2, 40, 29.4, 39.5, 31.6, 41.8, 1.3, 0.6),
-			} {
-				f.fill(T, s, bevel(br, s, 1.4, -0.04))
+			b = sPoly(19.7, 34.8, 20.9, 36.6, 21.5, 38.3, 23, 39.1, 24.6, 39.5, 27, 39.7, 29.4, 39.5, 31, 39.1, 32.5, 38.3, 33.1, 36.6, 34.3, 34.8,
+				35.1, 38.4, 35.4, 42.4, 34.8, 46.2, 33.2, 49.2, 30.6, 51.2, 27, 52, 23.4, 51.2, 20.8, 49.2, 19.2, 46.2, 18.6, 42.4, 18.9, 38.4)
+			moustache = sLock(26.6, 39.2, 24.4, 39.3, 22.8, 42.6, 1.5, 0.55).or(sLock(27.4, 39.2, 29.6, 39.3, 31.2, 42.6, 1.5, 0.55))
+			locks = []shape{
+				sLock(21.6, 47.5, 20.6, 50.5, 21.3, 53.4, 1.2, 0.5),
+				sLock(24.6, 49.5, 24.1, 52.4, 25, 55, 1.3, 0.5),
+				sLock(28.2, 50.5, 28.8, 53.2, 27.9, 55.8, 1.3, 0.5),
+				sLock(31.4, 49, 32.4, 51.8, 31.8, 54.2, 1.2, 0.5),
+				sLock(33.8, 46, 35.1, 48.4, 34.7, 50.8, 1.1, 0.5),
 			}
-			g.tallBeardBraid(27, 48.4)
+			mx, my, bx, by = 26.5, 41, 27, 48.6
 		case sim.DirRight:
-			b := sPoly(25.6, 38, 27.6, 38.8, 28.6, 40.6, 31, 41.1, 33.2, 40.7, 35.3, 41, 35.9, 43, 35.4, 45.6, 34, 47.8, 31.6, 48.6,
-				29.4, 47.4, 27.2, 44.8, 25.8, 41.5).jag(1.1, 2.2, 45, 51)
-			f.fill(T, b, bs(b))
-			s := sLock(35.4, 40, 33.2, 39.5, 31.2, 41.8, 1.3, 0.6)
-			f.fill(T, s, bevel(br, s, 1.4, -0.04))
-			g.tallBeardBraid(32.4, 48)
+			b = sPoly(28.4, 35, 29.6, 36.8, 31, 38, 32.6, 38.8, 34, 39.4, 35.6, 39.8, 36.8, 41, 37.4, 43.2, 37, 46.6, 35.4, 49.8, 32.4, 51.4,
+				29.2, 50.2, 27, 47.2, 26, 43.4, 26.4, 39)
+			moustache = sLock(35.7, 39.6, 34, 39.8, 32.6, 42.6, 1.5, 0.55)
+			locks = []shape{
+				sLock(30.2, 49, 29.6, 52, 30.4, 54.4, 1.2, 0.5),
+				sLock(33.4, 49.4, 34.4, 52, 33.8, 54.6, 1.3, 0.5),
+				sLock(36, 46.4, 37.6, 48.8, 37.2, 51.4, 1.1, 0.5),
+			}
+			mx, my, bx, by = 34.5, 41, 33.4, 48.4
+		}
+		if d == sim.DirDown || d == sim.DirRight {
+			if braided {
+				b = b.and(sAbove(49.5)).jag(1.6, 1.9, 44, 53)
+				locks = nil
+			} else {
+				b = b.jag(2.2, 1.9, 44, 53)
+			}
+			f.fill(T, b, bs(b, mx))
+			for _, s := range locks {
+				f.fill(T, s, bs(s, mx))
+			}
+			// The mouth, a dark gap in it, and the lower lip under it.
+			x, y := int(mx), int(my)
+			if d == sim.DirDown {
+				dot(x-1, y, br[1])
+				dot(x+2, y, br[1])
+				dot(x+1, y, mouthDark)
+				dot(x+1, y+1, lip)
+			} else {
+				dot(x-1, y, br[1])
+				dot(x+1, y+1, lip)
+			}
+			dot(x, y, mouthDark)
+			dot(x, y+1, lip)
+			f.fill(T, moustache, func(px, py int, _ float64) color.RGBA {
+				i := int(moustache.lum(px, py, 1.5)*float64(len(br))*0.8) + 1
+				if hashf(px, 3, g.seed) < 0.35 {
+					i--
+				}
+				return br.at(max(1, min(len(br)-2, i)))
+			})
+			if braided {
+				g.tallBeardBraid(bx, by)
+			}
 		}
 	}
 	switch l.Hair {
@@ -562,17 +630,53 @@ func (g *figGen) tallHead(d sim.Dir, shut bool) {
 	}
 }
 
-// tallBeardBraid hangs the beard's short plait from (x, y), with its gold
-// bead.
+// beardShade shades a beard grown long and never combed: strands hanging
+// from round the mouth (cx, cy) and fanning out as they fall, each a little
+// lighter or darker than the next, a fine dark line here and there between
+// two, darker lower down where the light does not reach and at the ragged
+// ends.
+func beardShade(r ramp, a shape, cx, cy float64, seed uint32) shader {
+	n := len(r)
+	return func(x, y int, d float64) color.RGBA {
+		fx, fy := float64(x)+0.5, float64(y)+0.5
+		i := int(a.lum(x, y, 2.6)*float64(n)*0.8) + 1
+		u := (fx-cx)/(1+math.Max(0, fy-cy)*0.06)/1.25 + 100
+		k := math.Floor(u)
+		switch h := hashf(int(k), 11, seed); {
+		case h < 0.3:
+			i--
+		case h > 0.78:
+			i++
+		}
+		if u-k < 0.32 && hashf(int(k), int(math.Floor(fy/3)), seed+1) < 0.5 {
+			i-- // between two strands
+		}
+		if d > -1.1 && fy > cy+5 {
+			i-- // the ends
+		}
+		if fy > cy+11 {
+			i--
+		}
+		return r.at(max(1, min(n-2, i)))
+	}
+}
+
+// tallBeardBraid hangs a short plait of the beard from (x, y), tied with a
+// thong and a bead of bone.
 func (g *figGen) tallBeardBraid(x, y float64) {
 	f := &g.f
 	x, y = x+math.Round(g.lagX*0.6), y+math.Round(g.lagY*0.6) // it swings a little; see limbs.go
-	k := sEll(x, y+0.4, 1.7, 1.5)
-	f.fill(g.T, k, bevel(g.br, k, 1.5, 0.05))
-	bead := sBox(x-1.5, y+1.6, x+1.5, y+3.8, 0.7)
+	for k := 0; k < 2; k++ {
+		off := 0.5
+		if k == 1 {
+			off = -0.5
+		}
+		s := sEll(x+off, y+0.4+2*float64(k), 1.7, 1.5)
+		f.fill(g.T, s, bevel(g.br, s, 1.5, 0.05))
+	}
+	bead := sBox(x-1.4, y+3.6, x+1.4, y+5.8, 0.8)
 	f.fill(g.T, bead, func(px, py int, _ float64) color.RGBA {
-		return toneOf(goldHD, bead.lum(px, py, 1.2)+0.1)
+		return toneOf(ivoryRamp, bead.lum(px, py, 1.2)+0.05)
 	})
-	f.dot(g.T, int(x-1), int(y+1.6), goldHD[5])
-	f.fill(g.T, sBox(x-0.8, y+3.8, x+0.8, y+5, 0.4), plain(g.br[2]))
+	f.fill(g.T, sBox(x-0.8, y+5.8, x+0.8, y+7.2, 0.4), plain(g.br[2]))
 }

@@ -1068,14 +1068,30 @@ func rimLayers(layers ...*canvas) {
 // below the figure.
 var rimInk = [4]float64{0.64, 0.7, 0.82, 0.86}
 
-// genHeadMark draws l's head facing the viewer, for markers on the maps.
-func genHeadMark(l sim.Look) *ebiten.Image {
-	const w, h = 18, 22
-	front, back := newCanvas(w, h), newCanvas(w, h)
-	drawHead(front, back, l, sim.DirDown, 0, false)
-	back.over(front, 0, 0)
-	back.outline(0.8)
-	return back.image()
+// headMarkDens is how many pixels of a head marker's image go to one of the
+// density-1 head it took the place of.
+const headMarkDens = 2
+
+// genHeadMark draws l's head facing the viewer, for markers on the maps:
+// the jointed figure's (tallhead.go), its hair and its beard.
+func genHeadMark(l sim.Look) *ebiten.Image { return headMarkCanvas(l).image() }
+
+func headMarkCanvas(l sim.Look) *canvas {
+	const w, h, x0, y0 = 32, 36, limbAX*HDDensity - 16, 19
+	hd := headCache(nil).get(l.Sanitized(), headKey{dir: sim.DirDown})
+	innerLines(0.4, hd.B, hd.T)
+	c := newCanvas(w, h)
+	for _, src := range []*canvas{hd.B.c, hd.T.c} {
+		for y := 0; y < h; y++ {
+			for x := 0; x < w; x++ {
+				if p := src.at(x+x0, y+y0); p.A >= 128 {
+					c.put(x, y, p)
+				}
+			}
+		}
+	}
+	c.outline(0.75)
+	return c
 }
 
 // drawHead draws l's head, face, hair and beard in c, oy rows below its

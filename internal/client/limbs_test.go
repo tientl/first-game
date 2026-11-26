@@ -17,8 +17,11 @@ import (
 )
 
 // TestPlayerStanceFeetStayPlanted checks that a foot on the ground goes back
-// under the body exactly as fast as the ground does, in every facing: the
-// stride is matched to the ground covered, so nothing slides.
+// under the body steadily, matched to the ground covered: sideways exactly
+// as fast as the ground does, so nothing slides. Seen from the front or the
+// back a step is drawn shorter than the ground it covers (legK), so that the
+// feet stay on the line the figure stands on: none comes more than an art
+// pixel below it, nor is one that is down far above it.
 func TestPlayerStanceFeetStayPlanted(t *testing.T) {
 	for name, gd := range map[string]gaitDef{"walk": stepGait, "run": runGait} {
 		anim := loWalk
@@ -40,14 +43,17 @@ func TestPlayerStanceFeetStayPlanted(t *testing.T) {
 					a, b := legGeo(d, i, p0), legGeo(d, i, p1)
 					// The ankle's rise as the foot rolls is not a slide: take it out.
 					ay, by := a.ay+p0.leg[i].u, b.ay+p1.leg[i].u
+					if d != sim.DirRight && (ay-ankleY < -2.5*HDDensity || ay-ankleY > HDDensity) {
+						t.Errorf("%s facing %d, frame %d, leg %d: a planted foot %.1f from the ground line", name, d, f, i, ay-ankleY)
+					}
 					var dx, dy float64
 					switch d {
 					case sim.DirRight:
 						dx, dy = -step, 0
 					case sim.DirDown:
-						dx, dy = 0, -step*groundK
+						dx, dy = 0, -step*legK
 					case sim.DirUp:
-						dx, dy = 0, step*groundK
+						dx, dy = 0, step*legK
 					}
 					if math.Abs(b.ax-a.ax-dx) > 0.01 || math.Abs(by-ay-dy) > 0.01 {
 						t.Errorf("%s facing %d, frame %d, leg %d: the foot moved (%.2f, %.2f), the ground (%.2f, %.2f)",
@@ -64,6 +70,15 @@ func TestPlayerStanceFeetStayPlanted(t *testing.T) {
 			}
 			if planted == 0 {
 				t.Errorf("%s facing %d: no foot is ever down for two frames", name, d)
+			}
+			// No foot, down or in the air, below the line the figure stands on.
+			for f := 0; d != sim.DirRight && f < loFrames; f++ {
+				p := lowerPoseOf(loKey{d, anim, uint8(f)})
+				for i := 0; i < 2; i++ {
+					if g := legGeo(d, i, p); g.ay > ankleY+HDDensity {
+						t.Errorf("%s facing %d, frame %d, leg %d: the ankle on row %.1f, below the ground line by %.1f", name, d, f, i, g.ay, g.ay-ankleY)
+					}
+				}
 			}
 		}
 		// Drawn, a planted boot's sole is on the ground row.

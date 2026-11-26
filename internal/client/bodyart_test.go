@@ -24,7 +24,11 @@ func TestFallenEveryLook(t *testing.T) {
 				for s := range sim.NumSkinTones {
 					l := sim.Look{Female: female, Hair: sim.HairStyle(h), HairColor: uint8(hc), Skin: uint8(s)}
 					for _, bones := range []bool{false, true} {
-						c := genFallen(l, tint, bones)
+						wear := sim.Wear(0)
+						if (int(h)+int(hc)+int(s))%2 == 1 {
+							wear = sim.WearAll
+						}
+						c := genFallen(l, wear, tint, bones)
 						blue, edge := 0, 0
 						for y := 0; y < c.h; y++ {
 							for x := 0; x < c.w; x++ {
@@ -40,8 +44,10 @@ func TestFallenEveryLook(t *testing.T) {
 								}
 							}
 						}
-						if blue == 0 && hc != 6 {
+						if tunic := wear&sim.WearTunic != 0; tunic && blue == 0 {
 							t.Errorf("%+v bones=%v: nothing in the player's colour", l, bones)
+						} else if !tunic && blue > 0 && hc != 6 && l.Skin < 6 && !bones {
+							t.Errorf("%+v: %d pixels in the player's colour on a body in furs", l, blue)
 						}
 						if edge > 0 {
 							t.Errorf("%+v bones=%v: %d pixels on the frame's edge, cut off", l, bones, edge)
@@ -75,13 +81,13 @@ func TestFallenSheet(t *testing.T) {
 		{sim.Look{Hair: sim.HairPonytail, HairColor: 3, Skin: 1}, 5},
 		{sim.Look{Female: true, Hair: sim.HairSpiky, HairColor: 0, Skin: 5}, 3},
 	}
-	const k, pad, cols = 6, 4, 2
-	cw, ch := (fallenW+pad)*k, (fallenH+pad)*k
+	const k, pad, cols = 2, 4 * HDDensity, 2 // the drawing is at HDDensity
+	cw, ch := (fallenW*HDDensity+pad)*k, (fallenH*HDDensity+pad)*k
 	grounds := []color.RGBA{hex(0x5f9a4a), hex(0xd9c48a), hex(0xe9eef2), hex(0x6b6f76)}
 	img := image.NewNRGBA(image.Rect(0, 0, cw*cols*2, ch*len(looks)/cols))
 	for i, lk := range looks {
 		for b := range 2 {
-			c := genFallen(lk.l, playerColors[lk.col], b == 1)
+			c := genFallen(lk.l, sim.Wear(i%2)*sim.WearAll, playerColors[lk.col], b == 1)
 			ox, oy := (i%cols*2+b)*cw, i/cols*ch
 			bg := grounds[(i/cols)%len(grounds)]
 			for y := range ch {

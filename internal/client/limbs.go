@@ -58,6 +58,17 @@ const (
 	// away from them: less than the ground's, or it would all but vanish.
 	armK = 0.6
 
+	// legK is the same for a step seen from the front or the back. A stride
+	// drawn at the ground's own scale would take the foot behind the body a
+	// third of a leg's length below the ground line, the leg stretched to
+	// reach it; so a step is drawn shorter, and set further from the viewer
+	// (legBack): the nearest foot comes no more than an art pixel below the
+	// line the figure stands on. The price is that a foot seen from the
+	// front or the back goes under the body slower than the ground does.
+	// Sideways it is planted exactly.
+	legK    = 0.1
+	legBack = 0.9 // of a foot's reach
+
 	upFrames  = 8  // arm frames in a stride
 	loFrames  = 16 // leg frames in a stride
 	atkFrames = 6  // frames of a blow, from wound up to landed
@@ -87,6 +98,7 @@ const (
 	upFlingOff        // only the empty one: the other holds a tool
 	upSwim            // paddling, four frames
 	upAsleep          // standing still with the eyes shut: laid in a bed
+	upFallen          // the eyes shut and one arm thrown up: laid on the ground, dead (bodyart.go)
 )
 
 // loAnim names what the legs do.
@@ -137,8 +149,14 @@ func footLift(p float64) float64 {
 	return math.Max(0, math.Max(7*math.Sin(p), -4.8*math.Sin(p))+5*(math.Cos(p)-1))
 }
 
-// armOut is how far a hanging arm is held out from the body, in radians.
-const armOut = 0.07
+// armOut is how far a hanging arm is held out from the body, in radians;
+// armIn how far the forearm comes back in from that, and armBend how far
+// the elbow is bent at rest: an arm never hangs quite straight.
+const (
+	armOut  = 0.17
+	armIn   = 0.23
+	armBend = 0.2
+)
 
 const toeOff = 0.5 // the pitch of a foot as it leaves the ground
 
@@ -205,9 +223,10 @@ func (gd gaitDef) arms(ph float64) (a [2]armJ) {
 
 // lowerPose is the legs of a frame.
 type lowerPose struct {
-	leg  [2]legJ // on the hand side (the near one sideways), and the other
-	drop float64 // the hips' drop, in image pixels
-	lean float64
+	leg   [2]legJ // on the hand side (the near one sideways), and the other
+	drop  float64 // the hips' drop, in image pixels
+	lean  float64
+	reach float64 // how far ahead of the hip a foot comes down: see legK
 }
 
 func lowerPoseOf(k loKey) lowerPose {
@@ -215,10 +234,10 @@ func lowerPoseOf(k loKey) lowerPose {
 	switch k.anim {
 	case loWalk:
 		l, drop := stepGait.legs(ph)
-		return lowerPose{leg: l, drop: drop}
+		return lowerPose{leg: l, drop: drop, reach: stepGait.half()}
 	case loRun:
 		l, drop := runGait.legs(ph)
-		return lowerPose{leg: l, drop: drop, lean: runGait.lean}
+		return lowerPose{leg: l, drop: drop, lean: runGait.lean, reach: runGait.half()}
 	case loSit:
 		return lowerPose{leg: [2]legJ{{f: 15, u: 13, pitch: 0.3}, {f: 18, u: 14, pitch: 0.3}}}
 	}
@@ -236,7 +255,7 @@ type upperPose struct {
 func upperPoseOf(k upKey) upperPose {
 	k.frame &^= upSit
 	side := k.dir == sim.DirRight
-	rest := armJ{el: 0.08, ab: armOut}
+	rest := armJ{el: armBend, ab: armOut}
 	p := upperPose{arm: [2]armJ{rest, rest}}
 	u := float64(k.frame) / (atkFrames - 1)
 	stride := func(gd gaitDef, back float64) {
@@ -294,6 +313,9 @@ func upperPoseOf(k upKey) upperPose {
 		}
 	case upAsleep:
 		p.shut = true
+	case upFallen:
+		p.shut = true
+		p.arm[1] = armJ{sh: 0.2, el: 0.5, ab: 2.3}
 	}
 	if !side {
 		p.lagY = max(-1, min(1, p.lagY))
@@ -366,9 +388,9 @@ func legGeo(d sim.Dir, i int, p lowerPose) legGeom {
 		case sim.DirRight:
 			return x0 + f, ankleY - u
 		case sim.DirUp:
-			return x0, ankleY - u - groundK*f
+			return x0, ankleY - u - legK*(f+legBack*p.reach)
 		}
-		return x0, ankleY - u + groundK*f
+		return x0, ankleY - u + legK*(f-legBack*p.reach)
 	}
 	var g legGeom
 	g.hx, g.hy = proj(0, hu)
@@ -501,6 +523,7 @@ func skirtOf(k upKey, t float64) skirt {
 			gd = runGait
 		}
 		p.leg, p.drop = gd.legs((float64(k.frame&^upSit) + 0.5) / upFrames)
+		p.reach = gd.half()
 	default:
 		return skirt{}
 	}
@@ -534,6 +557,7 @@ type armGeom struct {
 	layer                          int
 	size                           float64 // of the fist
 	swing                          float64 // the forearm's angle on the screen from hanging, towards the right
+	open                           bool    // the hand fallen open, not a fist
 }
 
 // armGeo places arm i (the hand's, or the other) of a figure facing d.
@@ -548,7 +572,7 @@ func armGeo(female bool, d sim.Dir, i int, a armJ) armGeom {
 	case female:
 		g.sx = 27 + 9.5*lat
 	default:
-		g.sx = 27 + 12.5*lat
+		g.sx = 27 + 10.9*lat
 	}
 	depth := func(f float64) float64 {
 		if d == sim.DirUp {
@@ -556,20 +580,20 @@ func armGeo(female bool, d sim.Dir, i int, a armJ) armGeom {
 		}
 		return armK * f
 	}
-	seg := func(th float64) (dx, dy float64) {
-		f, up := math.Sin(th)*math.Cos(a.ab), -math.Cos(th)*math.Cos(a.ab)
+	seg := func(th, ab float64) (dx, dy float64) {
+		f, up := math.Sin(th)*math.Cos(ab), -math.Cos(th)*math.Cos(ab)
 		if side {
 			return f, -up
 		}
-		return lat * math.Sin(a.ab), -up + depth(f)
+		return lat * math.Sin(ab), -up + depth(f)
 	}
 	if side {
 		g.sx += a.out
 	} else {
 		g.sy += depth(a.out)
 	}
-	ux, uy := seg(a.sh)
-	fx, fy := seg(a.sh + a.el)
+	ux, uy := seg(a.sh, a.ab)
+	fx, fy := seg(a.sh+a.el, a.ab-armIn*clamp01(a.ab/armOut)) // the forearm comes back in under the elbow
 	g.ex, g.ey = g.sx+ux*upArmLen, g.sy+uy*upArmLen
 	g.wx, g.wy = g.ex+fx*foreLen, g.ey+fy*foreLen
 	g.hx, g.hy = g.wx+fx*handOff, g.wy+fy*handOff
@@ -618,7 +642,7 @@ func (g *figGen) arm(sl, hd *figLayer, d sim.Dir, i int, a armGeom) {
 	}
 	female := g.look.Female
 	if g.wear&sim.WearTunic == 0 {
-		g.bareArm(hd, a, bias*0.5)
+		g.bareArm(hd, a, bias*0.5, d, i)
 	} else {
 		s := a.sleeve(female)
 		fx, fy := a.wx-a.ex, a.wy-a.ey
@@ -636,9 +660,40 @@ func (g *figGen) arm(sl, hd *figLayer, d sim.Dir, i int, a armGeom) {
 			return shirtHD.at(max(i, 0))
 		})
 	}
-	x0, y0 := math.Round(a.hx-a.size/2), math.Round(a.hy-a.size/2)
-	h := sBox(x0, y0, x0+a.size, y0+a.size, 2.2*a.size/6)
-	f.fill(hd, h, bevel(g.sk, h, a.size/2, lit))
+	if a.open { // the palm and the fingers along the forearm, the thumb aside
+		ux, uy, _ := unitOf(a.wx-a.ex, a.wy-a.ey)
+		px, py := uy, -ux
+		k := 1.0
+		if female {
+			k = 0.85
+		}
+		at := func(t, s float64) (float64, float64) { return a.wx + ux*t + px*s, a.wy + uy*t + py*s }
+		x0, y0 := at(0.6, 0)
+		x1, y1 := at(3.6*k, 0)
+		hand := sCap(x0, y0, x1, y1, 1.8*k, 2.1*k)
+		for j := -1.5; j <= 1.5; j++ {
+			fx0, fy0 := at(3.8*k, j*0.95*k)
+			fx1, fy1 := at((6.6-math.Abs(j)*0.5)*k, j*1.15*k)
+			hand = hand.or(sCap(fx0, fy0, fx1, fy1, 0.6, 0.5))
+		}
+		tx0, ty0 := at(1.4*k, -1.6*k)
+		tx1, ty1 := at(3.4*k, -3.2*k)
+		hand = hand.or(sCap(tx0, ty0, tx1, ty1, 0.75, 0.55))
+		f.fill(hd, hand, bevel(g.sk, hand, 1.6, lit))
+		return
+	}
+	// The fist, a woman's the smaller. Hanging at the side and seen from
+	// the front or the back it is seen edge on: narrower than it is tall.
+	fw, fh := a.size, a.size
+	if female {
+		fw, fh = fw-1, fh-1
+	}
+	if d != sim.DirRight && a.size <= 6 && math.Abs(a.swing) < 0.6 {
+		fw--
+	}
+	x0, y0 := math.Round(a.hx-fw/2), math.Round(a.hy-fh/2)
+	h := sBox(x0, y0, x0+fw, y0+fh, 2.2*math.Min(fw, fh)/6)
+	f.fill(hd, h, bevel(g.sk, h, math.Min(fw, fh)/2, lit))
 	x, y := int(x0), int(y0)
 	f.dot(hd, x+2, y+3, g.sk.at(2)) // between the thumb and the fingers
 	f.dot(hd, x+3, y+3, g.sk.at(2))
@@ -731,6 +786,9 @@ func bakeUpper(l sim.Look, w sim.Wear, k upKey, heads headCache) upperCanvas {
 	var out upperCanvas
 	for i := range out.arm {
 		out.arm[i] = armGeo(l.Female, k.dir, i, p.arm[i])
+	}
+	if k.anim == upFallen {
+		out.arm[1].open = true
 	}
 	each := func(layer int, draw func(i int, a armGeom)) {
 		for i := 1; i >= 0; i-- { // the hand's arm over the other

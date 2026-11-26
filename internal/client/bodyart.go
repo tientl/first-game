@@ -2,6 +2,7 @@ package client
 
 import (
 	"image/color"
+	"math"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -9,16 +10,18 @@ import (
 
 // The body a player leaves where they fell (sim/grave.go), and the bones it
 // has gone to once they have died again without fetching their things. Both
-// are the player themselves: the body is their own figure laid on its back,
+// are the player themselves: the body is their own figure (the jointed one
+// of limbs.go, in the furs or the clothes they had on) laid on its back,
 // head to the left, one arm thrown up past the head, in a small dark stain;
-// the bones lie the same way, with rags of the tunic in the player's colour
-// and a few strands of their hair. Beside the shins is the bag of what they
-// carried, an axe and a coin or two spilling out of it: that is what says
-// there are things to take here.
+// the bones lie the same way, with rags of what they wore (the tunic in the
+// player's colour, or the fur) and a few strands of their hair. Beside the
+// shins is the bag of what they carried, an axe and a coin or two spilling
+// out of it: that is what says there are things to take here.
 //
-// The figure is drawn standing, in the frame of look.go, and laid down by
-// swapping x and y: sprite row y becomes column fallenOX+y, column x becomes
-// row fallenOY+x. The side the light fell on standing is the upper side lying.
+// The figure is drawn standing and laid down by swapping x and y: a row
+// becomes a column, a column a row. The side the light fell on standing is
+// the upper side lying. The whole drawing is at HDDensity: the body and
+// the bones are drawn so, the stain and the bag are refined by upscale3.
 
 const (
 	fallenW, fallenH   = 40, 32
@@ -31,6 +34,7 @@ const (
 // fallenKey names one drawing: whose body, in which colour, how far gone.
 type fallenKey struct {
 	look  sim.Look
+	wear  sim.Wear
 	col   int
 	bones bool
 }
@@ -42,10 +46,10 @@ var fallenCache = map[fallenKey]sprite{}
 // loop, where images can be created.
 func graveSprite(e protocol.EntityView) sprite {
 	look, seed := sim.GraveLook(e.Fuel)
-	k := fallenKey{look, seed % len(playerColors), e.Var == sim.GraveBones}
+	k := fallenKey{look, sim.GraveWear(e.Fuel), seed % len(playerColors), e.Var == sim.GraveBones}
 	s, ok := fallenCache[k]
 	if !ok {
-		s = mk(genFallen(k.look, playerColors[k.col], k.bones), fallenAX, fallenAY)
+		s = spriteHD(genFallen(k.look, k.wear, playerColors[k.col], k.bones).image(), fallenAX, fallenAY)
 		fallenCache[k] = s
 	}
 	return s
@@ -72,19 +76,25 @@ func tinted(c, tint color.RGBA) color.RGBA {
 	return color.RGBA{m(c.R, tint.R), m(c.G, tint.G), m(c.B, tint.B), c.A}
 }
 
-// genFallen draws the body of a player of look l who wore tint, or their
-// bones, with their bag.
-func genFallen(l sim.Look, tint color.RGBA, bones bool) *canvas {
+// genFallen draws the body of a player of look l who had wear on, in the
+// colour tint, or their bones, with their bag: fallenW by fallenH art
+// pixels at HDDensity.
+func genFallen(l sim.Look, wear sim.Wear, tint color.RGBA, bones bool) *canvas {
 	l = l.Sanitized()
 	c := newCanvas(fallenW, fallenH)
-	if bones {
-		c.over(fallenBones(l, tint), 0, 0)
-	} else {
+	if !bones {
 		fallenStain(c)
-		c.over(fallenBody(l, tint), 0, 0)
 	}
-	c.over(genLootBag(), fallenBagX, fallenBagY)
-	return c
+	hd := upscale3(c)
+	if bones {
+		fallenBones(hd, l, wear, tint)
+	} else {
+		fallenBody(hd, l, wear, tint)
+	}
+	bag := newCanvas(fallenW, fallenH)
+	bag.over(genLootBag(), fallenBagX, fallenBagY)
+	hd.over(upscale3(bag), 0, 0)
+	return hd
 }
 
 // fallenStain is the blood under a fresh body: a dark pool spreading from
@@ -103,235 +113,238 @@ func fallenStain(c *canvas) {
 	}
 }
 
-// lay lays the standing layer src down on fig, in the player's colour if
-// tint is not nil; keep, if not nil, picks the pixels and may change them.
-func lay(fig, src *canvas, tint *color.RGBA, keep func(x, y int, p color.RGBA) (color.RGBA, bool)) {
+// fallenTop is the row of the standing figure that comes to fallenOX lying:
+// a little above the crown.
+const fallenTop = 18
+
+// layDown lays src, a layer of the jointed figure (limbs.go) standing, down
+// on dst, an HD canvas the size of a body's frame: a row becomes a column, a
+// column a row, the crown to the left and the figure's middle on the row the
+// stain is drawn round. In the player's colour if tint is not nil.
+func layDown(dst, src *canvas, tint *color.RGBA) {
 	for y := 0; y < src.h; y++ {
 		for x := 0; x < src.w; x++ {
-			p := src.at(x, y)
+			p := src.px[y*src.w+x]
 			if p.A < 128 {
 				continue
-			}
-			if keep != nil {
-				var ok bool
-				if p, ok = keep(x, y, p); !ok {
-					continue
-				}
 			}
 			if tint != nil {
 				p = tinted(p, *tint)
 			}
-			fig.put(fallenOX+y, fallenOY+x, p)
+			dst.put(fallenOX*HDDensity+y-fallenTop, fallenOY*HDDensity+x-limbPad*HDDensity, p)
 		}
 	}
 }
 
-// fallenBody is the player lying on their back, eyes shut, the arm on the
-// far side thrown up past the head.
-func fallenBody(l sim.Look, tint color.RGBA) *canvas {
-	B, L, S, T := playerLayersPose(l, sim.DirDown, 1, true, armOff)
-	fig := newCanvas(fallenW, fallenH)
-	lay(fig, B, nil, nil)
-	lay(fig, L, nil, nil)
-	lay(fig, S, &tint, nil)
-	lay(fig, T, nil, nil)
-
-	// The arm: from the shoulder up the screen, bending towards the head, the
-	// open hand beyond it. Its rim is drawn here, as the layers' was.
-	sk := skinTones[l.Skin].ramp
-	y0 := 3 // the shoulder's row before the offset: the arm's column standing
-	if l.Female {
-		y0 = 4
-	}
-	type px struct {
-		x, y int
-		col  color.RGBA
-	}
-	var arm []px
-	sleeve := func(x, y, a, b int) {
-		arm = append(arm,
-			px{x, y, tinted(shirtRamp.at(a), tint)},
-			px{x + 1, y, tinted(shirtRamp.at(b), tint)})
-	}
-	sleeve(16, y0, 3, 2)
-	sleeve(16, y0-1, 3, 2)
-	sleeve(15, y0-2, 3, 1)
-	sleeve(15, y0-3, 3, 1)
-	sleeve(14, y0-4, 2, 1)
-	if l.Female {
-		sleeve(14, y0-5, 3, 2)
-	} else {
-		sleeve(14, y0-5, 1, 1) // the cuff
-	}
-	arm = append(arm,
-		px{13, y0 - 6, sk.at(3)}, px{14, y0 - 6, sk.at(2)},
-		px{12, y0 - 7, sk.at(3)}, px{13, y0 - 7, sk.at(2)}, px{14, y0 - 7, sk.at(1)})
-	on := make(map[[2]int]bool, len(arm))
-	for _, p := range arm {
-		on[[2]int{fallenOX + p.x, fallenOY + p.y}] = true
-	}
-	for _, p := range arm {
-		x, y := fallenOX+p.x, fallenOY+p.y
-		for _, d := range [4][2]int{{0, -1}, {-1, 0}, {1, 0}, {0, 1}} {
-			if nx, ny := x+d[0], y+d[1]; !on[[2]int{nx, ny}] && !fig.opaque(nx, ny) {
-				fig.put(nx, ny, mix(p.col, colInk, 0.72))
-			}
-		}
-	}
-	for _, p := range arm {
-		fig.put(fallenOX+p.x, fallenOY+p.y, p.col)
-	}
-	return fig
+// fallenBody lays the player on their back on dst, an HD canvas: the
+// jointed figure as it stood, in what it wore, eyes shut, the arm on the far
+// side thrown up past the head, its hand fallen open.
+func fallenBody(dst *canvas, l sim.Look, wear sim.Wear, tint color.RGBA) {
+	up := bakeUpper(l, wear, upKey{dir: sim.DirDown, anim: upFallen}, headCache{})
+	lo, _ := bakeLower(l, wear, loKey{dir: sim.DirDown})
+	layDown(dst, up.layer[upFar], &tint)
+	layDown(dst, up.layer[upBack], nil)
+	layDown(dst, lo, nil)
+	layDown(dst, up.layer[upBody], nil)
+	layDown(dst, up.layer[upShirt], &tint)
+	layDown(dst, up.layer[upArms], &tint)
+	layDown(dst, up.layer[upTop], nil)
+	layDown(dst, up.layer[upArmsOver], &tint)
+	layDown(dst, up.layer[upTopOver], nil)
 }
 
-// The skeleton, standing, in the frame of the player sprite:
-//
-//	W w b B  bone, light to dark      k  a hollow
 var (
-	boneSkull = pixMap{5, []string{
-		"......wWWWwb......",
-		".....wWWWWwwb.....",
-		"....wWWWWwwwwb....",
-		"....WWWWwwwwwb....",
-		"....Wkkkwwkkkb....",
-		"....WkkkwwkkkB....",
-		"....wwkkwwkkbB....",
-		".....wwwkkwwb.....",
-		".....bwwwwwbB.....",
-		"......wkwkwk......",
-		"......bwwwbB......",
-	}}
-	// The collar bones and ribs on the spine, the hips, two short legs and
-	// the arm that lies along the body.
-	boneFrame = pixMap{16, []string{
-		".....wWWwwwwbb....",
-		"........wb...b....",
-		".....WWwwwwwb.b...",
-		"........wb....b...",
-		"......Wwwwwb..b...",
-		"........wb....w...",
-		"......WwwwwB..wb..",
-		"......wb..wb......",
-		"......Wb..wb......",
-		".....wWb..wwb.....",
-		"......wb..wb......",
-		"....wWWb..wwwb....",
-	}}
-)
-
-var (
+	skelHD     = ext6(ivoryRamp)
 	boneHollow = hex(0x2b2230)
 	hairRot    = hex(0x5c544c)
+	dirt       = hex(0x4a4a4a)
 )
 
-func bonePalette(ch byte) (color.RGBA, bool) {
-	switch ch {
-	case 'W':
-		return ivoryRamp[3], true
-	case 'w':
-		return ivoryRamp[2], true
-	case 'b':
-		return ivoryRamp[1], true
-	case 'B':
-		return ivoryRamp[0], true
-	case 'k':
-		return boneHollow, true
-	}
-	return color.RGBA{}, false
-}
-
-// fallenBones is what is left of a player of look l who wore tint: their
-// skeleton lying as the body lay, in rags of their clothes, with what is
-// left of their hair.
-func fallenBones(l sim.Look, tint color.RGBA) *canvas {
+// fallenBones lays on dst, an HD canvas, what is left of a player of look l
+// who had wear on, in the colour tint: their skeleton lying as the body lay,
+// drawn to the same measure, with rags of what they wore over it (the fur
+// about the hips, or the tunic in the player's colour, and boots if they had
+// them) and strands of their hair about the skull.
+func fallenBones(dst *canvas, l sim.Look, wear sim.Wear, tint color.RGBA) {
 	seed := uint32(l.Hair)*7 + uint32(l.HairColor)*31 + uint32(l.Skin)*131 + 977
-	if l.Female {
+	female := l.Female
+	if female {
 		seed += 4001
 	}
-	bone := newCanvas(bodyW, bodyH)
-	boneSkull.stamp(bone, bonePalette)
-	boneFrame.stamp(bone, bonePalette)
-
-	fig := newCanvas(fallenW, fallenH)
-	lay(fig, bone, nil, nil)
-	// The arm thrown up past the head, as on the body.
-	for i, p := range [][2]int{{16, 4}, {16, 3}, {15, 2}, {15, 1}, {14, 0}, {14, -1}, {13, -2}, {14, -2}, {12, -3}, {14, -3}} {
-		tone := 2 + (i+1)%2
-		if i >= 8 {
-			tone = 2 // the fingers
-		}
-		fig.put(fallenOX+p[0], fallenOY+p[1], ivoryRamp.at(tone))
+	g := newLimbGen(l, wear)
+	f := &g.f
+	B, T := g.B, g.T // the bones, and the rags over them
+	bone := func(s shape, round, bias float64) { f.fill(B, s, bevel(skelHD, s, round, bias)) }
+	hollow := func(s shape) { f.fill(B, s, plain(boneHollow)) }
+	// limb is a long bone from (x0, y0) to (x1, y1), r thick, with a knob
+	// at each end.
+	limb := func(x0, y0, x1, y1, r, k0, k1 float64) {
+		bone(sCap(x0, y0, x1, y1, r, r*0.9).or(sEll(x0, y0, k0, k0)).or(sEll(x1, y1, k1, k1)), r+0.6, 0.04)
+	}
+	k := 1.0
+	if female {
+		k = 0.9
 	}
 
-	// Rags: patches of the clothes, faded and dirty, lying over the bones.
-	B, _, S, T := playerLayersPose(l, sim.DirDown, 1, true, armOff)
-	isCloth := func(p color.RGBA) bool {
-		for _, c := range shirtRamp {
-			if p == c {
-				return true
-			}
-		}
-		return false
+	// Hair, still about the crown: locks of it lying spread behind the
+	// skull, matted and dulled, long or short as it was worn.
+	hr := hairColors[l.HairColor].ramp
+	long, n := 3.5, 5
+	switch l.Hair {
+	case sim.HairLong, sim.HairShaggy, sim.HairPonytail, sim.HairBob:
+		long, n = 8.5, 8
+	case sim.HairSpiky:
+		long, n = 2.5, 4
 	}
-	lay(fig, S, &tint, func(x, y int, p color.RGBA) (color.RGBA, bool) {
-		if !isCloth(p) || y < 17 {
-			return p, false
-		}
-		n := vnoise(float64(x)/2.3, float64(y)/2.3, seed)
-		if n < 0.52 || hashf(x, y, seed+1) < 0.12 {
-			return p, false
-		}
-		return mix(p, hex(0x4a4a4a), 0.35), true
-	})
-	fig.put(fallenOX+14, fallenOY+0, tinted(mix(shirtRamp[2], hex(0x4a4a4a), 0.35), tint)) // a shred of the sleeve
-	fig.put(fallenOX+15, fallenOY+1, tinted(mix(shirtRamp[1], hex(0x4a4a4a), 0.35), tint))
-
-	// What the clothes were held with: a man's belt, a woman's brooches.
-	if l.Female {
-		for _, x := range []int{6, 11} {
-			fig.put(fallenOX+17, fallenOY+x, broochRamp[3])
-			fig.put(fallenOX+18, fallenOY+x, broochRamp[1])
-		}
-	} else {
-		for x := 5; x <= 11; x++ {
-			if x != 7 {
-				fig.put(fallenOX+21, fallenOY+x, leatherRamp.at(2-(x-5)/3))
-			}
-		}
-		fig.put(fallenOX+21, fallenOY+9, broochRamp[2])
-	}
-
-	// Hair: strands of it still on the crown and trailing where it hung.
-	ha := hairArts[l.Hair]
-	strand := func(x, y int, p color.RGBA) (color.RGBA, bool) {
-		if !ha.front.has(x, y) && !ha.behind.has(x, y) {
-			return p, false
-		}
-		crown := y <= 5 && hashf(x, y, seed+2) < 0.7
-		lock := (x <= 3 || x >= 14) && hashf(x, 0, seed+3) < 0.5 && hashf(x, y/3, seed+4) < 0.6
-		if !crown && !lock {
-			return p, false
-		}
-		return mix(p, hairRot, 0.3), true
-	}
-	isHair := func(p color.RGBA) bool {
-		for _, c := range hairColors[l.HairColor].ramp {
-			if p == c {
-				return true
-			}
-		}
-		return false
-	}
-	for _, src := range []*canvas{B, T} {
-		lay(fig, src, nil, func(x, y int, p color.RGBA) (color.RGBA, bool) {
-			if !isHair(p) {
-				return p, false
-			}
-			return strand(x, y, p)
+	for j := 0; j < n; j++ {
+		u := (float64(j)+0.5)/float64(n)*2 - 1 // across the crown, -1 to 1
+		a := u*0.75 + (hashf(j, 3, seed)-0.5)*0.25
+		x0, y0 := 27+math.Sin(a)*3, 34.4-math.Cos(a)*3.4
+		ln := 3.6 + long*(0.55+0.5*hashf(j, 1, seed))
+		bend := (hashf(j, 2, seed) - 0.5) * 3.2
+		x1, y1 := x0+math.Sin(a)*ln*1.2+bend, y0-math.Cos(a)*ln
+		s := sLock(x0, y0, (x0+x1)/2+bend, (y0+y1)/2, x1, y1, 2.3, 0.7)
+		f.fill(B, s, func(x, y int, _ float64) color.RGBA {
+			i := int(s.lum(x, y, 1.2)*4) + (j % 2)
+			return mix(hr.at(min(3, max(0, i))), hairRot, 0.35)
 		})
 	}
-	fig.outline(0.78)
-	return fig
+
+	// The legs, the hips, the spine and the ribs, the arms, the skull.
+	for i := 0; i < 2; i++ {
+		lg := legGeo(sim.DirDown, i, lowerPose{})
+		out := 1.0
+		if lg.hx < 27 {
+			out = -1
+		}
+		limb(lg.hx-out*1.2, lg.hy+1, lg.kx, lg.ky-1.2, 1.7*k, 2.1*k, 2.2*k)         // the thigh bone
+		bone(sEll(lg.kx, lg.ky-0.4, 1.5, 1.7), 1.5, 0.1)                            // the kneecap
+		limb(lg.kx+out*1.7, lg.ky+1.6, lg.ax+out*1.4, lg.ay-1, 0.65, 0.8, 0.9)      // the thin bone of the shin
+		limb(lg.kx-out*0.3, lg.ky+1.2, lg.ax-out*0.2, lg.ay-0.8, 1.4*k, 1.9*k, 1.5) // and the thick one
+		for j := -1.0; j <= 1; j++ {                                                // the foot
+			x := lg.ax + j*1.2 + out*0.3
+			bone(sCap(lg.ax, lg.ay+0.6, x+j*0.5, lg.ay+4.4, 0.6, 0.45), 0.8, 0)
+		}
+	}
+	hw := 4.4 // half the breadth of the hips
+	if female {
+		hw = 5.4
+	}
+	for _, s := range []float64{-1, 1} {
+		bone(sEll(27+s*hw*0.95, 71.2, 3.6*k+0.6, 3.1), 3, 0.02) // a wing of the hip
+		hollow(sEll(27+s*2.5, 75.6, 1.2, 1))
+	}
+	bone(sCap(27-hw*0.75, 75.6, 27+hw*0.75, 75.6, 1.2, 1.2).sub(sEll(27-2.5, 75.6, 1.2, 1)).sub(sEll(27+2.5, 75.6, 1.2, 1)), 1.2, 0)
+	bone(sBox(25.5, 68.5, 28.5, 75, 1.3), 1.5, 0.06) // the root of the spine
+	for y := 44.5; y < 68.5; y += 1.6 {              // the spine
+		bone(sBox(25.9, y, 28.1, y+1.2, 0.5), 0.9, -0.02)
+	}
+	shw := 9.6 // the collar bones reach the shoulders
+	if female {
+		shw = 8
+	}
+	for j := 0; j < 6; j++ { // the ribs
+		y := 49.3 + float64(j)*2.35
+		w := (8.4 - math.Abs(float64(j)-2)*0.55) * k
+		for _, s := range []float64{-1, 1} {
+			bone(sLock(27+s*1.3, y, 27+s*w*0.85, y-0.2, 27+s*w, y+2.6+float64(j)*0.25, 0.9, 0.7), 0.9, 0.02)
+		}
+	}
+	bone(sCap(27, 48.4, 27, 57.6, 1.25, 0.8), 1.2, 0.08) // the breastbone
+	for _, s := range []float64{-1, 1} {
+		bone(sLock(27+s*1.2, 47.2, 27+s*5, 46.6, 27+s*shw, 47.6, 0.95, 0.8), 0.9, 0.06)
+	}
+	p := upperPoseOf(upKey{dir: sim.DirDown, anim: upFallen})
+	for i := 0; i < 2; i++ {
+		a := armGeo(female, sim.DirDown, i, p.arm[i])
+		ux, uy, _ := unitOf(a.wx-a.ex, a.wy-a.ey)
+		px, py := uy, -ux
+		limb(a.sx, a.sy, a.ex, a.ey, 1.35*k, 2*k, 1.7*k) // the upper arm
+		limb(a.ex+px*0.8, a.ey+py*0.8, a.wx+px*0.8, a.wy+py*0.8, 0.7, 0.9, 0.9)
+		limb(a.ex-px*0.7, a.ey-py*0.7, a.wx-px*0.7, a.wy-py*0.7, 0.85, 1, 0.8)
+		bone(sEll(a.wx+ux*0.8, a.wy+uy*0.8, 1.4, 1.4), 1.2, 0)
+		for j := -1.5; j <= 1.5; j++ { // the fingers, fanned
+			x0, y0 := a.wx+ux*1.8+px*j*0.7, a.wy+uy*1.8+py*j*0.7
+			bone(sCap(x0, y0, x0+ux*3.6+px*j*0.5, y0+uy*3.6+py*j*0.5, 0.5, 0.4), 0.7, 0)
+		}
+	}
+	// The skull, looking up: the brow over two dark sockets, the hole of
+	// the nose, the teeth, the jaw a little open.
+	m := 0.0
+	if female {
+		m = 0.4
+	}
+	skull := sEll(27, 34.4, 6.8-m, 7.3-m).or(sBox(23.2, 38, 30.8, 44.6, 2.6))
+	bone(skull, 4.5, 0.08)
+	for _, s := range []float64{-1, 1} {
+		hollow(sEll(27+s*2.6, 36, 1.7, 1.55))
+	}
+	hollow(sPoly(27, 37.6, 25.9, 40, 28.1, 40))
+	for x := 24; x <= 29; x++ { // the teeth
+		f.dot(B, x, 41, skelHD[4-x%2])
+		f.dot(B, x, 42, boneHollow)
+	}
+	for x := 24; x <= 29; x++ {
+		f.dot(B, x, 43, skelHD[3])
+	}
+
+	// Rags of what they wore, faded and dirty, torn into holes.
+	rag := func(at func(x, y int) bool, col func(x, y int) color.RGBA, l *figLayer) func(x, y int, _ float64) color.RGBA {
+		return func(x, y int, _ float64) color.RGBA {
+			if !at(x, y) {
+				return color.RGBA{}
+			}
+			return col(x, y)
+		}
+	}
+	torn := func(cut float64, salt uint32) func(x, y int) bool {
+		return func(x, y int) bool {
+			return vnoise(float64(x)/3.4, float64(y)/3.4, seed+salt) >= cut && hashf(x, y, seed+salt+1) >= 0.1
+		}
+	}
+	if wear&sim.WearTunic != 0 {
+		torso, _ := tallTorso(female, sim.DirDown, skirt{})
+		S := g.S
+		f.fill(S, torso, rag(torn(0.5, 3), func(x, y int) color.RGBA {
+			return mix(shirtHD.at(int((torso.lum(x, y, 7)+0.02)*6)), dirt, 0.3)
+		}, S))
+		if !female { // the belt
+			b := sBox(18.6, beltY, 35.4, beltY+3, 0.4)
+			f.fill(T, b, rag(torn(0.35, 5), func(x, y int) color.RGBA { return mix(leatherHD.at(3-(x+y)%2), dirt, 0.25) }, T))
+		} else {
+			g.brooch(22, 53, 2, false)
+			g.brooch(32, 53, 2, false)
+		}
+	} else {
+		s, _, _ := loinShape(female, sim.DirDown, skirt{})
+		fur := shagTone(loinHD, s, 5, 59)
+		f.fill(T, s, rag(torn(0.45, 7), func(x, y int) color.RGBA { return mix(fur(x, y, -0.05), dirt, 0.3) }, T))
+		if female {
+			band := sBox(17.5, 49.8, 36.5, 58.6, 2)
+			wrap := shagTone(loinHD, band, 3.5, 73)
+			f.fill(T, band, rag(torn(0.55, 9), func(x, y int) color.RGBA { return mix(wrap(x, y, -0.05), dirt, 0.3) }, T))
+		}
+	}
+	if wear&sim.WearMantle != 0 {
+		ma := sBox(12.5, 45.5, 41.5, 50, 2.5)
+		f.fill(T, ma, rag(torn(0.55, 11), func(x, y int) color.RGBA { return mix(furHD.at(2+(x+2*y)%3), dirt, 0.3) }, T))
+	}
+	for i := 0; i < 2; i++ {
+		lg := legGeo(sim.DirDown, i, lowerPose{})
+		if wear&sim.WearLegWraps != 0 {
+			w := sCap(lg.kx, lg.ky+3, lg.ax, lg.ay-1, 3.6, 2.9)
+			f.fill(T, w, rag(torn(0.5, 13+uint32(i)), func(x, y int) color.RGBA { return mix(wrapHD.at(1+(x+y)%3), dirt, 0.3) }, T))
+		}
+		if wear&sim.WearBoots != 0 { // leather lasts
+			g.boot(lg, 0.15, [2]float64{1.4, -1.4}[i], false)
+		}
+	}
+
+	layDown(dst, B.c, nil)
+	layDown(dst, g.L.c, nil)
+	layDown(dst, g.S.c, &tint)
+	layDown(dst, T.c, nil)
+	dst.outline(0.78)
 }
 
 // genLootBag draws the bag of a fallen player's things: a leather sack tied

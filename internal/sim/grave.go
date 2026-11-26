@@ -21,14 +21,20 @@ const graveSearch = 10
 // GraveBones is the Var of a body that has gone to bones.
 const GraveBones = 1
 
-// packGraveLook packs l and the colour seed col into a body's Fuel.
-func packGraveLook(l Look, col int) int {
+// packGraveLook packs l, the colour seed col and the clothes worn into a
+// body's Fuel.
+func packGraveLook(l Look, col int, wear Wear) int {
 	f := 0
 	if l.Female {
 		f = 1
 	}
-	return f | int(l.Hair&7)<<1 | int(l.HairColor&7)<<4 | int(l.Skin&7)<<7 | (col&15)<<10
+	return f | int(l.Hair&7)<<1 | int(l.HairColor&7)<<4 | int(l.Skin&7)<<7 | (col&15)<<10 | int(wear&WearAll)<<graveWearShift
 }
+
+const graveWearShift = 14
+
+// GraveWear is the clothes the player whose body has fuel had on.
+func GraveWear(fuel int32) Wear { return Wear(fuel>>graveWearShift) & WearAll }
 
 // GraveLook unpacks the look of the player whose body has fuel, and the seed
 // of their colour (the client picks the player colour from it as it does
@@ -67,7 +73,7 @@ func (w *World) leaveBody(p *Player) bool {
 		return false
 	}
 	e := w.addEntity(EntityGrave, bx, by)
-	e.Fuel = packGraveLook(p.Look, int(p.ID))
+	e.Fuel = packGraveLook(p.Look, int(p.ID), p.Inv.Worn())
 	inv := p.Inv
 	w.chests[e.ID] = &inv
 	if w.graveOwner == nil {

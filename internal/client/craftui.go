@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"image/color"
+	"slices"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -41,6 +42,9 @@ func recipeTab(r sim.Recipe) craftTab {
 		return tabBuild
 	case r.NearFire || r.NearFurnace:
 		return tabCook
+	}
+	if slices.Contains(sim.Clothes(), r.Gives) {
+		return tabOther // things to wear, not to work or fight with
 	}
 	_, armor := sim.ArmorTier(r.Gives)
 	if r.Gives.Def().Tool || armor || r.Gives == sim.ItemDinoArmor || sim.WeaponDamage(r.Gives) > sim.WeaponDamage(sim.ItemNone) {
