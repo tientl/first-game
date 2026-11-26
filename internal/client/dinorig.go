@@ -233,7 +233,8 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 	}
 	if p.tail != 0 && r.tail.maxY != 0 {
 		turn(w, shift(r.tail), p.tail, 4*kf) // + lifts a tail that points back
-		despeck(w, 0, 0, w.w, w.h, 2) // a strand of its fuzz or a feather tip turned off it
+		// No strand of its fuzz or feather tip left turned off it.
+		despeck(w, 0, 0, w.w, w.h, 2)
 	}
 	if p.sweep != 0 && r.tail.maxY != 0 {
 		sweep(w, shift(r.tail), p.sweep, kf) // see ankylorig.go

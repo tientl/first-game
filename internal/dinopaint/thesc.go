@@ -1,6 +1,9 @@
 package dinopaint
 
-import "image/color"
+import (
+	"image/color"
+	"math"
+)
 
 // The little runner, drawn again as the user asked: dinos/thesc.png, 126 x
 // 48, facing right, a Thescelosaurus as the paleo-illustrators show it:
@@ -80,6 +83,18 @@ func thesc() *Species {
 				Ramp: []uint32{0x0c0e08, 0x14180c, 0x1c2210, 0x262e16, 0x30381c, 0x3c4622, 0x4a562a, 0x5a6834}},
 			{Name: "band", Seeds: []uint32{0xc6cabc},
 				Ramp: []uint32{0x4a4c46, 0x66685e, 0x828478, 0x9ea092, 0xb6b8aa, 0xcacbbe, 0xdadbd0, 0xe8e8e0}, Smooth: 0.35, Bias: 0.12, Relief: 0.5},
+			// The tail's bands, painted again over the drawing's barcode: each
+			// wraps the round of the tail, a little bowed, soft and ragged at
+			// its edges as fuzz is, no two quite as wide, closer to the tip,
+			// pale cream-grey shading darker underneath; the tip dark.
+			{Name: "tailBase", Ramp: []uint32{0x0c0e08, 0x14180c, 0x1c2210, 0x262e16, 0x30381c, 0x3c4622, 0x4a562a, 0x5a6834},
+				Region: Poly(-2, 8, 63, 8, 63, 30, -2, 30), Only: []string{"band"}},
+			{Name: "tailBand", Ramp: []uint32{0x4c4a40, 0x666356, 0x807d6c, 0x9a9682, 0xb2ad96, 0xc6c1a8, 0xd6d2bc, 0xe4e1ce},
+				Region: thescTailBands(false), Only: []string{"tailDark", "tailBase", "olive"}, Relief: 0.5},
+			{Name: "tailBandUnder", Ramp: []uint32{0x36352c, 0x4a483c, 0x5e5b4c, 0x726e5c, 0x86826c, 0x9a957e, 0xaca890, 0xbcb8a2},
+				Region: thescTailBands(true), Only: []string{"tailBand"}, Relief: 0.5},
+			{Name: "tailTip", Ramp: []uint32{0x0c0e08, 0x14180c, 0x1c2210, 0x262e16, 0x30381c, 0x3c4622, 0x4a562a, 0x5a6834},
+				Region: Poly(-2, 8, 5.2, 8, 5.2, 30, -2, 30)},
 			// The legs, dark olive-brown, the lower legs and feet scaly.
 			{Name: "leg", Seeds: []uint32{0x3e3e1e, 0x2e2e18, 0x525a2c, 0x3a4020},
 				Ramp: []uint32{0x0e0c06, 0x18160c, 0x242210, 0x302e16, 0x3e3c1e, 0x4e4c26, 0x605e30, 0x74723c}},
@@ -138,7 +153,7 @@ func thesc() *Species {
 // thescFuzz is its coat: fine filaments over the body, the upper arms, the
 // thighs and the root of the tail, lying back along it, tufted at the
 // outline.
-var thescFuzz = FuzzSpec{Region: Cut(Poly(36, 0, 112, 0, 112, 35, 36, 35), Poly(104, 0, 126, 0, 126, 24, 104, 24)), Flow: 2.9, Len: 0.9, Dens: 0.5, Seed: 7}
+var thescFuzz = FuzzSpec{Region: Cut(Poly(-2, 0, 112, 0, 112, 35, -2, 35), Poly(104, 0, 126, 0, 126, 24, 104, 24)), Flow: 2.9, Len: 0.9, Dens: 0.5, Seed: 7}
 
 func thescDetails(p *Painter) {
 	// Small pale cream spots over the shoulders and flanks, round, where the
@@ -173,4 +188,53 @@ func thescDetails(p *Painter) {
 	p.Claw(73, 46.6, 74.9, 47.4, 0.75, 0.2, thescClaw[:4])
 	p.Claw(101.2, 38.8, 102.6, 40.2, 0.6, 0.2, thescClaw)
 	p.Claw(100.4, 39.2, 100.9, 40.6, 0.5, 0.15, thescClaw[:4])
+}
+
+// thescTail is the tail's middle line and its half-thickness at x, as its
+// shape draws it.
+func thescTail(x float64) (y, r float64) {
+	pts := [][3]float64{{0.5, 21.6, 0.5}, {20, 19.6, 1.6}, {40, 17.6, 3.2}, {56, 16.4, 5.6}, {66, 18, 7.6}}
+	if x <= pts[0][0] {
+		return pts[0][1], pts[0][2]
+	}
+	for i := 0; i+1 < len(pts); i++ {
+		if a, b := pts[i], pts[i+1]; x <= b[0] {
+			t := (x - a[0]) / (b[0] - a[0])
+			return lerp(a[1], b[1], t), lerp(a[2], b[2], t)
+		}
+	}
+	return pts[len(pts)-1][1], pts[len(pts)-1][2]
+}
+
+// thescTailBands are the pale bands round the tail (under: only their
+// undersides, shaded): from its root to its tip, closer together and a
+// little narrower each, each bowed with the round of the tail, ragged at its
+// edges along the run of the fuzz.
+func thescTailBands(under bool) SDF {
+	type band struct{ x, w float64 }
+	var bs []band
+	x, gap := 57.0, 5.4
+	for i := 0; x > 7.5; i++ {
+		w := gap * (0.42 + 0.28*(hash(i, 5, 61)-0.5))
+		bs = append(bs, band{x, w})
+		x -= gap
+		gap = max(2.3, gap*0.91)
+	}
+	return func(px, py float64) float64 {
+		yc, r := thescTail(px)
+		v := (py - yc) / max(r, 0.4)
+		if math.Abs(v) > 1.25 || px > 61 {
+			return 1
+		}
+		if under && v < 0.3 {
+			return 1
+		}
+		d := math.Inf(1)
+		for _, b := range bs {
+			bx := b.x + 0.5*min(1, r/2)*(v*v-0.35) // bowed: its middle nearer the tip
+			d = min(d, math.Abs(px-bx)-b.w/2)
+		}
+		// ragged along the hair: streaks running back down the tail
+		return d + 0.7*(noise(px*0.8, py*3.4, 67)-0.5) + 0.3*(noise(px*2.8, py*2.8, 69)-0.5)
+	}
 }
