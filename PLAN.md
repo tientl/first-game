@@ -77,10 +77,15 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 ## 4. Thế giới và môi trường
 
-- [ ] **Bản đồ lớn hơn: 2048 × 2048 ô** (hiện 1024 × 1024: khoảng 252 nghìn ô đất, 56 đảo / 28 đảo lớn; đi bộ băng ngang ~4 phút, thuyền buồm ~2,5 phút):
+- [x] **Bản đồ lớn hơn: 2048 × 2048 ô** (hiện 1024 × 1024: khoảng 252 nghìn ô đất, 56 đảo / 28 đảo lớn; đi bộ băng ngang ~4 phút, thuyền buồm ~2,5 phút):
   - Gấp 4 diện tích: đi bộ băng ngang ~8,5 phút, thuyền buồm ~5 phút; nhiều đảo hơn, biển rộng hơn.
   - Chỉ áp dụng cho thế giới tạo mới; thế giới đã lưu giữ cỡ cũ.
   - Kiểm tra: thời gian tạo thế giới, bộ nhớ server, cỡ bản lưu (~4 lần), bản đồ (M) và bản đồ nhỏ vẫn mượt; số thú, làng, hang, trùm, quặng tăng theo diện tích.
+  - ✅ Cỡ **Khổng lồ (2048)** chọn được ở màn hình tạo thế giới (phím C), mặc định vẫn **Lớn (1024)**. Đo (`go run ./cmd/worldstat -size N`): 1024 tạo ~2 giây, server ~54 MB, bản lưu ~17 MB; 2048 tạo ~8 giây, ~214 MB, bản lưu ~65 MB (gấp ~3,9 lần), tải lại ~8,5 giây. Thú ở xa mọi người chơi "ngủ gật" (bước 1/8 số tick) nên một tick ở 2048 chỉ ~8 ms. Bản đồ vẽ song song, nét gấp 4; sương mù vẽ lần đầu ngoài vòng lặp game. Trùm vẫn mỗi loài một con.
+- [x] **Đảo và địa hình phong phú hơn** (kiểu thế giới mới `StyleIsles`, `sim/isles.go`, `coast.go`, `heights.go`, `rivers.go`; thế giới cũ tạo lại y như trước):
+  - Quần đảo thiết kế: đảo nhà ở giữa (đồng cỏ, một ngọn đồi, vịnh kín), quanh đó các đảo lớn mỗi đảo một tính cách (rừng rậm, châu thổ đầm lầy, đảo khỉ có núi đá, dãy núi tuyết có vịnh hẹp, sa mạc cao nguyên, núi lửa), đảo vừa, đảo nhỏ, một đảo san hô vòng có phá bên trong; bờ có vịnh, mũi đất, bán đảo, eo biển giữa các đảo.
+  - Ô mới: **biển nông** (bơi và đi thuyền được; rạn san hô, phá, bãi cạn), **sông** (bơi qua), **chỗ lội** (đi bộ qua), **thác**, **vách đá**. Mỗi ô có thêm một byte địa hình: tầng cao 0–3, biến thể (đồng hoa, trảng rừng, rừng dày / thưa, mỏm đá, cồn cát, đá vụn, bãi bùn, bãi đá tảng, dốc lên, …), mép mềm, đất ẩm.
+  - Vách đá giữa các tầng, có dốc lên đủ để đi khắp mỗi đảo; sông từ chỗ cao chảy ra biển, có thác, hồ, châu thổ. Hình vẽ hiện là tạm (`client/terrainfeatures.go`), chờ vẽ đẹp.
 - [ ] **Thời gian**: ngày chậm lại, mỗi ngày 15–20 phút; 1 năm 50 ngày; độ dài ngày và đêm khác nhau theo mùa.
 - [ ] **Thời tiết theo vùng** (hiện thời tiết chung cho cả thế giới):
   - Sa mạc: không mưa, không tuyết; có bão cát (che tầm nhìn, đi chậm), nắng nóng ban ngày (khát nhanh), đêm lạnh.
