@@ -47,7 +47,15 @@ guide (`dinos/<name>.png`): open it enlarged with a grid to measure.
    the rig's jaw line, which then sets `drawnTeeth`), `Nostril`, `Claw`,
    `Horn`, `Nail`. Cut a guide's thin horns out of the silhouette (`Remove`)
    and paint them again.
-6. Paint, add the name to `PAINTED` in `gen.py`, and look:
+6. **Under the head** (`RegisterUnder`, `under.go`), for a head that hides
+   the body: a frill over the shoulders. The painter then also paints
+   `<name>_under.png`, the body without the head's parts, whole where they
+   hid it (add a part, a neck say, that only shows there). When the rig
+   turns the head, only the head's own pixels turn, the body's stay put on
+   either side of the cut, and the painted body shows where the head was
+   (`dinounder.go`) instead of the head swept round to fill the joint.
+   Every pixel of the head must be in a head part's `Shape`.
+7. Paint, add the name to `PAINTED` in `gen.py`, and look:
 
    ```sh
    go run ./cmd/dinopaint -debug /tmp/dbg <name>     # also the material, part and light maps

@@ -13,7 +13,11 @@ var (
 	greenIris = []uint32{0x3a2a08, 0x6a4a0a, 0x9c7210, 0xcaa024, 0xeed054, 0xfff0a0}
 )
 
-func init() { Register(trike()) }
+func init() {
+	Register(trike())
+	// The shoulders and the neck under the frill, for when the head turns.
+	RegisterUnder("trike", &Under{Parts: []string{"frill", "head"}, Mat: "hide"})
+}
 
 func trike() *Species {
 	nearHind := Union(
@@ -32,7 +36,7 @@ func trike() *Species {
 		Ellipse(40, 52, 3.6, 1.9, 0),
 	)
 	nearFore := Union(
-		Cone(48.5, 32, 6, 48, 44, 3.8),
+		Cone(48.5, 34.5, 5.6, 48, 44, 3.8),
 		Cone(48, 44, 3.6, 48.5, 51, 3.1),
 		Ellipse(49.6, 53.7, 4.4, 2.4, 0),
 	)
@@ -41,11 +45,11 @@ func trike() *Species {
 		Ellipse(31, 30.2, 18.5, 11.6, 0),
 		Ellipse(46, 33, 8, 8.5, 0), // the shoulders
 	)
-	frill := Ellipse(49.5, 20.6, 10.8, 11.8, 0.15)
-	head := Blend(2,
+	frill := Union(Ellipse(49.5, 20.6, 10.8, 11.8, 0.15), Ellipse(45, 25.8, 5, 5.4, 0))
+	head := Cut(Blend(2,
 		Poly(50, 27, 56, 24.4, 62, 25.6, 68, 28.5, 73, 33, 77.5, 36, 78.5, 40.5, 76, 43.5, 66, 44.2, 57, 43, 51, 39.5),
 		Ellipse(58, 34, 7.5, 7.5, 0), // the cheek and the jaw's corner
-	)
+	), Poly(43, 34.5, 52.6, 34.5, 53.2, 46, 43, 46)) // not the near shoulder, in front of it
 	beak := Poly(70.2, 35.2, 74, 34.6, 78.6, 37.8, 78.8, 41.6, 76.4, 43.6, 72, 43.2, 70.4, 40.6)
 	return &Species{
 		Name:        "trike",
@@ -98,14 +102,10 @@ func trike() *Species {
 				Mu(31, 38.5, 12, 3, 0, 0.6),    // the belly
 				Mu(10, 35.5, 7, 2.4, 0.3, 0.9), // the tail
 			}},
-			{Name: "frill", Shape: frill, Round: 3.2, Soft: 0.6, Scale: 0.9, Muscles: []Muscle{
-				Mu(48, 18, 6, 6.5, 0, 0.9), // a shallow dome
-			}},
-			{Name: "head", Shape: head, Round: 4.5, Soft: 0.7, Scale: 0.75, Muscles: []Muscle{
-				Mu(58.5, 36, 4.5, 4, 0, 1.6),     // the cheek and jaw muscle
-				Mu(63.5, 30.6, 2.6, 1.3, 0, 1.3), // the brow over the eye
-				Mu(68.5, 33, 2.5, 2.2, 0, 0.9),   // the base of the nose horn
-				Mu(74, 38.5, 3.5, 2.6, 0, 0.9),   // the beak
+			// The neck, short and thick, all under the frill and the head: it shows
+			// only when the head turns (the under-layer).
+			{Name: "neck", Shape: Cone(44, 29.5, 7.5, 56, 36, 6.5), Round: 6, Onto: "body", Seam: Below(0, 999, 100, 999), Muscles: []Muscle{
+				Mu(50, 29, 6, 4, 0.4, 1.0),
 			}},
 			{Name: "nearHind", Shape: nearHind, Round: 4.5, Onto: "body", Seam: Below(5, 38.5, 35, 38.5), Muscles: []Muscle{
 				Mu(20, 37, 4.6, 5.5, 0, 1.7), // the thigh
@@ -116,6 +116,16 @@ func trike() *Species {
 				Mu(48.4, 37, 4.2, 5.2, 0, 1.6), // the upper arm
 				Mu(48, 44.5, 2.4, 2.2, 0, 0.6), // the elbow
 				Mu(49.6, 53, 3.4, 1.8, 0, 0.6),
+			}},
+			// The frill and the head in front of the near shoulder.
+			{Name: "frill", Shape: frill, Round: 3.2, Soft: 0.6, Scale: 0.9, Muscles: []Muscle{
+				Mu(48, 18, 6, 6.5, 0, 0.9), // a shallow dome
+			}},
+			{Name: "head", Shape: head, Round: 4.5, Soft: 0.7, Scale: 0.75, Muscles: []Muscle{
+				Mu(58.5, 36, 4.5, 4, 0, 1.6),     // the cheek and jaw muscle
+				Mu(63.5, 30.6, 2.6, 1.3, 0, 1.3), // the brow over the eye
+				Mu(68.5, 33, 2.5, 2.2, 0, 0.9),   // the base of the nose horn
+				Mu(74, 38.5, 3.5, 2.6, 0, 0.9),   // the beak
 			}},
 		},
 		Skin: Skin{Flank: 2.1, Back: 3.4, Belly: 1.5, BackDepth: 5, BellyDepth: 4, Seed: 23},

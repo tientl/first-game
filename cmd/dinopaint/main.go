@@ -44,6 +44,12 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println(p.Report())
+		if u, ok := dinopaint.LookupUnder(sp.Name); ok {
+			if err := save(filepath.Join(*out, sp.Name+"_under.png"), dinopaint.PaintUnder(sp, u, g, p)); err != nil {
+				fmt.Fprintln(os.Stderr, "dinopaint:", err)
+				os.Exit(1)
+			}
+		}
 		if *debug != "" {
 			for name, m := range debugMaps(p) {
 				if err := save(filepath.Join(*debug, sp.Name+"_"+name+".png"), m); err != nil {
