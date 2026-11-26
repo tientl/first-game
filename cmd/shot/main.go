@@ -101,6 +101,7 @@ func main() {
 	envHD := flag.Bool("envhd", true, "the HD art of trees, plants, rocks and buildings (false: the original density-1 art, to compare)")
 	devCon := flag.Bool("devconsole", false, "open the dev console (as with -dev in cmd/game), with a few commands run on the world; see dev.go")
 	critterHD := flag.Bool("critterhd", true, "the HD art of the code-drawn animals (false: the original density-1 art, to compare)")
+	scaleSheet := flag.Bool("scalesheet", false, "write the scale sheet instead of a frame: the player next to every tree, plant, rock and building, with heights (see internal/client/scalesheet.go); the heights are printed too")
 	subPixel := flag.Bool("subpixel", true, "let the camera and moving things sit between art pixels, on screen pixels (false: whole art pixels, as before HD art)")
 	flag.Parse()
 	client.SetHeroHD(*herohd)
@@ -840,6 +841,9 @@ func main() {
 		inner = &menuGame{m}
 	}
 	g := &shooter{inner: inner, frames: *frames, out: *out, crop: *crop}
+	if *scaleSheet {
+		g.sheet = game
+	}
 	if err := ebiten.RunGame(g); err != nil && !errors.Is(err, ebiten.Termination) {
 		log.Fatal(err)
 	}
@@ -873,6 +877,7 @@ type shooter struct {
 	crop   string
 	done   bool
 	err    error
+	sheet  *client.Game // write its scale sheet instead of the frame
 }
 
 func (s *shooter) Update() error {
@@ -892,6 +897,14 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 	img := image.NewRGBA(b)
 	screen.ReadPixels(img.Pix)
 	var final image.Image = img
+	if s.sheet != nil {
+		bytes, startup := client.ArtCost()
+		fmt.Printf("art drawn in code: %.1f MB of images; start-up set drawn in %v\n", float64(bytes)/(1<<20), startup.Round(time.Millisecond))
+		final = s.sheet.ScaleSheet()
+		for _, r := range s.sheet.ScaleHeights() {
+			fmt.Printf("%-30s %-22s %5d px %5.2fx\n", r.Group, r.Name, r.Px, r.Players)
+		}
+	}
 	var cx, cy, cw, ch int
 	if n, _ := fmt.Sscanf(s.crop, "%d,%d,%d,%d", &cx, &cy, &cw, &ch); n == 4 {
 		const z = 4
