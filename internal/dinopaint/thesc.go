@@ -61,11 +61,8 @@ func thesc() *Species {
 		Ink:         30,
 		Materials: []Material{
 			// Olive, khaki in the light, darker along the back.
-			{Name: "olive", Seeds: []uint32{0x6e7834, 0x7a8240, 0x5a6428, 0x3e4620, 0x5e6a3c},
+			{Name: "olive", Seeds: []uint32{0x6e7834, 0x7a8240, 0x5a6428, 0x3e4620, 0x5e6a3c, 0xd6d0a0}, // the spots are painted as details
 				Ramp: []uint32{0x141608, 0x1e220c, 0x2a3012, 0x383f18, 0x48501e, 0x5a6426, 0x6e7830, 0x868e3e}},
-			// Small pale cream spots over the shoulders and flanks.
-			{Name: "spot", Seeds: []uint32{0xd6d0a0},
-				Ramp: []uint32{0x5a5638, 0x787250, 0x948e66, 0xaea87c, 0xc4be92, 0xd6d0a6, 0xe4dfba, 0xf0ecd0}, Smooth: 0.3, Bias: 0.16, Relief: 0.4},
 			// The head a striking cobalt, to slate down the neck.
 			{Name: "blue", Seeds: []uint32{0x3c5aa6, 0x2e4688, 0x485a7a},
 				Ramp: []uint32{0x0c1230, 0x16204a, 0x202e66, 0x2c4084, 0x3a54a2, 0x4c6cba, 0x6688ce, 0x86a4de}, Relief: 0.5},
@@ -133,6 +130,21 @@ func thesc() *Species {
 }
 
 func thescDetails(p *Painter) {
+	// Small pale cream spots over the shoulders and flanks, round, where the
+	// drawing has them.
+	cream := []uint32{0x6a6444, 0x878060, 0xa29c78, 0xbcb690, 0xd2cca6, 0xe2ddbc, 0xeeead2}
+	for gy := 0; gy < p.GH; gy++ {
+		for gx := 0; gx < p.GW; gx++ {
+			if g := p.Guide[gy*p.GW+gx]; g.A < 128 || g.R != 0xd6 || g.G != 0xd0 || g.B != 0xa0 {
+				continue
+			}
+			cx, cy := float64(gx)+0.5, float64(gy)+0.5
+			p.Fill(Circle(cx+0.3*(hash(gx, gy, 41)-0.5), cy, 0.68+0.22*hash(gx, gy, 43)), false, func(px, py int, d float64) color.NRGBA {
+				v := p.Val[py*p.W+px] + 0.2
+				return rgb(cream[max(0, min(len(cream)-1, int(v*float64(len(cream)))))])
+			})
+		}
+	}
 	// The coat: fine filaments over the body, the upper arms, the thighs
 	// and the root of the tail, lying back along it, tufted at the outline.
 	p.Fuzz(FuzzSpec{Region: Cut(Poly(36, 0, 112, 0, 112, 35, 36, 35), Poly(104, 0, 126, 0, 126, 24, 104, 24)), Flow: 2.9, Len: 0.9, Dens: 0.5, Seed: 7})
