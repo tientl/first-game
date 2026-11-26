@@ -93,7 +93,7 @@ func dinoSound(o, c protocol.CreatureView) bool {
 			roarAt(x, y, 0.75) // over its kill
 		case c.State == sim.CreatureHurt:
 			if snd.ready("rexhurt", 3*time.Second) {
-				roarAt(x, y, 0.6)
+				rexCryAt("rex_hurt", x, y, 0.75) // a short, broken roar
 			}
 		case c.State == sim.CreatureStrike:
 			snd.playAt("chomp", x, y, 1, 0.04)
@@ -103,7 +103,7 @@ func dinoSound(o, c protocol.CreatureView) bool {
 		case c.State == sim.CreatureChase && o.State != sim.CreatureStrike,
 			c.State == sim.CreatureFlee && o.State != sim.CreatureHurt:
 			if snd.ready("bellow", 700*time.Millisecond) {
-				snd.playAt("bellow", x, y, 0.8, 0.12)
+				snd.playAt(alarmOf(c.Kind), x, y, 0.8, 0.12)
 			}
 		case c.State == sim.CreatureStrike:
 			snd.playAt("whack", x, y, 0.9, 0.08)
@@ -112,16 +112,16 @@ func dinoSound(o, c protocol.CreatureView) bool {
 		switch {
 		case c.State == sim.CreatureChase && (o.State == sim.CreatureIdle || o.State == sim.CreatureWander):
 			if snd.ready("screech", 350*time.Millisecond) {
-				callAt("raptor_screech", x, y, 0.75, 1, 18) // see predsound.go
+				callAt("raptor_alarm", x, y, 0.75, 1, 18)
 			}
 		case c.State == sim.CreatureStrike:
-			snd.playAt("hiss", x, y, 0.5, 0.15)
+			snd.playAt("raptor_attack", x, y, 0.5, 0.15)
 		case c.State == sim.CreatureEat && o.State == sim.CreatureChase:
-			callAt("chirp", x, y, 0.5, 1, 16) // the pack calls over its kill
+			callAt("raptor_call", x, y, 0.5, 1, 16) // the pack calls over its kill
 		}
 	case sim.CreaturePtero:
 		if c.State == sim.CreatureChase {
-			snd.playAt("shriek", x, y, 0.7, 0.1)
+			snd.playAt("ptero_alarm", x, y, 0.7, 0.1)
 		}
 	case sim.CreaturePlesio:
 		switch {
@@ -166,4 +166,15 @@ func (g *Game) beastSteps(cur protocol.Snapshot) {
 			snd.playAt("stomp", float64(c.X), float64(c.Y), 0.9, 0.1)
 		}
 	}
+}
+
+// alarmOf is the bellow of a great grazer of kind k charging or bolting.
+func alarmOf(k sim.CreatureKind) string {
+	switch k {
+	case sim.CreatureStego:
+		return "stego_alarm"
+	case sim.CreatureBrachio:
+		return "brachio_alarm"
+	}
+	return "trike_alarm"
 }

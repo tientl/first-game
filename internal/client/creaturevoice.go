@@ -231,44 +231,48 @@ func voicesOf(k sim.CreatureKind) kindVoices {
 	switch k {
 	case sim.CreatureRabbit:
 		return kindVoices{alarm: say("squeak", 0.25, 1.3), hurt: say("squeak", 0.45, 1.25)}
-	case sim.CreatureCroc, sim.CreatureBrachy, sim.CreatureChampso:
-		return kindVoices{hurt: say("croc_hiss", 0.5, 1.3), death: say("croc_hiss", 0.6, 0.8)}
+	case sim.CreatureCroc:
+		return kindVoices{hurt: say("croc_hurt", 0.5, 1), death: say("croc_death", 0.6, 1)}
+	case sim.CreatureBrachy: // the smaller crocodiles, higher: see hellwire.go
+		return kindVoices{hurt: say("croc_hurt", 0.5, 1.15), death: say("croc_death", 0.6, 1.15)}
+	case sim.CreatureChampso:
+		return kindVoices{hurt: say("croc_hurt", 0.5, 1.35), death: say("croc_death", 0.6, 1.35)}
 	case sim.CreatureTrike:
-		return kindVoices{hurt: say("bellow_hurt", 0.85, 1), herd: say("bellow", 0.7, 1), death: say("beast_death", 0.85, 1)}
+		return kindVoices{hurt: say("trike_hurt", 0.85, 1), herd: say("trike_call", 0.7, 1.06), death: say("trike_death", 0.85, 1)}
 	case sim.CreatureToro:
-		return kindVoices{hurt: say("bellow_hurt", 0.9, 0.88), herd: say("bellow", 0.75, 0.85), death: say("beast_death", 0.9, 0.92)}
+		return kindVoices{hurt: say("toro_hurt", 0.9, 1), herd: say("toro_call", 0.75, 1.06), death: say("toro_death", 0.9, 1)}
 	case sim.CreatureStego:
-		return kindVoices{hurt: say("bellow_hurt", 0.8, 0.94), herd: say("bellow", 0.6, 0.92), death: say("beast_death", 0.85, 0.96)}
+		return kindVoices{hurt: say("stego_hurt", 0.8, 1), herd: say("stego_call", 0.6, 1.06), death: say("stego_death", 0.85, 1)}
 	case sim.CreatureBrachio:
-		return kindVoices{hurt: say("bellow_hurt", 0.9, 0.7), herd: say("hoot", 0.75, 1.12), death: say("beast_death", 0.95, 0.72)}
+		return kindVoices{hurt: say("brachio_hurt", 0.9, 1), herd: say("brachio_call", 0.75, 1.08), death: say("brachio_death", 0.95, 1)}
 	case sim.CreatureThesc:
-		return kindVoices{hurt: say("honk", 0.6, 1.05), herd: say("honk", 0.5, 1), death: say("beast_death", 0.6, 1.45)}
+		return kindVoices{hurt: say("thesc_hurt", 0.6, 1), herd: say("thesc_call", 0.5, 1.06), death: say("thesc_death", 0.6, 1)}
 	case sim.CreatureOrnitho:
-		return kindVoices{hurt: say("honk", 0.5, 1.4), herd: say("honk", 0.4, 1.35), death: say("honk", 0.5, 1.2)}
+		return kindVoices{hurt: say("ornitho_hurt", 0.5, 1), herd: say("ornitho_call", 0.4, 1.06), death: say("ornitho_death", 0.5, 1)}
 	case sim.CreatureMammoth:
-		return kindVoices{herd: say("trumpet", 0.65, 1.05), death: say("beast_death", 0.9, 0.82)} // hit, it trumpets as it turns: iceart.go
+		return kindVoices{herd: say("mammoth_call", 0.65, 1.06), death: say("mammoth_death", 0.9, 1)} // hit, it trumpets as it turns: iceart.go
 	case sim.CreatureRex:
-		return kindVoices{death: say("beast_death", 1, 0.75)} // hit, it roars: dinosound.go
+		return kindVoices{death: say("rex_death", 1, 1)} // hit, it roars: dinosound.go
 	case sim.CreatureRaptor:
-		return kindVoices{hurt: say("raptor_yelp", 0.6, 1), death: say("raptor_yelp", 0.65, 0.85)}
+		return kindVoices{hurt: say("raptor_hurt", 0.6, 1), death: say("raptor_death", 0.65, 1)}
 	case sim.CreatureAchero:
-		return kindVoices{hurt: say("raptor_yelp", 0.5, 1.2), death: say("raptor_yelp", 0.55, 1.05)}
+		return kindVoices{hurt: say("achero_hurt", 0.5, 1), death: say("achero_death", 0.55, 1)}
 	case sim.CreatureTroodon:
-		return kindVoices{hurt: say("raptor_yelp", 0.5, 1.4), death: say("troodon_shriek", 0.55, 0.85)}
+		return kindVoices{hurt: say("troodon_hurt", 0.5, 1), death: say("troodon_death", 0.55, 1)}
 	case sim.CreaturePtero:
-		return kindVoices{hurt: say("shriek", 0.6, 1.2), death: say("shriek", 0.65, 0.85)}
+		return kindVoices{hurt: say("ptero_hurt", 0.6, 1), death: say("ptero_death", 0.65, 1)}
 	case sim.CreatureQuetzal:
-		return kindVoices{hurt: say("croak", 0.6, 1.2), death: say("croak", 0.7, 0.8)}
+		return kindVoices{hurt: say("quetzal_hurt", 0.6, 1), death: say("quetzal_death", 0.7, 1)}
 	case sim.CreatureAnzu:
-		return kindVoices{hurt: say("screech", 0.55, 1.1), death: say("screech", 0.6, 0.8)}
+		return kindVoices{hurt: say("anzu_hurt", 0.55, 1), death: say("anzu_death", 0.6, 1)}
 	case sim.CreatureSabre:
-		return kindVoices{hurt: say("snarl", 0.7, 1.15), death: say("sabre_roar", 0.7, 0.8)}
+		return kindVoices{hurt: say("sabre_hurt", 0.7, 1), death: say("sabre_death", 0.7, 1)}
 	case sim.CreaturePlesio:
-		return kindVoices{alarm: say("mosa_rumble", 0.45, 1.6), hurt: say("mosa_rumble", 0.5, 1.7), death: say("beast_death", 0.7, 1.2)}
+		return kindVoices{alarm: say("plesio_alarm", 0.45, 1), hurt: say("plesio_hurt", 0.5, 1), death: say("plesio_death", 0.7, 1)}
 	case sim.CreatureSpider:
 		return kindVoices{alarm: say("spider_chitter", 0.55, 1), hurt: say("spider_chitter", 0.5, 1.3), death: say("spider_chitter", 0.5, 0.75)}
 	case sim.CreatureBear:
-		return kindVoices{alarm: say("bear_roar", 0.85, 1), hurt: say("bear_roar", 0.7, 1.2), death: say("beast_death", 0.8, 1.35)}
+		return kindVoices{alarm: say("bear_roar", 0.85, 1), hurt: say("bear_hurt", 0.7, 1), death: say("bear_death", 0.8, 1)}
 	case sim.CreatureScorpion:
 		return kindVoices{alarm: say("scorpion_click", 0.55, 1), hurt: say("scorpion_click", 0.5, 1.25), death: say("scorpion_click", 0.5, 0.8)}
 	case sim.CreatureMonkey:
@@ -278,22 +282,28 @@ func voicesOf(k sim.CreatureKind) kindVoices {
 	case sim.CreatureGlowToad:
 		return kindVoices{hurt: say("croak", 0.35, 2.3), death: say("croak", 0.4, 1.9)}
 	case sim.CreatureMosa:
-		return kindVoices{alarm: say("mosa_rumble", 0.85, 1), hurt: say("mosa_rumble", 0.6, 1.3), death: say("mosa_rumble", 0.85, 0.8)}
+		return kindVoices{alarm: say("mosa_call", 0.85, 1), hurt: say("mosa_hurt", 0.6, 1), death: say("mosa_death", 0.85, 1)}
 	case sim.CreatureKraken:
-		return kindVoices{alarm: say("kraken_groan", 0.85, 1), hurt: say("kraken_groan", 0.6, 1.25), death: say("kraken_groan", 0.85, 0.8)}
+		return kindVoices{alarm: say("kraken_call", 0.85, 1), hurt: say("kraken_hurt", 0.6, 1), death: say("kraken_death", 0.85, 1)}
 	case sim.CreatureTitanoboa:
 		return kindVoices{hurt: say("croc_hiss", 0.6, 0.6), death: say("beast_death", 1, 0.6)}
 	case sim.CreatureSpino:
-		return kindVoices{hurt: say("bellow_hurt", 0.8, 0.65), death: say("beast_death", 1, 0.66)}
+		return kindVoices{hurt: say("spino_hurt", 0.8, 1), death: say("spino_death", 1, 1)}
 	case sim.CreatureMammothKing:
-		return kindVoices{hurt: say("trumpet", 0.7, 0.85), death: say("beast_death", 1, 0.62)}
+		return kindVoices{hurt: say("mammothking_hurt", 0.7, 1), death: say("mammothking_death", 1, 1)}
 	case sim.CreatureCarcharo:
-		return kindVoices{hurt: say("bellow_hurt", 0.8, 0.7), death: say("beast_death", 1, 0.7)}
+		return kindVoices{hurt: say("carcharo_hurt", 0.8, 1), death: say("carcharo_death", 1, 1)}
 	case sim.CreatureGiganoto:
-		return kindVoices{hurt: say("bellow_hurt", 0.8, 0.62), death: say("beast_death", 1, 0.6)}
+		return kindVoices{hurt: say("giganoto_hurt", 0.8, 1), death: say("giganoto_death", 1, 1)}
 	case sim.CreatureMegalodon:
-		return kindVoices{hurt: say("mosa_rumble", 0.7, 0.8), death: say("mosa_rumble", 1, 0.65)}
+		return kindVoices{hurt: say("megalodon_hurt", 0.7, 1), death: say("megalodon_death", 1, 1)}
 	}
+	// The Ankylosaurus (another branch adds it) has its recorded voices ready
+	// in voices/: ankylo_call for its calls (callOf), ankylo_alarm as it
+	// charges, and here:
+	//
+	//	case sim.CreatureAnkylo:
+	//		return kindVoices{hurt: say("ankylo_hurt", 0.85, 1), herd: say("ankylo_call", 0.6, 1.06), death: say("ankylo_death", 0.9, 1)}
 	return kindVoices{}
 }
 
@@ -432,6 +442,7 @@ func (vm *voiceMemory) callPick(name string, x, y, vol, rate, reach float64) {
 
 // playVariant is play with variant i of the sound chosen.
 func (s *soundSystem) playVariant(name string, i int, vol, pan, rate float64) {
+	rate *= speedOf(name)
 	if s == nil || vol <= 0.001 || !(rate > 0.01 && rate < 100) || i < 0 || i >= len(s.sfx[name]) {
 		return
 	}
@@ -643,8 +654,8 @@ func (vm *voiceMemory) deathCries(old, cur protocol.Snapshot, gone map[sim.Creat
 
 // seaCall is how a sea monster lurking under the water calls on its own.
 var seaCall = map[sim.CreatureKind]callVoice{
-	sim.CreatureMosa:   {name: "mosa_rumble", vol: 0.5, rate: 1, reach: 22, every: 30 * time.Second, gap: 12 * time.Second},
-	sim.CreatureKraken: {name: "kraken_groan", vol: 0.45, rate: 1, reach: 20, every: 36 * time.Second, gap: 12 * time.Second},
+	sim.CreatureMosa:   {name: "mosa_call", vol: 0.5, rate: 1, reach: 22, every: 30 * time.Second, gap: 12 * time.Second},
+	sim.CreatureKraken: {name: "kraken_call", vol: 0.45, rate: 1, reach: 20, every: 36 * time.Second, gap: 12 * time.Second},
 }
 
 // seaCalls lets a monster lurking in the deep near the player rumble or
@@ -685,7 +696,7 @@ func moreCalls(k sim.CreatureKind) (callVoice, bool) {
 	case sim.CreatureScorpion:
 		return callVoice{"scorpion_click", 0.3, 1, 12, 24 * s, 5 * s, 0}, true
 	case sim.CreaturePtero:
-		return callVoice{"shriek", 0.35, 1.1, 22, 30 * s, 6 * s, 0}, true
+		return callVoice{"ptero_call", 0.35, 1, 22, 30 * s, 6 * s, 0}, true
 	}
 	return callVoice{}, false
 }
