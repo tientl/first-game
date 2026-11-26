@@ -205,15 +205,23 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 	if p.open != 0 && r.jaw[0] != r.jaw[1] {
 		openJaw(w, off(r.jaw[0]), off(r.jaw[1]), shift(r.head), p.open, r.teeth, r.drawnTeeth, kf)
 	}
+	u := dinoUnder(r.file, k) // dinounder.go
+	if u != nil && (u.w != base.w || u.h != base.h) {
+		u = nil
+	}
 	if p.head != 0 {
-		if u := dinoUnder(r.file, k); u != nil && u.w == base.w && u.h == base.h {
-			turnOver(w, shift(r.head), p.head, u, pad, pad+int(bob)) // dinounder.go
+		if u != nil {
+			turnOver(w, shift(r.head), p.head, u, pad, pad+int(bob))
 		} else {
 			turn(w, shift(r.head), p.head, joint)
 		}
 	}
 	if p.neck != 0 && r.neck.maxY != 0 {
-		turn(w, shift(r.neck), p.neck, joint)
+		if u != nil {
+			turnOver(w, shift(r.neck), p.neck, u, pad, pad+int(bob))
+		} else {
+			turn(w, shift(r.neck), p.neck, joint)
+		}
 	}
 	if p.tail != 0 && r.tail.maxY != 0 {
 		turn(w, shift(r.tail), p.tail, 4*kf) // + lifts a tail that points back

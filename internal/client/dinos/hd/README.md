@@ -51,10 +51,13 @@ guide (`dinos/<name>.png`): open it enlarged with a grid to measure.
    the body: a frill over the shoulders. The painter then also paints
    `<name>_under.png`, the body without the head's parts, whole where they
    hid it (add a part, a neck say, that only shows there). When the rig
-   turns the head, only the head's own pixels turn, the body's stay put on
-   either side of the cut, and the painted body shows where the head was
-   (`dinounder.go`) instead of the head swept round to fill the joint.
-   Every pixel of the head must be in a head part's `Shape`.
+   turns the head (or the neck), only the head's own pixels turn, the
+   body's stay put on either side of the cut, and the painted body shows
+   where the head was (`dinounder.go`) instead of the head swept round to
+   fill the joint. Every pixel of the head must be in a head part's
+   `Shape`. With no joint filled, a long neck bends about a pivot on the
+   outside of the bend (the top of the neck, to lower it), so the bend
+   folds over the throat instead of opening a gap.
 7. Paint, add the name to `PAINTED` in `gen.py`, and look:
 
    ```sh

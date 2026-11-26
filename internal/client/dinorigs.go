@@ -60,13 +60,16 @@ var dinoRigs = map[string]dinoRig{
 	"brachio": {
 		file: "brachio", stride: 3,
 		legs: []rigLimb{
-			hind(21, 35, 80, rigPt{29, 72}, rigPt{30, 90}, rigPt{29.5, 102}, rigPt{32, 111.5}),
+			// the near legs take only their own flank as they swing, not the chest
+			{x0: 21, x1: 35, top: 80, r: 7, j: []rigPt{{29, 72}, {30, 90}, {29.5, 102}, {32, 111.5}}},
 			hind(36, 45, 81, rigPt{41, 74}, rigPt{41.5, 90}, rigPt{41, 100}, rigPt{43, 108.5}),
 			fore(50, 59, 81, rigPt{55, 74}, rigPt{54.5, 90}, rigPt{55, 100}, rigPt{56.5, 108.5}),
-			fore(60, 73, 80, rigPt{66, 72}, rigPt{65.5, 90}, rigPt{66, 102}, rigPt{67.5, 111.5}),
+			{x0: 60, x1: 73, top: 80, r: 7, j: []rigPt{{66, 72}, {65.5, 90}, {66, 102}, {67.5, 111.5}}, fore: true},
 		},
-		head: rigPart{pivot: rigPt{83.5, 25.5}, dir: headUp(0.98), maxY: 60},
-		neck: rigPart{pivot: rigPt{72, 44}, dir: headUp(0.98), maxY: 80},
+		// The neck and the head bend about the top of the neck, so lowered they
+		// fold over the throat and open no gap along the top.
+		head: rigPart{pivot: rigPt{78.8, 25.1}, dir: headUp(0.98), maxY: 60},
+		neck: rigPart{pivot: rigPt{65.5, 39.5}, dir: headUp(0.98), maxY: 80},
 		jaw:  [2]rigPt{{99, 12.5}, {107, 13.5}},
 		gait: walkGait, far: 0b0110,
 		tail: rigPart{pivot: rigPt{22, 66}, dir: math.Pi, maxY: 92},
