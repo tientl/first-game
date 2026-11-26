@@ -93,7 +93,7 @@ func Generate(cfg GenConfig) (*World, error) {
 			w.scatterOpen(rng, rand.New(rand.NewPCG(cfg.Seed, 0xb16b16)))
 		}
 		if woods {
-			w.plantWoods(seed)
+			w.plantWoods(seed, sx, sy)
 		}
 		w.scatterPebbles(rand.New(rand.NewPCG(cfg.Seed, 0x9ebb1e)))
 		w.scatterOres(rand.New(rand.NewPCG(cfg.Seed, 0x0de5)))
@@ -113,6 +113,7 @@ func Generate(cfg GenConfig) (*World, error) {
 		w.growGiants(rand.New(rand.NewPCG(cfg.Seed, 0x6a17))) // see jungle.go
 		if woods {
 			w.clearUnderGiants()
+			w.capHives() // a hive to about hivesPerTrees trees: see regrow.go
 			w.fillUndergrowth(seed)
 		}
 		w.clearAround(sx, sy, clearSpawnRadius)
@@ -134,6 +135,7 @@ func Generate(cfg GenConfig) (*World, error) {
 			w.unblockCrossings() // see islescatter.go
 			w.unblockIslands()
 		}
+		w.planWoods(seed) // what the woods grow back to: see regrow.go
 		return w, nil
 	}
 
@@ -152,6 +154,7 @@ func Generate(cfg GenConfig) (*World, error) {
 	w.scatterClay(rand.New(rand.NewPCG(cfg.Seed, 0xc1a7))) // see cooking.go
 	w.scatterFlora(rand.New(rand.NewPCG(cfg.Seed, 0xf107a)), seed)
 	w.spawnToads()
+	w.planWoods(seed) // what the woods grow back to: see regrow.go
 	return w, nil
 }
 

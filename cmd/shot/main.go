@@ -117,6 +117,10 @@ func main() {
 	canopyFlag := flag.Bool("canopy", false, "print the share of the view the canopy covers: the drawings of trees and the like, taller than a player (see internal/client/canopyshare.go)")
 	oldSave := flag.Bool("oldsave", false, "with -open: save the world as a game from before the woods were thinned (version 19) and load it again, which thins them (see internal/sim/thinwoods.go)")
 	loadSave := flag.String("load", "", "load this save file (a copy of one) instead of making a world, an older one thinned as the game would; stand where its first player stood (-move is from there)")
+	fellR := flag.Float64("fell", 0, "fell every tree within this many tiles of the player (stumps), before -days")
+	days := flag.Float64("days", 0, "let this many days go by for what grows: stumps, saplings, young trees, the woods filling their gaps (see internal/sim/regrow.go)")
+	regrowStrip := flag.Bool("regrow", false, "put the stages a felled tree grows back through in a row right of the player: stump, sapling, young tree, grown tree")
+	realState := flag.Bool("real", false, "show every entity as it is (by default every ninth shows harvested, to see those states too)")
 	flag.Parse()
 	client.SetMeasureCanopy(*canopyFlag)
 	client.SetHeroHD(*herohd)
@@ -408,6 +412,12 @@ func main() {
 	if n, _ := fmt.Sscanf(*moveBy, "%g,%g", &mdx, &mdy); n == 2 {
 		sx, sy = sx+mdx, sy+mdy
 	}
+	if *fellR > 0 {
+		log.Printf("felled %d trees", w.DevFell(sx, sy, *fellR))
+	}
+	if *days > 0 {
+		w.DevPassTime(uint64(*days * sim.DayTicks)) // see internal/sim/regrow.go
+	}
 	tick := uint64(sim.DayTicks) + uint64(*dayFrac*sim.DayTicks)
 
 	snap := protocol.Snapshot{
@@ -508,7 +518,7 @@ func main() {
 	w.EachEntityIn(cx-20, cy-20, cx+20, cy+20, func(e sim.Entity) {
 		n++
 		ready := e.Ready
-		if n%9 == 0 { // show some harvested states too
+		if n%9 == 0 && !*realState { // show some harvested states too
 			ready = false
 		}
 		snap.Entities = append(snap.Entities, protocol.EntityView{
@@ -606,6 +616,9 @@ func main() {
 	}
 	if *woodsFlag {
 		addWoods(&snap, sx, sy)
+	}
+	if *regrowStrip {
+		addRegrowStrip(&snap, w, sx, sy) // see regrow.go
 	}
 	if *jungleFlag {
 		addJungle(&snap, sx, sy)

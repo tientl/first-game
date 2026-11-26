@@ -143,11 +143,8 @@ const (
 	woodsEdgeThin  = 0.35 // how thick a wood is at its very edge, of its thickness inside
 	woodsYoung     = 0.75 // young trees take this often where grown ones would
 	gladeScale     = 8.0  // tiles to a unit of the glades' noise
-	gladeLevel     = 0.69 // the noise above this is a glade...
-	groveLevel     = 0.29 // ...and below this a dense grove
-	gladeDeep      = 3.0  // tiles in from the edge a glade or a grove needs
-	groveCloser    = 0.85 // trees of a grove stand this much closer
-	denseCloser    = 0.82 // and of the thick woods' cores
+	gladeLevel     = 0.69 // the noise above this is a glade
+	gladeDeep      = 3.0  // tiles in from the edge a glade needs
 	trailScale     = 22.0 // tiles to a unit of the trails' noise
 	trailWidth     = 0.017
 	trailMinWood   = 160 // woods of this many tiles or more have a trail
@@ -159,13 +156,10 @@ const (
 func woodsTake(t Tile, v GroundVariant) float64 {
 	switch t {
 	case TileForest:
-		switch v {
-		case VarDenseWood:
-			return 0.8
-		case VarOpenWood:
+		if v == VarOpenWood {
 			return 0.12
 		}
-		return 0.16
+		return normalTake // a thick wood takes more: see woodsThickness
 	case TileGrass:
 		switch v {
 		case VarMeadow, VarBoulders:
@@ -232,20 +226,109 @@ func (w *World) woodsDepth() []float32 {
 	return d
 }
 
-// woodsPatch is what a noise of the seed makes of woodland tile i, depth in:
-// a glade (+1), a dense grove (-1) or neither (0).
-func woodsPatch(seed uint32, i, W int, depth float32) int {
+// glade reports whether woodland tile i, depth in, is a glade: a clearing
+// a noise of the seed opens deep enough inside a wood.
+func glade(seed uint32, i, W int, depth float32) bool {
 	if depth < gladeDeep {
-		return 0
+		return false
 	}
 	x, y := float64(i%W)+0.5, float64(i/W)+0.5
-	switch n := fbm(x/gladeScale+41, y/gladeScale+13, seed+611, 2); {
-	case n > gladeLevel:
-		return 1
-	case n < groveLevel:
-		return -1
+	return fbm(x/gladeScale+41, y/gladeScale+13, seed+611, 2) > gladeLevel
+}
+
+// The two characters of the woods: thick ("rừng dày", the crowns close,
+// little sky) and ordinary ("bình thường"), by a slow noise of the seed, so
+// a wood is thick for a stretch and ordinary for the next, turning one into
+// the other over a few tiles. About a third of the woods is thick; the
+// jungle islands lean thick, the meadows and the land about the spawn
+// ordinary, so a new player is not lost in the dark.
+const (
+	thickScale   = 44.0 // tiles to a unit of the noise
+	thickShare   = 0.35 // of the woodland that is thick
+	thickBand    = 0.09 // of the noise: how gradually ordinary woods turn thick
+	normalTake   = 0.13 // how often a tree takes in an ordinary wood...
+	thickTake    = 0.75 // ...and in a thick one
+	normalCloser = 1.25 // how far apart trees stand, of their spacing, in an ordinary wood...
+	thickCloser  = 0.9  // ...and in a thick one
+	edgeApart    = 0.15 // and further apart by this at a wood's very edge
+	spawnOpen    = 70.0 // tiles from the spawn within which the woods lean ordinary...
+	spawnYoung   = 2.0  // ...and young: young trees take this much more often at the spawn
+)
+
+// woodsThickness is, for every surface tile, how thick its wood is: 0 for
+// an ordinary wood (and outside the woods), 1 for a thick one, between where
+// one turns into the other. (sx, sy) is the spawn.
+func (w *World) woodsThickness(seed uint32, sx, sy int) []float32 {
+	W, H := w.width, w.SurfaceHeight()
+	kind := w.islandKinds()
+	score := make([]float32, W*H)
+	var all []float64
+	for i := range W * H {
+		if !w.woodland(i) {
+			continue
+		}
+		x, y := float64(i%W)+0.5, float64(i/W)+0.5
+		s := fbm(x/thickScale+7, y/thickScale+3, seed+621, 2)
+		switch kind[i] {
+		case islandJungle:
+			s += 0.1
+		case islandOpen:
+			s -= 0.08
+		}
+		if d := math.Hypot(x-float64(sx), y-float64(sy)); d < spawnOpen {
+			s -= 0.14 * (1 - smoothstep(d/spawnOpen))
+		}
+		score[i] = float32(s)
+		all = append(all, s)
 	}
-	return 0
+	q := quantile(all, 1-thickShare)
+	thick := make([]float32, W*H)
+	for i := range W * H {
+		if w.woodland(i) {
+			thick[i] = float32(smoothstep(clamp((float64(score[i])-q)/thickBand+0.5, 0, 1)))
+		}
+	}
+	return thick
+}
+
+// What the island a tile is on makes of its woods.
+const (
+	islandOther  uint8 = iota
+	islandJungle       // the deep woods and the monkeys' island: thick
+	islandOpen         // the meadows, the home island among them: ordinary
+)
+
+// islandKinds is, for every surface tile, what its island makes of its
+// woods; all islandOther in worlds without islands.
+func (w *World) islandKinds() []uint8 {
+	W, H := w.width, w.SurfaceHeight()
+	out := make([]uint8, W*H)
+	if len(w.islands) == 0 {
+		return out
+	}
+	k := 0
+	for _, isl := range w.landMasses() {
+		if len(isl) < seasMinIsland || isl[0] >= W*H {
+			continue // an islet, or under the ground: not among the islands
+		}
+		if k >= len(w.islands) || abs(len(isl)-w.islands[k].Tiles) > w.islands[k].Tiles/5 {
+			break // the land has changed since the islands were listed: no leaning
+		}
+		var v uint8
+		switch w.islands[k].Kind {
+		case IslandForest, IslandMonkey:
+			v = islandJungle
+		case IslandMeadow:
+			v = islandOpen
+		}
+		k++
+		for _, i := range isl {
+			if i < W*H {
+				out[i] = v
+			}
+		}
+	}
+	return out
 }
 
 // carveTrails beats game trails through every larger wood: winding lines
@@ -381,10 +464,13 @@ func isign(v int) int {
 	return 0
 }
 
-// plantWoods grows the trees of a StyleWoods world on the free ground.
-func (w *World) plantWoods(seed uint32) {
+// plantWoods grows the trees of a StyleWoods world on the free ground; (sx,
+// sy) is the spawn.
+func (w *World) plantWoods(seed uint32, sx, sy int) {
 	W, H := w.width, w.SurfaceHeight()
 	depth := w.woodsDepth()
+	thick := w.woodsThickness(seed, sx, sy)
+	w.woods.depth, w.woods.thick = depth, thick // for the undergrowth, while the world is made
 	nearTrail := make([]bool, W*H)
 	for i, t := range w.tiles[:W*H] {
 		if t != TilePath {
@@ -405,6 +491,7 @@ func (w *World) plantWoods(seed uint32) {
 		pri   uint32
 		take  float32 // how often a tree takes here
 		close float32 // how much closer than their spacing trees stand here
+		young float32 // and a young one, of take
 	}
 	var cands []cand
 	for i := range W * H {
@@ -422,21 +509,24 @@ func (w *World) plantWoods(seed uint32) {
 		}
 		closer := 1.0
 		if w.woodland(i) {
-			// Thin at the edge, thicker inside.
+			// Ordinary or thick; thin at the edge, thicker inside.
+			th := float64(thick[i])
+			take = lerp(take, math.Max(take, thickTake), th)
+			closer = lerp(normalCloser, thickCloser, th)
 			e := smoothstep(math.Min(float64(depth[i])/woodsEdgeReach, 1))
 			take *= woodsEdgeThin + (1-woodsEdgeThin)*e
-			closer = 1.3 - 0.15*e
-			if v == VarDenseWood {
-				closer *= denseCloser
-			}
-			switch woodsPatch(seed, i, W, depth[i]) {
-			case 1:
+			closer += edgeApart * (1 - e)
+			if glade(seed, i, W, depth[i]) {
 				take *= 0.06 // a glade: a tree or two
-			case -1:
-				take, closer = math.Max(take, 0.6), groveCloser
 			}
 		}
-		cands = append(cands, cand{int32(i), hash2(int32(x), int32(y), seed^0x30d5), float32(take), float32(closer)})
+		// About the spawn the woods are ordinary but young: more young trees,
+		// for the first wood, with the sky still showing.
+		young := woodsYoung
+		if d := math.Hypot(float64(x-sx), float64(y-sy)); d < spawnOpen {
+			young *= 1 + spawnYoung*(1-smoothstep(d/spawnOpen))
+		}
+		cands = append(cands, cand{int32(i), hash2(int32(x), int32(y), seed^0x30d5), float32(take), float32(closer), float32(young)})
 	}
 	slices.SortFunc(cands, func(a, b cand) int {
 		if a.pri != b.pri {
@@ -480,7 +570,7 @@ func (w *World) plantWoods(seed uint32) {
 					continue // a young tree, if any
 				}
 			} else {
-				take *= woodsYoung
+				take *= float64(c.young)
 			}
 			if unit(hash2(int32(x), int32(y), seed^0x7a4e+uint32(pass))) >= take {
 				continue
@@ -566,14 +656,14 @@ var (
 	underEdge  = undergrowth{tuft: 0.035, bush: 0.012, twig: 0.008, flower: 0.012}                 // the bright edge of a wood
 	underWood  = undergrowth{tuft: 0.012, bush: 0.008, twig: 0.018, flower: 0.006, mushroom: 0.01} // under the trees
 	underGlade = undergrowth{tuft: 0.05, bush: 0.025, twig: 0.006, flower: 0.07}                   // a sunny glade
-	underGrove = undergrowth{tuft: 0.004, bush: 0.004, twig: 0.022, mushroom: 0.022}               // dark: branches, logs with mushrooms
+	underThick = undergrowth{tuft: 0.004, bush: 0.006, twig: 0.024, mushroom: 0.024}               // dark: branches, logs with mushrooms
 )
 
 // fillUndergrowth gives the floor of the woods its undergrowth, so the
 // ground between the trunks is not bare.
 func (w *World) fillUndergrowth(seed uint32) {
 	W, H := w.width, w.SurfaceHeight()
-	depth := w.woodsDepth()
+	depth, thick := w.woods.depth, w.woods.thick
 	sx, sy := int(math.Floor(w.spawnX)), int(math.Floor(w.spawnY))
 	for i := range W * H {
 		x, y := i%W, i/W
@@ -584,10 +674,10 @@ func (w *World) fillUndergrowth(seed uint32) {
 		switch {
 		case depth[i] < 2:
 			u = underEdge
-		case woodsPatch(seed, i, W, depth[i]) == 1:
+		case glade(seed, i, W, depth[i]):
 			u = underGlade
-		case woodsPatch(seed, i, W, depth[i]) == -1:
-			u = underGrove
+		case thick[i] > 0.5:
+			u = underThick
 		}
 		r := unit(hash2(int32(x), int32(y), seed^0x0dd5))
 		kind := pick(r, chance{EntityGrassTuft, u.tuft}, chance{EntityBerryBush, u.bush}, chance{EntityTwig, u.twig},

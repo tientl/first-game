@@ -131,7 +131,8 @@ func (w *World) pickGlow(p *Player, e *Entity) bool {
 // growSapling turns a seedling that has come up into what it grows into.
 func (w *World) growSapling(e *Entity) {
 	s := SeedKind(e.Var)
-	e.Var, e.Ready, e.Big = 0, true, false
+	fuel := e.Fuel
+	e.Var, e.Ready, e.Big, e.Fuel = 0, true, false, 0
 	switch s {
 	case SeedFlower:
 		e.Kind = EntityFlower
@@ -140,6 +141,7 @@ func (w *World) growSapling(e *Entity) {
 		e.Kind = EntityBerryBush
 	case SeedTree:
 		e.Kind = EntityTree
+		w.youngGrows(e, fuel) // see regrow.go
 	case SeedGlow:
 		e.Kind = EntityGlowPlant
 		e.Var = uint8(hash2(int32(e.TX), int32(e.TY), 0x6109) % 2)

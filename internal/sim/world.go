@@ -57,6 +57,8 @@ type World struct {
 	surfaceH int                 // rows above ground, when the caves lie below; see underground.go
 	links    map[[2]int]caveLink // cave mouths and ways up: where each leads
 
+	woods woodsPlan // where the woods' trees stand, which they grow back to; see regrow.go
+
 	dev devWorld // dev mode's overrides, never saved; see dev.go
 }
 
@@ -192,7 +194,8 @@ func (w *World) Step() {
 		w.stepPlayer(w.players[id])
 	}
 	w.stepEntities()
-	w.stepStations() // see cooking.go
+	w.stepWoodsFill() // the woods grow back into their gaps; see regrow.go
+	w.stepStations()  // see cooking.go
 	w.stepCreatures()
 	w.stepWebs()
 	w.stepBoats()
@@ -215,9 +218,17 @@ func (w *World) stepEntities() {
 			EntityCactus, EntityReed, EntityMushroom, EntityClam, EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree,
 			EntityFlower, EntityGlowPlant, EntityClay, EntityFlora:
 			w.catchRain(e) // a pitcher plant fills fast in the rain: see flora.go
+			if growsUp(e) {
+				w.growUp(e) // a young tree, grown when its time comes; see regrow.go
+				break
+			}
 			if !e.Ready && w.tick >= e.RegrowAt {
 				if e.FruitStump() {
 					w.standFruitTree(e) // up again, still bare; see fruit.go
+					break
+				}
+				if e.Kind == EntityTree {
+					w.sproutStump(e) // a sapling comes up by the stump; see regrow.go
 					break
 				}
 				e.Ready = true // for a crop: ripe

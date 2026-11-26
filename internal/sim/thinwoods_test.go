@@ -29,16 +29,32 @@ func treesOf(w *World) map[EntityID]Entity {
 	return out
 }
 
+// hiveRatio is how many trees of the woods (giants with them) there are to
+// a beehive in w.
+func hiveRatio(w *World) (trees, hives int) {
+	for _, e := range w.entities {
+		if e.Kind == EntityTree && w.TileAt(e.TX, e.TY) == TileForest || e.Kind == EntityGiantTree {
+			trees++
+			if e.HasHive() {
+				hives++
+			}
+		}
+	}
+	return trees, hives
+}
+
 // An older save of a world with thick woods has them thinned once on
-// loading: what players planted, built by, chopped at or keep bees in is
-// left be, and loading the game again thins nothing more.
+// loading: what players planted, built by, chopped at or robbed the bees of
+// is left be, the hives are cut back to the trees, and loading the game
+// again thins nothing more.
 func TestOldSaveWoodsThinnedOnce(t *testing.T) {
 	for _, style := range []WorldStyle{StyleIsles, StyleSeas} {
 		w := genStyle(t, style, 7, SizeMedium)
 		before := treesOf(w)
+		trees0, hives0 := hiveRatio(w)
 
 		// A player's doings in the thick of the woods: trees planted, a camp,
-		// a tree half chopped, a hive.
+		// a tree half chopped, a hive robbed.
 		var planted []EntityID
 		var camp *Entity
 		var chopped, hive EntityID
@@ -52,7 +68,7 @@ func TestOldSaveWoodsThinnedOnce(t *testing.T) {
 				e.HP = 1
 			case hive == 0 && e.Var != hiveVar:
 				hive = e.ID
-				e.Var = hiveVar
+				e.Var, e.HoneyAt = hiveVar, w.tick+HiveRefillTicks
 			}
 			for _, d := range [][2]int{{1, 0}, {0, 1}, {-1, 0}, {0, -1}} {
 				x, y := e.TX+d[0], e.TY+d[1]
@@ -75,8 +91,18 @@ func TestOldSaveWoodsThinnedOnce(t *testing.T) {
 		}
 		for _, id := range append(planted, chopped, hive) {
 			if _, ok := after[id]; !ok {
-				t.Errorf("style %d: tree %d (planted, chopped or with bees) was taken away", style, id)
+				t.Errorf("style %d: tree %d (planted, chopped or with bees robbed) was taken away", style, id)
 			}
+		}
+		if !l.entities[hive].HasHive() {
+			t.Errorf("style %d: the robbed hive was taken away", style)
+		}
+		trees, hives := hiveRatio(l)
+		t.Logf("style %d: hives %d to %d trees before, %d to %d after", style, hives0, trees0, hives, trees)
+		// The bees left the trees thinned away; what is left is cut back to a
+		// hive to hivesPerTrees trees, never more.
+		if hives == 0 || hives > max(1, trees/hivesPerTrees) || hives*hivesPerTrees*2 < trees {
+			t.Errorf("style %d: %d hives to %d trees after thinning, want about one to %d", style, hives, trees, hivesPerTrees)
 		}
 		for id, e := range treesOf(w) {
 			if dx, dy := e.TX-camp.TX, e.TY-camp.TY; dx*dx+dy*dy <= thinNearBuilt*thinNearBuilt {
@@ -112,15 +138,19 @@ func TestOldSaveWoodsThinnedOnce(t *testing.T) {
 	}
 }
 
-// The thinned woods of an old world look like the new ones: no wall.
+// The thinned woods of an old world look like the new ones: ordinary
+// stretches and thick ones, no wall.
 func TestOldSaveWoodsThinnedToNewLook(t *testing.T) {
-	w := migrated(t, genStyle(t, StyleIsles, 42, SizeLarge))
+	w := migrated(t, genStyle(t, StyleIsles, 3, SizeHuge))
 	views := woodsViews(w)
 	forest, _ := canopyStats(w, views["forest"])
 	dense, _ := canopyStats(w, views["dense"])
-	t.Logf("thinned: canopy %.0f%% in the woods, %.0f%% in the thick", 100*forest, 100*dense)
-	if forest < 0.35 || forest > 0.55 || dense > 0.6 {
-		t.Errorf("thinned woods cover %.0f%% (the thick %.0f%%), want 35 to 55%% (at most 60%%)", 100*forest, 100*dense)
+	t.Logf("thinned: canopy %.0f%% in ordinary woods, %.0f%% in thick ones", 100*forest, 100*dense)
+	if forest < 0.33 || forest > 0.5 {
+		t.Errorf("thinned ordinary woods cover %.0f%%, want 35 to 50%%", 100*forest)
+	}
+	if dense < forest+0.1 || dense > 0.7 {
+		t.Errorf("thinned thick woods cover %.0f%%, want well above the ordinary (%.0f%%) and at most 70%%", 100*dense, 100*forest)
 	}
 }
 

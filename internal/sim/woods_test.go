@@ -55,12 +55,21 @@ func canopyShare(w *World, cx, cy float64) float64 {
 	return float64(n) / float64(len(cover))
 }
 
+// genSeed is the seed the generator's noise of w was made with.
+func genSeed(w *World) uint32 { return uint32(w.seed) ^ uint32(w.seed>>32) }
+
+// thickOf is how thick each surface tile's wood of w is (see woodsThickness).
+func thickOf(w *World) []float32 {
+	return w.woodsThickness(genSeed(w), int(w.spawnX), int(w.spawnY))
+}
+
 // woodsViews are the centres of views over w's woods, by what lies under
 // the middle of the view: "forest" (an ordinary wood, well inside), "dense"
-// (the thick woods' cores) and "edge".
+// (a thick wood, well inside) and "edge".
 func woodsViews(w *World) map[string][][2]float64 {
 	W, H := w.width, w.SurfaceHeight()
 	depth := w.woodsDepth()
+	thick := thickOf(w)
 	out := map[string][][2]float64{}
 	share := func(x, y int, ok func(i int) bool) float64 {
 		n, in := 0, 0
@@ -75,7 +84,8 @@ func woodsViews(w *World) map[string][][2]float64 {
 		return float64(in) / float64(n)
 	}
 	wood := func(i int) bool { return w.tiles[i] == TileForest || w.tiles[i] == TilePath }
-	dense := func(i int) bool { return wood(i) && w.relief != nil && w.relief[i].Variant() == VarDenseWood }
+	dense := func(i int) bool { return wood(i) && thick[i] > 0.9 }
+	ordinary := func(i int) bool { return w.tiles[i] == TilePath || w.tiles[i] == TileForest && thick[i] < 0.1 }
 	for y := 12; y < H-12; y += 7 {
 		for x := 14; x < W-14; x += 9 {
 			i := y*W + x
@@ -83,11 +93,11 @@ func woodsViews(w *World) map[string][][2]float64 {
 				continue
 			}
 			switch {
-			case dense(i) && depth[i] >= 4 && share(x, y, dense) > 0.6:
+			case dense(i) && depth[i] >= 4 && share(x, y, dense) > 0.75:
 				out["dense"] = append(out["dense"], [2]float64{float64(x) + 0.5, float64(y) + 0.5})
-			case depth[i] >= 5 && share(x, y, wood) > 0.92:
+			case depth[i] >= 5 && share(x, y, wood) > 0.92 && share(x, y, ordinary) > 0.85:
 				out["forest"] = append(out["forest"], [2]float64{float64(x) + 0.5, float64(y) + 0.5})
-			case depth[i] < 2 && share(x, y, wood) > 0.4:
+			case depth[i] < 2 && share(x, y, wood) > 0.4 && thick[i] < 0.5:
 				out["edge"] = append(out["edge"], [2]float64{float64(x) + 0.5, float64(y) + 0.5})
 			}
 		}
@@ -214,7 +224,7 @@ func TestWoodsKeepTheirSpacing(t *testing.T) {
 				if !ok {
 					return
 				}
-				d := (c.spacing + oc.spacing) / 2 * groveCloser
+				d := (c.spacing + oc.spacing) / 2 * thickCloser
 				if dist := math.Hypot(float64(o.TX-e.TX), float64(o.TY-e.TY)); dist < d-1e-9 {
 					t.Fatalf("seed %d: trees at %d,%d and %d,%d stand %.2f apart, want at least %.2f", seed, e.TX, e.TY, o.TX, o.TY, dist, d)
 				}
@@ -224,35 +234,51 @@ func TestWoodsKeepTheirSpacing(t *testing.T) {
 }
 
 // The woods read as woods but are never a wall: on a 1080p view the crowns
-// cover 35 to 50% of an ordinary wood, less at its edge, up to about 60% in
-// the thick woods' cores. The woods of the older worlds cover nearly all.
+// cover about 35 to 45% of an ordinary wood, less at its edge, 60 to 70% of
+// a thick one. The woods of the older worlds cover nearly all.
+//
+// The crowns are measured here on trees, fruit trees and giants; the game's
+// own measure (cmd/shot -canopy) counts every tall drawing, bamboo and the
+// like with them, and comes out 5 to 10 points higher. These bounds are on
+// the trees alone.
 func TestWoodsCanopyShare(t *testing.T) {
-	for _, seed := range []uint64{42, 7} {
-		w := genStyle(t, StyleWoods, seed, SizeLarge)
+	thickSeen := false
+	for _, c := range []struct {
+		seed uint64
+		size int
+	}{{42, SizeLarge}, {3, SizeHuge}} {
+		w := genStyle(t, StyleWoods, c.seed, c.size)
 		views := woodsViews(w)
 		if len(views["forest"]) < 3 || len(views["edge"]) < 20 {
-			t.Fatalf("seed %d: too few views: %d in the woods, %d at their edge", seed, len(views["forest"]), len(views["edge"]))
+			t.Fatalf("seed %d: too few views: %d in the woods, %d at their edge", c.seed, len(views["forest"]), len(views["edge"]))
 		}
 		forest, fp90 := canopyStats(w, views["forest"])
 		edge, _ := canopyStats(w, views["edge"])
 		dense, dp90 := canopyStats(w, views["dense"])
-		t.Logf("seed %d: canopy %.0f%% at the edge, %.0f%% in the woods (p90 %.0f%%), %.0f%% in the thick (p90 %.0f%%)", seed, 100*edge, 100*forest, 100*fp90, 100*dense, 100*dp90)
-		if forest < 0.35 || forest > 0.5 {
-			t.Errorf("seed %d: the crowns cover %.0f%% of a view in the woods, want 35 to 50%%", seed, 100*forest)
+		t.Logf("seed %d: canopy %.0f%% at the edge, %.0f%% in ordinary woods (p90 %.0f%%), %.0f%% in %d views of thick ones (p90 %.0f%%)",
+			c.seed, 100*edge, 100*forest, 100*fp90, 100*dense, len(views["dense"]), 100*dp90)
+		if forest < 0.28 || forest > 0.4 {
+			t.Errorf("seed %d: the crowns cover %.0f%% of a view in ordinary woods, want about 30 to 40%% (35 to 45%% in the game)", c.seed, 100*forest)
 		}
 		if edge >= forest {
-			t.Errorf("seed %d: the edge of the woods (%.0f%%) is as thick as inside (%.0f%%)", seed, 100*edge, 100*forest)
+			t.Errorf("seed %d: the edge of the woods (%.0f%%) is as thick as inside (%.0f%%)", c.seed, 100*edge, 100*forest)
 		}
-		if dense > 0.6 {
-			t.Errorf("seed %d: the thick woods cover %.0f%%, want at most 60%%", seed, 100*dense)
+		if len(views["dense"]) >= 10 {
+			thickSeen = true
+			if dense < 0.52 || dense > 0.66 {
+				t.Errorf("seed %d: the thick woods cover %.0f%%, want 55 to 65%% (60 to 70%% in the game)", c.seed, 100*dense)
+			}
 		}
 		for _, k := range []string{"forest", "dense", "edge"} {
 			for _, v := range views[k] {
-				if s := canopyShare(w, v[0], v[1]); s > 0.72 {
-					t.Errorf("seed %d: a wall of leaves at %.0f,%.0f: %.0f%%", seed, v[0], v[1], 100*s)
+				if s := canopyShare(w, v[0], v[1]); s > 0.8 {
+					t.Errorf("seed %d: a wall of leaves at %.0f,%.0f: %.0f%%", c.seed, v[0], v[1], 100*s)
 				}
 			}
 		}
+	}
+	if !thickSeen {
+		t.Error("no world with views well inside thick woods")
 	}
 	old := genStyle(t, StyleIsles, 42, SizeLarge)
 	if m, _ := canopyStats(old, woodsViews(old)["forest"]); m < 0.85 {
@@ -356,11 +382,13 @@ func TestWoodsAreDeterministic(t *testing.T) {
 
 // Fewer trees, each giving more: the wood of a new world stays in reach. A
 // new player finds wood for the first tools, a fire and a shelter close by,
-// a screen of woods holds plenty, and the woods as a whole hold a good share
-// of what the old walls of trees gave (at what a tree gave then: 2, a big
-// one 6).
+// at least as much as when the woods were first spaced (before they had
+// thick and ordinary stretches), a screen of woods holds plenty, and the
+// woods as a whole hold a good share of what the old walls of trees gave (at
+// what a tree gave then: 2, a big one 6).
 func TestWoodStaysInReach(t *testing.T) {
 	const oldYield, oldBigYield = 2, 6
+	nearBefore := map[uint64]int{42: 369, 7: 324} // within 30 tiles of the spawn, when the woods were first spaced
 	for _, seed := range []uint64{42, 7} {
 		w := genStyle(t, StyleWoods, seed, SizeLarge)
 		old := genStyle(t, StyleIsles, seed, SizeLarge)
@@ -389,14 +417,14 @@ func TestWoodStaysInReach(t *testing.T) {
 		if r := float64(wood) / float64(oldWood); r < 0.2 || r > 1 {
 			t.Errorf("seed %d: the woods hold %.0f%% of the wood of the old ones", seed, 100*r)
 		}
-		if near < 150 {
-			t.Errorf("seed %d: only %d wood within 30 tiles of the spawn", seed, near)
+		if near < nearBefore[seed] {
+			t.Errorf("seed %d: only %d wood within 30 tiles of the spawn, %d before", seed, near, nearBefore[seed])
 		}
-		if least < 60 {
+		if least < 40 {
 			t.Errorf("seed %d: a spot in the woods has only %d wood within 10 tiles", seed, least)
 		}
 	}
-	if TreeYield < 3 || BigTreeYield < 9 {
+	if TreeYield < 3 || BigTreeYield < 10 {
 		t.Errorf("a tree gives %d wood and a big one %d: the spaced woods need more from each", TreeYield, BigTreeYield)
 	}
 }

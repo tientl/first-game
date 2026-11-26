@@ -27,8 +27,14 @@ func TestBigTreeTakesMoreHitsAndGivesMore(t *testing.T) {
 		t.Fatalf("after %d hits: ready=%v wood=%d, want a stump and %d wood", BigTreeHits, tree.Ready, p.Inv.Count(ItemWood), BigTreeYield)
 	}
 
+	// It grows back through a sapling and a young tree to a big one again;
+	// see regrow.go.
 	w.RemovePlayer(id)
-	stepN(w, TreeRegrowTicks)
+	stepN(w, StumpTicks+int(SeedTree.growTicks()))
+	if tree.Kind != EntityTree || !tree.Ready || tree.Big {
+		t.Fatalf("two and a half days after felling: %s ready=%v big=%v, want a young tree", tree.Kind.Name(), tree.Ready, tree.Big)
+	}
+	stepN(w, YoungTreeTicks)
 	if !tree.Ready || !tree.Big || tree.HP != maxHP(EntityTree, true) {
 		t.Fatalf("regrown tree: ready=%v big=%v hp=%d, want a big tree with %d hp", tree.Ready, tree.Big, tree.HP, maxHP(EntityTree, true))
 	}

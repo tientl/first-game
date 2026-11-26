@@ -23,7 +23,7 @@ func needsTick(e *Entity) bool {
 		EntityGiantTree, EntityGiantRoot, EntityLairProp:
 		return false // an open chest or a sprung snare waits for a player
 	}
-	return !e.Ready
+	return !e.Ready || growsUp(e) // a young tree on its way to a grown one: see regrow.go
 }
 
 // watch adds e to the active set if it needs ticking. Call it whenever an

@@ -50,7 +50,7 @@ const (
 
 // Weather tuning.
 const (
-	SeasonDays    = 12 // a year of 48 days
+	SeasonDays    = 12                   // a year of 48 days
 	WeatherTicks  = 100 * TicksPerSecond // the weather holds this long
 	WetFireFactor = 2                    // fires burn this much faster in rain
 
@@ -336,7 +336,8 @@ func (w *World) fellTree(e *Entity) {
 	w.dropAt(x, y, []Ingredient{{Item: ItemWood, Count: bySize(e.Big, TreeYield, BigTreeYield) / 2}, {Item: ItemStick, Count: 1}})
 	e.Ready = false
 	e.HP = maxHP(e.Kind, e.Big)
-	e.RegrowAt = w.tick + TreeRegrowTicks
+	e.Var = 0                        // the bees leave
+	e.RegrowAt = w.tick + StumpTicks // see regrow.go
 	w.watch(e)
 }
 
