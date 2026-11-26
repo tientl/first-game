@@ -16,13 +16,17 @@ type BeakSpec struct {
 	TipDark     float64 // how much darker the tip is (0: 0.12)
 	GrainSeed   uint32
 	LowerShadow float64 // how much darker the lower beak is (0: 0.08)
+	Lower       string  // the lower beak's own material, if it has one
 }
 
 // Beak paints keratin over the lit beak: a gloss along the ridge, fine
 // grain running to the tip, the mouth's line dark with the lower beak's
 // lit edge under it, a darker tip, and the nostril.
 func (p *Painter) Beak(b BeakSpec) {
-	m := p.MatID(b.Mat)
+	m, lowM := p.MatID(b.Mat), -2
+	if b.Lower != "" {
+		lowM = p.MatID(b.Lower)
+	}
 	gloss := b.Gloss
 	if gloss == 0 {
 		gloss = 0.22
@@ -40,7 +44,7 @@ func (p *Painter) Beak(b BeakSpec) {
 	for py := 0; py < p.H; py++ {
 		for px := 0; px < p.W; px++ {
 			i := py*p.W + px
-			if !p.In[i] || p.Mat[i] != m || p.Pro[i] {
+			if !p.In[i] || (p.Mat[i] != m && p.Mat[i] != lowM) || p.Pro[i] {
 				continue
 			}
 			edge := false
@@ -76,7 +80,7 @@ func (p *Painter) Beak(b BeakSpec) {
 				continue // the outline stays
 			}
 			p.Val[i] = v
-			p.Out[i] = p.Tone(m, v)
+			p.Out[i] = p.Tone(p.Mat[i], v)
 			p.Pro[i] = true
 		}
 	}

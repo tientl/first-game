@@ -163,7 +163,7 @@ var dinoRigs = map[string]dinoRig{
 		file: "quetzal", stride: 3,
 		// The near hind leg, the near wing it walks on, the far wing, the far hind leg.
 		legs: []rigLimb{{x0: 30, x1: 40, top: 86}, {x0: 49, x1: 61, top: 86}, {x0: 62, x1: 71, top: 86}, {x0: 22, x1: 29, top: 86}},
-		head: rigPart{pivot: rigPt{63, 16}, dir: headUp(math.Pi / 4), maxY: 40},
+		head: rigPart{pivot: rigPt{57, 30}, dir: headUp(1.19), maxY: 40}, // across the neck, far enough down that its joint is clear of the beak
 		neck: rigPart{pivot: rigPt{50, 55}, dir: headUp(1.0), maxY: 60},
 		jaw:  [2]rigPt{{71.4, 19.6}, {100.5, 24.7}},
 		gait: []float64{0, 0.25, 0.75, 0.5}, far: 0b1100,
