@@ -139,11 +139,11 @@ func (p *Painter) placeKnobs() {
 			}
 			h := func(s uint32) float64 { return hash(n, ri, seed+s) }
 			cy := float64(top) + (row.Off+(h(3)-0.5)*0.3)*K
-			cx := x*K + (h(4)-0.5)*row.Gap*0.3*K
-			k := knob{cx, cy, row.R * K * (0.85 + 0.3*h(5)), row.Parts}
+			cx := x*K + (h(4)-0.5)*row.Gap*0.55*K
+			k := knob{cx, cy, row.R * K * (0.7 + 0.6*h(5)), row.Parts}
 			p.knobs = append(p.knobs, k)
 			if row.Crest > 0 {
-				k.y = float64(top) + (0.5-row.Crest)*K
+				k.y = float64(top) + (0.5-row.Crest*(0.55+0.8*h(6)))*K
 				k.r *= 0.85
 				crest = append(crest, k)
 			}
@@ -290,14 +290,14 @@ func (p *Painter) skin() {
 			}
 			// The texture shows most in the half-light, least in deep shadow
 			// and full light, as a painter only hints at it there.
-			show := rel * (0.4 + 0.6*clamp01(1-math.Abs(cv-0.55)*1.6))
+			show := rel * (0.6 + 0.4*clamp01(1-math.Abs(cv-0.55)*1.6))
 			if c.osteo {
 				show = max(show, 0.7*rel)
 			}
 			// The scale as a little dome: lit on the side towards the light.
 			ox, oy := (float64(px)+0.5-c.x)/c.r, (float64(py)+0.5-c.y)/c.r
 			toward := -(ox*light2x + oy*light2y)
-			amp := 0.065
+			amp := 0.08
 			if c.osteo {
 				amp = 0.17
 			} else if c.r > 2.6 {

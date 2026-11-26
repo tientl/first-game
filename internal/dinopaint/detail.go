@@ -197,7 +197,7 @@ func (p *Painter) Teeth(t TeethSpec) {
 		if u > 0.9 {
 			prof *= 0.75
 		}
-		l := t.Len * prof * (0.88 + 0.2*hash(k, 9, t.Seed))
+		l := t.Len * prof * (0.7 + 0.45*hash(k, 9, t.Seed))
 		w := sp * (0.8 + 0.12*h)
 		g := gum(cx)
 		if t.Up {
@@ -231,7 +231,7 @@ func (p *Painter) Teeth(t TeethSpec) {
 					r -= 0.3 * (1 - s/0.2) // in the gum's shadow
 				}
 				if dx > 0.5 {
-					r -= 0.3
+					r -= 0.17
 				}
 				p.Out[i] = tooth(clamp01(r))
 				p.Pro[i] = true
@@ -342,6 +342,105 @@ func (p *Painter) Claw(x0, y0, x1, y1, w, bend float64, ramp []uint32) {
 			p.In[i], p.Out[i], p.Pro[i] = true, c, true
 		}
 	}
+}
+
+// HornSpec is a horn from its root (X0, Y0), W thick there, to its tip
+// (X1, Y1), its middle pushed Bend aside (+: towards the side the light
+// does not reach, which is how most horns curve forward), in Ramp from dark
+// to light. Grooves runs fine lines along it.
+type HornSpec struct {
+	X0, Y0, X1, Y1 float64
+	W, Bend        float64
+	Ramp           []uint32
+	Grooves        bool
+	Shade          float64 // added to its light: below 0 for a horn on the far side
+}
+
+// Horn paints a horn over the hide, added to the silhouette: lit along its
+// side towards the light, pale towards the tip, dark where it leaves the
+// skin, outlined darker on its shaded side.
+func (p *Painter) Horn(h HornSpec) {
+	dx, dy := h.X1-h.X0, h.Y1-h.Y0
+	l := math.Hypot(dx, dy)
+	nx, ny := -dy/l, dx/l
+	if nx*light2x+ny*light2y > 0 {
+		nx, ny = -nx, -ny // n points away from the light
+	}
+	mx, my := (h.X0+h.X1)/2+nx*h.Bend, (h.Y0+h.Y1)/2+ny*h.Bend
+	const n = 32
+	var cx, cy [n + 1]float64
+	for i := 0; i <= n; i++ {
+		t := float64(i) / n
+		a, b, c := (1-t)*(1-t), 2*(1-t)*t, t*t
+		cx[i], cy[i] = a*h.X0+b*mx+c*h.X1, a*h.Y0+b*my+c*h.Y1
+	}
+	pick := func(r float64) color.NRGBA {
+		return rgb(h.Ramp[max(0, min(len(h.Ramp)-1, int(clamp01(r)*float64(len(h.Ramp)))))])
+	}
+	bx0, by0 := min(h.X0, h.X1, mx)-h.W, min(h.Y0, h.Y1, my)-h.W
+	bx1, by1 := max(h.X0, h.X1, mx)+h.W, max(h.Y0, h.Y1, my)+h.W
+	for py := int(by0 * K); py <= int(by1*K); py++ {
+		for px := int(bx0 * K); px <= int(bx1*K); px++ {
+			i := p.Idx(px, py)
+			if i < 0 {
+				continue
+			}
+			x, y := G(px, py)
+			best, bt, side := math.Inf(1), 0.0, 0.0
+			for k := 0; k < n; k++ {
+				d, t := segDist(x, y, cx[k], cy[k], cx[k+1], cy[k+1])
+				if d < best {
+					best, bt = d, (float64(k)+t)/n
+					tx, ty := cx[k+1]-cx[k], cy[k+1]-cy[k]
+					tl := math.Hypot(tx, ty)
+					// + on the side away from the light
+					side = ((x-cx[k])*-ty + (y-cy[k])*tx) / tl
+					if -ty*nx+tx*ny < 0 {
+						side = -side
+					}
+				}
+			}
+			half := h.W / 2 * math.Pow(1-bt, 0.8)
+			if best > half+0.4/K || (bt <= 0 && best > 0.3) {
+				continue
+			}
+			u := side / max(half, 0.01) // -1 lit edge, +1 shaded edge
+			r := 0.35 + 0.4*bt - 0.4*u + h.Shade
+			if bt < 0.12 {
+				r -= 0.3 * (1 - bt/0.12) // the sheath where it leaves the skin
+			}
+			if h.Grooves && half*K > 2.5 && u > -0.2 && math.Mod(math.Abs(u)*half*K+bt*3, 2.2) < 0.6 {
+				r -= 0.15
+			}
+			c := pick(r)
+			switch {
+			case best > half-0.5/K && u > 0:
+				c = Mix(pick(0), Ink, 0.5) // the shaded edge
+			case best > half-0.5/K:
+				c = pick(r - 0.25) // the lit edge, lightly
+			}
+			p.In[i], p.Out[i], p.Pro[i] = true, c, true
+		}
+	}
+}
+
+// Nail paints a blunt nail or hoof at the front of a foot: a rounded plate
+// w wide and h high, its bottom on row y, centred on x.
+func (p *Painter) Nail(x, y, w, h float64, ramp []uint32, shade float64) {
+	pick := func(r float64) color.NRGBA {
+		return rgb(ramp[max(0, min(len(ramp)-1, int(clamp01(r)*float64(len(ramp)))))])
+	}
+	s := Ellipse(x, y, w/2, h, 0)
+	above := func(_, gy float64) float64 { return gy - y }
+	p.Fill(Inter(s, above), true, func(px, py int, d float64) color.NRGBA {
+		gx, gy := G(px, py)
+		u, v := (gx-x)/(w/2), (gy-(y-h))/h
+		r := 0.75 - 0.35*u - 0.25*v + shade
+		if d < 0.45/K*1.5 && (u > 0 || v > 0.6) {
+			return Mix(pick(0), Ink, 0.4)
+		}
+		return pick(r)
+	})
 }
 
 // Speck lightens or darkens single pixels inside s at random, density

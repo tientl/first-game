@@ -16,6 +16,11 @@ type Species struct {
 	Materials []Material
 	Ink       float64 // guide pixels darker than this (luminance, 0-255) are outline, not hide
 
+	// GuideDetail carries the guide's own small marks into the light: how
+	// much lighter or darker than its surroundings each pixel of the drawing
+	// is (bars, dapples, the lines inside it), times this. 0: none.
+	GuideDetail float64
+
 	// Parts are the masses the body is made of, back to front: the far
 	// legs, the body, the near legs. A pixel belongs to the frontmost part
 	// whose shape holds it; each part is rounded over from its own edge, so
@@ -31,6 +36,11 @@ type Species struct {
 	// sharpened, a snout made crisper.
 	Add, Remove []SDF
 
+	// Recolor changes materials the guide gave, place by place: the
+	// drawing's own shading taken for a marking, a marking where it should
+	// not be.
+	Recolor []Recolor
+
 	// Details paints what is drawn last, over the lit hide: eyes, nostrils,
 	// teeth, claws, horns.
 	Details func(p *Painter)
@@ -42,6 +52,8 @@ type Material struct {
 	Seeds  []uint32 // colours of the guide that are this material
 	Ramp   []uint32 // its colours from deep shadow to the highlight
 	Relief float64  // how strongly the scales show on it (0: 1)
+	Smooth float64  // how much its regions in the guide are rounded off, in guide pixels (0: 0.45)
+	Bias   float64  // how much it wins over its neighbours where they meet: keeps thin markings whole
 	Region SDF      // where it is, whatever the guide says (nil: from the guide)
 	Over   bool     // with Region: only over the guide's pixels of the materials listed in Only
 	Only   []string
@@ -120,4 +132,12 @@ func Names() []string {
 	}
 	sort.Strings(n)
 	return n
+}
+
+// Recolor is a change of material: inside Region, the materials From
+// become To.
+type Recolor struct {
+	Region SDF
+	From   []string
+	To     string
 }

@@ -45,9 +45,10 @@ func rex() *Species {
 	)
 	nearToe2 := Cone(53.5, 82.6, 1.75, 60.2, 83.3, 1.0) // the middle toe, a little behind
 	return &Species{
-		Name: "rex",
-		Ink:  44,
-		Add:  []SDF{Cone(54, 84.3, 2.0, 61.6, 85.1, 1.15), nearToe2, Cone(35, 83.2, 2.8, 41.2, 84.9, 1.35)},
+		Name:        "rex",
+		GuideDetail: 0.3,
+		Ink:         44,
+		Add:         []SDF{Cone(54, 84.3, 2.0, 61.6, 85.1, 1.15), nearToe2, Cone(35, 83.2, 2.8, 41.2, 84.9, 1.35)},
 		// The tip of the far toe reaches under the near leg in the guide; the
 		// rig would take it for the near foot's.
 		Remove: []SDF{Poly(44.6, 81.6, 48.4, 81.6, 48.4, 88, 44.6, 88)},
@@ -55,14 +56,14 @@ func rex() *Species {
 			{Name: "back", Seeds: []uint32{0x6b5e38, 0x857748, 0xa0915e, 0x918355, 0x7b6e48},
 				Ramp: []uint32{0x2a221c, 0x3b3224, 0x4e442c, 0x625735, 0x776a3f, 0x8c7e4a, 0xa39459, 0xbcad72}},
 			{Name: "stripe", Seeds: []uint32{0x3d3522, 0x4d4328, 0x53482c, 0x443b24},
-				Ramp: []uint32{0x1f1915, 0x2a221a, 0x352c1f, 0x403624, 0x4c412a, 0x594d31, 0x675a39, 0x776944}},
+				Ramp: []uint32{0x1f1915, 0x2a221a, 0x352c1f, 0x403624, 0x4c412a, 0x594d31, 0x675a39, 0x776944}, Smooth: 0.6, Bias: 0.14},
 			{Name: "flank", Seeds: []uint32{0x84663c, 0xa2834e, 0xbc9f68, 0x664f2e, 0x775c37},
 				Ramp:   []uint32{0x2c1f19, 0x3f2c1f, 0x553c26, 0x6c4e2f, 0x85633a, 0x9f7a48, 0xb89259, 0xd0ad72},
 				Region: Poly(46, 66, 66, 66, 66, 88, 46, 88), Only: []string{"stripe", "back"}}, // no stripes on the near shin and foot
 			{Name: "belly", Seeds: []uint32{0x705a42, 0x98805c, 0xbda67c, 0xcfc4a4, 0xd2ba86, 0xd8c79c, 0xf2ecd6},
-				Ramp: []uint32{0x2e2224, 0x413230, 0x56443c, 0x6c584a, 0x84705a, 0x9d886c, 0xb6a081, 0xcdb998}, Relief: 0.7},
+				Ramp: []uint32{0x2f231f, 0x43322a, 0x5a4636, 0x725b45, 0x8b7356, 0xa48b68, 0xbba27e, 0xcfb995}, Relief: 0.7},
 			{Name: "far", Seeds: []uint32{0x3f2f21, 0x453423, 0x50402f, 0x4a3a2c, 0x433a2f, 0x5b442b, 0x644b2e},
-				Ramp: []uint32{0x1e1714, 0x2a1f18, 0x36281d, 0x433223, 0x523d2a, 0x624a33, 0x74583c, 0x886848}},
+				Ramp: []uint32{0x2a1f18, 0x36281d, 0x433223, 0x523d2a, 0x624a33, 0x74583c, 0x886848, 0x9a7a58}},
 		},
 		Parts: []Part{
 			{Name: "farLeg", Shape: farLeg, Far: true, Round: 4, Scale: 0.8, Mat: "far", Muscles: []Muscle{
@@ -70,7 +71,7 @@ func rex() *Species {
 				Mu(38, 64.5, 3, 3.5, 0.5, 0.8),                                     // the calf
 				Mu(37.2, 83.8, 1.2, 1.0, 0, 0.5), Mu(39.6, 84.2, 1.0, 0.9, 0, 0.4), // knuckles
 			}},
-			{Name: "body", Shape: body, Round: 9, RoundAt: func(x, y float64) float64 { return lerp(9, 4.5, smoothstep(74, 84, x)) }, Muscles: []Muscle{
+			{Name: "body", Shape: body, Round: 9, RoundAt: func(x, y float64) float64 { return lerp(7.5, 4.5, smoothstep(74, 84, x)) }, Muscles: []Muscle{
 				Mu(81, 24.5, 4.5, 5.5, 0.3, 2.3),   // the jaw muscle behind the eye
 				Mu(90.5, 27.8, 6.5, 2.4, 0, 1.1),   // the cheek
 				Mu(100, 24, 6, 4.5, 0, 1.2),        // the snout
@@ -106,15 +107,15 @@ func rex() *Species {
 				Mu(56, 84.4, 1.3, 1.1, 0, 0.5), Mu(58.6, 84.6, 1.2, 1.0, 0, 0.45), Mu(60.8, 84.8, 1.0, 0.9, 0, 0.4), // knuckles
 			}},
 		},
-		Skin: Skin{Flank: 1.75, Back: 3.1, Belly: 1.35, BackDepth: 5, BellyDepth: 5, Seed: 11},
+		Skin: Skin{Flank: 1.75, Back: 3.6, Belly: 1.35, BackDepth: 5, BellyDepth: 5, Seed: 11},
 		Osteoderms: []Row{
 			{X0: 24, X1: 84, Off: 1.0, Gap: 2.6, R: 1.0, Crest: 0.45, Parts: []string{"body"}},
 			{X0: 32, X1: 74, Off: 2.9, Gap: 3.3, R: 0.75, Parts: []string{"body"}},
 		},
 		Folds: []Fold{
-			{Pts: []float64{78.8, 35.5, 77.6, 39, 77.2, 43}, N: 3, DX: -2.3, DY: 0.7},               // the throat
-			{Pts: []float64{79.5, 21.5, 78.6, 25.5, 78.4, 29}, N: 2, DX: -2.6, DY: 1.2, Depth: 0.7}, // behind the skull
-			{Pts: []float64{55, 63.6, 57.8, 66.6}, N: 2, DY: 1.4, Depth: 0.8},                       // behind the knee
+			{Pts: []float64{78.8, 35.5, 77.6, 39, 77.2, 43}, N: 3, DX: -2.3, DY: 0.7, Depth: 1.6},   // the throat
+			{Pts: []float64{79.5, 21.5, 78.6, 25.5, 78.4, 29}, N: 2, DX: -2.6, DY: 1.2, Depth: 1.2}, // behind the skull
+			{Pts: []float64{55, 63.6, 57.8, 66.6}, N: 2, DY: 1.4, Depth: 1.3},                       // behind the knee
 			{Pts: []float64{48.6, 74.5, 51.6, 74.2}, N: 4, DY: 1.9, Depth: 0.7},                     // across the metatarsus
 			{Pts: []float64{57.3, 83.5, 57.1, 86}, N: 2, DX: 2.4, Depth: 1.2},                       // between the knuckles
 			{Pts: []float64{56.8, 81.7, 56.7, 83.6}, N: 2, DX: 2.3, Depth: 0.9},
@@ -126,7 +127,7 @@ func rex() *Species {
 }
 
 func rexDetails(p *Painter) {
-	p.Teeth(TeethSpec{X0: 85.3, Y0: 32.1, X1: 104.4, Y1: 31.8, Bottom: 34, N: 10, Len: 2.3,
+	p.Teeth(TeethSpec{X0: 85.3, Y0: 32.1, X1: 104.4, Y1: 31.8, Bottom: 34, N: 10, Len: 1.95,
 		Ramp: ivory, Gap: 0x2a1311, Seed: 5})
 	p.Lip([]float64{84.6, 32.2, 95, 32.05, 104.6, 31.8}, 3)
 	p.Nostril(103.6, 21.4, 0.95, 0.55, -0.35)

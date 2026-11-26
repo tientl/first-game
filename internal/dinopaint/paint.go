@@ -88,6 +88,7 @@ func Paint(sp *Species, guide image.Image) (*image.NRGBA, *Painter) {
 	p := New(sp, guide)
 	p.silhouette()
 	p.materials()
+	p.recolor()
 	p.assignParts()
 	p.form()
 	p.shade()
@@ -287,14 +288,18 @@ func (p *Painter) materials() {
 				f.V[i] = 1
 			}
 		}
-		masks[m] = f.Blur(0.55)
+		sm := sp.Materials[m].Smooth
+		if sm == 0 {
+			sm = 0.45
+		}
+		masks[m] = f.Blur(sm)
 	}
 	for py := 0; py < p.H; py++ {
 		for px := 0; px < p.W; px++ {
 			x, y := G(px, py)
 			best, bv := 0, math.Inf(-1)
 			for m := range masks {
-				v := masks[m].Sample(x, y) + 0.16*(fbm(x*0.8, y*0.8, uint32(31+m), 2)-0.5)
+				v := masks[m].Sample(x, y) + 0.12*(fbm(x*0.8, y*0.8, uint32(31+m), 2)-0.5) + sp.Materials[m].Bias
 				if v > bv {
 					best, bv = m, v
 				}
@@ -324,6 +329,29 @@ func (p *Painter) materials() {
 				}
 				if ok {
 					p.Mat[i] = m
+				}
+			}
+		}
+	}
+}
+
+// recolor applies the description's changes of material.
+func (p *Painter) recolor() {
+	for _, rc := range p.Sp.Recolor {
+		to := p.MatID(rc.To)
+		var from []int
+		for _, f := range rc.From {
+			from = append(from, p.MatID(f))
+		}
+		for py := 0; py < p.H; py++ {
+			for px := 0; px < p.W; px++ {
+				i := py*p.W + px
+				if x, y := G(px, py); rc.Region(x, y) <= 0 {
+					for _, f := range from {
+						if p.Mat[i] == f {
+							p.Mat[i] = to
+						}
+					}
 				}
 			}
 		}
@@ -446,13 +474,14 @@ func smax(a, b, k float64) float64 {
 
 // LightOn is the light on a surface facing n: 0 in deep shadow, 1 where it
 // faces the light.
-func LightOn(n vec3) float64 { return 0.1 + 0.9*clamp01(0.25+0.75*n.dot(Light)) }
+func LightOn(n vec3) float64 { return 0.18 + 0.82*clamp01(0.38+0.62*n.dot(Light)) }
 
 // shade lights every pixel: the light on its surface, the shadow cast by
 // what is in front of it, the far side of the body darker, and a rim of
 // light along the edges turned away.
 func (p *Painter) shade() {
 	parts := p.Sp.Parts
+	detail := p.guideDetail()
 	// The shadow each part gets from the parts in front of it: their shape
 	// moved a little down and right, away from the light.
 	occl := make([][]float64, len(parts))
@@ -488,8 +517,12 @@ func (p *Painter) shade() {
 		}
 		rim := smoothstep(0.45, 0.95, 1-n.z) * clamp01(n.x*0.55+n.y*0.83)
 		v += 0.2 * rim
+		if detail != nil {
+			x, y := G(i%p.W, i/p.W)
+			v += p.Sp.GuideDetail * detail.Sample(x, y)
+		}
 		if parts[j].Far {
-			v = v*0.78 - 0.08
+			v = v*0.82 - 0.05
 		}
 		p.Val[i] = v
 	}
@@ -624,4 +657,42 @@ func (p *Painter) Report() string {
 		}
 	}
 	return fmt.Sprintf("%s: %dx%d, %d pixels", p.Sp.Name, p.W, p.H, n)
+}
+
+// guideDetail is how much lighter or darker than its surroundings each
+// pixel of the guide is, in steps of light, or nil when the description
+// takes none of it.
+func (p *Painter) guideDetail() *Field {
+	if p.Sp.GuideDetail == 0 {
+		return nil
+	}
+	l := NewField(p.GW, p.GH)
+	for i, c := range p.Guide {
+		l.V[i] = lum(c)
+	}
+	// Outside the drawing, the nearest of it, so its edge is not a mark.
+	for range 3 {
+		for i := range l.V {
+			if p.GSolid[i] {
+				continue
+			}
+			x, y := i%p.GW, i/p.GW
+			s, n := 0.0, 0
+			for _, d := range [4][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+				if nx, ny := x+d[0], y+d[1]; nx >= 0 && ny >= 0 && nx < p.GW && ny < p.GH && l.V[ny*p.GW+nx] > 0 {
+					s += l.V[ny*p.GW+nx]
+					n++
+				}
+			}
+			if n > 0 {
+				l.V[i] = s / float64(n)
+			}
+		}
+	}
+	mean := l.Blur(1.3)
+	d := NewField(p.GW, p.GH)
+	for i := range d.V {
+		d.V[i] = clamp((l.V[i]-mean.V[i])/90, -0.3, 0.3)
+	}
+	return d
 }

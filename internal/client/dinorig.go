@@ -6,6 +6,7 @@ import (
 	"image/color"
 	_ "image/png" // the drawings in dinos/
 	"math"
+	"sort"
 	"sync"
 )
 
@@ -415,14 +416,16 @@ func turn(c *canvas, pr rigPart, a float64, joint float64) {
 }
 
 // unspeck cleans a joint filled by sweeping the part through the angles
-// between: the outline along the part's edge, swept round with it, leaves
-// dark specks inside the body. A filled pixel with the body all round it
-// that is much darker than its neighbours takes the colour of one of them.
+// between: lines and specks in the part (its outline, a crease, the edge of
+// a marking) swept round with it leave arcs inside the body. Each filled
+// pixel with the body all round it takes the middle one of its
+// neighbourhood by brightness, which keeps broad tones and drops the thin
+// lines.
 func unspeck(c *canvas, filled []int) {
 	if len(filled) == 0 {
 		return
 	}
-	lumOf := func(q color.RGBA) float64 { return 0.3*float64(q.R) + 0.59*float64(q.G) + 0.11*float64(q.B) }
+	lumOf := func(q color.RGBA) int { return 30*int(q.R) + 59*int(q.G) + 11*int(q.B) }
 	for range 2 {
 		src := append([]color.RGBA(nil), c.px...)
 		for _, o := range filled {
@@ -430,35 +433,24 @@ func unspeck(c *canvas, filled []int) {
 			if x < 1 || y < 1 || x >= c.w-1 || y >= c.h-1 {
 				continue
 			}
-			var nb [8]color.RGBA
-			n, sum := 0, 0.0
-			for dy := -1; dy <= 1; dy++ {
+			var nb [9]color.RGBA
+			n := 0
+			for dy := -1; dy <= 1 && n >= 0; dy++ {
 				for dx := -1; dx <= 1; dx++ {
-					if dx == 0 && dy == 0 {
-						continue
-					}
 					q := src[(y+dy)*c.w+x+dx]
 					if q.A < 128 {
-						n = -100 // at the edge: an outline belongs there
+						n = -1 // at the edge: an outline belongs there
+						break
 					}
-					if n >= 0 {
-						nb[n] = q
-						n++
-						sum += lumOf(q)
-					}
+					nb[n] = q
+					n++
 				}
 			}
-			if n != 8 || lumOf(src[o]) > 0.62*sum/8 {
+			if n != 9 {
 				continue
 			}
-			// The neighbour of middling brightness.
-			best, bd := nb[0], math.Inf(1)
-			for _, q := range nb {
-				if d := math.Abs(lumOf(q) - sum/8); d < bd {
-					best, bd = q, d
-				}
-			}
-			c.px[o] = best
+			sort.Slice(nb[:], func(i, j int) bool { return lumOf(nb[i]) < lumOf(nb[j]) })
+			c.px[o] = nb[4]
 		}
 	}
 }
