@@ -262,6 +262,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target targetView) {
+	g.drawCam = cam
 	list := g.drawList[:0]
 	for i, e := range g.curr.Entities {
 		wx, wy := float64(e.TX)+0.5, float64(e.TY)+0.5

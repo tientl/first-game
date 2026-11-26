@@ -91,14 +91,35 @@ func (g *Game) drawSwimmerHD(dst drawTarget, p protocol.PlayerView, d drawable) 
 		return
 	}
 	sink := lerpf(wadeSink, deepSink, smooth(depth))
-	if m == moSwim && (dir == sim.DirLeft || dir == sim.DirRight) {
-		sink -= 3 * smooth(depth) // lying forward on the water: the shoulders and the reach show
+	sideways := dir == sim.DirLeft || dir == sim.DirRight
+	if m == moSwim && sideways {
+		sink -= smooth(depth) // lying forward on the water: the shoulders at the surface, the arm over it
 	}
 	if m == moSwim {
 		g.drawWake(dst, p, d)
 	}
+	lo, up := m.keys(dir, fr)
+	// The hair floats behind the head: under it, but over the swimmer
+	// swimming away.
+	hx, hy := g.headOf(p, up, lo, d.sx, d.sy+sink)
+	wave := float64(g.frame) / 70
+	if m == moSwim {
+		wave = st.swim.ph
+	}
+	float := func() {
+		switch {
+		case sideways:
+			g.drawFloatHair(dst, p.Look, dir, hx-facingSide(dir)*2.5, d.sy-0.5, wave)
+		case dir == sim.DirDown: // behind the head on the water, mostly hidden by it
+			g.drawFloatHair(dst, p.Look, dir, hx, d.sy-2, wave)
+		default:
+			g.drawFloatHair(dst, p.Look, dir, hx, math.Max(hy+1, d.sy-2), wave)
+		}
+	}
+	if dir != sim.DirUp {
+		float()
+	}
 	g.drawInWater(dst, p, d, sink, 0, func(buf drawTarget, x, y float64) {
-		lo, up := m.keys(dir, fr)
 		var armor *armorArt
 		if p.Armor > sim.TierStone {
 			armor = g.art.armor(p.Armor, p.Look.Female)
@@ -106,6 +127,12 @@ func (g *Game) drawSwimmerHD(dst drawTarget, p protocol.PlayerView, d drawable) 
 		drawFig(buf, figDraw{b: g.art.bodyIn(p.Look, p.Wear), armor: armor, up: up, lo: lo, tint: playerColors[int(p.ID)%len(playerColors)]}, x, y)
 	})
 	g.drawStrokeFX(dst, p, d, m, fr, depth)
+	if dir == sim.DirUp {
+		float()
+	}
+	if m == moSwim {
+		g.drawEntry(dst, p, up, lo, d.sx, d.sy+sink, d.sy, fr, st.swim.ph)
+	}
 }
 
 // The scratch image a figure in the water is drawn in, and where its feet
@@ -218,17 +245,6 @@ func (g *Game) drawStrokeFX(dst drawTarget, p protocol.PlayerView, d drawable, m
 			dot(ax, ay, 0.8-0.15*i, 1)
 		}
 	}
-	// A splash where the hands go in, as they shoot forward (frame 5).
-	if st := g.moveState(p.ID); fr == 5 || fr == 6 {
-		u := math.Mod(st.swim.ph*float64(moSwim.frames())-5, 2) / 2
-		for i := 0; i < 6; i++ {
-			ang := -math.Pi/2 + (float64(i)-2.5)*0.45
-			r := 1.5 + 4*u*(0.6+0.4*hashf(i, 5, uint32(p.ID)))
-			x := d.sx + float64(fx)*6 + math.Cos(ang)*r
-			y := d.sy + float64(fy)*3 + math.Sin(ang)*r*0.8 + 3*u*u
-			dot(x, y, 0.85*(1-u), 1)
-		}
-	}
 }
 
 // fordWading reports whether p walks through water at d: a ford, or the
@@ -285,6 +301,11 @@ func (g *Game) waterReels() []reel {
 		{name: "swim", n: 68, dirs: allDirs, at: swim(0.72, 1, 1), draw: inWater, bg: reelWater},
 		{name: "tread water", n: 80, dirs: allDirs, at: swim(0, 1, 1), draw: inWater, bg: reelWater},
 		{name: "wade in", n: 90, dirs: allDirs, at: swim(0.72, 0, 1), draw: inWater, bg: reelWater},
+		{name: "hair afloat", n: 140, dirs: allDirs, at: func(g *Game, t int, p *protocol.PlayerView, d *drawable) {
+			swim(0.72, 1, 1)(g, t, p, d)
+			p.Look.Hair, p.Look.HairColor = sim.HairStyle(t/20%int(sim.NumHairStyles)), uint8(t/20%int(sim.NumHairColors))
+			p.Look.Female = t/20%2 == 1
+		}, draw: inWater, bg: reelWater},
 		{name: "ford", n: 48, dirs: allDirs, at: func(g *Game, t int, p *protocol.PlayerView, d *drawable) {
 			dx, dy := p.Dir.Delta()
 			along := float32(0.9 * float64(t) / TileW)
@@ -318,4 +339,59 @@ func (g *Game) drawWake(dst drawTarget, p protocol.PlayerView, d drawable) {
 			fillRect(dst, float32(math.Round(x)), float32(math.Round(y)), 2, 1, premul(color.RGBA{232, 244, 250, 255}, a), false)
 		}
 	}
+}
+
+// headOf is where the middle of the head of p's figure in frame (up, lo) is
+// when its feet are at (x, y).
+func (g *Game) headOf(p protocol.PlayerView, up upKey, lo loKey, x, y float64) (float64, float64) {
+	d := up.dir
+	if d == sim.DirLeft {
+		up.dir = sim.DirRight
+	}
+	pose := upperPoseOf(up)
+	var f figHD
+	f.xf = bendOf(pose).head(up.dir, p.Look.Female)
+	hx, hy := f.fwd(27.5, 35)
+	ax, ay := hx/HDDensity-9, hy/HDDensity-limbFeet
+	if d == sim.DirLeft {
+		ax = -ax
+	}
+	return x + ax, y + ay + lowerPoseOf(lo).drop/HDDensity
+}
+
+// drawEntry draws the splash where a swimmer's hand goes into the water
+// ahead, as it comes over it: the near hand seen from the side (frame 0),
+// each in turn from the front or the back (0 and 4). The surface is at sy;
+// the figure's feet at (x, y).
+func (g *Game) drawEntry(dst drawTarget, p protocol.PlayerView, up upKey, lo loKey, x, y, sy float64, fr int, ph float64) {
+	sideways := up.dir == sim.DirLeft || up.dir == sim.DirRight
+	u := math.Mod(ph*float64(moSwim.frames()), 1) // through the frame
+	hand := -1
+	switch {
+	case fr == 0:
+		hand = 0
+	case fr == 4 && !sideways:
+		hand = 1
+	case fr == 1 && u < 0.5: // the spray still falling
+		hand, u = 0, u+1
+	case fr == 5 && u < 0.5 && !sideways:
+		hand, u = 1, u+1
+	}
+	if hand < 0 {
+		return
+	}
+	b := g.art.bodyIn(p.Look, p.Wear)
+	h := b.upper(up).hand[hand]
+	hx := x + h.x
+	u /= 1.5
+	foam := color.RGBA{236, 246, 252, 255}
+	for i := 0; i < 7; i++ {
+		ang := -math.Pi/2 + (float64(i)-3)*0.42
+		r := 1 + 5*u*(0.6+0.4*hashf(i, 5, uint32(p.ID)))
+		px := hx + math.Cos(ang)*r
+		py := sy - 1 + math.Sin(ang)*r*0.9 + 6*u*u // flung up, falling back
+		fillRect(dst, float32(math.Round(px)), float32(math.Round(py)), 1, 1, premul(foam, 0.9*(1-u)), false)
+	}
+	// And a ring where it went in.
+	ring(dst, hx, sy, 2+4*u, 0.8+1.4*u, float64(g.frame), 0.7*(1-u))
 }

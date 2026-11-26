@@ -248,6 +248,7 @@ type lowerPose struct {
 	reach  float64 // how far ahead of the hip a foot comes down: see legK
 	spread float64 // seen from the front or the back, how far each knee goes out to its side, image pixels
 	tuck   [2]bool // seen from the front or the back, the foot is hidden behind its knee: kneeling
+	spin   float64 // the whole figure turned about its hips: see kp.spin
 }
 
 func lowerPoseOf(k loKey) lowerPose {
@@ -277,13 +278,14 @@ type upperPose struct {
 	shut       bool
 
 	// What the trunk and the head do (motion.go): drawn bent, not skewed.
-	tilt   float64 // the trunk leans forwards from the hips, radians; back if negative
-	nod    float64 // the head bows on the neck, radians; thrown back if negative
-	roll   float64 // seen from the front or the back, the trunk sways towards the hand's side, radians
-	jaw    float64 // the jaw dropped, image pixels: biting, chewing
-	open   [2]bool // a hand open, not a fist
-	breath float64 // image pixels the chest rises with a breath
-	fore   [2]bool // a hand up before the face: over the head, or hidden by it from behind
+	tilt           float64 // the trunk leans forwards from the hips, radians; back if negative
+	nod            float64 // the head bows on the neck, radians; thrown back if negative
+	roll           float64 // seen from the front or the back, the trunk sways towards the hand's side, radians
+	jaw            float64 // the jaw dropped, image pixels: biting, chewing
+	open           [2]bool // a hand open, not a fist
+	breath         float64 // image pixels the chest rises with a breath
+	fore           [2]bool // a hand up before the face: over the head, or hidden by it from behind
+	spin, spinDrop float64 // the whole figure turned about its hips (dropped by spinDrop): see kp.spin
 }
 
 func upperPoseOf(k upKey) upperPose {
@@ -906,6 +908,9 @@ func bakeUpper(l sim.Look, w sim.Wear, k upKey, heads headCache) upperCanvas {
 func bakeLower(l sim.Look, w sim.Wear, k loKey) (*canvas, lowerPose) {
 	p := lowerPoseOf(k)
 	g := newLimbGen(l.Sanitized(), w)
+	if p.spin != 0 {
+		g.f.xf = []figMap{xfRot(p.spin, 27, hipY+p.drop)}
+	}
 	switch { // one leg by itself: a rider's, either side of the mount
 	case k.frame&legNear != 0:
 		g.leg(legGeo(k.dir, 0, p), 0, 2.8, k.dir)

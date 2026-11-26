@@ -84,6 +84,7 @@ type Game struct {
 	joltBuf       *fineBuf                    // scratch for drawing a struck player
 	gaits         map[sim.PlayerID]*gaitState // each player's stride; see limbdraw.go
 	moves         map[sim.PlayerID]*moState   // what each player is doing besides; see motionpick.go
+	drawCam       camera                      // the camera of the world being drawn: where the fall of motiondraw.go meets a body
 	heldAge       int                         // see HoldBlows in punch.go
 	prevCreatures map[sim.CreatureID]protocol.CreatureView
 	hearts        []heartFX      // floating up from beasts being fed; see ride.go

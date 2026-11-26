@@ -178,10 +178,10 @@ func (g *Game) motionOf(p protocol.PlayerView, moving bool) (motionID, int, bool
 	if fr, ok := g.waking(p, st); ok && !moving { // up out of bed; see sleephd.go
 		return moWake, fr, true
 	}
-	// Getting up from the ground: at twice the speed of sitting down, the
-	// feet already going.
-	if age := float64(g.frame - st.standAt); age >= 0 && age < moStandUp.span()/2 {
-		return moStandUp, moStandUp.frameAt(age * 2), true
+	// Getting up from the ground where they stand; on the move it is
+	// rising out of a crouch as they step off (rising, drawFigureJ).
+	if age := float64(g.frame - st.standAt); !moving && age >= 0 && age < moStandUp.span() {
+		return moStandUp, moStandUp.frameAt(age), true
 	}
 	if moving {
 		return moNone, 0, false
@@ -277,4 +277,19 @@ func (g *Game) gathering(p protocol.PlayerView) (motionID, int, bool) {
 // backhand take turns.
 func (g *Game) backhand(p protocol.PlayerView) bool {
 	return g.moveState(p.ID).blows%2 == 0
+}
+
+// riseFrames is how long getting up from the ground takes when the player
+// sets off at once: the first steps are taken rising out of a crouch.
+const riseFrames = 34
+
+// rising is how far up p has come (0 low to riseLevels-1) if they set off
+// from sitting a moment ago.
+func (g *Game) rising(p protocol.PlayerView) (int, bool) {
+	st := g.moveState(p.ID)
+	age := g.frame - st.standAt
+	if st.standAt == never || age < 0 || age >= riseFrames {
+		return 0, false
+	}
+	return age * riseLevels / riseFrames, true
 }

@@ -437,6 +437,10 @@ func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, l
 		out := reach(age)
 		f.up = upKey{dir, upThrust, uint8(math.Round(lerpf(2, atkFrames-1, out)))}
 	case p.Mount == 0:
+		if lvl, ok := g.rising(p); ok && !still { // up from the ground as they step off; see motionpick.go
+			f.lo, f.up = moRise.keys(dir, lvl*loFrames+int(lo.frame)%loFrames)
+			break
+		}
 		if fr, dx, dy, ok := g.dismounting(p); ok { // down off a beast; see ridehd.go
 			f.lo, f.up = moDismount.keys(dir, fr)
 			x, y = x+dx, y+dy

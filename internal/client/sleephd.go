@@ -12,38 +12,49 @@ import (
 
 // Sleeping. A sleeper is the jointed figure in a sleeping pose (moSleep),
 // drawn standing, laid down (a row becomes a column, as bodyart.go lays the
-// body) and covered from the shoulders with a fur blanket that follows the
-// shape under it: over the knees, into the hollow of the waist. It fits the
-// bed: on the back the knees are up, on the side it curls. It breathes,
-// slowly, the blanket rising with the chest, and turns over now and then:
-// on its back, onto one side, back, onto the other. Going to bed it sits on
-// the bed's edge, lies back and pulls the blanket up; waking (moWake) it
-// sits up, stands, and stretches with a yawn.
+// body) and covered from the shoulders with a fur that drapes over the shape
+// under it: rounded over the body, up over the knees, down into the hollow
+// of the waist, its lower edge falling past it over the side of the bed, a
+// corner at the foot hanging, ragged with tufts, creased where it falls, the
+// hair of the pelt lying along it. It fits the bed: on the back the knees
+// are up, on the side it curls. It breathes, slowly, the fur rising with the
+// chest, and turns over now and then in steps (moSleepTurn): on its back,
+// rolling onto one side, curling up; back again; onto the other side. Going
+// to bed it squats, sits on the edge and lies back, turned down onto the
+// bed in four steps (moLieBack, drawn turned: see kp.spin), then pulls the
+// fur up; waking (moWake) it sits up, stands, and stretches with a yawn.
+// Long hair spreads over the pillow (hairfloat.go); armour is laid down by
+// the bed.
 //
-// Each drawing is made the first time it is shown and kept: a few poses, a
-// breath in and out, the blanket up or half way.
+// Each drawing is made the first time it is shown and kept.
 
-// sleepKey names one drawing of a sleeper.
-type sleepKey struct {
+// laidKey names one drawing of the figure drawn whole: laid down in bed, or
+// turned part way (spun).
+type laidKey struct {
 	look   sim.Look
 	wear   sim.Wear
 	tint   color.RGBA
-	pose   uint8 // 0 on the back, 1 on the side facing out, 2 on the side facing in, 3 curled on the ground, 4 on the back, stirring
-	breath uint8 // 0 out, 1 in
-	cover  uint8 // the blanket: 0 none, 1 to the hips, 2 to the shoulders
+	m      motionID
+	f      uint8
+	dir    sim.Dir
+	mirror bool
+	lay    bool  // laid down: anchored so that put on a bed's anchor the head is on the pillow
+	cover  uint8 // the fur over it: 0 none, 1 to the hips, 2 to the shoulders
+	thin   bool  // a hide over the legs only, on the bare ground
 }
 
-var sleepCache = map[sleepKey]sprite{}
+var laidCache = map[laidKey]sprite{}
 
-// The art pixel of a sleeper's drawing that goes on its bed's anchor is
-// where the middle of the head is, put on the pillow.
+// The pillow's middle from the bed's anchor, art pixels: a sleeper's head
+// goes there.
 const (
-	pillowX, pillowY = -8.0, -8.0 // the pillow's middle from the bed's anchor, art pixels
+	pillowX, pillowY = -8.0, -8.0
 )
 
-// sleepFrame is the frame of moSleep, the facing it is drawn in, and
-// whether it is mirrored, for pose.
-func sleepFrame(pose uint8) (f int, d sim.Dir, mirror bool) {
+// sleepPose is the frame of moSleep for pose (0 on the back, 1 on the side
+// facing out, 2 on the side facing in, 3 curled on the ground, 4 on the back
+// stirring), the facing it is drawn in, and whether mirrored.
+func sleepPose(pose uint8) (f int, d sim.Dir, mirror bool) {
 	switch pose {
 	case 1:
 		return 2, sim.DirRight, true
@@ -57,34 +68,241 @@ func sleepFrame(pose uint8) (f int, d sim.Dir, mirror bool) {
 	return 0, sim.DirDown, false
 }
 
-// sleeperSprite returns the drawing k, making it the first time.
-func sleeperSprite(k sleepKey) sprite {
-	if s, ok := sleepCache[k]; ok {
+// laidSprite returns drawing k, making it the first time. A laid drawing is
+// anchored at the pillow (see laidKey); a turned one at its hips.
+func laidSprite(k laidKey) sprite {
+	if s, ok := laidCache[k]; ok {
 		return s
 	}
-	f, d, mirror := sleepFrame(k.pose)
-	f += int(k.breath)
-	lo, up := moSleep.keys(d, f)
-	c, drop := standingCanvas(k.look, k.wear, k.tint, up, lo, mirror)
-	lay := layFlat(c)
-	if k.cover > 0 {
-		blanket(lay, shoulderY-2+drop, float64(k.cover)/2, k.pose == 3)
+	lo, up := k.m.keys(k.dir, int(k.f))
+	c, drop := standingCanvas(k.look, k.wear, k.tint, up, lo, k.mirror)
+	p := upperPoseOf(up)
+	// The head's middle and the hips, on the canvas.
+	var f figHD
+	f.xf = bendOf(p).head(k.dir, k.look.Female)
+	hx, hy := f.fwd(27.5, 35)
+	hx += limbPad * HDDensity
+	ix, iy := 27.0+limbPad*HDDensity, hipY+drop
+	if p.spin == 0 {
+		hy += drop
 	}
-	// The head's middle, laid down: it goes on the pillow.
-	hx, hy := 35+drop, float64(c.w-1)-(27+limbPad*HDDensity)
-	s := cropSprite(lay, hx/HDDensity-pillowX, hy/HDDensity-pillowY)
-	sleepCache[k] = s
+	if k.mirror {
+		hx, ix = float64(c.w-1)-hx, float64(c.w-1)-ix
+	}
+	var s sprite
+	if k.lay {
+		lay := layFlat(c)
+		if k.cover > 0 {
+			blanket(lay, shoulderY-2+drop, float64(k.cover)/2, k.thin, uint32(k.look.Hair)*13+uint32(k.f)+uint32(k.m)*7)
+		}
+		// Laid down, (x, y) went to (y, w-1-x).
+		s = cropSprite(lay, hy/HDDensity-pillowX, (float64(c.w-1)-hx)/HDDensity-pillowY)
+	} else {
+		s = cropSprite(c, ix/HDDensity, iy/HDDensity)
+	}
+	laidCache[k] = s
 	return s
+}
+
+// laidHips is where the hips of a sleeper laid on its back are from its
+// bed's anchor: the turned drawings of lying down are put there.
+func laidHips() (float64, float64) {
+	return pillowX + (hipY-35)/HDDensity, pillowY
+}
+
+var blanketFur = mkRamp(0x3e2a1c, 0x5c412c, 0x7d5c3e, 0x9c7a55, 0xbb9a70, 0xd8bd92)
+
+// blanket lays a fur over the laid-down figure on c from column x0 (the
+// shoulders), as far as cover (0 to 1) of the way up from the feet. It
+// drapes: rounded over the body (the body's own lie, smoothed along it),
+// its lower edge falling past it over the side of the bed and a corner at
+// the foot hanging further, the edges ragged with tufts; lit from above and
+// behind, so the top of the roll is bright and what falls away is dark; the
+// body's ridges (knees, hips) lit along their tops; creased where it falls;
+// the pelt's hair lying along it, with darker markings; its top turned down
+// in a hem. thin is a hide over the legs of a sleeper on the bare ground.
+func blanket(c *canvas, x0, cover float64, thin bool, seed uint32) {
+	W, H := c.w, c.h
+	body := func(x, y int) bool { return x >= 0 && y >= 0 && x < W && y < H && c.px[y*W+x].A > 0 }
+	top, bot := make([]float64, W), make([]float64, W)
+	has := make([]bool, W)
+	maxX := -1
+	for x := 0; x < W; x++ {
+		for y := 0; y < H; y++ {
+			if body(x, y) {
+				if !has[x] {
+					top[x] = float64(y)
+				}
+				has[x], bot[x], maxX = true, float64(y), x
+			}
+		}
+	}
+	if maxX < 0 {
+		return
+	}
+	end := float64(maxX) + 3
+	from := math.Round(end - cover*(end-x0))
+	if thin {
+		from = math.Max(from, x0+22)
+	}
+	// The body's middle and half-height, smoothed along it.
+	cy, hh := make([]float64, W), make([]float64, W)
+	for x := 0; x < W; x++ {
+		n, sc, sh := 0.0, 0.0, 0.0
+		for d := -7; d <= 7; d++ {
+			if xx := x + d; xx >= 0 && xx < W && has[xx] && float64(xx) >= from-4 {
+				w := 1 - math.Abs(float64(d))/8
+				sc += w * (top[xx] + bot[xx]) / 2
+				sh += w * (bot[xx] - top[xx]) / 2
+				n += w
+			}
+		}
+		if n > 0 {
+			cy[x], hh[x] = sc/n, sh/n+1.5
+		}
+	}
+	type edge struct{ t, b float64 }
+	edges := make([]edge, W)
+	fur := func(x int, k uint32) float64 { // a ragged edge: tufts
+		return 1.6*(vnoise(float64(x)/5, 0, seed+k)-0.5) + 0.9*(hashf(x/2, int(k), seed)-0.5)
+	}
+	for x := max(0, int(from)); x <= int(end) && x < W; x++ {
+		if hh[x] == 0 {
+			continue
+		}
+		droop := 2.5 + 2.5*vnoise(float64(x)/11, 1, seed)
+		if thin {
+			droop = 1.5
+		}
+		t := cy[x] - hh[x] - 0.5 + fur(x, 1)
+		b := cy[x] + hh[x] + droop + fur(x, 2)
+		// Rounded at the foot, its corner hanging over the side.
+		if u := (float64(x) - (end - 9)) / 9; u > 0 {
+			t += 6 * u * u
+			b -= 2 * u * u
+			if !thin {
+				b += 8 * math.Max(0, 1-math.Abs(u-0.55)/0.4) // the corner
+			}
+		}
+		edges[x] = edge{t, b}
+	}
+	// The hem runs across the body on a slant, pulled up further on the far
+	// side, ragged.
+	fi := max(0, min(W-1, int(from)+2))
+	hemAt := func(y int) float64 {
+		v := 0.0
+		if hh[fi] > 0 {
+			v = clamp01((float64(y) - cy[fi] + hh[fi]) / (2 * hh[fi]))
+		}
+		return from + 4*v + 1.2*(vnoise(float64(y)/4, 3, seed)-0.5)
+	}
+	inside := func(x, y int) bool {
+		if float64(x) < from || x > int(end) || x < 0 || x >= W || y < 0 || y >= H || float64(x) < hemAt(y) {
+			return false
+		}
+		e := edges[x]
+		return e.b > e.t && float64(y) >= e.t && float64(y) <= e.b
+	}
+	// Creases from the body down to the edge, where the fur falls.
+	type crease struct{ x0, y0, x1, y1 float64 }
+	var creases []crease
+	for i := 0; i < 5; i++ {
+		x := from + 6 + (end-from-12)*(float64(i)+hashf(i, 3, seed))/5
+		xi := int(x)
+		if xi < 0 || xi >= W || hh[xi] == 0 {
+			continue
+		}
+		creases = append(creases, crease{x, cy[xi] + hh[xi]*0.4, x + 3 + 4*hashf(i, 4, seed), edges[xi].b + 1})
+	}
+	out := make([]color.RGBA, len(c.px))
+	copy(out, c.px)
+	for y := 0; y < H; y++ {
+		for x := max(0, int(from)); x <= int(end) && x < W; x++ {
+			if !inside(x, y) {
+				continue
+			}
+			e := edges[x]
+			u := (float64(y) - cy[x]) / hh[x]
+			var l float64
+			if u <= 1 { // over the body: a roll, lit on top
+				l = 0.62 - 0.3*u - 0.12*u*u
+			} else { // falling away over the edge
+				l = 0.3 - 0.12*(float64(y)-cy[x]-hh[x])/math.Max(1, e.b-cy[x]-hh[x])
+			}
+			// The body's own ridges under it: lit along their tops,
+			// shaded under.
+			if body(x, y) && !body(x, y-3) {
+				l += 0.1
+			}
+			if body(x, y) && !body(x, y+3) {
+				l -= 0.08
+			}
+			for _, cr := range creases {
+				if float64(y) < cr.y0 {
+					continue
+				}
+				ex, ey := cr.x1-cr.x0, cr.y1-cr.y0
+				tt := clamp01(((float64(x)-cr.x0)*ex + (float64(y)-cr.y0)*ey) / (ex*ex + ey*ey))
+				dx, dy := float64(x)-cr.x0-ex*tt, float64(y)-cr.y0-ey*tt
+				switch dd := math.Hypot(dx, dy); {
+				case dd < 1.1:
+					l -= 0.2
+				case dd < 2.4 && dx < 0:
+					l += 0.09
+				}
+			}
+			// The pelt: its hair lying along the body, darker markings.
+			if hashf(x/4, y, seed+5) < 0.16 {
+				l -= 0.09
+			} else if hashf((x+1)/3, y, seed+6) < 0.08 {
+				l += 0.08
+			}
+			if vnoise(float64(x)/13, float64(y)/8, seed+7) > 0.7 {
+				l -= 0.1
+			}
+			// The hem, turned down at the top.
+			switch hem := float64(x) - hemAt(y); {
+			case hem < 3.5+fur(y, 9):
+				l = 0.8 - 0.05*hem
+				if hashf(x, y/2, seed+8) < 0.3 {
+					l -= 0.14
+				}
+			case hem < 4.5+fur(y, 9):
+				l = 0.24
+			}
+			col := toneOf(blanketFur, l)
+			if !inside(x-1, y) || !inside(x+1, y) || !inside(x, y-1) || !inside(x, y+1) {
+				col = mix(col, colInk, 0.42) // the edge
+			}
+			out[y*W+x] = col
+		}
+	}
+	// Tufts standing off the top edge.
+	for x := max(0, int(from)+5); x <= int(end) && x < W; x++ {
+		e := edges[x]
+		if e.b <= e.t || hashf(x, 11, seed) > 0.35 {
+			continue
+		}
+		if y := int(math.Floor(e.t)) - 1; y >= 0 && y < H {
+			out[y*W+x] = mix(toneOf(blanketFur, 0.7), colInk, 0.35)
+		}
+	}
+	copy(c.px, out)
 }
 
 // standingCanvas draws frame (up, lo) of look l wearing w whole on one
 // canvas, standing, in the player's colour tint, mirrored if asked; and how
-// far its hips dropped.
+// far its hips dropped. A frame turned whole (spin) is put together as it
+// was drawn.
 func standingCanvas(l sim.Look, w sim.Wear, tint color.RGBA, up upKey, lo loKey, mirror bool) (*canvas, float64) {
 	uc := bakeUpper(l, w, up, headCache{})
 	lc, lp := bakeLower(l, w, lo)
 	c := newCanvas(limbW, limbH)
 	drop := int(math.Round(lp.drop))
+	udy := drop
+	if lp.spin != 0 {
+		udy = 0
+	}
 	put := func(src *canvas, tint1 bool, dy int) {
 		for y := 0; y < src.h; y++ {
 			for x := 0; x < src.w; x++ {
@@ -103,15 +321,15 @@ func standingCanvas(l sim.Look, w sim.Wear, tint color.RGBA, up upKey, lo loKey,
 			}
 		}
 	}
-	put(uc.layer[upFar], true, drop)
-	put(uc.layer[upBack], false, drop)
+	put(uc.layer[upFar], true, udy)
+	put(uc.layer[upBack], false, udy)
 	put(lc, false, 0)
-	put(uc.layer[upBody], false, drop)
-	put(uc.layer[upShirt], true, drop)
-	put(uc.layer[upArms], true, drop)
-	put(uc.layer[upTop], false, drop)
-	put(uc.layer[upArmsOver], true, drop)
-	put(uc.layer[upTopOver], false, drop)
+	put(uc.layer[upBody], false, udy)
+	put(uc.layer[upShirt], true, udy)
+	put(uc.layer[upArms], true, udy)
+	put(uc.layer[upTop], false, udy)
+	put(uc.layer[upArmsOver], true, udy)
+	put(uc.layer[upTopOver], false, udy)
 	return c, float64(drop)
 }
 
@@ -149,166 +367,131 @@ func cropSprite(c *canvas, ax, ay float64) sprite {
 	return spriteHD(n.image(), ax-float64(x0)/HDDensity, ay-float64(y0)/HDDensity)
 }
 
-var blanketFur = mkRamp(0x4a3424, 0x6b4d34, 0x8c6a48, 0xab8a63, 0xc8aa80, 0xe2cba3)
-
-// blanket lays a fur over the laid-down figure on c from column x0 (the
-// shoulders) to the feet, as far as cover (0 to 1) of the way up from the
-// feet: over everything there, a little wider, its gaps closed, so it drapes
-// over the knees and down to the waist. Lit from above, the fur's lie
-// along it, a turned-down hem at the top. thin is for a sleeper on the
-// bare ground: a hide just over the legs and hips.
-func blanket(c *canvas, x0, cover float64, thin bool) {
-	in := make([]bool, len(c.px))
-	maxX := 0
-	for y := 0; y < c.h; y++ {
-		for x := 0; x < c.w; x++ {
-			if c.px[y*c.w+x].A > 0 {
-				in[y*c.w+x] = true
-				maxX = max(maxX, x)
-			}
-		}
+// putSprite draws s with its anchor at (x, y).
+func putSprite(dst drawTarget, s sprite, x, y float64) {
+	if s.img == nil {
+		return
 	}
-	grow := func(m []bool, r int, keep bool) []bool {
-		out := make([]bool, len(m))
-		for y := 0; y < c.h; y++ {
-			for x := 0; x < c.w; x++ {
-				v := keep
-				for dy := -r; dy <= r && v == keep; dy++ {
-					for dx := -r; dx <= r; dx++ {
-						if dx*dx+dy*dy > r*r+r {
-							continue
-						}
-						xx, yy := x+dx, y+dy
-						on := xx >= 0 && yy >= 0 && xx < c.w && yy < c.h && m[yy*c.w+xx]
-						if on != keep {
-							v = !keep
-							break
-						}
-					}
-				}
-				out[y*c.w+x] = v
-			}
-		}
-		return out
-	}
-	mask := grow(grow(in, 3, false), 2, true) // closed: the gaps between the limbs filled
-	from := float64(maxX) + 2 - cover*(float64(maxX)+2-x0)
-	if thin {
-		from = math.Max(from, x0+22)
-	}
-	for i := range mask {
-		x := i % c.w
-		mask[i] = mask[i] && float64(x) >= from && x <= maxX+2
-	}
-	// How deep inside the blanket each pixel is, for the light.
-	depth := make([]int, len(mask))
-	cur := mask
-	for k := 1; k <= 6; k++ {
-		cur = grow(cur, 1, true)
-		for i, v := range cur {
-			if v {
-				depth[i] = k
-			}
-		}
-	}
-	top := make([]int, c.w)
-	bot := make([]int, c.w)
-	for x := 0; x < c.w; x++ {
-		top[x], bot[x] = c.h, -1
-		for y := 0; y < c.h; y++ {
-			if mask[y*c.w+x] {
-				top[x], bot[x] = min(top[x], y), max(bot[x], y)
-			}
-		}
-	}
-	for y := 0; y < c.h; y++ {
-		for x := 0; x < c.w; x++ {
-			i := y*c.w + x
-			if !mask[i] {
-				continue
-			}
-			v := 0.0
-			if bot[x] > top[x] {
-				v = float64(y-top[x]) / float64(bot[x]-top[x]) // 0 on top
-			}
-			l := 0.78 - 0.5*v + 0.05*float64(min(depth[i], 4))
-			// The fur lies along the body: streaks, broken.
-			if hashf(x/4, y, 811) < 0.22 {
-				l -= 0.12
-			} else if hashf(x/3, y, 812) < 0.1 {
-				l += 0.1
-			}
-			hem := float64(x) - from
-			switch {
-			case hem < 3:
-				l = 0.82 - 0.06*hem // the hem, turned down, lit
-				if hashf(x, y/2, 813) < 0.3 {
-					l -= 0.15
-				}
-			case hem < 4:
-				l = 0.25 // the shadow under it
-			}
-			if depth[i] <= 1 && hem >= 4 && hashf(x/2, y/2, 814) < 0.3 {
-				continue // the fur's edge in tufts: what is under shows
-			}
-			col := toneOf(blanketFur, l)
-			if depth[i] <= 1 { // the edge
-				col = mix(col, colInk, 0.45)
-			}
-			c.px[i] = col
-		}
-	}
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(x-s.ax, y-s.ay)
+	drawSprite(dst, s, op)
 }
 
+// Going to bed, in frames from lying down (asleepAt): squatting onto it,
+// sat on its edge, lying back, then the fur pulled up.
+const (
+	bedSquat       = 14
+	bedSit         = 26
+	bedLie         = bedSit + 36 // four turned steps over 0.6 s
+	bedFur         = bedLie + 18
+	sleepTurnEvery = 540 // frames between turning over
+	turnTime       = 36  // and how long a turn takes: two steps over 0.6 s
+)
+
 // drawSleeperHD draws p asleep at d, in their bed (the bed is drawn under
-// them as an entity): lying down first if they have only just gone to bed,
-// then asleep, breathing, turning over now and then.
+// them as an entity): going to bed if they have only just lain down, then
+// asleep, breathing, turning over now and then.
 func (g *Game) drawSleeperHD(dst drawTarget, p protocol.PlayerView, d drawable) {
 	st := g.moveState(p.ID)
 	age := float64(g.frame - st.asleepAt)
 	if st.asleepAt == never {
 		age = 1e9
 	}
+	look := p.Look.Sanitized()
 	tint := playerColors[int(p.ID)%len(playerColors)]
-	k := sleepKey{look: p.Look.Sanitized(), wear: p.Wear, tint: tint, cover: 2}
+	x, y := math.Round(d.sx), math.Round(d.sy)
+	hx, hy := laidHips()
 	b := g.art.bodyIn(p.Look, p.Wear)
+	// The standing figure's feet, for its hips on the bed at (hx, hy).
+	feet := func(m motionID, f int) (loKey, upKey, float64) {
+		lo, up := m.keys(sim.DirDown, f)
+		return lo, up, y + hy + hipHeight - motionPose(m, f, sim.DirDown).lo.drop/HDDensity
+	}
 	switch {
-	case age < 14: // down onto the bed
-		lo, up := moSitDown.keys(sim.DirDown, 1)
-		drawFig(dst, figDraw{b: b, up: up, lo: lo, tint: tint}, d.sx-1, d.sy-4)
+	case age < bedSquat: // down onto the bed
+		lo, up, fy := feet(moSitDown, 1)
+		drawFig(dst, figDraw{b: b, up: up, lo: lo, tint: tint}, x+hx, fy)
 		return
-	case age < 28: // sat on its edge
-		lo, up := moSit.keys(sim.DirDown, 0)
-		drawFig(dst, figDraw{b: b, up: up, lo: lo, tint: tint}, d.sx-3, d.sy-4)
+	case age < bedSit: // sat on its edge
+		lo, up, fy := feet(moSit, 0)
+		drawFig(dst, figDraw{b: b, up: up, lo: lo, tint: tint}, x+hx, fy)
 		return
-	case age < 36:
+	case age < bedLie: // lying back onto it, in four steps
+		f := min(3, int((age-bedSit)/((bedLie-bedSit)/4)))
+		putSprite(dst, laidSprite(laidKey{look: look, wear: p.Wear, tint: tint, m: moLieBack, f: uint8(f), dir: sim.DirDown}), x+hx, y+hy)
+		return
+	}
+	k := laidKey{look: look, wear: p.Wear, tint: tint, m: moSleep, lay: true, cover: 2}
+	switch {
+	case age < bedLie+6:
 		k.cover = 0
-	case age < 46:
+	case age < bedFur:
 		k.cover = 1
 	}
 	// Asleep: a breath every three seconds or so; over on one side, back,
-	// over on the other, every nine.
-	t := age + float64(p.ID)*211
-	if math.Sin(t*2*math.Pi/190) > 0 {
-		k.breath = 1
+	// over on the other, every nine, each turn in two steps.
+	t := age - bedLie + float64(p.ID)*211
+	seg := int(t / sleepTurnEvery)
+	seq := [4]uint8{0, 1, 0, 2}
+	pose, prev := seq[seg%4], seq[(seg+3)%4]
+	f, dir, mirror := sleepPose(pose)
+	if math.Sin(t*2*math.Pi/190) > 0 && k.cover == 2 {
+		f++
 	}
-	k.pose = [4]uint8{0, 1, 0, 2}[int(t/540)%4]
+	turning := false
+	if within := t - float64(seg*sleepTurnEvery); seg > 0 && within < turnTime && k.cover == 2 && pose != prev {
+		f, dir, mirror = turnStep(prev, pose, within < turnTime/2)
+		k.m, turning = moSleepTurn, true
+	}
 	if k.cover < 2 {
-		k.pose, k.breath = 0, 0
+		f, dir, mirror = 0, sim.DirDown, false
 	}
-	g.drawSleeping(dst, k, d.sx, d.sy, p.ID)
+	k.f, k.dir, k.mirror = uint8(f), dir, mirror
+	g.drawPillowHair(dst, p.Look, pose, turning, x+pillowX, y+pillowY)
+	putSprite(dst, laidSprite(k), x, y)
+	if k.cover == 2 {
+		g.drawZzz(dst, x+pillowX+2, y+pillowY-8, float64(p.ID))
+	}
+	g.armourByBed(dst, p, x, y)
 }
 
-// drawSleeping draws sleeper k with its bed's anchor at (x, y), and the z's
-// floating up from the head.
-func (g *Game) drawSleeping(dst drawTarget, k sleepKey, x, y float64, id sim.PlayerID) {
-	s := sleeperSprite(k)
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(math.Round(x)-s.ax, math.Round(y)-s.ay)
-	drawSprite(dst, s, op)
-	if k.cover == 2 {
-		g.drawZzz(dst, x+pillowX+2, y+pillowY-8, float64(id))
+// turnStep is the step of turning over from pose a to pose b: the first
+// half of the turn or the second. Onto a side: rolling on the back, then on
+// the side not yet curled up; back from a side, the same the other way.
+func turnStep(a, b uint8, first bool) (f int, d sim.Dir, mirror bool) {
+	side, toSide := b, true
+	if b == 0 {
+		side, toSide = a, false
 	}
+	if first == toSide {
+		return 0, sim.DirDown, side == 2 // rolling: the other way for the other side
+	}
+	return 1, sim.DirRight, side == 1
+}
+
+// armourByBed lays p's armour on the ground beside their bed while they
+// sleep, the helmet by it.
+func (g *Game) armourByBed(dst drawTarget, p protocol.PlayerView, x, y float64) {
+	if p.Armor <= sim.TierStone {
+		return
+	}
+	a := g.art.armor(p.Armor, p.Look.Female)
+	drawAt(dst, a.whole[sim.DirDown][0], x+40, y-3, 1, 1, -math.Pi/2, nil)
+	drawAt(dst, a.helmet[sim.DirDown][0], x+43, y+3, 1, 1, -math.Pi/2, nil)
+}
+
+// drawSleeping draws p curled up asleep on the bare ground at (x, y) under
+// a hide, breathing.
+func (g *Game) drawSleeping(dst drawTarget, p protocol.PlayerView, x, y float64) {
+	k := laidKey{look: p.Look.Sanitized(), wear: p.Wear, tint: playerColors[int(p.ID)%len(playerColors)], m: moSleep, lay: true, cover: 2, thin: true}
+	f, dir, mirror := sleepPose(3)
+	if math.Sin(float64(g.frame)*2*math.Pi/190) > 0 {
+		f++
+	}
+	k.f, k.dir, k.mirror = uint8(f), dir, mirror
+	g.drawPillowHair(dst, p.Look, 3, false, x+pillowX, y+pillowY)
+	putSprite(dst, laidSprite(k), x, y)
+	g.drawZzz(dst, x+pillowX+2, y+pillowY-8, float64(p.ID))
 }
 
 // waking reports the frame of moWake p is on, if they got up a moment ago
@@ -321,22 +504,30 @@ func (g *Game) waking(p protocol.PlayerView, st *moState) (int, bool) {
 	return moWake.frameAt(age), true
 }
 
-// sleepReels are the motion sheets' scenes of sleep: going to bed, asleep
-// and turning over, waking; and curled up asleep on the bare ground.
+// sleepReels are the motion sheets' scenes of sleep: going to bed, turning
+// over each way (the clock jumped on to just before each turn), waking; and
+// curled up asleep on the bare ground.
 func (g *Game) sleepReels() []reel {
+	turnAt := func(k int) int { // the sleep age of turn k
+		return k*sleepTurnEvery - 211*int(sheetID) + bedLie
+	}
 	inBed := func(g *Game, t int, p *protocol.PlayerView, d *drawable) {
 		st := g.moveState(p.ID)
-		// Down at 0, asleep, turned over on the clock, up at 260.
-		const up = 260
-		if t < up {
-			p.Asleep = true
-			st.asleepAt = g.frame - t
-			if t >= 60 {
-				st.asleepAt = g.frame - t*9 // asleep a while: turned over now and then
-			}
-			st.wokeAt = never
-		} else {
-			st.wokeAt = g.frame - (t - up)
+		p.Asleep, p.Armor = true, sim.TierCopper
+		age := t
+		switch {
+		case t < 100:
+		case t < 170:
+			age = turnAt(3) + t - 100 - 12 // onto the side, facing in
+		case t < 240:
+			age = turnAt(4) + t - 170 - 12 // back
+		case t < 310:
+			age = turnAt(5) + t - 240 - 12 // onto the other side
+		}
+		st.asleepAt, st.wokeAt = g.frame-age, never
+		if t >= 310 {
+			p.Asleep = false
+			st.wokeAt, st.asleepAt = g.frame-(t-310), never
 			st.movedAt = g.frame - 1000
 		}
 	}
@@ -345,14 +536,16 @@ func (g *Game) sleepReels() []reel {
 		g.drawPlayer(dst, p, d)
 	}
 	ground := func(g *Game, dst drawTarget, p protocol.PlayerView, d drawable) {
-		k := sleepKey{look: p.Look.Sanitized(), wear: p.Wear, tint: playerColors[int(p.ID)%len(playerColors)], pose: 3, cover: 2}
-		if math.Sin(float64(g.frame)*2*math.Pi/190) > 0 {
-			k.breath = 1
-		}
-		g.drawSleeping(dst, k, d.sx, d.sy+4, p.ID)
+		g.drawSleeping(dst, p, d.sx, d.sy+4)
 	}
 	return []reel{
-		{name: "sleep", n: 360, dirs: []sim.Dir{sim.DirDown}, at: inBed, draw: bed},
+		{name: "sleep", n: 390, dirs: []sim.Dir{sim.DirDown}, at: inBed, draw: bed},
+		{name: "hair on the pillow", n: 140, dirs: []sim.Dir{sim.DirDown}, at: func(g *Game, t int, p *protocol.PlayerView, d *drawable) {
+			p.Look.Hair, p.Look.HairColor = sim.HairStyle(t/20%int(sim.NumHairStyles)), uint8(t/20%int(sim.NumHairColors))
+			p.Look.Female = t/20%2 == 1
+			p.Asleep = true
+			g.moveState(p.ID).asleepAt = g.frame - 200
+		}, draw: bed},
 		{name: "sleep on the ground", n: 200, dirs: []sim.Dir{sim.DirDown}, draw: ground},
 	}
 }
