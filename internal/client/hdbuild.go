@@ -70,10 +70,15 @@ func ropeHD(c *canvas, x0, x1, y int, sag float64) {
 	}
 }
 
+// wallArtH is how tall a wall, a door and a stone wall stand, in art pixels:
+// a palisade a head taller than the player (playerArtH), so a doorway is
+// one they walk through upright.
+const wallArtH = 38
+
 func genWallHD() sprite {
 	const k = HDDensity
-	c := hdCanvas(24, 30)
-	const by = 26 * k
+	c := hdCanvas(24, wallArtH+8)
+	const by = (wallArtH + 4) * k
 	for i := 0; i < 5; i++ {
 		x0 := (1 + i*5) * k
 		top := (4 + int(hashf(i, 0, 910)*4)) * k
@@ -99,16 +104,27 @@ func genWallHD() sprite {
 			}
 		}
 	}
-	ropeHD(c, 3, 72, 11*k, 0)
-	ropeHD(c, 3, 72, 21*k, 0)
+	for i := 0; i < 5; i++ { // a knot or two down each stake, and the scars of lopped branches
+		x0 := (1 + i*5) * k
+		for j := range 2 {
+			if hashf(i, j, 913) < 0.45 {
+				continue
+			}
+			y := float64((14+j*14)*k) + hashf(i, j, 914)*8*k
+			knotHD(c, float64(x0)+3+hashf(i, j, 915)*6, y, 1.8, trunkRamp)
+		}
+	}
+	ropeHD(c, 3, 72, 12*k, 0)
+	ropeHD(c, 3, 72, 24*k, 0)
+	ropeHD(c, 3, 72, 36*k, 0)
 	c.outline(0.8)
 	return mkUp(c, 12*k, by)
 }
 
 func genStoneWallHD() (*canvas, float64, float64) {
 	const k = HDDensity
-	c := hdCanvas(24, 30)
-	const by = 26 * k
+	c := hdCanvas(24, wallArtH+8)
+	const by = (wallArtH + 4) * k
 	tops := [6]int{6, 9, 6, 9, 6, 9} // battlements: a few stones higher than the rest
 	const B = 4 * k                  // a stone, with its mortar
 	for y := 4 * k; y < by+k; y++ {
@@ -157,10 +173,11 @@ func genStoneWallHD() (*canvas, float64, float64) {
 
 func genDoorHD() sprite {
 	const k = HDDensity
-	c := hdCanvas(24, 30)
+	const by = (wallArtH + 4) * k // the ground, as the walls'
+	c := hdCanvas(24, wallArtH+8)
 	// The frame: two posts and a lintel, like the wall's.
-	logHD(c, 1*k, 4*k, 3*k, 27*k-1, trunkRamp, 0.8, 930)
-	logHD(c, 20*k, 23*k, 3*k, 27*k-1, trunkRamp, 0.75, 931)
+	logHD(c, 1*k, 4*k, 3*k, by+k-1, trunkRamp, 0.8, 930)
+	logHD(c, 20*k, 23*k, 3*k, by+k-1, trunkRamp, 0.75, 931)
 	for y := 2 * k; y < 5*k; y++ {
 		for x := 1 * k; x < 23*k; x++ {
 			u := (float64(y-2*k)+0.5)/(1.5*k) - 1
@@ -170,10 +187,10 @@ func genDoorHD() sprite {
 	// The door: upright planks with their grain, each with a lit edge.
 	const pw = 4 * k
 	for x := 4 * k; x < 20*k; x++ {
-		for y := 5 * k; y < 27*k; y++ {
+		for y := 5 * k; y < by+k; y++ {
 			px := (x - 4*k) % pw
 			plank := (x - 4*k) / pw
-			l := 0.52 + float64(plank%2)*0.07 - float64(y-5*k)*0.003 + (hashf(plank, 0, 933)-0.5)*0.1
+			l := 0.52 + float64(plank%2)*0.07 - float64(y-5*k)*0.002 + (hashf(plank, 0, 933)-0.5)*0.1
 			switch px {
 			case 0:
 				l -= 0.32
@@ -185,7 +202,8 @@ func genDoorHD() sprite {
 			c.put(x, y, grainHD(plankRamp, x, y, l, true, 934+uint32(plank)))
 		}
 	}
-	// Two battens across, nailed to every plank, and a brace between them.
+	// Three battens across, nailed to every plank, and a brace between each
+	// two, leaning the other way.
 	batten := func(y0 int) {
 		for y := y0; y < y0+2*k; y++ {
 			for x := 4*k + 1; x < 20*k-1; x++ {
@@ -200,23 +218,31 @@ func genDoorHD() sprite {
 			nailHD(c, 4*k+p*pw+5, y0+2)
 		}
 	}
-	for i := 0; i <= 44; i++ { // the brace, from the low batten to the high one
-		f := float64(i) / 44
-		x, y := int(lerpf(5*k+2, 18*k, f)), int(lerpf(22*k-1, 9*k+3, f))
-		for d := range 4 {
-			c.put(x, y+d, plankRamp.at(3-d))
+	brace := func(x0, y0, x1, y1 float64) {
+		n := int(math.Abs(y1-y0)) * 2
+		for i := 0; i <= n; i++ {
+			f := float64(i) / float64(n)
+			x, y := int(lerpf(x0, x1, f)), int(lerpf(y0, y1, f))
+			for d := range 4 {
+				c.put(x, y+d, plankRamp.at(3-d))
+			}
 		}
 	}
-	batten(7 * k)
-	batten(22 * k)
-	// The iron ring to pull it by, on its plate.
-	c.ellipse(16.5*k, 15*k, 3, 3.6, func(x, y int, nx, ny float64) color.RGBA { return bandRamp.pick(0.3+lum(nx, ny)*0.5, x, y) })
+	const b0, b1, b2 = 8 * k, 22 * k, (wallArtH - 2) * k
+	brace(5*k+2, b1-1, 18*k, b0+2*k)
+	brace(18*k, b2-1, 5*k+2, b1+2*k)
+	batten(b0)
+	batten(b1)
+	batten(b2)
+	// The iron ring to pull it by, on its plate, at the height of a hand.
+	const ry = (wallArtH - 11) * k
+	c.ellipse(16.5*k, ry, 3, 3.6, func(x, y int, nx, ny float64) color.RGBA { return bandRamp.pick(0.3+lum(nx, ny)*0.5, x, y) })
 	for a := 0.0; a < 2*math.Pi; a += 0.1 {
-		x, y := int(16.5*k+math.Cos(a)*3.6), int(17.2*k+math.Sin(a)*4.4)
+		x, y := int(16.5*k+math.Cos(a)*3.6), int(ry+2.2*k+math.Sin(a)*4.4)
 		c.put(x, y, bandRamp.pick(0.75-math.Sin(a)*0.3-math.Cos(a)*0.2, x, y))
 	}
 	c.outline(0.7)
-	return mkUp(c, 12*k, 26*k)
+	return mkUp(c, 12*k, by)
 }
 
 func genFloorHD() sprite {
@@ -436,24 +462,25 @@ func genBonfireHD() sprite {
 
 func genPostHD() sprite {
 	const k = HDDensity
-	c := hdCanvas(6, 22)
-	logHD(c, 2*k, 5*k, 2*k, 21*k-1, trunkRamp, 0.82, 950)
+	c := hdCanvas(6, 30)
+	logHD(c, 2*k, 5*k, 2*k, 29*k-1, trunkRamp, 0.82, 950)
 	c.polygon([]float64{2 * k, 2*k + 1, 3.5 * k, 0, 5 * k, 2*k + 1}, func(x, y int) color.RGBA {
 		return woodRamp.pick(0.8-(float64(x)-2*k)/9*0.6, x, y)
 	})
 	knotHD(c, 3.4*k, 12*k, 1.6, trunkRamp)
+	knotHD(c, 3.7*k, 22*k, 1.4, trunkRamp)
 	c.outline(0.6)
-	return mkUp(c, 3*k, 21*k)
+	return mkUp(c, 3*k, 29*k)
 }
 
 func genTotemHD() sprite {
 	const k = HDDensity
-	c := hdCanvas(16, 46)
-	logHD(c, 4*k, 12*k, 6*k, 45*k-1, trunkRamp, 0.85, 960)
-	// Three carved, painted faces stacked up the post: a brow, sunken
+	c := hdCanvas(16, 70)
+	logHD(c, 4*k, 12*k, 6*k, 69*k-1, trunkRamp, 0.85, 960)
+	// Five carved, painted faces stacked up the post: a brow, sunken
 	// painted eyes, a nose and a mouth of teeth.
-	for i, fy := range []int{10, 22, 34} {
-		paint := []color.RGBA{hex(0xc83020), hex(0xf0e8d0), hex(0x2a6ab0)}[i]
+	for i, fy := range []int{10, 22, 34, 46, 58} {
+		paint := []color.RGBA{hex(0xc83020), hex(0xf0e8d0), hex(0x2a6ab0), hex(0xe0a020), hex(0x2f8a4a)}[i]
 		y0 := fy * k
 		for x := 4*k + 2; x < 12*k-2; x++ { // the brow, and the groove above the face
 			c.put(x, y0-2*k, trunkRamp.at(0))
@@ -501,5 +528,35 @@ func genTotemHD() sprite {
 		})
 	}
 	c.outline(0.8)
-	return mkUp(c, 8*k, 44*k)
+	return mkUp(c, 8*k, 68*k)
+}
+
+// torchStickHD is the torch stand at HD: a stake as high as the player's
+// shoulder, its head a bundle of dry grass bound on with two thongs and
+// charred at the top, where the flame sits (see tribalrender.go).
+func torchStickHD() sprite {
+	const k = HDDensity
+	c := hdCanvas(8, 31)
+	drawLimbHD(c, limb{4 * k, 29 * k, 4.3 * k, 18 * k, 4 * k, 7 * k, 1.3 * k, 1.05 * k}, trunkRamp, 0.82, 951)
+	knotHD(c, 4.3*k, 19*k, 1.4, trunkRamp)
+	c.ellipse(4*k, 4.6*k, 2.5*k, 3.5*k, func(x, y int, nx, ny float64) color.RGBA {
+		l := lum(nx, ny)*0.75 + 0.18 + (hashf(x/2, 0, 952)-0.5)*0.35 // straws running up it
+		col := thatchRamp.pick(l, x, y)
+		if ny < 0 { // charred, the soot creeping down the straws
+			col = mix(hex(0x1c130e), col, clamp01((ny+0.75)*1.6+(hashf(x/2, y/3, 953)-0.5)*0.5))
+		}
+		return col
+	})
+	for _, cy := range []float64{3.6, 6.4} { // the thongs of hide
+		y0 := int(cy * k)
+		for y := y0; y < y0+2; y++ {
+			for x := 0; x < c.w; x++ {
+				if c.opaque(x, y) {
+					c.put(x, y, loinRamp.pick(0.6-float64(y-y0)*0.4-float64(x%3)*0.08, x, y))
+				}
+			}
+		}
+	}
+	c.outline(0.7)
+	return mkUp(c, 4*k, 29*k)
 }

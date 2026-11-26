@@ -142,6 +142,8 @@ type Game struct {
 	lavaMask *ebiten.Image // one pixel per tile in view: where lava glows
 	canopy   *ebiten.Image // one pixel per tile in view: where the woods shade the ground
 	drawList []drawable
+	figures  []figure                 // who may be hidden behind a tree or a wall this frame; see occlude.go
+	fades    map[sim.EntityID]float32 // how solid each fading entity is
 	frame    int
 
 	lastScreenH int // the UI canvas's height last drawn, for mouse hit-testing; see uiscale.go

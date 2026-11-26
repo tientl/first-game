@@ -322,6 +322,8 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		return cmp.Compare(a.id, b.id)
 	})
 	g.drawList = list
+	g.noteFigures(list) // see occlude.go
+	g.prefetchArt()     // see lazyart.go
 
 	if heroHD {
 		g.noteHeroLights(cam) // see herohddraw.go
@@ -434,7 +436,7 @@ func (g *Game) shadowWidth(e protocol.EntityView) float64 {
 	switch e.Kind {
 	case sim.EntityTree:
 		if e.Ready {
-			return 28 * treeScale[size]
+			return 17 * treeScale[size]
 		}
 		return 14 * stumpScale[size]
 	case sim.EntityBoulder:
@@ -542,7 +544,7 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		// Skew moves the top more on a taller sprite: big trunks are stiffer.
 		stiff := 1 / treeScale[size]
 		if g.tileAt(int(e.TX), int(e.TY)) == sim.TileSnow { // frosted pines on the snow
-			pines := a.snowPines[size]
+			pines := a.snowPinesOf(size)
 			return pines[int(h/8)%len(pines)], 0.02 * stiff
 		}
 		tile := g.tileAt(int(e.TX), int(e.TY))
@@ -552,7 +554,7 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		forest := tile == sim.TileForest
 		// Prehistoric trees, by terrain: giant redwoods and monkey-puzzles
 		// in the woods, cycads and ginkgos in the open, tree ferns in both.
-		anc, v := &a.ancient[size], int(h/8)
+		anc, v := a.ancientOf(size), int(h/8)
 		switch pick := (h >> 20) % 20; {
 		case forest && pick < 3:
 			return anc.redwoods[v%len(anc.redwoods)], 0.008 * stiff
@@ -565,14 +567,15 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		case tile == sim.TileGrass && pick < 11:
 			return anc.ginkgos[v%len(anc.ginkgos)], 0.035 * stiff
 		}
+		set := a.treesOf(size)
 		if forest && h%5 < 1 {
-			pines := a.pines[size]
+			pines := set.pines
 			return pines[int(h/8)%len(pines)], 0.02 * stiff
 		}
 		// Vines hang in the woods; out in the open only now and then.
-		trees := a.trees[size]
+		trees := set.trees
 		if v := (h >> 12) % 10; forest && v < 6 || v == 0 {
-			trees = a.vineTrees[size]
+			trees = set.vined
 		}
 		return trees[int(h/8)%len(trees)], 0.035 * stiff
 	case sim.EntityBoulder:
@@ -673,12 +676,20 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		gust := 0.55 + 0.45*math.Sin(t*0.011+float64(e.TX)*0.21+float64(e.TY)*0.13)
 		sway *= gust * math.Sin(t*0.045+float64(sim.HashTile(int(e.TX), int(e.TY))%628)/100)
 	}
-	if tint := g.treeTint(); tint != nil && (e.Kind == sim.EntityTree || e.Kind == sim.EntityGiantTree) && e.Ready && g.tileAt(int(e.TX), int(e.TY)) != sim.TileSnow {
+	tint := g.treeTint()
+	if tint != nil && !((e.Kind == sim.EntityTree || e.Kind == sim.EntityGiantTree) && e.Ready && g.tileAt(int(e.TX), int(e.TY)) != sim.TileSnow) {
+		tint = nil
+	}
+	solid := g.seeThrough(e, s, d) // fading while it hides someone; see occlude.go
+	if tint != nil || solid < 1 {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(-s.ax, -s.ay)
 		op.GeoM.Skew(sway, 0)
 		op.GeoM.Translate(d.sx, d.sy)
-		op.ColorScale.ScaleWithColor(tint)
+		if tint != nil {
+			op.ColorScale.ScaleWithColor(tint)
+		}
+		op.ColorScale.ScaleAlpha(solid)
 		drawSprite(dst, s, op)
 	} else {
 		drawSwaying(dst, s, d.sx, d.sy, sway)
@@ -696,7 +707,7 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		drawAt(dst, f, d.sx, d.sy-1, 0.45, 0.4, 0, nil) // in its mouth
 	}
 	if hasHive(e) {
-		g.drawHive(dst, e, s, d.sx, d.sy) // see jungleart.go
+		g.drawHive(dst, e, s, d.sx, d.sy, solid) // see jungleart.go
 	}
 	g.drawOvenFire(dst, e, d) // see cookrender.go
 }
@@ -960,6 +971,11 @@ func (g *Game) candidateAt(tx, ty int) (sim.TargetCandidate, bool) {
 	return sim.TargetCandidate{ID: e.ID, Kind: e.Kind, Ready: e.Ready, Var: e.Var}, true
 }
 
+// labelLift is the highest a thing's name floats above its foot, in art
+// pixels: trees stand several times the player's height, and a name over the
+// top of the crown would be far from where the player is looking.
+const labelLift = 2.5 * playerArtH
+
 // drawWorldLabels draws, at full screen resolution, what must stay readable
 // at night: the target marker and other players' names.
 func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, tg targetView) {
@@ -986,7 +1002,7 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			e := tg.e
 			sx, sy = cam.toScreen(float64(e.TX)+0.5, float64(e.TY)+0.5)
 			s, _ := g.entitySprite(e)
-			top = sy - s.ay
+			top = sy - min(s.ay, labelLift) // a tree is named across its crown, not above it
 			label = sim.EntityLabel(e.Kind, e.Var)
 			if e.Kind.Sized() {
 				label += [2]string{" nhỏ", " lớn"}[sizeIdx(e.Big)]
@@ -1059,6 +1075,8 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			}
 		}
 		topArt := top - 9 + math.Round(1.5*math.Sin(float64(g.frame)*0.12))
+		// The name stays on the screen, however tall what it names.
+		topArt = max(topArt, (6+18*uiK())/scale)
 		if !tg.aimed { // what the pointer is on is bracketed instead; see drawAimCues
 			mb := g.art.marker.Bounds()
 			op := &ebiten.DrawImageOptions{}

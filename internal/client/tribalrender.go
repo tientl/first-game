@@ -282,13 +282,13 @@ func tribalShadow(e protocol.EntityView) (float64, bool) {
 	case sim.EntityFlower:
 		return 10, true
 	case sim.EntityGlowPlant:
-		return []float64{14, 16, 28}[e.Var%3], true
+		return []float64{14, 16, 28 * glowTreeS}[e.Var%3], true
 	case sim.EntityManEater:
 		return 40, true
 	case sim.EntityTreasure:
 		return 22, true
 	case sim.EntityHut:
-		return 54, true
+		return 84, true
 	case sim.EntityTotem:
 		return 14, true
 	case sim.EntityBonfire, sim.EntityPyramid, sim.EntityPyramidStone, sim.EntityCaveMouth, sim.EntityCaveRock, sim.EntityCaveExit:

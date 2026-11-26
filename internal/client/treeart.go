@@ -82,6 +82,14 @@ func roundCrown(cx, cy, R float64, rng *rand.Rand) crown {
 		a := 2*math.Pi*float64(i)/float64(n) + rng.Float64()*0.5
 		bs = append(bs, blob{cx + math.Cos(a)*R*0.72, cy + math.Sin(a)*R*0.55, R * (0.34 + rng.Float64()*0.14)})
 	}
+	if R/k >= 20 { // a big crown is made of clumps, each catching the light
+		m := 3 + int(R/k/12)
+		for i := range m {
+			a := 2*math.Pi*float64(i)/float64(m) + rng.Float64()*1.2
+			d := R * (0.22 + rng.Float64()*0.22)
+			bs = append(bs, blob{cx + math.Cos(a)*d, cy + math.Sin(a)*d*0.8 - R*0.05, R * (0.24 + rng.Float64()*0.1)})
+		}
+	}
 	bs = append(bs, blob{cx + (rng.Float64()*4-2)*k, cy - R*0.5, R * 0.45})
 	return crown{bs, cx, cy, R * 1.25, R * 1.1}
 }
@@ -118,11 +126,14 @@ func genBroadleafIn(shape treeShape, rp ramp, tex uint32, vines bool, s float64,
 // At HD the tree is drawn three times the size in image pixels (the canvas
 // is marked, see markHD), and the ground point is in image pixels too:
 // trimmed and mkUp make the sprite's anchor of it.
-func broadleafCanvas(shape treeShape, rp ramp, tex uint32, vines bool, s float64, seed uint64) (*canvas, float64, float64) {
+func broadleafCanvas(shape treeShape, rp ramp, tex uint32, vines bool, s float64, seed uint64, stout ...float64) (*canvas, float64, float64) {
 	rng := rand.New(rand.NewPCG(seed, 99))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
 	k := hdK()
-	girth := 2.5 * s * s * k // trunk half-thickness: big trees are stout
+	girth := trunkHalf(s) * k // trunk half-thickness
+	if len(stout) > 0 {
+		girth = stout[0] * k // a giant: its foot is as wide as the ground it stands on
+	}
 	s *= k
 	c := markHD(newCanvas(int(math.Ceil(56*s)), int(math.Ceil(64*s))))
 	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*k // ground point
@@ -142,7 +153,18 @@ func broadleafCanvas(shape treeShape, rp ramp, tex uint32, vines bool, s float64
 	case shapeRound:
 		tx, ty := bx+lean, by-26*s
 		trunkTo(tx, ty)
-		crowns = append(crowns, roundCrown(tx, by-33*s, r(13, 15)*s, rng))
+		if len(stout) == 0 {
+			crowns = append(crowns, roundCrown(tx, by-33*s, r(13, 15)*s, rng))
+			break
+		}
+		// A giant's crown is too big to read as one ball: lobes on limbs of
+		// their own, each shaded as its own mass, the lower ones in front.
+		R, cy := r(13, 15)*s, by-33*s
+		for _, p := range [][3]float64{{0, -0.55, 0.55}, {-0.55, -0.32, 0.5}, {0.55, -0.28, 0.5}, {-0.78, 0.12, 0.42}, {0.78, 0.16, 0.42}, {-0.28, 0.18, 0.5}, {0.3, 0.24, 0.47}} {
+			ex, ey := tx+p[0]*R, cy+p[1]*R
+			branch(tx, ty, ex, ey+p[2]*R*0.35, girth*0.42)
+			crowns = append(crowns, roundCrown(ex, ey, p[2]*R*r(0.95, 1.08), rng))
+		}
 	case shapeTall:
 		tx, ty := bx+lean*0.5, by-22*s
 		trunkTo(tx, ty)
@@ -183,8 +205,13 @@ func broadleafCanvas(shape treeShape, rp ramp, tex uint32, vines bool, s float64
 
 	// Roots, and a few side branches off the trunk: some carry a tuft of
 	// leaves, some are bare.
+	// (At HD the roots are the trunk's own, see trunkhd.go; the draws stay,
+	// so the rest of the tree does not move.)
 	for _, side := range []float64{-1, 1} {
-		limbs = append(limbs, limb{bx, by - 3*s, bx + side*2*s, by - 0.5*s, bx + side*r(3, 4.5)*s, by, girth * 0.6, 0.6 * k})
+		reach := max(r(3, 4.5)*s, girth*1.45) // past the trunk's edge, however stout it is
+		if !c.hd() {
+			limbs = append(limbs, limb{bx, by - 3*s, bx + side*2*s, by - 0.5*s, bx + side*reach, by, girth * 0.6, 0.6 * k})
+		}
 	}
 	for range rng.IntN(3) {
 		x0, y0 := trunk.at(r(0.45, 0.8))
@@ -196,15 +223,44 @@ func broadleafCanvas(shape treeShape, rp ramp, tex uint32, vines bool, s float64
 		}
 	}
 
-	for _, l := range limbs {
-		drawLimb(c, l)
+	var tk trunkHD
+	bark := trunkRamp
+	reach := girth * 1.7
+	if c.hd() {
+		var kind barkKind
+		kind, bark = barkFor(rp)
+		flare := 0.55
+		if len(stout) > 0 {
+			flare = 0.25 // the buttresses spread it
+		}
+		tk = trunkFrom(trunk, kind, bark, flare, uint32(seed)*7+3)
+		tk.draw(c, 3+int(seed%2), reach)
+		if shape == shapeRound || shape == shapeTall || shape == shapeWeeping {
+			// Where the trunk goes into the crown, it forks.
+			fr := rand.New(rand.NewPCG(seed, 103))
+			for _, side := range []float64{-1, 1} {
+				x0, y0 := trunk.at(0.8)
+				x1, y1 := trunk.x1+side*(3+fr.Float64()*3)*s, trunk.y1-(5+fr.Float64()*4)*s
+				limbs = append(limbs, limb{x0, y0, (x0+x1)/2 + side*s, (y0+y1)/2 + s, x1, y1, girth * 0.5, girth * 0.28})
+			}
+		}
+		for _, l := range limbs[1:] {
+			drawLimbHD(c, l, bark, 0.8, 7)
+		}
+	} else {
+		for _, l := range limbs {
+			drawLimb(c, l)
+		}
+	}
+	if len(stout) > 0 && c.hd() {
+		drawButtresses(c, bx, by, girth, seed, bark)
 	}
 	if c.hd() { // a knot or two in the trunk
 		for range 1 + rng.IntN(2) {
 			t := r(0.25, 0.7)
 			x, y := trunk.at(t)
 			w := lerpf(trunk.w0, trunk.w1, t)
-			knotHD(c, x+r(-0.4, 0.4)*w, y, min(4, max(2, w*0.3)), trunkRamp)
+			knotHD(c, x+r(-0.4, 0.4)*w, y, min(4, max(2, w*0.3)), bark)
 		}
 	}
 	// Leaves, back (higher up) to front.
@@ -213,14 +269,223 @@ func broadleafCanvas(shape treeShape, rp ramp, tex uint32, vines bool, s float64
 		leafCluster(c, cr.blobs, cr.cx, cr.cy, cr.rx, cr.ry, rp, 100+tex+uint32(i)*17)
 	}
 	if shape == shapeWeeping {
-		hangCurtains(c, rng, rp, s)
+		hangCurtains(c, rng, rp, s, trunk)
 	}
 	shadeUnderCrown(c)
 	if vines {
 		growVines(c, rng, trunk, s)
 	}
+	switch {
+	case len(stout) > 0 && c.hd():
+		giantBark(c, trunk, by, seed)
+	case vines && c.hd():
+		tk.mossSide(c, 0.5) // the woods are damp
+	}
 	c.outline(0.75)
+	if c.hd() {
+		dressFoot(c, tk, reach, groundGrass)
+	}
 	return c, bx, by
+}
+
+// barkFor is the bark of a leafy tree with leaves of rp: smooth and grey for
+// ginkgos and figs, furrowed for the rest.
+func barkFor(leaves ramp) (barkKind, ramp) {
+	switch &leaves[0] {
+	case &ginkgoRamp[0], &figLeafRamp[0]:
+		return barkSmooth, barkGrey
+	}
+	return barkFurrowed, barkOak
+}
+
+// drawButtresses draws the roots a giant stands on: flat flanges of wood
+// that leave the trunk well above the ground and run out across it, three a
+// side, the nearer ones lower, further forward and better lit, each with a
+// dark crease where it stands against the wood behind it. girth is the
+// trunk's half width.
+func drawButtresses(c *canvas, bx, by, girth float64, seed uint64, rp ramp) {
+	rng := rand.New(rand.NewPCG(seed, 101)) // its own: the tree's own draws stay as they were
+	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
+	k := hdK()
+	for j := range 3 { // back to front
+		f := float64(j) / 2
+		for _, side := range []float64{-1, 1} {
+			reach := girth * (1.85 - 0.45*f + r(-0.12, 0.12))
+			top := by - girth*(1.7-0.6*f+r(-0.15, 0.15))
+			foot := by + (f-0.5)*1.5*k
+			x0 := bx + side*girth*r(0.25, 0.45)
+			l := limb{x0, top, bx + side*reach*0.62, foot - girth*r(0.15, 0.3), bx + side*reach, foot, girth * (0.38 - 0.08*f), 0.9 * k}
+			lit := 0.6 + 0.2*f - 0.08*side
+			fin := limbMask(c, l)
+			drawLimbHD(c, l, rp, lit, 7+uint32(j))
+			for i, on := range fin.on {
+				if !on {
+					continue
+				}
+				x, y := fin.x0+i%fin.w, fin.y0+i/fin.w
+				for _, d := range [3][2]int{{-1, 0}, {1, 0}, {0, -1}} {
+					if nx, ny := x+d[0], y+d[1]; !fin.has(nx, ny) && c.opaque(nx, ny) {
+						c.put(x, y, rp[0]) // the crease against what is behind
+						break
+					}
+				}
+			}
+		}
+	}
+}
+
+// pixMask is a set of pixels of a canvas, over a box.
+type pixMask struct {
+	x0, y0, w, h int
+	on           []bool
+}
+
+func (m pixMask) has(x, y int) bool {
+	x, y = x-m.x0, y-m.y0
+	return x >= 0 && y >= 0 && x < m.w && y < m.h && m.on[y*m.w+x]
+}
+
+// limbMask is the pixels drawLimbHD would paint for l.
+func limbMask(c *canvas, l limb) pixMask {
+	pad := max(l.w0, l.w1) + 2
+	x0 := int(math.Floor(min(l.x0, l.cx, l.x1) - pad))
+	y0 := int(math.Floor(min(l.y0, l.cy, l.y1) - pad))
+	x1 := int(math.Ceil(max(l.x0, l.cx, l.x1) + pad))
+	y1 := int(math.Ceil(max(l.y0, l.cy, l.y1) + pad))
+	m := pixMask{x0, y0, x1 - x0 + 1, y1 - y0 + 1, nil}
+	m.on = make([]bool, m.w*m.h)
+	length := math.Hypot(l.x1-l.x0, l.y1-l.y0)
+	n := int(length*2) + 2
+	for i := 0; i <= n; i++ {
+		t := float64(i) / float64(n)
+		x, y := l.at(t)
+		w := lerpf(l.w0, l.w1, t)
+		for py := int(math.Floor(y - w)); py <= int(math.Ceil(y+w)); py++ {
+			for px := int(math.Floor(x - w)); px <= int(math.Ceil(x+w)); px++ {
+				dx, dy := float64(px)+0.5-x, float64(py)+0.5-y
+				if dx*dx+dy*dy > w*w+0.25 || !c.in(px, py) {
+					continue
+				}
+				m.on[(py-m.y0)*m.w+px-m.x0] = true
+			}
+		}
+	}
+	return m
+}
+
+// giantBark works the trunk of a giant over at the size it is seen: plates
+// of bark split by deep fissures running up it, moss climbing from the
+// ground, and a hollow. It paints only the wood (trunkRamp), so the leaves
+// and vines in front of it stay; it runs after everything that tells wood
+// from leaves by colour (shadeUnderCrown, growVines).
+func giantBark(c *canvas, trunk limb, by float64, seed uint64) {
+	type row struct{ x, w float64 }
+	rows := make([]row, c.h)
+	n := int(trunk.y0-trunk.y1)*2 + 2
+	for i := 0; i <= n; i++ {
+		t := float64(i) / float64(n)
+		x, y := trunk.at(t)
+		if yi := int(y); yi >= 0 && yi < c.h {
+			rows[yi] = row{x, lerpf(trunk.w0, trunk.w1, t)}
+		}
+	}
+	for y := c.h - 1; y >= 0; y-- { // below the trunk's foot: the roots, read against the foot
+		if rows[y].w == 0 && y+1 < c.h {
+			rows[y] = rows[y+1]
+		}
+	}
+	for y := 1; y < c.h; y++ {
+		if rows[y].w == 0 {
+			rows[y] = rows[y-1]
+		}
+	}
+	sd := uint32(seed)*7 + 501
+	height := trunk.y0 - trunk.y1
+	// The hollow: low on the trunk, off its middle.
+	hx := trunk.x0 + (hashf(int(seed), 1, sd)-0.5)*trunk.w0*0.6
+	hy := by - height*(0.26+hashf(int(seed), 2, sd)*0.1)
+	hrx, hry := trunk.w0*0.24, trunk.w0*0.42
+	for y := range c.h {
+		r := rows[y]
+		if r.w == 0 {
+			continue
+		}
+		for x := range c.w {
+			p := c.at(x, y)
+			if !isTrunk(p) {
+				continue
+			}
+			rp := barkOf[p]
+			i := slices.Index(rp, p)
+			u := (float64(x) + 0.5 - r.x) / r.w
+			lit := float64(i) / float64(len(rp)-1) // how lit it was drawn
+			// The hollow, dark within, its lip lit below and to the left.
+			dx, dy := (float64(x)+0.5-hx)/hrx, (float64(y)+0.5-hy)/hry
+			if d := dx*dx + dy*dy; d < 1.45 {
+				switch {
+				case d < 1:
+					c.put(x, y, mix(hex(0x120a06), rp[0], clamp01((dy+1)*0.45+dx*0.1)))
+				case dy > 0 && dx < 0.3:
+					c.put(x, y, rp.pick(0.85, x, y))
+				default:
+					c.put(x, y, rp[1])
+				}
+				continue
+			}
+			// Moss: patches, thicker towards the ground and on the shaded side.
+			up := clamp01((by - float64(y)) / height)
+			m := vnoise(float64(x)*0.05, float64(y)*0.035, sd+1) + (1-up)*(1-up)*0.2 + u*0.06
+			edge := 0.83 + (vnoise(float64(x)*0.35, float64(y)*0.35, sd+4)-0.5)*0.12 // a ragged rim
+			if m > edge && math.Abs(u) < 1.1 {
+				// Cushions of moss: lumpy, lit from the left, darker in the
+				// cracks between the cushions.
+				lump := vnoise(float64(x)*0.28, float64(y)*0.22, sd+5)
+				l := lit*0.55 + 0.2 + (lump-0.5)*0.55 + (hashf(x, y, sd+2)-0.5)*0.22 + min(0.15, (m-edge)*1.5)
+				c.put(x, y, mossRamp.pick(l, x, y))
+				continue
+			}
+			if math.Abs(u) > 1.05 {
+				continue // a root: its own bark will do
+			}
+			// Plates and fissures: where the noise crosses its middle runs a
+			// crack, the plate's edge beside it catching the light.
+			f := vnoise(u*8.5+float64(seed%7), float64(y)*0.011, sd+3) - 0.5
+			switch {
+			case math.Abs(f) < 0.035:
+				c.put(x, y, rp[0])
+			case math.Abs(f) < 0.07:
+				c.put(x, y, rp.at(i-1))
+			case f > 0.07 && f < 0.11 && u < 0.6:
+				c.put(x, y, rp.at(i+1))
+			}
+		}
+	}
+}
+
+// willowStrandHD hangs a willow's strand n pixels down from (x0, y0): a thin
+// stem swaying a little, narrow leaves hanging off it on alternate sides,
+// fewer and smaller towards the tip.
+func willowStrandHD(c *canvas, x0, y0, n int, rp ramp, lit float64, seed uint32, phase float64) {
+	drift := (hashf(x0, y0, seed) - 0.5) * 4 // where the tip ends, off the plumb
+	for i := range n {
+		t := float64(i) / float64(n)
+		y := y0 + i
+		x := x0 + int(math.Round(math.Sin(float64(i)*0.05+phase)*1.4+t*t*drift))
+		c.put(x, y, rp.pick(lit-0.4-t*0.15, x, y))
+		if i%4 != 1 || hashf(x0, i, seed) < t*0.55 {
+			continue
+		}
+		side := 1 - 2*((i/4)%2)
+		ln := 5 - int(t*2.5)
+		for j := range ln {
+			lx, ly := x+side*(1+j/2), y+j
+			l := lit + 0.12 - t*0.25 - float64(j)*0.07 + (hashf(lx, ly, seed)-0.5)*0.2
+			if side < 0 {
+				l += 0.08
+			}
+			c.put(lx, ly, rp.pick(l, lx, ly))
+		}
+	}
 }
 
 // leafStrandHD hangs a strand of small leaves n pixels down from (x, y0).
@@ -254,12 +519,17 @@ func crownUnderside(c *canvas) []int {
 }
 
 // hangCurtains drapes strands of leaves from the crown's underside.
-func hangCurtains(c *canvas, rng *rand.Rand, rp ramp, s float64) {
+func hangCurtains(c *canvas, rng *rand.Rand, rp ramp, s float64, trunk limb) {
 	if c.hd() {
 		bottom := crownUnderside(c)
-		for x := 1; x < c.w; x += 2 + rng.IntN(2) {
-			if y0 := bottom[x]; y0 >= 0 && rng.Float64() >= 0.2 {
-				leafStrandHD(c, x, y0-2, int((5+rng.Float64()*10)*s), rp, 0.55, 77)
+		for x := 1; x < c.w; x += 2 + rng.IntN(4) {
+			if y0 := bottom[x]; y0 >= 0 && rng.Float64() >= 0.15 {
+				if math.Abs(float64(x)-trunk.x1) < trunk.w1*1.3 && hashf(x, 0, 78) < 0.7 {
+					continue // fewer before the trunk, so it shows through
+				}
+				n := int((5 + rng.Float64()*10) * s)
+				lit := 0.45 + 0.3*(1-float64(x)/float64(c.w)) + rng.Float64()*0.15 // lit from the left
+				willowStrandHD(c, x, y0-2, n, rp, lit, uint32(x)*7+77, rng.Float64()*6)
 			}
 		}
 		return
@@ -292,10 +562,10 @@ func shadeUnderCrown(c *canvas) {
 					depth = 0
 				default:
 					depth++
-					if depth <= 3 {
-						c.put(x, y, trunkRamp[0])
-					} else if depth <= 7 && (p != trunkRamp[0]) && (depth <= 5 || dither(x, y) < 0.5) {
-						c.put(x, y, trunkRamp[1])
+					if rp := barkOf[p]; depth <= 3 {
+						c.put(x, y, rp[0])
+					} else if depth <= 7 && (p != rp[0]) && (depth <= 5 || dither(x, y) < 0.5) {
+						c.put(x, y, rp[1])
 					}
 				}
 			}
@@ -471,16 +741,22 @@ const pineVariants = 6
 // genTrees draws every tree at scale s: each leafy shape in each leaf
 // colour, the same trees hung with vines, and the conifers.
 func genTrees(s float64) (trees, vined, pines []sprite) {
-	for sh := treeShape(0); sh < numTreeShapes; sh++ {
-		for pal := range leafRamps {
-			seed := uint64(sh)*7 + uint64(pal)*31 + 5
-			trees = append(trees, genBroadleaf(sh, pal, false, s, seed))
-			vined = append(vined, genBroadleaf(sh, pal, true, s, seed))
+	n := int(numTreeShapes) * len(leafRamps)
+	trees, vined, pines = make([]sprite, n), make([]sprite, n), make([]sprite, pineVariants)
+	inParallel(2*n+pineVariants, func(i int) {
+		if i >= 2*n {
+			v := i - 2*n
+			pines[v] = genPine(v, s, uint64(v)*13+1)
+			return
 		}
-	}
-	for v := range pineVariants {
-		pines = append(pines, genPine(v, s, uint64(v)*13+1))
-	}
+		sh, pal := treeShape(i%n/len(leafRamps)), i%n%len(leafRamps)
+		seed := uint64(sh)*7 + uint64(pal)*31 + 5
+		if i < n {
+			trees[i] = genBroadleaf(sh, pal, false, s, seed)
+		} else {
+			vined[i-n] = genBroadleaf(sh, pal, true, s, seed)
+		}
+	})
 	return trees, vined, pines
 }
 
@@ -614,8 +890,14 @@ func genTreeFern(s float64, seed uint64) sprite {
 	lean := r(-3, 3) * s
 	tx, ty := bx+lean, by-r(34, 40)*s
 	trunk := limb{bx, by, bx + lean*0.2, (by + ty) / 2, tx, ty, 2.2 * s, 1.5 * s}
-	drawLimbIn(c, trunk, treeFernTrunk, 81)
-	for t := 0.1; t < 0.95; t += 0.09 / k * 1.5 { // the scars of old fronds ring the trunk
+	var tk trunkHD
+	if c.hd() { // shaggy with fibres and frond scars, on a mat of roots
+		tk = trunkFrom(trunk, barkShaggy, barkFern, 0.75, uint32(seed)*3+81)
+		tk.draw(c, 5, trunk.w0*1.3)
+	} else {
+		drawLimbIn(c, trunk, treeFernTrunk, 81)
+	}
+	for t := 0.1; t < 0.95 && !c.hd(); t += 0.09 / k * 1.5 { // the scars of old fronds ring the trunk
 		x, y := trunk.at(t)
 		w := lerpf(trunk.w0, trunk.w1, t)
 		c.line(x-w, y, x+w, y+k, func(px, py int, _ float64) color.RGBA { return treeFernTrunk[0] })
@@ -638,6 +920,9 @@ func genTreeFern(s float64, seed uint64) sprite {
 		frond(c, tx, ty, f.a, f.L, treeFernRamp, false, 90+uint32(i))
 	}
 	c.outline(0.55)
+	if c.hd() {
+		dressFoot(c, tk, trunk.w0*1.3, groundGrass)
+	}
 	return trimmed(c, bx, by)
 }
 
@@ -651,10 +936,24 @@ func genCycad(s float64, seed uint64) sprite {
 	c := markHD(newCanvas(int(math.Ceil(58*s)), int(math.Ceil(50*s))))
 	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*k
 	h, half := r(14, 19)*s, 3.8*s
-	for y := int(by - h); y <= int(by); y++ {
-		for x := int(bx - half); x < int(math.Ceil(bx+half)); x++ {
-			u := (float64(x) + 0.5 - (bx - half)) / (2 * half)
+	foot := 0.0
+	if c.hd() {
+		foot = half * 0.3 // its foot is round, not cut off
+	}
+	for y := int(by - h); y <= int(by+foot); y++ {
+		hw := half
+		if c.hd() { // the foot swells out over the ground
+			hw *= 1 + 0.4*math.Exp(-math.Max(0, by-float64(y))/(half*0.7))
+		}
+		for x := int(bx - hw); x < int(math.Ceil(bx+hw)); x++ {
+			u := (float64(x) + 0.5 - (bx - hw)) / (2 * hw)
+			if du := u*2 - 1; float64(y) > by && float64(y) > by+foot*math.Sqrt(math.Max(0, 1-du*du)) {
+				continue
+			}
 			l := 0.8 - u*0.6
+			if d := by - float64(y); c.hd() && d < 4*k {
+				l -= 0.24 * (1 - math.Max(0, d)/(4*k)) // dark where it meets the ground
+			}
 			if !c.hd() {
 				if (x+y*2)%5 == 0 || (x-y*2)%5 == 0 { // diamond scales
 					l -= 0.25
@@ -685,6 +984,9 @@ func genCycad(s float64, seed uint64) sprite {
 		frond(c, tx, ty+k, a, r(15, 19)*s, cycadRamp, true, 140+uint32(i))
 	}
 	c.outline(0.6)
+	if c.hd() {
+		dressFoot(c, trunkHD{bx: bx, by: by, tx: bx, ty: by - h, w0: half, w1: half, seed: uint32(seed) + 37}, half*0.8, groundGrass)
+	}
 	return trimmed(c, bx, by)
 }
 
@@ -695,13 +997,20 @@ func genAraucaria(s float64, seed uint64) sprite {
 	rng := rand.New(rand.NewPCG(seed, 41))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
 	k := hdK()
-	girth := 2.0 * s * s * k
+	girth := trunkHalf(s) * 1.1 * k
 	s *= k
 	c := markHD(newCanvas(int(math.Ceil(60*s)), int(math.Ceil(76*s))))
 	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*k
 	tx, ty := bx+r(-1.5, 1.5)*s, by-r(50, 56)*s
 	trunk := limb{bx, by, bx, (by + ty) / 2, tx, ty, girth, 1.0 * s}
-	drawLimb(c, trunk)
+	var tk trunkHD
+	if c.hd() { // tall and bare, a few dead stubs below the whorls
+		tk = trunkFrom(trunk, barkScales, barkAraucaria, 0.5, uint32(seed)*7+41)
+		tk.draw(c, 3, girth*1.6)
+		tk.stubs(c, 3, 0.3, 0.72)
+	} else {
+		drawLimb(c, trunk)
+	}
 	var crowns []crown
 	tiers := 4
 	for k := range tiers {
@@ -709,8 +1018,20 @@ func genAraucaria(s float64, seed uint64) sprite {
 		span := (10 + float64(k)*4.5) * s
 		for _, side := range []float64{-1, 1} {
 			ex, ey := tx+side*span, y-r(1, 3)*s
-			l := limb{tx, y + hdK(), tx + side*span*0.5, y + 1.5*s, ex, ey, 1.1 * s, 0.6 * hdK()}
-			drawLimb(c, l)
+			l := limb{tx, y + hdK(), tx + side*span*0.5, y + 1.5*s, ex, ey, 0.55 * s, 0.6 * hdK()}
+			if c.hd() {
+				// From the side of the trunk, dipping and curving up at the
+				// tip, thinner than it was, so no bar runs across.
+				_, w := tk.at(y)
+				x0 := tx + side*w*0.7
+				drawLimbHD(c, limb{x0, y + hdK(), x0 + side*span*0.45, y + 2.4*s, ex, ey - 2.5*s, 0.38 * s, 0.5 * hdK()}, barkAraucaria, 0.75, 42)
+				for _, t := range []float64{0.18, 0.27} { // foliage further in
+					x, yy := l.at(t)
+					crowns = append(crowns, crown{[]blob{{x, yy - 1.2*s, 2.4 * s}, {x, yy + 0.3*s, 2.1 * s}}, x, yy, 4 * s, 3 * s})
+				}
+			} else {
+				drawLimb(c, l)
+			}
 			// Ropy foliage: a row of small clumps along the outer branch.
 			for t := 0.35; t <= 1.0; t += 0.16 {
 				x, yy := l.at(t)
@@ -725,6 +1046,9 @@ func genAraucaria(s float64, seed uint64) sprite {
 	}
 	shadeUnderCrown(c)
 	c.outline(0.7)
+	if c.hd() {
+		dressFoot(c, tk, girth*1.6, groundGrass)
+	}
 	return trimmed(c, bx, by)
 }
 
@@ -734,13 +1058,19 @@ func genRedwood(s float64, seed uint64) sprite {
 	rng := rand.New(rand.NewPCG(seed, 43))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
 	k := hdK()
-	base := 4.2 * s * s * k
+	base := 4.4 * s * k
 	s *= k
 	c := markHD(newCanvas(int(math.Ceil(48*s)), int(math.Ceil(100*s))))
 	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*k
 	top := by - r(88, 94)*s
 	tip := 0.8 * s
-	for y := int(top); y <= int(by); y++ {
+	var tk trunkHD
+	if c.hd() { // a great fibrous column flaring over its roots, dead stubs up the bare part
+		tk = trunkHD{bx: bx, by: by, tx: bx, ty: top, w0: base, w1: tip, flare: 0.55, flutes: 4, bark: barkFibre, rp: barkRedwood, seed: uint32(seed)*11 + 5}
+		tk.draw(c, 4, base*0.75)
+		tk.stubs(c, 4, 0.12, 0.38)
+	}
+	for y := int(top); y <= int(by) && !c.hd(); y++ {
 		f := (by - float64(y)) / (by - top) // 0 at the ground, 1 at the top
 		half := lerpf(base, tip, math.Pow(f, 0.7))
 		if f < 0.06 {
@@ -775,6 +1105,9 @@ func genRedwood(s float64, seed uint64) sprite {
 		leafCluster(c, cr.blobs, cr.cx, cr.cy, cr.rx, cr.ry, redwoodLeaf, 260+uint32(i))
 	}
 	c.outline(0.75)
+	if c.hd() {
+		dressFoot(c, tk, base*0.75, groundGrass)
+	}
 	return trimmed(c, bx, by)
 }
 
@@ -784,13 +1117,36 @@ type ancientTrees struct {
 }
 
 func genAncientTrees(s float64) ancientTrees {
-	var t ancientTrees
-	for v := uint64(1); v <= 3; v++ {
-		t.ferns = append(t.ferns, genTreeFern(s, v))
-		t.cycads = append(t.cycads, genCycad(s, v))
-		t.araucarias = append(t.araucarias, genAraucaria(s, v))
-		t.ginkgos = append(t.ginkgos, genBroadleafIn([]treeShape{shapeOak, shapeRound, shapeTall}[v-1], ginkgoRamp, 7, false, s, 70+v))
-		t.redwoods = append(t.redwoods, genRedwood(s, v))
-	}
+	const each = 3
+	t := ancientTrees{make([]sprite, each), make([]sprite, each), make([]sprite, each), make([]sprite, each), make([]sprite, each)}
+	inParallel(5*each, func(i int) {
+		k, v := i/each, uint64(i%each+1)
+		switch k {
+		case 0:
+			t.ferns[v-1] = genTreeFern(s*fernScale, v)
+		case 1:
+			t.cycads[v-1] = genCycad(s*cycadScale, v)
+		case 2:
+			t.araucarias[v-1] = genAraucaria(s, v)
+		case 3:
+			t.ginkgos[v-1] = genBroadleafIn([]treeShape{shapeOak, shapeRound, shapeTall}[v-1], ginkgoRamp, 7, false, s, 70+v)
+		case 4:
+			t.redwoods[v-1] = genRedwood(s*redwoodScale, v)
+		}
+	})
 	return t
 }
+
+// trunkHalf is half the thickness of the trunk of a tree drawn at scale s,
+// in art pixels. The world is sized by the player (playerArtH tall): a full
+// grown tree's trunk is a little wider than their shoulders.
+func trunkHalf(s float64) float64 { return 0.9 + 1.9*s }
+
+// How big the prehistoric trees are drawn next to a broadleaf tree of the
+// same size: a tree fern and a cycad are small trees, and a redwood's
+// generator is already twice as tall as the others.
+const (
+	fernScale    = 0.7
+	cycadScale   = 0.6
+	redwoodScale = 0.8
+)

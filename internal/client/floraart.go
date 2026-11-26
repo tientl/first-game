@@ -165,7 +165,7 @@ var (
 	blackBerry     = mkRamp(0x0c0814, 0x1a1430, 0x30264e, 0x8278b4)
 	aloeRamp       = mkRamp(0x1a4236, 0x28604a, 0x3e805c, 0x5ea074, 0x8cc096, 0xbcdeba)
 	aloeBloom      = mkRamp(0x9c2c14, 0xd04c1c, 0xf07c2c, 0xfcb04c, 0xffe08c)
-	herbLeafRamp       = mkRamp(0x1a4424, 0x2a682e, 0x42903a, 0x64b44a, 0x92d466, 0xc2ec96)
+	herbLeafRamp   = mkRamp(0x1a4424, 0x2a682e, 0x42903a, 0x64b44a, 0x92d466, 0xc2ec96)
 	creamRamp      = mkRamp(0x8c8c74, 0xbcbc9c, 0xe0e0c4, 0xf6f6e4, 0xffffff)
 	mossPadRamp    = mkRamp(0x18341a, 0x285220, 0x3e722a, 0x5e9436, 0x88b44a, 0xb4d46c)
 )
@@ -191,9 +191,9 @@ func (f *flo) bambooCulm(x0, base, h, lean, r, bias float64, rp ramp) *ctube {
 }
 
 func genBambooHD(full bool) (*canvas, float64, float64) {
-	f := newFlo(46, 50)
+	f := newFlo(46, 96)
 	rng := rand.New(rand.NewPCG(71, 3))
-	const bx, base = 23.0, 46.0
+	const bx, base = 23.0, 92.0
 	type culm struct {
 		x, h, lean, r float64
 		back          bool
@@ -201,7 +201,7 @@ func genBambooHD(full bool) (*canvas, float64, float64) {
 	}
 	var culms []culm
 	for i := 0; i < 9; i++ {
-		c := culm{x: bx + (float64(i)-4)*2.2 + (rng.Float64()-0.5)*1.2, h: 27 + rng.Float64()*14, r: 0.85 + rng.Float64()*0.4, back: i%2 == 1}
+		c := culm{x: bx + (float64(i)-4)*2.2 + (rng.Float64()-0.5)*1.2, h: 56 + rng.Float64()*28, r: 1.0 + rng.Float64()*0.45, back: i%2 == 1}
 		c.lean = (c.x-bx)*0.3 + (rng.Float64()-0.5)*3
 		if c.back {
 			c.h *= 0.85

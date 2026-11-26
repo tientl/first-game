@@ -166,6 +166,37 @@ resolution. `go test ./internal/client -bench BakeChunk` times a bake.
 `cmd/shot -envhd=false` (`SetEnvHD`) gives the original density-1 art back,
 to compare.
 
+## Sizes: the player is the yardstick
+
+The standing player is `playerArtH` = 31 art pixels (93 px at 1080p), about
+1.8 m. Trees stand 3-7 of them (`treeScale`, `trunkHalf`, `giantScale`),
+bushes to the waist, doorways 1.2 (`wallArtH`, `hutDoorH`, `doorH` in
+`desertart.go`, `caveMouthRise`). Draw a bigger thing bigger, with more
+leaves, planks or stones, never by scaling the sprite; keep its anchor on
+the ground point so tiles and collision stay. Check it on the scale sheet:
+
+```sh
+go run ./cmd/shot -w 1920 -h 1080 -scalesheet -o sheet.png   # heights printed too
+go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
+```
+
+- What stands in front of the player or a beast fades while they are
+  behind it (`occlude.go`): any sprite of 30 art pixels or more gets a coarse
+  mask of its opaque pixels when its image is made (`noteCover`).
+- The big tree sets are drawn when first wanted (`lazyart.go`): the common
+  ones on a goroutine just after start-up, the snow's, the swamp's and the
+  woods' once the snapshot holds one. `shot -cost` prints what the art
+  costs (bytes, start-up, trees drawn ahead).
+- `shot -jungle`, `-at giant`, `-at hut` and `-move dx,dy` frame things for
+  a look at their size.
+- Trunks at HD go through `trunkHD` (`trunkhd.go`): a taper, a bow, a flared
+  round foot, roots over the ground, a bark per kind (`barkKind`: furrowed,
+  smooth, plates, scales, fibre, rings, shaggy, dead) lit from the top left
+  with a rim on the far edge, dead stubs, moss on the shaded side, and
+  `dressFoot` laying grass, snow, sand or mud over the roots. Every bark
+  ramp is in `barkOf`, which is how `isTrunk` tells wood from leaves.
+  `shot -trunksheet` shows the foot of every kind of tree three times as big.
+
 ## The bosses and sea monsters
 
 Titanoboa, the Megalodon, the Mosasaurus and the giant squid are drawn at

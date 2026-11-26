@@ -548,7 +548,7 @@ func (p *diffPicker) drawScene(view *ebiten.Image, i, x, y int, sel bool) {
 	layer(sc.back)
 	switch sim.Difficulty(i) {
 	case sim.DiffBasic:
-		put(a.trees[0][0], 12, 44, 1, 1, 1)
+		put(a.stumps[1], 12, 47, 1, 1, 1) // a tree would not fit the card now that trees are sized by the player
 		put(a.bushFull, 34, 45, 1, 1, 1)
 		put(a.campBack, 62, 48, 1, 1, 1)
 		put(a.flames[(t/5)%flameFrames], 62, 48, 1, 1, 1)

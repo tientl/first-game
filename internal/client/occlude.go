@@ -1,0 +1,155 @@
+package client
+
+import (
+	"sync"
+
+	"github.com/hajimehoshi/ebiten/v2"
+
+	"survivalgame/internal/protocol"
+	"survivalgame/internal/sim"
+)
+
+// Seeing through what stands in front. Trees, walls and huts are sized by
+// the player now, several times their height, so a crown or a roof drawn in
+// front of someone would hide them. Whatever tall thing covers a player or a
+// beast standing behind it fades until they step out: most for the player
+// themself, less for the others.
+//
+// What a sprite covers is read from a coarse mask of its opaque pixels, kept
+// when the sprite is drawn (noteCover), so a figure beside a trunk under the
+// open air is not taken for hidden.
+
+const (
+	coverCell   = 12             // image pixels to a cell of a mask
+	coverMinH   = 30 * HDDensity // sprites shorter than a player hide nobody: no mask
+	fadeMine    = 0.42           // how solid what hides the player themself stays
+	fadeOthers  = 0.55           // and what hides another player or a beast
+	fadeRate    = 0.16           // of the way there each frame
+	figSamplesX = 3
+	figSamplesY = 6
+)
+
+// coverMask is which cells of a sprite's image are mostly opaque.
+type coverMask struct {
+	w, h int // in cells
+	on   []bool
+}
+
+var coverMasks sync.Map // *ebiten.Image -> *coverMask
+
+// noteCover keeps the mask of img, the image of canvas c.
+func noteCover(img *ebiten.Image, c *canvas) {
+	if c.h < coverMinH {
+		return
+	}
+	m := &coverMask{w: (c.w + coverCell - 1) / coverCell, h: (c.h + coverCell - 1) / coverCell}
+	m.on = make([]bool, m.w*m.h)
+	for cy := range m.h {
+		for cx := range m.w {
+			n, all := 0, 0
+			for y := cy * coverCell; y < min(c.h, (cy+1)*coverCell); y += 3 {
+				for x := cx * coverCell; x < min(c.w, (cx+1)*coverCell); x += 3 {
+					all++
+					if c.px[y*c.w+x].A >= 128 {
+						n++
+					}
+				}
+			}
+			m.on[cy*m.w+cx] = n*2 > all
+		}
+	}
+	coverMasks.Store(img, m)
+}
+
+// at reports whether the mask is opaque at image pixel (x, y).
+func (m *coverMask) at(x, y float64) bool {
+	if x < 0 || y < 0 {
+		return false
+	}
+	cx, cy := int(x)/coverCell, int(y)/coverCell
+	return cx < m.w && cy < m.h && m.on[cy*m.w+cx]
+}
+
+// figure is someone who may be hidden: their ground point on the screen (art
+// pixels), their depth, and the box of their body.
+type figure struct {
+	sx, sy, y float64
+	hw, h     float64
+	mine      bool
+}
+
+// noteFigures lists the players and the beasts of the draw list, for
+// seeThrough.
+func (g *Game) noteFigures(list []drawable) {
+	g.figures = g.figures[:0]
+	for _, d := range list {
+		switch {
+		case d.isPlayer:
+			p := g.curr.Players[d.idx]
+			if p.Dead {
+				continue
+			}
+			g.figures = append(g.figures, figure{d.sx, d.sy, d.y, 5, playerArtH, p.ID == g.myID})
+		case d.creature:
+			c := g.curr.Creatures[d.idx]
+			s, _ := g.creatureSprite(c, d.moving)
+			if s.img == nil || s.ay < 14 {
+				continue // small game is lost in the grass anyway
+			}
+			g.figures = append(g.figures, figure{d.sx, d.sy, d.y, s.w() * 0.3, s.ay * 0.9, false})
+		}
+	}
+}
+
+// seeThrough is how solid entity e, drawn as s at d, is this frame: 1, or
+// less while it hides a figure standing behind it.
+func (g *Game) seeThrough(e protocol.EntityView, s sprite, d drawable) float32 {
+	target := float32(1)
+	if s.img != nil && s.ay >= 30 {
+		if v, ok := coverMasks.Load(s.img); ok {
+			m := v.(*coverMask)
+			k := float64(s.density())
+			left, top := d.sx-s.ax, d.sy-s.ay
+			for _, f := range g.figures {
+				if f.y >= d.y || f.sx+f.hw < left || f.sx-f.hw > left+s.w() || f.sy < top || f.sy-f.h > d.sy {
+					continue // in front of it, or clear of it
+				}
+				hit := 0
+				for j := range figSamplesY {
+					fy := f.sy - f.h*(float64(j)+0.5)/figSamplesY
+					for i := range figSamplesX {
+						fx := f.sx + f.hw*(float64(i)-1)
+						if m.at((fx-left)*k, (fy-top)*k) {
+							hit++
+						}
+					}
+				}
+				if hit*5 < figSamplesX*figSamplesY*2 {
+					continue // less than two fifths of them is behind it
+				}
+				if f.mine {
+					target = fadeMine
+					break
+				}
+				target = fadeOthers
+			}
+		}
+	}
+	cur, fading := g.fades[e.ID]
+	if !fading {
+		if target == 1 {
+			return 1
+		}
+		cur = 1
+	}
+	cur += (target - cur) * fadeRate
+	if target == 1 && cur > 0.985 {
+		delete(g.fades, e.ID)
+		return 1
+	}
+	if g.fades == nil {
+		g.fades = make(map[sim.EntityID]float32)
+	}
+	g.fades[e.ID] = cur
+	return cur
+}

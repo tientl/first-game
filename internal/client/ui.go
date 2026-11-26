@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"math"
+	"time"
 
 	"github.com/hajimehoshi/bitmapfont/v4"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -22,7 +23,10 @@ var sharedArt *art
 // where images can be created.
 func getArt() *art {
 	if sharedArt == nil {
+		start := time.Now()
 		sharedArt = newArt()
+		artTime = time.Since(start) // see ArtCost in scalesheet.go
+		sharedArt.warmCommon()      // the trees, drawn ahead; see lazyart.go
 	}
 	return sharedArt
 }

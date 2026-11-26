@@ -405,7 +405,9 @@ func (c *canvas) bytes() []byte {
 }
 
 func (c *canvas) image() *ebiten.Image {
+	artBytes.Add(int64(4 * c.w * c.h)) // see ArtCost in scalesheet.go
 	img := ebiten.NewImage(c.w, c.h)
 	img.WritePixels(c.bytes())
+	noteCover(img, c) // what it would hide: see occlude.go
 	return img
 }
