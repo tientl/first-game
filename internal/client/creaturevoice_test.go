@@ -12,10 +12,11 @@ import (
 	"survivalgame/internal/sim"
 )
 
-// newVoices are the banks made in creaturevoice.go and tribesound.go.
+// newVoices are the banks made in creaturevoice.go and tribesound.go (the
+// bear's, recorded now, are tested in realvoice_test.go).
 var newVoices = []string{
 	"tribe_warcry", "tribe_shout", "tribe_grunt", "tribe_pain", "tribe_death",
-	"bellow_hurt", "honk", "beast_death", "raptor_yelp", "bear_growl", "bear_roar",
+	"bellow_hurt", "honk", "beast_death", "raptor_yelp",
 	"spider_chitter", "scorpion_click", "sting", "monkey_chatter", "monkey_screech",
 	"mosa_rumble", "kraken_groan",
 }
@@ -288,12 +289,12 @@ func TestAGrazerHitCallsOutAndItsHerdAnswers(t *testing.T) {
 	hit := trike
 	hit.HP, hit.State = 80, sim.CreatureHurt
 	g.snapshotSounds(snapOf(trike, mate), snapOf(hit, mate))
-	if count(*played, "bellow_hurt") != 1 {
+	if count(*played, "trike_hurt") != 1 {
 		t.Fatalf("played %v: a three-horn hit should cry out", *played)
 	}
 	tick(time.Second)
 	g.snapshotSounds(snapOf(hit, mate), snapOf(hit, mate))
-	if count(*played, "bellow") != 1 {
+	if count(*played, "trike_call") != 1 {
 		t.Fatalf("played %v: the herd should call in alarm", *played)
 	}
 	// Hit again as it charges: its cry stands for the bellow it gives as
@@ -308,7 +309,7 @@ func TestAGrazerHitCallsOutAndItsHerdAnswers(t *testing.T) {
 	g.snapshotSounds(snapOf(again, mate), snapOf(charging, mate))
 	tick(time.Second)
 	g.snapshotSounds(snapOf(charging, mate), snapOf(charging, mate))
-	if count(*played, "bellow_hurt") != 2 || count(*played, "bellow") != 1 {
+	if count(*played, "trike_hurt") != 2 || count(*played, "trike_call") != 1 || count(*played, "trike_alarm") != 0 {
 		t.Fatalf("played %v: one more cry, and no bellow over it", *played)
 	}
 	clear(snd.lastPlay)
@@ -318,7 +319,7 @@ func TestAGrazerHitCallsOutAndItsHerdAnswers(t *testing.T) {
 	hb := brachio
 	hb.HP = 170
 	g.snapshotSounds(snapOf(brachio), snapOf(hb))
-	if count(*played, "bellow_hurt") != 3 {
+	if count(*played, "brachio_hurt") != 1 {
 		t.Fatalf("played %v: a long-neck hit should cry out too", *played)
 	}
 }
@@ -332,7 +333,7 @@ func TestBeastsDieCrying(t *testing.T) {
 	body := protocol.EntityView{ID: 9, Kind: sim.EntityCorpse, TX: 11, TY: 10, Var: uint8(sim.CreatureBear)}
 	g.snapshotSounds(protocol.Snapshot{Players: me, Creatures: []protocol.CreatureView{bear}},
 		protocol.Snapshot{Players: me, Entities: []protocol.EntityView{body}})
-	if count(*played, "beast_death") != 1 {
+	if count(*played, "bear_death") != 1 {
 		t.Fatalf("played %v: the bear should groan as it dies", *played)
 	}
 	// A healthy beast walking out of view is not dying.
@@ -358,8 +359,8 @@ func TestCaveAndSeaBeastsSpeak(t *testing.T) {
 		{sim.CreatureScorpion, sim.CreatureIdle, sim.CreatureChase, "scorpion_click"},
 		{sim.CreatureScorpion, sim.CreatureChase, sim.CreatureStrike, "sting"},
 		{sim.CreatureMonkey, sim.CreatureIdle, sim.CreatureFlee, "monkey_screech"},
-		{sim.CreatureMosa, sim.CreatureLurk, sim.CreatureChase, "mosa_rumble"},
-		{sim.CreatureKraken, sim.CreatureLurk, sim.CreatureGrab, "kraken_groan"},
+		{sim.CreatureMosa, sim.CreatureLurk, sim.CreatureChase, "mosa_call"},
+		{sim.CreatureKraken, sim.CreatureLurk, sim.CreatureGrab, "kraken_call"},
 	} {
 		a := protocol.CreatureView{ID: sim.CreatureID(100 + c.kind), Kind: c.kind, X: 12, Y: 10, State: c.from, HP: 50, MaxHP: 50}
 		b := a
@@ -381,18 +382,18 @@ func TestSeaMonstersCallFromTheDeepNowAndThen(t *testing.T) {
 	vm.seaCalls(snapOf(mosa)) // starts the clock
 	tick(200 * time.Millisecond)
 	vm.seaCalls(snapOf(mosa))
-	if count(*played, "mosa_rumble") != 1 {
+	if count(*played, "mosa_call") != 1 {
 		t.Fatalf("played %v: the Mosasaurus should rumble", *played)
 	}
 	tick(3 * time.Second)
 	vm.seaCalls(snapOf(mosa))
-	if count(*played, "mosa_rumble") != 1 {
+	if count(*played, "mosa_call") != 1 {
 		t.Fatalf("played %v: and not again so soon", *played)
 	}
 	vm.roll = func() float64 { return 0.999 }
 	tick(20 * time.Second)
 	vm.seaCalls(snapOf(mosa))
-	if count(*played, "mosa_rumble") != 1 {
+	if count(*played, "mosa_call") != 1 {
 		t.Fatalf("played %v: calls should be rare", *played)
 	}
 }

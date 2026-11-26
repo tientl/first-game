@@ -337,7 +337,7 @@ func (g *Game) creatureSounds(old, cur protocol.Snapshot) {
 			switch {
 			case o.State == sim.CreatureLurk && c.State == sim.CreatureChase:
 				snd.playAt("splash", float64(c.X), float64(c.Y), 0.7, 0.05) // bursting out of the water
-				callAt("croc_hiss", float64(c.X), float64(c.Y), 0.75, 1, 16)
+				callAt("croc_alarm", float64(c.X), float64(c.Y), 0.75, 1, 16)
 			case c.State == sim.CreatureStrike:
 				snd.playAt("chomp", float64(c.X), float64(c.Y), 0.8, 0.06)
 			case c.State == sim.CreatureLurk:

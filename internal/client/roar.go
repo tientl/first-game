@@ -208,7 +208,11 @@ func callAt(name string, x, y, vol, rate, reach float64) {
 
 // roarAt is the tyrant's roar from (x, y): close by in full, from further
 // off muffled, up to the edge of what a player can know of.
-func roarAt(x, y, vol float64) {
+func roarAt(x, y, vol float64) { rexCryAt("rex_roar", x, y, vol) }
+
+// rexCryAt is the tyrant crying out with voice name from (x, y): close by
+// as it is, from further off its roar muffled by the distance.
+func rexCryAt(name string, x, y, vol float64) {
 	if snd == nil {
 		return
 	}
@@ -216,10 +220,10 @@ func roarAt(x, y, vol float64) {
 	d := math.Hypot(x-snd.lx, (y-snd.ly)*1.3)
 	roarShake(d)
 	if d < hearingRange {
-		callAt("roar", x, y, vol, 1, roarReach)
+		callAt(name, x, y, vol, 1, roarReach)
 		return
 	}
-	callAt("roar_far", x, y, vol*1.4, 1, roarReach)
+	callAt("rex_roar_far", x, y, vol*1.4, 1, roarReach)
 }
 
 // roarReach is how far a roar carries, in tiles: about what a client is sent.
@@ -244,31 +248,31 @@ func callOf(k sim.CreatureKind) (callVoice, bool) {
 	s := time.Second
 	switch k {
 	case sim.CreatureRex:
-		return callVoice{"roar", 0.9, 1, roarReach, 28 * s, 9 * s, 3400 * time.Millisecond}, true
+		return callVoice{"rex_roar", 0.9, 1, roarReach, 28 * s, 9 * s, 3400 * time.Millisecond}, true
 	case sim.CreatureBrachio:
-		return callVoice{"hoot", 0.75, 1, 28, 26 * s, 7 * s, 0}, true
+		return callVoice{"brachio_call", 0.75, 1, 28, 26 * s, 7 * s, 0}, true
 	case sim.CreatureTrike:
-		return callVoice{"bellow", 0.6, 1, 22, 22 * s, 4 * s, 1100 * time.Millisecond}, true
+		return callVoice{"trike_call", 0.6, 1, 22, 22 * s, 4 * s, 1100 * time.Millisecond}, true
 	case sim.CreatureToro:
-		return callVoice{"bellow", 0.65, 0.85, 22, 22 * s, 4 * s, 1100 * time.Millisecond}, true
+		return callVoice{"toro_call", 0.65, 1, 22, 22 * s, 4 * s, 1100 * time.Millisecond}, true
 	case sim.CreatureStego:
-		return callVoice{"bellow", 0.5, 0.92, 20, 30 * s, 4 * s, 0}, true
-	case sim.CreatureAnkylo: // a low, nasal honk; see ankylo.go
-		return callVoice{"ankylo_honk", 0.55, 1, 20, 28 * s, 5 * s, 900 * time.Millisecond}, true
+		return callVoice{"stego_call", 0.5, 1, 20, 30 * s, 4 * s, 0}, true
+	case sim.CreatureAnkylo: // a low grunting call, recorded; see realvoice.go and ankylo.go
+		return callVoice{"ankylo_call", 0.55, 1, 20, 28 * s, 5 * s, 900 * time.Millisecond}, true
 	case sim.CreatureThesc:
-		return callVoice{"honk", 0.4, 1, 16, 30 * s, 4 * s, 0}, true // see creaturevoice.go
+		return callVoice{"thesc_call", 0.4, 1, 16, 30 * s, 4 * s, 0}, true // see creaturevoice.go
 	case sim.CreatureMammoth:
-		return callVoice{"trumpet", 0.65, 1, 22, 26 * s, 6 * s, 1200 * time.Millisecond}, true
+		return callVoice{"mammoth_call", 0.65, 1, 22, 26 * s, 6 * s, 1200 * time.Millisecond}, true
 	case sim.CreatureRaptor:
-		return callVoice{"chirp", 0.45, 1, 16, 16 * s, 3 * s, 0}, true
+		return callVoice{"raptor_call", 0.45, 1, 16, 16 * s, 3 * s, 0}, true
 	case sim.CreatureAchero:
-		return callVoice{"chirp", 0.4, 1.22, 16, 16 * s, 3 * s, 0}, true
+		return callVoice{"achero_call", 0.4, 1, 16, 16 * s, 3 * s, 0}, true
 	case sim.CreatureAnzu:
-		return callVoice{"boom", 0.55, 1, 18, 30 * s, 5 * s, 1300 * time.Millisecond}, true
+		return callVoice{"anzu_call", 0.55, 1, 18, 30 * s, 5 * s, 1300 * time.Millisecond}, true
 	case sim.CreatureQuetzal:
-		return callVoice{"croak", 0.5, 1, 18, 28 * s, 5 * s, 0}, true
+		return callVoice{"quetzal_call", 0.5, 1, 18, 28 * s, 5 * s, 0}, true
 	case sim.CreatureOrnitho:
-		return callVoice{"croak", 0.35, 1.55, 16, 30 * s, 5 * s, 0}, true
+		return callVoice{"ornitho_call", 0.35, 1, 16, 30 * s, 5 * s, 0}, true
 	case sim.CreatureSabre:
 		return callVoice{"sabre_roar", 0.4, 1, 22, 34 * s, 8 * s, 0}, true
 	case sim.CreatureMonkey: // a troop hooting and chattering in the trees
@@ -361,7 +365,7 @@ func (g *Game) beastCalls(cur protocol.Snapshot) {
 		return
 	}
 	x, y := float64(call.c.X), float64(call.c.Y)
-	if call.voice.name == "roar" {
+	if call.voice.name == "rex_roar" {
 		roarAt(x, y, call.voice.vol)
 		return
 	}

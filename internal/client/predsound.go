@@ -153,28 +153,29 @@ func (g *Game) predatorGrowls(cur protocol.Snapshot) {
 		if c.State != sim.CreatureChase || c.Tamed {
 			continue
 		}
-		name, gap, vol, rate := "", time.Duration(0), 0.0, 1.0
+		// key is what rate-limits the growl: the two raptors share one.
+		key, name, gap, vol := "", "", time.Duration(0), 0.0
 		switch c.Kind {
 		case sim.CreatureRex:
 			if time.Since(lastRoar) < 4500*time.Millisecond {
 				continue // still roaring
 			}
-			name, gap, vol = "rex_growl", 3200*time.Millisecond, 0.9
+			key, name, gap, vol = "rex_growl", "rex_growl", 3200*time.Millisecond, 0.9
 		case sim.CreatureRaptor:
-			name, gap, vol = "raptor_click", 2200*time.Millisecond, 0.55
+			key, name, gap, vol = "raptor_click", "raptor_growl", 2200*time.Millisecond, 0.55
 		case sim.CreatureAchero:
-			name, gap, vol, rate = "raptor_click", 2200*time.Millisecond, 0.45, 1.2
+			key, name, gap, vol = "raptor_click", "achero_growl", 2200*time.Millisecond, 0.45
 		case sim.CreatureSabre:
-			name, gap, vol = "sabre_growl", 2800*time.Millisecond, 0.7
+			key, name, gap, vol = "sabre_growl", "sabre_growl", 2800*time.Millisecond, 0.7
 		case sim.CreatureTroodon: // see troodonsound.go
-			name, gap, vol = "troodon_click", 1800*time.Millisecond, 0.5
+			key, name, gap, vol = "troodon_click", "troodon_growl", 1800*time.Millisecond, 0.5
 		default:
 			continue
 		}
 		x, y := float64(c.X), float64(c.Y)
-		if math.Hypot(x-snd.lx, (y-snd.ly)*1.3) >= growlReach || !snd.ready(name, gap) {
+		if math.Hypot(x-snd.lx, (y-snd.ly)*1.3) >= growlReach || !snd.ready(key, gap) {
 			continue
 		}
-		callAt(name, x, y, vol, rate, growlReach)
+		callAt(name, x, y, vol, 1, growlReach)
 	}
 }
