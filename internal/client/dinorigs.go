@@ -93,41 +93,41 @@ var dinoRigs = map[string]dinoRig{
 	"dakota": {
 		file: "dakota", stride: 3, runner: true,
 		legs: []rigLimb{ // the near leg, then the far one behind it
-			hind(32, 41, 23, rigPt{35, 19}, rigPt{37.5, 24}, rigPt{34.5, 28.5}, rigPt{35.5, 34}, rigPt{41.5, 35.5}),
-			hind(22, 31, 23, rigPt{25, 19}, rigPt{27.5, 24}, rigPt{24.5, 28.5}, rigPt{25.5, 34}, rigPt{31.5, 35.5}),
+			hind(49, 58, 23, rigPt{52, 19}, rigPt{54.5, 24}, rigPt{51.5, 28.5}, rigPt{52.5, 34}, rigPt{58.5, 35.5}),
+			hind(39, 48, 23, rigPt{42, 19}, rigPt{44.5, 24}, rigPt{41.5, 28.5}, rigPt{42.5, 34}, rigPt{48.5, 35.5}),
 		},
-		head:       rigPart{pivot: rigPt{41, 10}, dir: headUp(0.5), maxY: 14},
-		jaw:        [2]rigPt{{50.5, 8}, {58, 8.4}}, // the upper teeth are above this line, in the drawing
+		head:       rigPart{pivot: rigPt{58, 10}, dir: headUp(0.5), maxY: 14},
+		jaw:        [2]rigPt{{67.5, 8}, {75, 8.4}}, // the upper teeth are above this line, in the drawing
 		drawnTeeth: true,
 		teeth:      true,
 		far:        0b10,
 		// The long stiff tail, from its root over the hips to the point.
-		tail: rigPart{pivot: rigPt{22.5, 12.8}, dir: math.Pi, maxY: 17.6},
+		tail: rigPart{pivot: rigPt{39.5, 12.8}, dir: math.Pi, maxY: 17.6},
 	},
 	"achero": {
 		file: "achero", stride: 2.5, runner: true,
 		legs: []rigLimb{
-			hind(23, 30, 17, rigPt{26, 14}, rigPt{27.5, 18}, rigPt{25, 21}, rigPt{26, 25.5}, rigPt{30.5, 26}),
-			hind(15, 22, 17, rigPt{18.5, 14}, rigPt{19.5, 18}, rigPt{17.5, 21}, rigPt{18.5, 25.5}, rigPt{22.5, 26}),
+			hind(37, 44, 17, rigPt{40, 14}, rigPt{41.5, 18}, rigPt{39, 21}, rigPt{40, 25.5}, rigPt{44.5, 26}),
+			hind(29, 36, 17, rigPt{32.5, 14}, rigPt{33.5, 18}, rigPt{31.5, 21}, rigPt{32.5, 25.5}, rigPt{36.5, 26}),
 		},
-		head:       rigPart{pivot: rigPt{29.6, 6.8}, dir: headUp(0.5), maxY: 10},
-		jaw:        [2]rigPt{{37, 5}, {42.5, 5.2}}, // the upper teeth are above this line, in the drawing
+		head:       rigPart{pivot: rigPt{43.6, 6.8}, dir: headUp(0.5), maxY: 10},
+		jaw:        [2]rigPt{{51, 5}, {56.5, 5.2}}, // the upper teeth are above this line, in the drawing
 		drawnTeeth: true,
 		teeth:      true,
 		far:        0b10,
-		tail:       rigPart{pivot: rigPt{16, 9.4}, dir: math.Pi, maxY: 13.4}, // the long stiff tail
+		tail:       rigPart{pivot: rigPt{30, 9.4}, dir: math.Pi, maxY: 13.4}, // the long stiff tail
 	},
 	"troodon": {
 		file: "troodon", stride: 3, runner: true,
 		legs: []rigLimb{ // the near leg, then the far one behind it
-			hind(23, 32, 22, rigPt{28, 19}, rigPt{29.5, 24}, rigPt{25.5, 28}, rigPt{26.5, 33.5}, rigPt{32, 34.5}),
-			hind(13, 22, 22, rigPt{20, 19}, rigPt{20, 23.5}, rigPt{15.5, 27.5}, rigPt{16.5, 33.5}, rigPt{21.5, 34.5}),
+			hind(34, 43, 22, rigPt{39, 19}, rigPt{40.5, 24}, rigPt{36.5, 28}, rigPt{37.5, 33.5}, rigPt{43, 34.5}),
+			hind(24, 33, 22, rigPt{31, 19}, rigPt{31, 23.5}, rigPt{26.5, 27.5}, rigPt{27.5, 33.5}, rigPt{32.5, 34.5}),
 		},
 		// The head and the slim neck, low and forward, turn about a cut across
 		// the neck; the upper teeth are above the jaw's line, in the drawing.
-		head:       rigPart{pivot: rigPt{34, 11.6}, dir: headUp(0.55), maxY: 15},
-		jaw:        [2]rigPt{{39, 11}, {49.4, 11.1}},
-		tail:       rigPart{pivot: rigPt{19, 13}, dir: math.Pi, maxY: 16.4},
+		head:       rigPart{pivot: rigPt{45, 11.6}, dir: headUp(0.55), maxY: 15},
+		jaw:        [2]rigPt{{50, 11}, {60.4, 11.1}},
+		tail:       rigPart{pivot: rigPt{30, 13}, dir: math.Pi, maxY: 16.4},
 		drawnTeeth: true,
 		teeth:      true,
 		far:        0b10,
