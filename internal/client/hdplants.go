@@ -244,17 +244,6 @@ func stoneHD(c *canvas, x, y, rx, ry, lit float64, rp ramp, seed uint32) {
 	})
 }
 
-func genPebblesHD() sprite {
-	c := hdCanvas(16, 10)
-	for i, s := range []struct{ x, y, rx, ry, l float64 }{
-		{8, 4.5, 2.2, 1.8, 1}, {5, 6.5, 3, 2.3, 0.9}, {10.5, 7, 2.6, 2, 0.75}, {13.2, 5.6, 1.1, 0.9, 0.9},
-	} {
-		stoneHD(c, s.x*hdK3, s.y*hdK3, s.rx*hdK3, s.ry*hdK3, s.l, stoneRamp, 520+uint32(i))
-	}
-	c.outline(0.7)
-	return mkUp(c, 8*hdK3, 8*hdK3)
-}
-
 // --- the undergrowth ----------------------------------------------------------
 
 // frondAlongHD lines the curve at (t from 0 to 1) with leaflets: blades two

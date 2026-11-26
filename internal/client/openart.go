@@ -10,13 +10,13 @@ import (
 )
 
 // Sprites and icons for the open world's resources: cacti in the desert,
-// reeds and mushrooms in the swamp, coal seams in caves and on the ash.
+// reeds and mushrooms in the swamp, and the coal's icon (the coal seams in
+// caves and on the ash are drawn with the rocks: see rockart.go).
 
 type openArt struct {
 	cactus, cactusCut sprite
 	reed, reedCut     sprite
 	mushroom          sprite
-	coal              sprite
 	clams             sprite
 }
 
@@ -37,7 +37,6 @@ func genOpenArt() openArt {
 		reed:      genReeds(true),
 		reedCut:   genReeds(false),
 		mushroom:  genMushrooms(),
-		coal:      genCoalSeam(),
 		clams:     genClamBed(),
 	}
 }
@@ -159,12 +158,6 @@ func genMushrooms() sprite {
 	shroom(5.5, 6, 6, 3.2, capBrown, false)
 	c.outline(0.75)
 	return mkUp(c, 9, 12)
-}
-
-// genCoalSeam is a seam of coal in its rock (see genCoalCanvas).
-func genCoalSeam() sprite {
-	c, ax, ay := genCoalCanvas(0)
-	return mkUp(c, ax, ay)
 }
 
 // genOpenIcons draws the bag icons of cactus flesh, mushrooms and coal.

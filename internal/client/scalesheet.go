@@ -145,15 +145,34 @@ func (g *Game) scaleGroups() (names []string, groups [][]scaleEntry) {
 		scaleEntry{name: "tombstone", s: a.tombstone},
 	)
 	add("Rocks",
-		scaleEntry{name: "boulder (small)", s: a.boulders[0][0]},
-		scaleEntry{name: "boulder", s: a.boulders[1][0]},
+		scaleEntry{name: "boulder (small)", s: a.boulders[rkGranite][0][0]},
+		scaleEntry{name: "boulder", s: a.boulders[rkGranite][1][0]},
 		scaleEntry{name: "copper ore", s: a.ore.rocks[0][0]},
-		scaleEntry{name: "coal", s: a.open.coal},
+		scaleEntry{name: "coal", s: a.ore.coal[0]},
 		scaleEntry{name: "den", s: a.beasts.den},
 		scaleEntry{name: "cave mouth", s: a.cave.mouth},
 		scaleEntry{name: "cave exit", s: a.cave.exit},
 		scaleEntry{name: "pyramid", s: a.desert.pyramid},
 	)
+	var grounds []scaleEntry // the boulders of each ground and every ore vein; see rockart.go
+	for g, name := range [numRockGrounds]string{"granite", "sandstone", "basalt", "snow", "cave"} {
+		for size, big := range []string{"small ", ""} {
+			for v := range a.boulders[g][size] {
+				grounds = append(grounds, scaleEntry{name: fmt.Sprintf("%s%s %d", big, name, v), s: a.boulders[g][size][v]})
+			}
+		}
+	}
+	add("Boulders by ground", grounds...)
+	var ores []scaleEntry
+	for o, name := range []string{"flint", "jade", "agate", "obsidian"} {
+		for v := range a.ore.rocks[o] {
+			ores = append(ores, scaleEntry{name: fmt.Sprintf("%s %d", name, v), s: a.ore.rocks[o][v]})
+		}
+	}
+	for v := range a.ore.coal {
+		ores = append(ores, scaleEntry{name: fmt.Sprintf("coal %d", v), s: a.ore.coal[v]})
+	}
+	add("Ore veins", ores...)
 	beast := func(name string, k sim.CreatureKind) scaleEntry {
 		s, _ := g.creatureSprite(protocol.CreatureView{Kind: k, State: sim.CreatureIdle}, false)
 		return scaleEntry{name: name, s: s, creature: true}

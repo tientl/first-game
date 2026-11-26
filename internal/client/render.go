@@ -579,7 +579,7 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		}
 		return trees[int(h/8)%len(trees)], 0.035 * stiff
 	case sim.EntityBoulder:
-		boulders := a.boulders[size]
+		boulders := a.boulders[rockGroundOf(g.tileAt(int(e.TX), int(e.TY)))][size] // granite, sandstone, basalt...
 		return boulders[int(h/8)%len(boulders)], 0
 	case sim.EntityFigTree, sim.EntityGinkgoTree, sim.EntityPalm:
 		return g.fruitTreeSprite(e)
@@ -606,7 +606,7 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 	case sim.EntityGrave: // a fallen player's body and their things; see sim/grave.go
 		return graveSprite(e), 0 // see bodyart.go
 	case sim.EntityPebble:
-		return a.farm.pebbles, 0
+		return a.farm.pebbles[rockGroundOf(g.tileAt(int(e.TX), int(e.TY)))], 0
 	case sim.EntityFarmland:
 		return a.farm.farmland, 0
 	case sim.EntityCrop:
@@ -636,7 +636,7 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		}
 		return a.open.mushroom, 0
 	case sim.EntityCoal:
-		return a.open.coal, 0
+		return g.coalSeam(e), 0
 	case sim.EntityClam:
 		return a.open.clams, 0
 	case sim.EntityFurnace:

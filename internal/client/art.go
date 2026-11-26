@@ -54,7 +54,7 @@ type art struct {
 	snowPineSets   [2]lazy[[]sprite]     // conifers on the snow, frosted; see iceart.go
 	heldIvorySpear sprite
 	stumps         [2]sprite
-	boulders       [2][]sprite
+	boulders       [numRockGrounds][2][]sprite // by the ground they lie on (rockGroundOf), size and variant; see rockart.go
 	bushFull       sprite
 	bushPicked     sprite
 	tuftFull       sprite
@@ -131,8 +131,10 @@ func newArt() *art {
 	a := &art{}
 	for size := range 2 {
 		a.stumps[size] = genStump(stumpScale[size])
-		for v := 0; v < 3; v++ {
-			a.boulders[size] = append(a.boulders[size], genBoulder(v, boulderScale[size]))
+		for g := range a.boulders {
+			for v := 0; v < 3; v++ {
+				a.boulders[g][size] = append(a.boulders[g][size], genBoulder(g, v, size == 1))
+			}
 		}
 	}
 	a.bushFull, a.bushPicked = genBush(true), genBush(false)
@@ -287,108 +289,11 @@ func genStump(s float64) sprite {
 	return mkUp(c, cx, base)
 }
 
-func genBoulder(variant int, s float64) sprite {
-	c, ax, ay := boulderCanvas(variant, s)
+// genBoulder is boulder variant v on ground g (rockGroundOf), small or big;
+// see rockart.go.
+func genBoulder(g, v int, big bool) sprite {
+	c, ax, ay := boulderCanvas(g, v, big)
 	return mkUp(c, ax, ay)
-}
-
-// boulderCanvas draws boulder variant at scale s, and gives its ground point.
-func boulderCanvas(variant int, s float64) (*canvas, float64, float64) {
-	rng := rand.New(rand.NewPCG(uint64(variant)+7, 3))
-	k := hdK() // at HD: three times the size, in image pixels (see markHD)
-	c := markHD(newCanvas(int(math.Ceil(30*s))*int(k), int(math.Ceil(24*s))*int(k)))
-	cx, cy := math.Round(15*s)*k, 13*s*k
-	ground := math.Round(13*s+8*s) * k
-	s *= k
-	ells := []struct{ x, y, rx, ry float64 }{
-		{cx, cy, (10 + rng.Float64()*2) * s, (8 + rng.Float64()) * s},
-		{cx - (6+rng.Float64()*2)*s, cy + 3*s, (5 + rng.Float64()*2) * s, 4.5 * s},
-		{cx + (6+rng.Float64()*2)*s, cy + 2*s, (5 + rng.Float64()*2) * s, 5 * s},
-	}
-	// Facets: each pixel leans towards the normal of its nearest seed.
-	type seedPt struct{ x, y float64 }
-	var seeds []seedPt
-	for i := 0; i < 7; i++ {
-		seeds = append(seeds, seedPt{cx + (-11+rng.Float64()*22)*s, cy + (-8+rng.Float64()*14)*s})
-	}
-	for y := 0; y < c.h; y++ {
-		for x := 0; x < c.w; x++ {
-			px, py := float64(x)+0.5, float64(y)+0.5
-			inside := false
-			for _, e := range ells {
-				dx, dy := (px-e.x)/e.rx, (py-e.y)/e.ry
-				if dx*dx+dy*dy <= 1 {
-					inside = true
-				}
-			}
-			if !inside || py > ground+0.5 {
-				continue
-			}
-			best, bd, bd2 := seeds[0], math.Inf(1), math.Inf(1)
-			for _, s := range seeds {
-				if d := math.Hypot(px-s.x, (py-s.y)*1.3); d < bd {
-					best, bd, bd2 = s, d, bd
-				} else if d < bd2 {
-					bd2 = d
-				}
-			}
-			gx, gy := (px-cx)/(13*s), (py-cy+2*s)/(11*s)
-			fx, fy := (best.x-cx)/(13*s), (best.y-cy+2*s)/(11*s)
-			l := lum(0.4*gx+0.6*fx, 0.4*gy+0.6*fy) + (vnoise(px*0.5/k, py*0.5/k, 140)-0.5)*0.2
-			if py > cy+6*s {
-				l -= 0.2
-			}
-			mossy := gy < -0.35 && vnoise(px*0.35/k, py*0.5/k, 141+uint32(variant)) > 0.45
-			if c.hd() {
-				// The grain of the stone, pits, and the creases where two
-				// faces meet: dark, with a lit edge on the face below.
-				l += (hashf(x, y, 142) - 0.5) * 0.09
-				l += (vnoise(px*0.45, py*0.45, 143) - 0.5) * 0.12
-				if hashf(x/2, y/2, 144) < 0.025 {
-					l -= 0.22
-				}
-				switch edge := bd2 - bd; {
-				case edge < 1.3:
-					l -= 0.2
-				case edge < 3 && best.y > py:
-					l += 0.1
-				}
-				// Moss with a ragged edge, in tufts.
-				m := vnoise(px*0.35/k, py*0.5/k, 141+uint32(variant)) + (vnoise(px*0.5, py*0.5, 145)-0.5)*0.25
-				mossy = gy < -0.3+(hashf(x, y, 146)-0.5)*0.12 && m > 0.45
-				if mossy {
-					l += (vnoise(px*0.7, py*0.7, 147)-0.5)*0.5 + 0.05
-				} else if m > 0.38 && gy < -0.25 {
-					l -= 0.15 // the damp shade at the moss's edge
-				} else if vnoise(px*0.3, py*0.3, 148+uint32(variant)) > 0.8 && gy > -0.2 {
-					l += 0.12 // a patch of pale lichen
-				}
-			}
-			col := stoneRamp.pick(l, x, y)
-			if mossy {
-				col = mossRamp.pick(l, x, y)
-			}
-			c.put(x, y, col)
-		}
-	}
-	// A crack running down from the top.
-	x, y := cx+(-2+rng.Float64()*4)*s, cy-6*s
-	for i := 0; i < int(math.Round(7*s)); i++ {
-		if c.opaque(int(x), int(y)) {
-			c.put(int(x), int(y), stoneRamp[1])
-			if c.hd() && c.opaque(int(x)+1, int(y)) && i%3 != 0 {
-				c.put(int(x)+1, int(y), stoneRamp[4]) // its lit lip
-			}
-		}
-		if c.hd() {
-			x += (rng.Float64()*2 - 1) * 0.6
-		} else {
-			x += rng.Float64()*2 - 1
-		}
-		y++
-	}
-	c.outline(0.8)
-	return c, cx, ground
 }
 
 func genBush(berries bool) sprite {

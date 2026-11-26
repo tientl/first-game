@@ -23,14 +23,16 @@ var (
 
 // farmArt is the farming part of the art.
 type farmArt struct {
-	pebbles  sprite
+	pebbles  [numRockGrounds]sprite     // by the ground they lie on (rockGroundOf)
 	farmland sprite                     // flat: drawn with the ground, under everything
 	crops    [sim.CropStages + 1]sprite // growing stages, then ripe
 }
 
 func genFarmArt() farmArt {
 	var f farmArt
-	f.pebbles = genPebbles()
+	for g := range f.pebbles {
+		f.pebbles[g] = genPebbles(g)
+	}
 	f.farmland = genFarmland()
 	for s := range f.crops {
 		f.crops[s] = genCrop(s)
@@ -54,16 +56,11 @@ func stones(c *canvas, ss []struct{ x, y, rx, ry, l float64 }) {
 	}
 }
 
-func genPebbles() sprite {
-	if envHD {
-		return genPebblesHD()
-	}
-	c := newCanvas(16, 10)
-	stones(c, []struct{ x, y, rx, ry, l float64 }{
-		{8, 4.5, 2.2, 1.8, 1}, {5, 6.5, 3, 2.3, 0.9}, {10.5, 7, 2.6, 2, 0.75},
-	})
-	c.outline(0.7)
-	return mkUp(c, 8, 8)
+// genPebbles is a few pebbles of ground g (rockGroundOf) lying together; see
+// rockart.go.
+func genPebbles(g int) sprite {
+	c, ax, ay := pebblesScene(g).draw(hdK(), 5)
+	return mkUp(c, ax, ay)
 }
 
 func iconPebbles() *ebiten.Image {

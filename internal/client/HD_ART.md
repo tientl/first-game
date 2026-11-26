@@ -196,6 +196,17 @@ go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
   `dressFoot` laying grass, snow, sand or mud over the roots. Every bark
   ramp is in `barkOf`, which is how `isTrunk` tells wood from leaves.
   `shot -trunksheet` shows the foot of every kind of tree three times as big.
+- Rocks, ore veins, coal seams, pebbles and the furnace (`rockart.go`) are
+  built of convex blocks (each the inside of a few planes) seen from the
+  game's angle: each pixel takes the face it meets first, so faces come out
+  as flat planes and ore pieces sink into the stone. Then the steps of a
+  pixel artist's rock: tones from COMFY52 (`comfy52`) by the light on each
+  face, dark where blocks meet, an outline lighter on the lit side, cracks,
+  lit lips and glints on the edges (`paint`). Boulders and pebbles take the
+  stone of the ground they lie on (`rockGroundOf`: granite, sandstone,
+  basalt, snow, cave); `fit` sets every rock to its height beside the
+  player. `ROCK_DUMP=dir go test ./internal/client -run DumpRocks` writes a
+  sheet of all of them and the steps one vein is drawn in.
 
 ## The bosses and sea monsters
 
