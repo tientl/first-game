@@ -45,21 +45,71 @@ const (
 // more of them, so a bigger world has more islands and wider seas, not just
 // bigger ones.
 const (
-	isleHomeR      = 0.13 // the home island's radius
-	isleLargeR     = 0.093
-	isleLargeRMax  = 0.126
-	isleMediumR    = 0.03
-	isleMediumRMax = 0.056
-	isleIsletR     = 0.007
-	isleIsletRMax  = 0.017
-	isleAtollR     = 0.034
-	isleReach      = 1.62 // of the radius: how far an island's land can reach, peninsulas and all
-	isleRoom       = 1.2  // of the radius: how far apart islands are laid out
-	isleGapLarge   = 14   // tiles of sea at least between two islands' reach
-	isleGapSmall   = 5
-	isleStrait     = 0.3 // share of medium islands set a strait away from a large one
-	isleEdge       = 18  // tiles of sea at least between land and the edge of the world
+	isleHomeR        = 0.13 // the home island's radius
+	isleLargeR       = 0.093
+	isleLargeRMax    = 0.126
+	isleMediumR      = 0.03
+	isleMediumRMax   = 0.056
+	isleIsletR       = 0.007
+	isleIsletRMax    = 0.017
+	isleAtollR       = 0.034
+	isleReach        = 1.62 // of the radius: how far an island's land can reach, peninsulas and all
+	isleRoom         = 1.2  // of the radius: how far apart islands are laid out
+	isleGapLarge     = 14   // tiles of sea at least between two islands' reach
+	isleGapSmall     = 5
+	isleStrait       = 0.3  // share of medium islands set a strait away from a large one
+	isleEdge         = 18   // tiles of sea at least between land and the edge of the world
+	wildsHills       = 90   // tiles of radius past which an island has more hills, not bigger ones (since StyleWilds)
+	wildsStrait      = 0.09 // of the radius: land this near another island's coast is sea (since StyleWilds)
+	wildsMeadowWoods = 0.05 // the meadows' woods start this much higher on their noise (since StyleWilds)
 )
+
+// isleLayout is how big the islands of a world are and how they are laid
+// out: the constants above, or since StyleWilds fewer and bigger islands
+// set closer together.
+type isleLayout struct {
+	homeR, largeR, largeRMax, mediumR, mediumRMax, isletR, isletRMax, atollR float64
+
+	reach, room        float64 // of the radius: see isle.reach and isle.room
+	gapLarge, gapSmall float64
+	edge               float64
+	mediums, islets    float64    // how many in a world of 1024 tiles
+	atolls             float64    // the same
+	armTip             [2]float64 // how far out a peninsula reaches, of the coast's distance: least, and the most more
+	bands              func(IslandKind) (lo, hi float64)
+	wilds              bool // since StyleWilds: more hills and rivers on a bigger island; see field and springs
+}
+
+// islesLayout is the layout of StyleIsles to StyleBeaches.
+var islesLayout = isleLayout{
+	homeR: isleHomeR, largeR: isleLargeR, largeRMax: isleLargeRMax, mediumR: isleMediumR, mediumRMax: isleMediumRMax,
+	isletR: isleIsletR, isletRMax: isleIsletRMax, atollR: isleAtollR,
+	reach: isleReach, room: isleRoom, gapLarge: isleGapLarge, gapSmall: isleGapSmall, edge: isleEdge,
+	mediums: 13, islets: 46, atolls: 1.4, armTip: [2]float64{1.25, 0.3}, bands: isleBand,
+}
+
+// wildsLayout is the layout since StyleWilds: the home island about 1.4
+// times the land it had, a large island about 1.7 times, a medium one about
+// 1.8 times, and only a handful of islets. The islands keep less sea to
+// themselves, and their peninsulas reach out less far, so they fit closer
+// together; the share of the world that is sea falls from about 70% to
+// about 55%. A large island is 250 to 400 tiles across in a world of 1024:
+// six to ten screens.
+var wildsLayout = isleLayout{
+	homeR: 0.154, largeR: 0.12, largeRMax: 0.165, mediumR: 0.042, mediumRMax: 0.072,
+	isletR: 0.008, isletRMax: 0.016, atollR: 0.036,
+	reach: 1.34, room: 1.0, gapLarge: 9, gapSmall: 5, edge: 12,
+	mediums: 8, islets: 14, atolls: 1.4, armTip: [2]float64{1.08, 0.2}, bands: wildsBand,
+	wilds: true,
+}
+
+// layout is the island layout of w's style.
+func (w *World) layout() *isleLayout {
+	if w.style >= StyleWilds {
+		return &wildsLayout
+	}
+	return &islesLayout
+}
 
 // largeKinds are the large islands in the order they are placed: one of
 // each, then (in bigger worlds) a second round without the volcano and the
@@ -79,6 +129,19 @@ func isleBand(k IslandKind) (lo, hi float64) {
 	return 0.6, 0.92
 }
 
+// wildsBand is isleBand for the bigger islands since StyleWilds, which
+// cannot come as close to the bigger home island; the far ones go out
+// towards the corners.
+func wildsBand(k IslandKind) (lo, hi float64) {
+	switch k {
+	case IslandForest, IslandMarsh, IslandMeadow:
+		return 0.56, 0.86
+	case IslandMonkey:
+		return 0.6, 0.92
+	}
+	return 0.68, 1.02
+}
+
 // isle is one island planned for a StyleIsles world.
 type isle struct {
 	role       isleRole
@@ -91,6 +154,7 @@ type isle struct {
 	hill       [3]float64 // the home island's hill, or the monkeys' crag: x, y, radius
 	flat       [3]float64 // ground kept low and level: round the spawn, or the pyramid's plain; x, y, radius
 	seed       uint32
+	lay        *isleLayout // the world's layout
 }
 
 // isleArm is a peninsula, from its root to its tip.
@@ -100,13 +164,18 @@ type isleArm struct{ x0, y0, x1, y1, w0, w1 float64 }
 // (x0, y0) in to (x1, y1).
 type isleBay struct{ x0, y0, x1, y1, r float64 }
 
-// reach is how far from its middle the island's land can lie.
-func (s *isle) reach() float64 { return s.r * s.elong * isleReach }
+// reach is how far from its middle the island's land can lie, as the
+// islands are laid out.
+func (s *isle) reach() float64 { return s.r * s.elong * s.lay.reach }
+
+// span is how far from its middle the island's land can lie at the most:
+// its reach in the older layout, a margin past it in the newer one.
+func (s *isle) span() float64 { return s.r * s.elong * isleReach }
 
 // room is how much sea round its middle an island keeps to itself when the
 // islands are laid out: less than its reach, as a peninsula only reaches
 // out on one side; one that comes near another island makes a strait.
-func (s *isle) room() float64 { return s.r * s.elong * isleRoom }
+func (s *isle) room() float64 { return s.r * s.elong * s.lay.room }
 
 // isleScale is the factor island radii are multiplied by past 1024 tiles,
 // and how many more islands of each role there are.
@@ -119,19 +188,23 @@ func isleScale(m float64) (rs, count float64) {
 	return rs, count
 }
 
-// planIsles lays out the islands of a world of W by H.
-func planIsles(W, H int, seed uint32) []isle {
+// planIsles lays out the islands of a world of W by H, after lay.
+func planIsles(W, H int, seed uint32, lay *isleLayout) []isle {
 	m := float64(min(W, H))
 	rs, cf := isleScale(m)
 	rng := rand.New(rand.NewPCG(uint64(seed), 0x15e5))
 	cx, cy := float64(W)/2, float64(H)/2
 	rad := func(lo, hi float64) float64 { return (lo + (hi-lo)*rng.Float64()) * m * rs }
 	var isles []isle
+	var basin [3]float64 // since StyleWilds: open sea kept clear of land, x, y and radius; see deepBasin
 	fits := func(s *isle, gap float64, partner int) bool {
-		if re := s.reach(); s.x-re < isleEdge || s.y-re < isleEdge || s.x+re > float64(W)-isleEdge || s.y+re > float64(H)-isleEdge {
+		if re := s.reach(); s.x-re < lay.edge || s.y-re < lay.edge || s.x+re > float64(W)-lay.edge || s.y+re > float64(H)-lay.edge {
 			return false
 		}
 		re := s.room()
+		if basin[2] > 0 && math.Hypot(basin[0]-s.x, basin[1]-s.y) < basin[2]+s.reach()+gap {
+			return false // the Megalodon's deep sea
+		}
 		for i := range isles {
 			o := &isles[i]
 			g := gap
@@ -150,7 +223,7 @@ func planIsles(W, H int, seed uint32) []isle {
 			r := max(rad(rlo, rhi)*shrink, 3)
 			a := rng.Float64() * 2 * math.Pi
 			d := (dlo + (dhi-dlo)*rng.Float64()) * m / 2
-			s := newIsle(rng, role, kind, cx+math.Cos(a)*d, cy+math.Sin(a)*d, r)
+			s := newIsle(rng, lay, role, kind, cx+math.Cos(a)*d, cy+math.Sin(a)*d, r)
 			if fits(&s, gap, -1) {
 				isles = append(isles, s)
 				return true
@@ -159,35 +232,40 @@ func planIsles(W, H int, seed uint32) []isle {
 		return false
 	}
 
-	isles = append(isles, newIsle(rng, roleHome, IslandMeadow, cx+(rng.Float64()-0.5)*m*0.03, cy+(rng.Float64()-0.5)*m*0.03, max(14, isleHomeR*m*rs)))
+	isles = append(isles, newIsle(rng, lay, roleHome, IslandMeadow, cx+(rng.Float64()-0.5)*m*0.03, cy+(rng.Float64()-0.5)*m*0.03, max(14, lay.homeR*m*rs)))
 	kinds := append([]IslandKind(nil), largeKinds...)
 	for n := len(largeKinds); n < int(math.Round(6*cf)); n++ {
 		kinds = append(kinds, largeKindsMore[(n-len(largeKinds))%len(largeKindsMore)])
 	}
+	if lay.wilds {
+		basin = deepBasin(W, H, lay, rng.IntN(4))
+		left := ringIsles(rng, lay, &isles, kinds[:len(largeKinds)], fits, W, H, m*rs, math.Atan2(basin[1]-cy, basin[0]-cx))
+		kinds = append(left, kinds[len(largeKinds):]...)
+	}
 	for _, k := range kinds {
-		lo, hi := isleBand(k)
-		if !place(roleLarge, k, isleLargeR, isleLargeRMax, lo, hi, isleGapLarge) {
-			place(roleLarge, k, isleLargeR*0.6, isleLargeR, 0.3, 0.96, isleGapSmall) // a crowded world: smaller, anywhere
+		lo, hi := lay.bands(k)
+		if !place(roleLarge, k, lay.largeR, lay.largeRMax, lo, hi, lay.gapLarge) {
+			place(roleLarge, k, lay.largeR*0.6, lay.largeR, 0.3, 0.96, lay.gapSmall) // a crowded world: smaller, anywhere
 		}
 	}
-	for range max(1, int(math.Round(cf*1.4))) {
+	for range max(1, int(math.Round(cf*lay.atolls))) {
 		if m >= 192 {
-			place(roleAtoll, IslandAtoll, isleAtollR, isleAtollR*1.2, 0.62, 0.95, isleGapLarge)
+			place(roleAtoll, IslandAtoll, lay.atollR, lay.atollR*1.2, 0.62, 0.95, lay.gapLarge)
 		}
 	}
 	nLarge := len(isles)
-	for range max(6, int(math.Round(13*cf))) {
+	for range max(6, int(math.Round(lay.mediums*cf))) {
 		far := 0.0
 		if rng.Float64() < isleStrait && nLarge > 1 {
 			// A strait: close beside a large island.
 			o := isles[1+rng.IntN(nLarge-1)]
 			for try := 0; try < 60; try++ {
-				r := rad(isleMediumR, isleMediumRMax)
+				r := rad(lay.mediumR, lay.mediumRMax)
 				a := rng.Float64() * 2 * math.Pi
-				d := o.room() + r*isleRoom*0.9
-				s := newIsle(rng, roleMedium, 0, o.x+math.Cos(a)*d, o.y+math.Sin(a)*d, r)
+				d := o.room() + r*lay.room*0.9
+				s := newIsle(rng, lay, roleMedium, 0, o.x+math.Cos(a)*d, o.y+math.Sin(a)*d, r)
 				s.kind = mediumKind(math.Hypot(s.x-cx, s.y-cy)/(m/2), rng)
-				if fits(&s, isleGapSmall, slicesIndex(isles, o)) {
+				if fits(&s, lay.gapSmall, slicesIndex(isles, o)) {
 					isles = append(isles, s)
 					break
 				}
@@ -195,13 +273,119 @@ func planIsles(W, H int, seed uint32) []isle {
 			continue
 		}
 		far = 0.3 + 0.66*math.Sqrt(rng.Float64())
-		place(roleMedium, mediumKind(far, rng), isleMediumR, isleMediumRMax, far, far, isleGapSmall+4)
+		place(roleMedium, mediumKind(far, rng), lay.mediumR, lay.mediumRMax, far, far, lay.gapSmall+4)
 	}
-	for range max(4, int(math.Round(46*cf))) {
+	for range max(4, int(math.Round(lay.islets*cf))) {
 		far := 0.2 + 0.78*rng.Float64()
-		place(roleIslet, mediumKind(far, rng), isleIsletR, isleIsletRMax, far, far, isleGapSmall)
+		place(roleIslet, mediumKind(far, rng), lay.isletR, lay.isletRMax, far, far, lay.gapSmall)
 	}
 	return isles
+}
+
+// ringIsles sets the large islands of kinds ks round the home island, the
+// first of the layout since StyleWilds: one to each of as many slots round
+// it, each as big as a large island gets and as far out as its kind wants
+// (the gentle ones nearer home) and the edge of the world allows, the
+// slots turned so the open sea kept at angle basin from the middle falls
+// between two of them. One that
+// does not fit beside its neighbours is made smaller, down to half; the
+// kinds left over are returned, to be placed as before. The first of them,
+// the deep jungle Titanoboa lies in, is the biggest, in the slot that leaves
+// it the most room. size is the world's size times its scale (isleScale).
+func ringIsles(rng *rand.Rand, lay *isleLayout, isles *[]isle, ks []IslandKind, fits func(*isle, float64, int) bool, W, H int, size, basin float64) (left []IslandKind) {
+	home := (*isles)[0]
+	n := len(ks)
+	a0 := basin + math.Pi/float64(n) // the Megalodon's sea between two of them
+	slotAngle := func(j int) float64 { return a0 + float64(j)*2*math.Pi/float64(n) }
+	// The slot nearest a corner of the world for the jungle; the rest at random.
+	jungle := 0
+	for j := range n {
+		if a, b := slotAngle(j), slotAngle(jungle); min(math.Abs(math.Cos(a)), math.Abs(math.Sin(a))) > min(math.Abs(math.Cos(b)), math.Abs(math.Sin(b))) {
+			jungle = j
+		}
+	}
+	slots := rng.Perm(n)
+	for i, j := range slots {
+		if j == jungle {
+			slots[i], slots[0] = slots[0], slots[i]
+		}
+	}
+	for i, k := range ks {
+		r := (lay.largeR + (lay.largeRMax-lay.largeR)*rng.Float64()) * size
+		if i == 0 {
+			r = lay.largeRMax * size * 1.06
+		}
+		lo, hi := lay.bands(k)
+		out := clamp(((lo+hi)/2-0.6)/0.3, 0, 1) * (0.75 + 0.25*rng.Float64())
+		a := slotAngle(slots[i]) + 0.25*(rng.Float64()-0.5)*2*math.Pi/float64(n)
+		ca, sa := math.Cos(a), math.Sin(a)
+		ok := false
+		for try := 0; try < 24 && !ok; try++ {
+			s := newIsle(rng, lay, roleLarge, k, home.x, home.y, r*(1-0.5*float64(try)/24))
+			dmin := home.room() + s.room() + lay.gapLarge
+			re := s.reach()
+			dmax := math.Inf(1)
+			for _, ax := range [2][3]float64{{ca, home.x, float64(W)}, {sa, home.y, float64(H)}} {
+				switch c, at, end := ax[0], ax[1], ax[2]; {
+				case c > 1e-9:
+					dmax = min(dmax, (end-lay.edge-re-at)/c)
+				case c < -1e-9:
+					dmax = min(dmax, (at-lay.edge-re)/-c)
+				}
+			}
+			if dmax < dmin {
+				continue
+			}
+			d := dmin + (dmax-dmin)*out
+			s.shift(ca*d, sa*d)
+			if fits(&s, lay.gapLarge, -1) {
+				*isles = append(*isles, s)
+				ok = true
+			}
+		}
+		if !ok {
+			left = append(left, k)
+		}
+	}
+	return left
+}
+
+// shift moves island s by (dx, dy), with everything planned on it.
+func (s *isle) shift(dx, dy float64) {
+	s.x, s.y = s.x+dx, s.y+dy
+	for i := range s.arms {
+		a := &s.arms[i]
+		a.x0, a.y0, a.x1, a.y1 = a.x0+dx, a.y0+dy, a.x1+dx, a.y1+dy
+	}
+	for i := range s.bays {
+		b := &s.bays[i]
+		b.x0, b.y0, b.x1, b.y1 = b.x0+dx, b.y0+dy, b.x1+dx, b.y1+dy
+	}
+	if s.hill[2] > 0 {
+		s.hill[0], s.hill[1] = s.hill[0]+dx, s.hill[1]+dy
+	}
+	if s.flat[2] > 0 {
+		s.flat[0], s.flat[1] = s.flat[0]+dx, s.flat[1]+dy
+	}
+}
+
+// Since StyleWilds a stretch of open sea in a corner of the world is kept
+// clear of land for the Megalodon's lair: deep, dark water with no coast
+// within reach of its whirlpool (see wildLairs.go).
+const wildsBasinR = 58 // tiles from its middle to the nearest island's reach, as planned
+
+// deepBasin is the open sea kept for the Megalodon in corner c (0 to 3) of
+// a world of W by H: its middle and radius.
+func deepBasin(W, H int, lay *isleLayout, c int) [3]float64 {
+	in := lay.edge + wildsBasinR*0.75 // the world's edge is open sea too
+	x, y := in, in
+	if c&1 != 0 {
+		x = float64(W) - in
+	}
+	if c&2 != 0 {
+		y = float64(H) - in
+	}
+	return [3]float64{x, y, wildsBasinR}
 }
 
 // slicesIndex is the index of the island at the same place as o.
@@ -229,8 +413,8 @@ func mediumKind(far float64, rng *rand.Rand) IslandKind {
 }
 
 // newIsle shapes an island of kind k with radius r at (x, y).
-func newIsle(rng *rand.Rand, role isleRole, k IslandKind, x, y, r float64) isle {
-	s := isle{role: role, kind: k, x: x, y: y, r: r, rot: rng.Float64() * math.Pi, elong: 1, seed: rng.Uint32()}
+func newIsle(rng *rand.Rand, lay *isleLayout, role isleRole, k IslandKind, x, y, r float64) isle {
+	s := isle{role: role, kind: k, x: x, y: y, r: r, rot: rng.Float64() * math.Pi, elong: 1, seed: rng.Uint32(), lay: lay}
 	wobble, arms, bays, fjords := 0.34, 2+rng.IntN(2), 2+rng.IntN(2), 0
 	crescent := role == roleLarge && rng.Float64() < 0.3
 	switch {
@@ -244,6 +428,9 @@ func newIsle(rng *rand.Rand, role isleRole, k IslandKind, x, y, r float64) isle 
 		wobble, arms, bays, crescent = 0.1, 1, 0, false // a cone: round, a lava headland
 	case k == IslandSnow:
 		s.elong = 1.3 + 0.4*rng.Float64() // a range of mountains: long
+		if lay.wilds {
+			s.elong = 1 + (s.elong-1)*0.6 // less so, to fit among the bigger islands
+		}
 		bays, fjords = 1, 2+rng.IntN(2)
 	case k == IslandDesert:
 		wobble = 0.4
@@ -264,7 +451,7 @@ func newIsle(rng *rand.Rand, role isleRole, k IslandKind, x, y, r float64) isle 
 		a := rng.Float64() * 2 * math.Pi
 		bend := (rng.Float64() - 0.5) * 0.6
 		x0, y0 := s.edge(a, 0.5)
-		x1, y1 := s.edge(a+bend, 1.25+0.3*rng.Float64())
+		x1, y1 := s.edge(a+bend, lay.armTip[0]+lay.armTip[1]*rng.Float64())
 		s.arms = append(s.arms, isleArm{x0, y0, x1, y1, s.r * (0.16 + 0.08*rng.Float64()), s.r * (0.04 + 0.05*rng.Float64())})
 	}
 	for range bays {
@@ -371,7 +558,11 @@ func (s *isle) field(x, y float64) (val, h float64, inner bool) {
 
 	// The height.
 	lv := clamp(val, 0, 1)
-	bumps := fbm(x/(s.r*0.38)+11, y/(s.r*0.38), s.seed+7, 3)
+	vr := s.r // the scale of its hills, ridges and mesas
+	if s.lay.wilds {
+		vr = min(s.r, wildsHills) // a bigger island has more of them, not bigger ones
+	}
+	bumps := fbm(x/(vr*0.38)+11, y/(vr*0.38), s.seed+7, 3)
 	switch {
 	case s.role == roleHome:
 		hill := math.Max(0, 1-math.Hypot(x-s.hill[0], y-s.hill[1])/s.hill[2])
@@ -380,12 +571,12 @@ func (s *isle) field(x, y float64) (val, h float64, inner bool) {
 		crag := math.Max(0, 1-math.Hypot(x-s.hill[0], y-s.hill[1])/s.hill[2])
 		h = 0.5*lv + 0.3*bumps + 1.1*math.Pow(crag, 0.8)
 	case s.kind == IslandSnow:
-		ridge := 1 - math.Abs(2*fbm(x/(s.r*0.45)+4, y/(s.r*0.45), s.seed+8, 3)-1)
+		ridge := 1 - math.Abs(2*fbm(x/(vr*0.45)+4, y/(vr*0.45), s.seed+8, 3)-1)
 		h = 0.7*math.Pow(lv, 0.7) + 0.55*ridge*lv
 	case s.kind == IslandAsh:
 		h = math.Pow(lv, 1.15) + 0.1*(bumps-0.5)
 	case s.kind == IslandDesert:
-		mesa := smoothstep(clamp((fbm(x/(s.r*0.3)+2, y/(s.r*0.3), s.seed+9, 3)-0.47)/0.08, 0, 1))
+		mesa := smoothstep(clamp((fbm(x/(vr*0.3)+2, y/(vr*0.3), s.seed+9, 3)-0.47)/0.08, 0, 1))
 		h = 0.35*lv + 0.65*mesa*smoothstep(clamp(lv/0.25, 0, 1))
 	case s.kind == IslandMarsh:
 		h = 0.6*math.Pow(lv, 1.4) + 0.15*(bumps-0.5)
@@ -438,7 +629,7 @@ func rasterIsles(W, H int, isles []isle) *isleMap {
 			defer wg.Done()
 			for k := range jobs {
 				s := &isles[k]
-				re := s.reach() + 4
+				re := s.span() + 4
 				p := patch{x0: max(0, int(s.x-re)), y0: max(0, int(s.y-re)), x1: min(W-1, int(s.x+re)), y1: min(H-1, int(s.y+re))}
 				pw, ph := p.x1-p.x0+1, p.y1-p.y0+1
 				p.val, p.h, p.inner = make([]float32, pw*ph), make([]float32, pw*ph), make([]bool, pw*ph)
@@ -459,14 +650,41 @@ func rasterIsles(W, H int, isles []isle) *isleMap {
 	close(jobs)
 	wg.Wait()
 	// Laid down in order, so the same seed always gives the same map.
+	wilds := len(isles) > 0 && isles[0].lay.wilds
+	var second []float32 // since StyleWilds: the next island's val on each tile, but an atoll's
+	if wilds {
+		second = make([]float32, n)
+		for i := range second {
+			second[i] = -1
+		}
+	}
 	for k, p := range patches {
 		pw := p.x1 - p.x0 + 1
+		atoll := isles[k].role == roleAtoll
 		for ty := p.y0; ty <= p.y1; ty++ {
 			for tx := p.x0; tx <= p.x1; tx++ {
 				j, i := (ty-p.y0)*pw+tx-p.x0, ty*W+tx
-				if v := p.val[j]; v > im.val[i] && v > -0.6 {
+				v := p.val[j]
+				if wilds && !atoll {
+					if o := im.owner[i]; o > 0 && isles[o-1].role != roleAtoll && im.val[i] > v {
+						second[i] = max(second[i], v)
+					} else if o > 0 && isles[o-1].role != roleAtoll && v > im.val[i] {
+						second[i] = max(second[i], im.val[i])
+					}
+				}
+				if v > im.val[i] && v > -0.6 {
 					im.val[i], im.h[i], im.owner[i], im.lagoon[i] = v, p.h[j], int16(k+1), p.inner[j]
 				}
+			}
+		}
+	}
+	// Since StyleWilds the islands lie close, and two that come near each
+	// other keep a strait between them: land near the coast of another
+	// island goes under the sea, so each island is its own.
+	if wilds {
+		for i, v2 := range second {
+			if v2 > -wildsStrait && im.val[i] > -0.01 {
+				im.val[i] = -0.01 - (v2+wildsStrait)*0.5
 			}
 		}
 	}
@@ -501,7 +719,7 @@ func (im *isleMap) isleAt(i int) *isle {
 func (w *World) islesTerrain(seed uint32) (sx, sy int) {
 	W, H := w.width, w.height
 	w.relief = make([]Relief, W*H)
-	isles := planIsles(W, H, seed)
+	isles := planIsles(W, H, seed, w.layout())
 	im := rasterIsles(W, H, isles)
 	for i, v := range im.val {
 		if v > 0 {
@@ -621,16 +839,25 @@ func (s *isle) paint(h float64, level, sea int, shore beachSpot, x, y float64, s
 	}
 	rock := fbm(x/9+5, y/9+9, seed+315, 2) + jit
 	crag := fbm(x/4.5+7, y/4.5+1, seed+316, 2) + jit // small outcrops
+	if s.lay.wilds && s.role != roleIslet && s.role != roleAtoll {
+		if t, v, ok := s.zone(h, level, sea, x, y, seed, zoneNoise{woods, wet, fine, rock, crag}); ok {
+			return t, v // the island's other ground: see wildzones.go
+		}
+	}
 	switch s.kind {
 	case IslandMeadow:
+		fl := isleForestLine
+		if s.lay.wilds {
+			fl += wildsMeadowWoods // grass first, woods and copses in it
+		}
 		switch {
 		case h > 0.75 && crag > 0.64:
 			return TileRocky, VarOutcrop
-		case woods > isleForestLine+0.14:
+		case woods > fl+0.14:
 			return TileForest, VarDenseWood
-		case woods > isleForestLine:
+		case woods > fl:
 			return TileForest, VarPlain
-		case woods > isleForestLine-0.05:
+		case woods > fl-0.05:
 			return TileForest, VarOpenWood
 		case fine > 0.62:
 			return TileGrass, VarMeadow
@@ -770,7 +997,7 @@ func (w *World) listIsles(im *isleMap) {
 				best = IslandKind(k)
 			}
 		}
-		w.islands = append(w.islands, Island{Kind: best, Tiles: len(isl), Home: home})
+		w.islands = append(w.islands, Island{Kind: best, Tiles: len(isl), Home: home, At: isl[0]})
 	}
 }
 

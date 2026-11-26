@@ -26,9 +26,10 @@ const (
 	StyleIsles                     // as StyleSeas, with designed islands, coasts, heights and rivers; see isles.go
 	StyleWoods                     // as StyleIsles, with trees spaced by their crowns, trails and undergrowth; see woods.go
 	StyleBeaches                   // as StyleWoods, with wide beaches, dunes and driftwood; see beaches.go
+	StyleWilds                     // as StyleBeaches, with fewer, bigger islands, and animals by island and by distance from home; see wilds.go
 
 	// StyleLatest is what a new game is made with.
-	StyleLatest = StyleBeaches
+	StyleLatest = StyleWilds
 )
 
 // biomeShares is how much of the lowland each biome takes, and how wide the

@@ -91,7 +91,7 @@ func (w *World) archipelagoTerrain(seed uint32) (sx, sy int) {
 	w.islands = make([]Island, 0, len(islands))
 	for k, isl := range islands {
 		if len(isl) >= seasMinIsland {
-			w.islands = append(w.islands, Island{Kind: kinds[k], Tiles: len(isl), Home: k == home})
+			w.islands = append(w.islands, Island{Kind: kinds[k], Tiles: len(isl), Home: k == home, At: isl[0]})
 		}
 	}
 
@@ -105,6 +105,7 @@ type Island struct {
 	Kind  IslandKind
 	Tiles int
 	Home  bool
+	At    int // one of its tiles (its first in reading order, when it was listed): finds it again; see islandIndex
 }
 
 // Islands returns the islands of an archipelago world, nil for others.

@@ -284,6 +284,11 @@ func (w *World) BossSetLair(k CreatureKind, x, y float64) bool {
 // good (a small world, a crowded island) it settles for less, and only a
 // world with none of its land at all has no lair for it.
 func (w *World) bossLairSite(k CreatureKind) (x, y float64, ok bool) {
+	if w.style >= StyleWilds {
+		if x, y, ok := w.wildsLairSite(k); ok {
+			return x, y, true // on the biggest island of its kind: see wildlairs.go
+		}
+	}
 	H := w.SurfaceHeight()
 	size := float64(max(w.width, H))
 	step := 2

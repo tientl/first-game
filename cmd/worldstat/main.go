@@ -26,7 +26,39 @@ func main() {
 	woodsMap := flag.String("woodsmap", "", "write a map of the woods to this PNG instead (thick woods dark, ordinary mid green, trees as dots) and stop; see woodsmap.go")
 	region := flag.String("region", "", "with -woodsmap: x0,y0,x1,y1, the tiles to show (default: the whole surface)")
 	px := flag.Int("px", 2, "with -woodsmap: pixels to a tile")
+	isles := flag.Bool("isles", false, "report every island: its kind, tiles, extent and how many 1080p screens across it is, and stop; see fauna.go")
+	fauna := flag.Bool("fauna", false, "report the animals by kind: how far from the spawn, on which kind of island, herbivores to predators, and stop; see fauna.go")
+	faunaMap := flag.String("faunamap", "", "with -fauna: also write the map with the big animals as dots to this PNG (herbivores green, predators red)")
+	islesMap := flag.String("islesmap", "", "with -isles: also write the map with the bosses' lairs ringed to this PNG")
+	zones := flag.Bool("zones", false, "with -isles: print where on the biggest island of each kind its main ground meets another, for screenshots")
 	flag.Parse()
+	if *isles || *fauna {
+		w, err := sim.Generate(sim.GenConfig{Seed: *seed, Width: *size, Height: *size, Style: sim.WorldStyle(*style)})
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("world %dx%d, style %d, seed %d\n", *size, *size, *style, *seed)
+		if *isles {
+			isleReport(w)
+			if *islesMap != "" {
+				if err := writeIslesMap(w, *islesMap); err != nil {
+					log.Fatal(err)
+				}
+			}
+			if *zones {
+				zoneSpots(w)
+			}
+		}
+		if *fauna {
+			faunaReport(w)
+			if *faunaMap != "" {
+				if err := writeFaunaMap(w, *faunaMap); err != nil {
+					log.Fatal(err)
+				}
+			}
+		}
+		return
+	}
 	if *woodsMap != "" {
 		w, err := sim.Generate(sim.GenConfig{Seed: *seed, Width: *size, Height: *size, Style: sim.WorldStyle(*style)})
 		if err != nil {

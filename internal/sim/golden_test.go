@@ -51,7 +51,8 @@ func worldHash(w *World) uint64 {
 
 // goldenWorlds are worlds of every older style, with the digest each made
 // when StyleIsles was added (StyleIsles itself: when StyleWoods was;
-// StyleWoods: when StyleBeaches was). A
+// StyleWoods: when StyleBeaches was; StyleBeaches, with its Ankylosaurus:
+// when StyleWilds was). A
 // change to generation must never change them: saves keep only the seed and
 // style, and regenerate the terrain from it; an older save's woods are
 // thinned by telling the trees of the world as it was made (thinwoods.go).
@@ -74,6 +75,8 @@ var goldenWorlds = []struct {
 	{StyleIsles, 11, SizeLarge, 0xe72383ba4feab520},
 	{StyleWoods, 7, SizeMedium, 0x37d7fffed95b64bd},
 	{StyleWoods, 11, SizeLarge, 0x3697e41d31d3f72e},
+	{StyleBeaches, 7, SizeMedium, 0x58216778253cdef8},
+	{StyleBeaches, 11, SizeLarge, 0x484ee25ca916f3cc},
 }
 
 func TestOlderStylesGenerateAsBefore(t *testing.T) {
@@ -90,7 +93,8 @@ func TestOlderStylesGenerateAsBefore(t *testing.T) {
 
 // goldenRelief is the digest of the relief (levels and variants) of worlds
 // of the older styles that have one, as each made when StyleBeaches was
-// added: the client draws the ground from it, so it must not change either.
+// added (StyleBeaches: when StyleWilds was): the client draws the ground
+// from it, so it must not change either.
 var goldenRelief = []struct {
 	style WorldStyle
 	seed  uint64
@@ -101,6 +105,8 @@ var goldenRelief = []struct {
 	{StyleIsles, 11, SizeLarge, 0x786d9383d492a24d},
 	{StyleWoods, 7, SizeMedium, 0x474bc54a6fa098fc},
 	{StyleWoods, 11, SizeLarge, 0xacecdb3a07441921},
+	{StyleBeaches, 7, SizeMedium, 0x7bca2db16762a488},
+	{StyleBeaches, 11, SizeLarge, 0x8e93bec7cc5e52fb},
 }
 
 func TestOlderReliefIsAsBefore(t *testing.T) {
