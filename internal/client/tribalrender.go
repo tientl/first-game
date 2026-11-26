@@ -225,6 +225,9 @@ func (g *Game) tribalEntitySprite(e protocol.EntityView) (sprite, float64, bool)
 		}
 		return a.flowerPicked, 0, true
 	case sim.EntitySapling:
+		if sim.SeedKind(e.Var) == sim.SeedTree {
+			return treeSaplingAt(int(e.TX), int(e.TY)), 0.04, true // a young tree's whip: see saplingart.go
+		}
 		return a.saplings[int(e.Var)%len(a.saplings)], 0.06, true
 	case sim.EntityGlowPlant:
 		v := int(e.Var) % 3

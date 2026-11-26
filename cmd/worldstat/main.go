@@ -23,7 +23,22 @@ func main() {
 	size := flag.Int("size", sim.SizeHuge, "world size in tiles")
 	seed := flag.Uint64("seed", 42, "world seed")
 	style := flag.Int("style", int(sim.StyleLatest), "world style (the generator)")
+	woodsMap := flag.String("woodsmap", "", "write a map of the woods to this PNG instead (thick woods dark, ordinary mid green, trees as dots) and stop; see woodsmap.go")
+	region := flag.String("region", "", "with -woodsmap: x0,y0,x1,y1, the tiles to show (default: the whole surface)")
+	px := flag.Int("px", 2, "with -woodsmap: pixels to a tile")
 	flag.Parse()
+	if *woodsMap != "" {
+		w, err := sim.Generate(sim.GenConfig{Seed: *seed, Width: *size, Height: *size, Style: sim.WorldStyle(*style)})
+		if err != nil {
+			log.Fatal(err)
+		}
+		x0, y0, x1, y1 := 0, 0, *size, *size
+		fmt.Sscanf(*region, "%d,%d,%d,%d", &x0, &y0, &x1, &y1)
+		if err := writeWoodsMap(w, *woodsMap, x0, y0, x1, y1, *px); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	runtime.GC()
 	var before runtime.MemStats

@@ -24,9 +24,10 @@ const (
 	StyleTribal                   // as StyleJungle, with thinner woods, trails, villages, deep caves; see tribe.go
 	StyleSeas                     // as StyleTribal, but an archipelago: one land to an island; see archipelago.go
 	StyleIsles                    // as StyleSeas, with designed islands, coasts, heights and rivers; see isles.go
+	StyleWoods                    // as StyleIsles, with trees spaced by their crowns, trails and undergrowth; see woods.go
 
 	// StyleLatest is what a new game is made with.
-	StyleLatest = StyleIsles
+	StyleLatest = StyleWoods
 )
 
 // biomeShares is how much of the lowland each biome takes, and how wide the

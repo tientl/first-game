@@ -52,8 +52,8 @@ const (
 	BoulderHits    = 3
 	BigBoulderHits = 6
 
-	TreeYield       = 2
-	BigTreeYield    = 6
+	TreeYield       = 3  // since save version 20 the woods are spaced by the trees' crowns (woods.go):
+	BigTreeYield    = 10 // a fifth as many trees, each giving more; and a big one grows back slowly (regrow.go)
 	BoulderYield    = 2
 	BigBoulderYield = 6
 	BushYield       = 2

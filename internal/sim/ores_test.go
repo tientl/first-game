@@ -170,6 +170,9 @@ func TestOlderSavesCountHPInHitPower(t *testing.T) {
 		if id == tree {
 			want = HitPower
 		}
+		if w2.entities[id] == nil && e.Kind == EntityTree && id != tree {
+			continue // thinned out of the woods on loading: see thinwoods.go
+		}
 		if got := w2.entities[id].HP; got != want {
 			t.Fatalf("%s %d: hp %d after upgrade, want %d", e.Kind.Name(), id, got, want)
 		}

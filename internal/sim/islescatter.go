@@ -100,8 +100,8 @@ func (w *World) scatterIsles(rng, sizeRng *rand.Rand) {
 			if v == VarScree && tile != TileRocky && kind == EntityNone {
 				kind = pick(r, chance{EntityPebble, 0.12}, chance{EntityBoulder, 0.04})
 			}
-			if kind == EntityNone {
-				continue
+			if kind == EntityNone || kind == EntityTree && w.style >= StyleWoods {
+				continue // the trees of the newest worlds are spaced by their crowns: see woods.go
 			}
 			e := w.addEntity(kind, tx, ty)
 			if kind.Sized() && sizeRng.Float64() < bigShare(kind, tile) {

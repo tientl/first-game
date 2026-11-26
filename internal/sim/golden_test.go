@@ -50,8 +50,10 @@ func worldHash(w *World) uint64 {
 }
 
 // goldenWorlds are worlds of every older style, with the digest each made
-// when StyleIsles was added. A change to generation must never change them:
-// saves keep only the seed and style, and regenerate the terrain from it.
+// when StyleIsles was added (StyleIsles itself: when StyleWoods was). A
+// change to generation must never change them: saves keep only the seed and
+// style, and regenerate the terrain from it; an older save's woods are
+// thinned by telling the trees of the world as it was made (thinwoods.go).
 var goldenWorlds = []struct {
 	style WorldStyle
 	seed  uint64
@@ -67,6 +69,8 @@ var goldenWorlds = []struct {
 	{StyleTribal, 7, SizeMedium, 0x9add9592bbc2fe81},
 	{StyleSeas, 7, SizeMedium, 0x9ce15ddca64da26f},
 	{StyleSeas, 11, SizeLarge, 0x81a3e39fa5e3573f},
+	{StyleIsles, 7, SizeMedium, 0x8227ef130cb50cf6},
+	{StyleIsles, 11, SizeLarge, 0xe72383ba4feab520},
 }
 
 func TestOlderStylesGenerateAsBefore(t *testing.T) {

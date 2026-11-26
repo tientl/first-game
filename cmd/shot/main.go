@@ -24,6 +24,7 @@ import (
 
 	"survivalgame/internal/client"
 	"survivalgame/internal/protocol"
+	"survivalgame/internal/server"
 	"survivalgame/internal/sim"
 )
 
@@ -112,12 +113,20 @@ func main() {
 	scaleTitle := flag.String("scaletitle", "", "with -scalesheet: a heading for the sheet")
 	subPixel := flag.Bool("subpixel", true, "let the camera and moving things sit between art pixels, on screen pixels (false: whole art pixels, as before HD art)")
 	reveal := flag.Bool("reveal", false, "the whole map seen: no fog on the map (M) and the minimap")
-	styleFlag := flag.Int("style", -1, "with -open: the world style to make (default: the latest; 7 is the archipelago before the designed islands)")
 	gifN := flag.Int("gif", 0, "write a GIF of this many frames (with -crop: of that region, not enlarged) as <o>.gif, from the frame -frames picks")
 	gifStep := flag.Int("gifstep", 2, "with -gif: game frames between the GIF's frames")
 	benchN := flag.Int("bench", 0, "time this many frames before the capture, vsync off, and print what they took and the ground's memory")
 	thin := flag.Float64("thin", 1, "keep about this share of the trees, bushes and rocks round the player (to see the ground)")
+	styleFlag := flag.Int("style", -1, "with -open: the world style to make (default: the latest; 7 is the archipelago before the designed islands, 8 the designed islands before the woods were spaced)")
+	canopyFlag := flag.Bool("canopy", false, "print the share of the view the canopy covers: the drawings of trees and the like, taller than a player (see internal/client/canopyshare.go)")
+	oldSave := flag.Bool("oldsave", false, "with -open: save the world as a game from before the woods were thinned (version 19) and load it again, which thins them (see internal/sim/thinwoods.go)")
+	loadSave := flag.String("load", "", "load this save file (a copy of one) instead of making a world, an older one thinned as the game would; stand where its first player stood (-move is from there)")
+	fellR := flag.Float64("fell", 0, "fell every tree within this many tiles of the player (stumps), before -days")
+	days := flag.Float64("days", 0, "let this many days go by for what grows: stumps, saplings, young trees, the woods filling their gaps (see internal/sim/regrow.go)")
+	regrowStrip := flag.Bool("regrow", false, "put the stages a felled tree grows back through in a row right of the player: stump, sapling, young tree, grown tree")
+	realState := flag.Bool("real", false, "show every entity as it is (by default every ninth shows harvested, to see those states too)")
 	flag.Parse()
+	client.SetMeasureCanopy(*canopyFlag)
 	client.SetHeroHD(*herohd)
 	client.SetScaleOnly(*scaleOnly, *scaleTitle)
 	client.SetHDTest(*hdTest)
@@ -144,9 +153,34 @@ func main() {
 			style = sim.WorldStyle(*styleFlag)
 		}
 	}
-	w, err := sim.Generate(sim.GenConfig{Seed: *seed, Width: N, Height: N, Style: style})
-	if err != nil {
-		log.Fatal(err)
+	var w *sim.World
+	var err error
+	var savedAt []float64 // where the save's first player stood
+	switch {
+	case *loadSave != "":
+		f, ferr := server.ReadSave(*loadSave)
+		if ferr != nil {
+			log.Fatal(ferr)
+		}
+		if w, err = sim.Load(f.World); err != nil {
+			log.Fatal(err)
+		}
+		N, _ = w.Size()
+		*open = true
+		if ps := f.World.Players; len(ps) > 0 {
+			savedAt = []float64{ps[0].X, ps[0].Y}
+		}
+	default:
+		if w, err = sim.Generate(sim.GenConfig{Seed: *seed, Width: N, Height: N, Style: style}); err != nil {
+			log.Fatal(err)
+		}
+		if *oldSave {
+			d := w.Save()
+			d.Version = 19 // the last version before the woods were thinned
+			if w, err = sim.Load(d); err != nil {
+				log.Fatal(err)
+			}
+		}
 	}
 	_, mapH := w.Size() // taller than N when caves lie under the islands
 	surfH := 0
@@ -154,6 +188,9 @@ func main() {
 		surfH = w.SurfaceHeight()
 	}
 	sx, sy := w.Spawn()
+	if savedAt != nil {
+		sx, sy = savedAt[0], savedAt[1]
+	}
 	if *coast {
 		tiles := w.Tiles()
 		// In an open world, a beach by the sea rather than a marsh pond:
@@ -379,6 +416,12 @@ func main() {
 	if n, _ := fmt.Sscanf(*moveBy, "%g,%g", &mdx, &mdy); n == 2 {
 		sx, sy = sx+mdx, sy+mdy
 	}
+	if *fellR > 0 {
+		log.Printf("felled %d trees", w.DevFell(sx, sy, *fellR))
+	}
+	if *days > 0 {
+		w.DevPassTime(uint64(*days * sim.DayTicks)) // see internal/sim/regrow.go
+	}
 	tick := uint64(sim.DayTicks) + uint64(*dayFrac*sim.DayTicks)
 
 	snap := protocol.Snapshot{
@@ -479,7 +522,7 @@ func main() {
 	w.EachEntityIn(cx-20, cy-20, cx+20, cy+20, func(e sim.Entity) {
 		n++
 		ready := e.Ready
-		if n%9 == 0 { // show some harvested states too
+		if n%9 == 0 && !*realState { // show some harvested states too
 			ready = false
 		}
 		snap.Entities = append(snap.Entities, protocol.EntityView{
@@ -577,6 +620,9 @@ func main() {
 	}
 	if *woodsFlag {
 		addWoods(&snap, sx, sy)
+	}
+	if *regrowStrip {
+		addRegrowStrip(&snap, w, sx, sy) // see regrow.go
 	}
 	if *jungleFlag {
 		addJungle(&snap, sx, sy)
@@ -899,6 +945,9 @@ func main() {
 	}
 	if g.err != nil {
 		log.Fatal(g.err)
+	}
+	if *canopyFlag {
+		log.Printf("canopy covers %.0f%% of the view; own figure silhouetted: %v", 100*client.CanopyShare(), client.SelfSilhouetted())
 	}
 	log.Printf("wrote %s", *out)
 }
