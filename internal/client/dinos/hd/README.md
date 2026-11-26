@@ -81,3 +81,31 @@ guide (`dinos/<name>.png`): open it enlarged with a grid to measure.
 
 A species takes about an hour or two: measuring the parts and muscles is
 most of it, then a few rounds of looking at the painting and the poses.
+
+## Feathers and wings
+
+The feathered hunters (`dakota`, `achero`, `troodon`), `ornitho`, `anzu`
+and the pterosaurs (`ptero_fly`, `ptero_perch`, `quetzal`, `quetzal_fly`)
+are painted too, with helpers called first thing in their `Details`:
+
+- **`Plumage`** (`feather.go`): tracts of feathers, back to front, each
+  laid along a flow (`coords.go`: `Along` a line, `Away` from one, a `Fan`
+  from a point, a `Dir`). The feathers lie in rows, each over the root of
+  the ones behind, so what shows is a scallop: lit over its shaft
+  (`Shaft`, `Camber`), shading the feathers under it, the outline made of
+  their tips (`Fluff`; also at the picture's edge, which a tail may touch).
+  `Snap` lays the drawing's mottling feather by feather; `TipMat` with
+  `TipGuide` turns the drawing's pale marks into pale feather tips
+  (`TipElse`: what the marks become elsewhere). `Hair` makes fine strands
+  instead: down, pycnofibres. What no feather covers keeps its scales.
+- **`Membrane`** (`membrane.go`): a wing's skin, nearly flat, bellied
+  behind the leading edge (`Camber`), its fibres fanning out (`Fibres`),
+  darker towards the tip (`Distal`), light through its thin free edge
+  (`Glow`, `GlowRamp`, `Free`), and `Bones` read through it as lit tubes.
+- **`Plane`** (`plane.go`): a crest or casque lit as a flat plate with a
+  bevelled rim and growth lines.
+- **`Beak`** (`beak.go`): keratin over a beak: a gloss under the ridge,
+  grain, the mouth's line, the lower beak (`Lower`), a nostril.
+
+The night hunter's eye is painted in the drawing's two ambers only, which
+the game finds to draw it again in every pose (`troodon.go`).
