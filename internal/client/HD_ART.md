@@ -193,8 +193,20 @@ Colours come from tables, not code: skin from `skinTones`, hair from
 with the player's colour as they are drawn (`upperTinted`); a new skin,
 hair or cloth colour is a new entry.
 
-What it costs: every frame of every motion of one look is 1632
-half-frames, 14 MB if all were shown, 1.3 ms each to draw; they are drawn
+A figure turned whole (lying back onto a bed, going over in a fall) is
+not turned at draw: its pose sets `kp.spin`, and both halves and the head
+are drawn through the turn (the hips dropped first), so it comes out
+crisp; such a frame is put together on the CPU (`standingCanvas`) and
+kept as one sprite (`laidSprite`). The fall ends on the body's own drawing
+(`graveSprite`), on the tile the server laid it, the figure sliding there
+as it goes, so the body takes over without a jump; the body stays a tile
+entity and the server does not change. Setting off from sitting is
+`moRise`, the walk rising out of a crouch over 0.55 s, so the controls
+answer at once. Loose hair (`hairfloat.go`) lies on the pillow and floats
+behind a swimmer for every style.
+
+What it costs: every frame of every motion of one look is 2216
+half-frames, 19 MB if all were shown, 1.3 ms each to draw; they are drawn
 the first time they are shown, so a session pays for what it shows.
 `go run ./cmd/shot -w 1920 -h 1080 -motionsheet dir` plays every motion
 through the game's own drawing and writes `motion_sheet.png` and a GIF of
