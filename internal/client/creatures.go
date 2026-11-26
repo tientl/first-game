@@ -370,7 +370,7 @@ func (g *Game) creatureSounds(old, cur protocol.Snapshot) {
 			snd.playAt("squeak", float64(c.X), float64(c.Y), 0.45, 0.1)
 		case sim.CreatureSnake:
 			snd.playAt("hiss", float64(c.X), float64(c.Y), 0.4, 0.15)
-		case sim.CreatureTrike, sim.CreatureStego, sim.CreatureBrachio, sim.CreatureRex, sim.CreatureMammoth, sim.CreatureToro, sim.CreatureQuetzal:
+		case sim.CreatureTrike, sim.CreatureStego, sim.CreatureBrachio, sim.CreatureRex, sim.CreatureMammoth, sim.CreatureToro, sim.CreatureQuetzal, sim.CreatureAnkylo:
 			snd.playAt("treefall", float64(c.X), float64(c.Y), 0.5, 0.1) // the great body comes down
 		}
 	}
@@ -381,6 +381,7 @@ func (g *Game) creatureSounds(old, cur protocol.Snapshot) {
 	g.predatorGrowls(cur)     // see predsound.go
 	g.troodonSounds(old, cur) // see troodonsound.go
 	g.voiceSounds(old, cur)   // cries, alarms, death cries, the tribes: see creaturevoice.go
+	g.ankyloSounds(old, cur)  // see ankylo.go
 }
 
 // swingAtCreatureSound is the sound of an Action landing on c.
@@ -395,7 +396,7 @@ func swingAtCreatureSound(c protocol.CreatureView) {
 		sim.CreatureRaptor, sim.CreaturePtero, sim.CreaturePlesio, sim.CreatureMammoth, sim.CreatureSabre,
 		sim.CreatureToro, sim.CreatureAchero, sim.CreatureQuetzal, sim.CreatureBrachy, sim.CreatureChampso, sim.CreatureAnzu, sim.CreatureThesc,
 		sim.CreatureTroodon, sim.CreatureTitanoboa, sim.CreatureSpino, sim.CreatureMammothKing,
-		sim.CreatureCarcharo, sim.CreatureGiganoto, sim.CreatureMegalodon:
+		sim.CreatureCarcharo, sim.CreatureGiganoto, sim.CreatureMegalodon, sim.CreatureAnkylo:
 		snd.playAt("whack", x, y, 0.6, 0.1)
 	default:
 		snd.playAt("rustle", x, y, 0.45, 0.1)
@@ -499,6 +500,9 @@ func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {
 	}
 	if l, col, ok := tribalLabel(c); ok {
 		return l, col // see tribalrender.go
+	}
+	if l, col, ok := ankyloLabel(c); ok {
+		return l, col // see ankylo.go
 	}
 	if l, col, ok := hellLabel(c); ok {
 		return l, col // see hellwire.go
@@ -608,6 +612,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 	}
 	if s, bob, ok := g.woodsSprite(c, moving); ok {
 		return s, bob // see jungleart.go
+	}
+	if s, bob, ok := g.ankyloSprite(c, moving, side, t); ok {
+		return s, bob // see ankylo.go
 	}
 	if s, bob, ok := g.hellSprite(c, moving); ok {
 		return s, bob // see hellwire.go
@@ -841,7 +848,7 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 	case sim.CreatureOrnitho, sim.CreatureAnzu:
 		return 13
 	case sim.CreatureThesc:
-		return 18
+		return 30 // drawn long and low now (thesc.png)
 	case sim.CreatureAchero:
 		return 12
 	case sim.CreatureTroodon:
@@ -856,6 +863,8 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 		return 20
 	case sim.CreatureCrab:
 		return 14
+	case sim.CreatureAnkylo:
+		return 36 // low and wide
 	case sim.CreatureTrike, sim.CreatureStego, sim.CreatureRex:
 		return 30
 	case sim.CreatureMammoth:
@@ -970,7 +979,10 @@ func (g *Game) drawSeaReptile(dst drawTarget, cam camera, c protocol.CreatureVie
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(sx-s.ax, sy+bob-s.ay)
 	if c.State == sim.CreatureLurk {
-		op.ColorScale.ScaleAlpha(0.45) // seen through the water
+		s = plesioUnderWater(c.FaceLeft, g.frame+int(c.ID)*7) // its soft shape through the water (plesiowater.go)
+		op.GeoM.Reset()
+		op.GeoM.Translate(sx-s.ax, sy+bob-s.ay)
+		op.ColorScale.ScaleAlpha(0.7)
 		drawSprite(dst, s, op)
 		return
 	}

@@ -9,6 +9,10 @@ import "math/rand/v2"
 
 // scatterIsles places the resources of every biome, by its variant.
 func (w *World) scatterIsles(rng, sizeRng *rand.Rand) {
+	var shore []uint8 // tiles from the sea, in worlds with wide beaches: see beachThing
+	if w.style >= StyleBeaches {
+		shore = w.seaDistance(8)
+	}
 	for ty := 0; ty < w.height; ty++ {
 		for tx := 0; tx < w.width; tx++ {
 			r := rng.Float64()
@@ -53,6 +57,8 @@ func (w *World) scatterIsles(rng, sizeRng *rand.Rand) {
 				kind = pick(r, chance{EntityBoulder, boulders}, chance{EntityGrassTuft, 0.02})
 			case TileSand:
 				switch {
+				case shore != nil:
+					kind = w.beachThing(r, tx, ty, v, int(shore[i]))
 				case v == VarDunes:
 					kind = pick(r, chance{EntityGrassTuft, 0.03})
 				case w.seaside(tx, ty):
@@ -100,8 +106,8 @@ func (w *World) scatterIsles(rng, sizeRng *rand.Rand) {
 			if v == VarScree && tile != TileRocky && kind == EntityNone {
 				kind = pick(r, chance{EntityPebble, 0.12}, chance{EntityBoulder, 0.04})
 			}
-			if kind == EntityNone {
-				continue
+			if kind == EntityNone || kind == EntityTree && w.style >= StyleWoods {
+				continue // the trees of the newest worlds are spaced by their crowns: see woods.go
 			}
 			e := w.addEntity(kind, tx, ty)
 			if kind.Sized() && sizeRng.Float64() < bigShare(kind, tile) {

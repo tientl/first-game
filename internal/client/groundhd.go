@@ -292,7 +292,9 @@ func (b *bake) pixel(x, y int, u, v float64) (color.RGBA, bool) {
 			}
 			return c, false
 		}
-		if s < 0.22 { // wet sand at the water's edge
+		if t.relief != nil && s < 2.3 { // the beach at the waterline: see terrainsea.go
+			c = t.beachShore(c, hx, hy, u, v, s)
+		} else if s < 0.22 { // wet sand at the water's edge
 			w := 1 - s/0.22
 			c = mix(c, hex(0x6b5a3e), 0.45*w*(0.85+0.3*hashf(hx, hy, 73)))
 			if s < 0.05 {
@@ -315,13 +317,18 @@ func (b *bake) pixel(x, y int, u, v float64) (color.RGBA, bool) {
 			return c, false
 		}
 	}
-	if up <= cliffH*groundDens {
-		return seaCliff(hx, hy, up), false
+	if up <= coastUp && !t.sandAbove(u, v, up) { // a beach runs into the water: no wall
+		if up <= cliffH*groundDens {
+			return seaCliff(hx, hy, up), false
+		}
+		if hashf(fdiv(hx, 2), hy, 74) < 1.3-float64(up-cliffH*groundDens)/float64(2*groundDens) {
+			return withAlpha(colFoam, 200), false // foam at the wall's foot, breaking up
+		}
 	}
-	if up <= coastUp && hashf(fdiv(hx, 2), hy, 74) < 1.3-float64(up-cliffH*groundDens)/float64(2*groundDens) {
-		return withAlpha(colFoam, 200), false // foam at the wall's foot, breaking up
+	if t.relief != nil {
+		return t.reliefSea(hx, hy, u, v, s), true // see terrainsea.go
 	}
-	return t.shallowSea(seaWater(hx, hy, u, v, s), hx, hy, u, v, s), true
+	return seaWater(hx, hy, u, v, s), true
 }
 
 // rockShadow is how dark open ground is o pixels under a rock face.

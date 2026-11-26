@@ -3,315 +3,1263 @@ package client
 import (
 	"image/color"
 	"math"
-	"sort"
 )
 
-// Titanoboa, drawn at HDDensity: a monster of the old jungle, a body thicker
-// than a tree trunk and a score of tiles long, a tube along a curve. Moss
-// green scales with saddles of dark bronze, a pale belly of ridged plates;
-// a curved spine of horn on every saddle down the whole of its back, and a
-// row of spiked fins along each flank (titanBody stamps them in with the
-// body, so a coil lying over another hides its spines too). A great
-// armoured head, painted like the other bosses' heads: a crown of long
-// horns swept back, a brow like a ledge over eyes that glow, jaws that gape
-// on rows of fangs. Its frames: under way with its neck reared and its
-// coils trailing, asleep in a pile of coils, rearing to hiss, drawing back
-// and striking, and squeezing its prey.
+// Titanoboa, drawn at HDDensity: a monstrous serpent of the deep jungle,
+// thicker than a man is tall and near thirty tiles long. Its body is laid
+// out in the world (x right, y along the ground towards the eye, z up) and
+// drawn as a chain of spheres into a depth buffer, so that coils, spines and
+// fins hide one another as they should; every pixel of it knows where it
+// lies round the body, and is coloured from that: olive and moss-green
+// scales, saddles of dark bronze down the back, pale ridged plates under
+// the belly, each scale lit on its own from the upper left, a cool rim on
+// the far edges, and the shadows the coils and spines cast on what is
+// below them. A crest of tall curved blades runs the length of its back
+// and hooked fins fringe its flanks. Its head is a wedge of armoured
+// plates under a heavy brow, crowned with a fan of horns that sweep back,
+// its eyes burning in deep sockets, its jaws lined with rows of fangs.
+//
+// Its frames: under way in waves that run down its body from the head;
+// asleep in a pile of coils; reared high to roar, its coils trailing far
+// behind; drawn back and striking; and wound round its prey.
 
 var (
-	titanSkin  = mkRamp(0x0b1108, 0x17210d, 0x263614, 0x394e1d, 0x516929, 0x6e8639, 0x90a352)
-	titanDark  = mkRamp(0x0a0705, 0x191109, 0x2b1d0e, 0x432e16)
-	titanRim   = mkRamp(0x3a2810, 0x5e431a, 0x866428, 0xad8a3c, 0xcdae5c)
-	titanBelly = mkRamp(0x4a4430, 0x777052, 0xa39a74, 0xc8c098, 0xe4debc)
-	titanHorn  = mkRamp(0x1a120a, 0x302112, 0x4c3720, 0x705536, 0x988058, 0xc2b088, 0xe2d8b8)
-	titanEye   = hex(0xff9a1e)
-	titanSheen = [...]color.RGBA{hex(0x9fd66a), hex(0xd8c860), hex(0xe0a050), hex(0xc8d878), hex(0xffe08a)}
+	tbMoss   = mkRamp(0x090d08, 0x10170e, 0x172013, 0x1f2a17, 0x29361b, 0x344420, 0x405226, 0x4e612d, 0x5f7236, 0x768745, 0x93a05a)
+	tbBronze = mkRamp(0x0b0705, 0x140d07, 0x1f140b, 0x2c1d0f, 0x3b2713, 0x4d3318, 0x62421e, 0x7a5326, 0x966731, 0xb4803f, 0xd29e55)
+	tbBelly  = mkRamp(0x1c1a14, 0x2d2a1f, 0x423e2c, 0x5a553c, 0x746d4e, 0x8f8762, 0xa9a078, 0xc1b98f, 0xd8d1ab)
+	tbBone   = mkRamp(0x110d09, 0x211a12, 0x34291d, 0x4b3d2a, 0x66553b, 0x84714f, 0xa18e67, 0xbcab83, 0xd5c7a1, 0xece2c4)
+	tbRimCol = hex(0xa9d2bd) // the cool light of the forest on its far edges
+	tbInk    = hex(0x0a0c08)
 )
 
 const (
-	titanLen    = 480.0 // art pixels of body under way
-	titanSaddle = 16.0  // art pixels from one saddle to the next
-	titanHeadK  = 1.8   // art pixels to a unit of the head's drawing
+	tbLen   = 660.0 // art pixels of body, from the tip of the tail to the back of the skull
+	tbStep  = 0.5   // art pixels between the spheres it is drawn as
+	tbRMax  = 19.5  // its half width at the thickest
+	tbSq    = 0.6   // the ground seen from above: a depth along it is drawn this short...
+	tbUp    = 0.8   // ...and a height this short
+	tbHeadK = 1.4   // art pixels to a unit of the head's drawing
 )
 
-// titanWidth is the body's half-width at s: 0 the tip of the tail, 1 the neck.
-func titanWidth(s float64) float64 {
-	return 2.5 + 12.5*smooth(clamp01(s/0.24)) - 3.6*smooth(clamp01((s-0.82)/0.18))
+// vec3 is a direction or a point: in the world (x right, y along the
+// ground towards the eye, z up) or in the picture (x right, y down, z out
+// towards the eye).
+type vec3 struct{ x, y, z float64 }
+
+func (a vec3) add(b vec3) vec3    { return vec3{a.x + b.x, a.y + b.y, a.z + b.z} }
+func (a vec3) sub(b vec3) vec3    { return vec3{a.x - b.x, a.y - b.y, a.z - b.z} }
+func (a vec3) mul(k float64) vec3 { return vec3{a.x * k, a.y * k, a.z * k} }
+func (a vec3) dot(b vec3) float64 { return a.x*b.x + a.y*b.y + a.z*b.z }
+func (a vec3) cross(b vec3) vec3 {
+	return vec3{a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x}
 }
-
-// titanSkinAt colours the body; slide moves its markings along it.
-func titanSkinAt(slide float64) func(x, y int, q tubePt) color.RGBA {
-	lx, ly := lightDir[0], lightDir[1]
-	ll := math.Hypot(lx, ly)
-	return func(x, y int, q tubePt) color.RGBA {
-		t := max(-1, min(1, q.t))
-		a := q.arc + slide
-		l := lum(q.nx*t*0.92, q.ny*t*0.92)
-		b := math.Asin(t) * q.r
-		// The scales: a lattice of diamonds, each catching the light.
-		pu, pv := a/3.5+b/2.9, a/3.5-b/2.9
-		fu, fv := pu-math.Floor(pu), pv-math.Floor(pv)
-		seam, shine := fu < 0.2 || fv < 0.2, fu > 0.55 && fv > 0.55
-		down := t * q.ny      // how far towards the ground side of the body
-		back := t + 0.22*q.ny // from the line of the spine
-		toLight := t * (q.nx*lx + q.ny*ly) / ll
-		sheen := math.Exp(-math.Pow((toLight-0.5)/0.3, 2))
-		tone := func(r ramp, l float64, wet float64) color.RGBA {
-			if seam {
-				l -= 0.14
-			} else if shine {
-				l += 0.09
-				wet *= 2.4
-			}
-			col := rq(r, l, x, y)
-			if k := wet * sheen; k > 0.02 { // wet scales, where the light falls
-				h := a*0.045 + toLight*2.2 + hashf(int(math.Floor(pu)), int(math.Floor(pv)), 931)*0.9
-				h -= math.Floor(h/5) * 5
-				i := int(h)
-				col = mix(col, mix(titanSheen[i%5], titanSheen[(i+1)%5], h-float64(i)), min(0.3, k))
-			}
-			return col
-		}
-		if down > 0.58+(hashf(x/2, y/2, 932)-0.5)*0.08 { // the belly's plates, each with a ridge
-			f := a / (titanSaddle / 4)
-			switch ff := f - math.Floor(f); {
-			case ff < 0.16:
-				l -= 0.22
-			case ff < 0.42:
-				l += 0.1
-			}
-			return rq(titanBelly, l+0.14-(down-0.58)*0.5, x, y)
-		}
-		if q.s > 0.03 {
-			f := a / titanSaddle
-			at := math.Abs(f-math.Floor(f)-0.5) * 2 // 0 between two saddles, 1 in the middle of one
-			d := (1 - at) + math.Abs(back)*1.05
-			switch {
-			case d < 0.62:
-				return tone(titanDark, l+0.14, 0.2) // a saddle of dark bronze
-			case d < 0.8:
-				return rq(titanRim, l*0.7+0.16, x, y) // and its rim
-			}
-			// A dark blotch on the flank between two saddles.
-			if d2 := math.Hypot(at*1.15, (down-0.34)*2.7); d2 < 0.3 {
-				return tone(titanDark, l+0.14, 0.2)
-			} else if d2 < 0.42 {
-				return rq(titanRim, l*0.7+0.1, x, y)
-			}
-		}
-		// Moss green, mottled darker.
-		if vnoise(a/9, b/5, 936) > 0.62 {
-			l -= 0.09
-		}
-		return tone(titanSkin, l+0.04, 0.12)
+func (a vec3) norm() float64 { return math.Sqrt(a.dot(a)) }
+func (a vec3) unit() vec3 {
+	if l := a.norm(); l > 1e-12 {
+		return a.mul(1 / l)
 	}
+	return a
 }
+func lerp3(a, b vec3, t float64) vec3 { return a.add(b.sub(a).mul(t)) }
 
-// --- the spines of its back and the fins of its flanks -------------------
+// tbScr turns a direction in the world into the picture's.
+func tbScr(v vec3) vec3 { return vec3{v.x, tbSq*v.y - tbUp*v.z, tbUp*v.y + tbSq*v.z} }
 
-// titanSpike is a curved horn growing out of the body: from its root by way
-// of a bend to its tip, in art pixels.
-type titanSpike struct {
-	at             int     // it is set on once the body is laid up to this point
-	arc            float64 // where along the body it grows
-	x0, y0, bx, by float64
-	x1, y1, w      float64 // its tip, and half its width at the root
-	shade          float64
-}
-
-// titanSpikes grows the spines and fins of a body laid along pts: a spine
-// on the middle of every saddle, a fin on each flank between two.
-func titanSpikes(pts []spinePt, arc []float64, slide float64) []titanSpike {
-	n := len(pts)
-	find := func(a float64) int { return min(n-1, sort.Search(n, func(i int) bool { return arc[i] >= a })) }
-	total := arc[n-1]
-	var out []titanSpike
-	for k := int(math.Floor(slide/titanSaddle)) - 1; ; k++ {
-		a := (float64(k)+0.5)*titanSaddle - slide
-		if a > total {
-			break
-		}
-		if a < 0 {
-			continue
-		}
-		i := find(a)
-		p := pts[i]
-		tx, ty := p.ny, -p.nx // the way the body runs here
-		if p.s > 0.045 && p.s < 0.975 {
-			h := 1.1*p.r + 3 + 4.5*smooth(clamp01((p.s-0.72)/0.2))
-			if k&1 != 0 {
-				h = 0.6*p.r + 1.5 // a lesser one between two great ones
-			}
-			x0, y0 := p.x-p.nx*0.22*p.ny*p.r, p.y-p.ny*0.22*p.ny*p.r
-			at := n
-			if e := a + p.r + 0.8*h; e < total {
-				at = find(e)
-			}
-			out = append(out, titanSpike{at: at, arc: a, x0: x0, y0: y0,
-				bx: x0 + tx*0.12*h, by: y0 - 0.78*h + ty*0.12*h,
-				x1: x0 - tx*0.62*h, y1: y0 - h - ty*0.62*h, w: max(1.3, 0.21*p.r+0.07*h), shade: 0.04})
-		}
-		a -= titanSaddle / 2
-		if a < 0 || k&1 != 0 {
-			continue
-		}
-		i = find(a)
-		p = pts[i]
-		tx, ty = p.ny, -p.nx
-		if p.s < 0.1 || p.s > 0.95 {
-			continue
-		}
-		for _, sg := range [2]float64{-1, 1} {
-			nx, ny := sg*p.nx, sg*p.ny
-			x0, y0 := p.x+nx*0.86*p.r, p.y+ny*0.86*p.r
-			l := 0.55*p.r + 2
-			sh := -0.3
-			if ny > 0 {
-				sh = -0.18 // the near flank, in the light
-			}
-			out = append(out, titanSpike{at: find(a - 1), arc: a, x0: x0, y0: y0,
-				bx: x0 + nx*0.75*l + tx*0.1*l, by: y0 + ny*0.75*l + ty*0.1*l,
-				x1: x0 + nx*l - tx*0.95*l, y1: y0 + ny*l - ty*0.95*l, w: max(1.2, 0.2*p.r), shade: sh})
-		}
-	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].at < out[j].at })
-	return out
-}
-
-// titanBody paints the body along pts like hdTube, and with it the spines
-// and fins that grow from it: each is laid on in its turn along the body,
-// so a later coil covers the spines of the one under it.
-func titanBody(c *canvas, pts []spinePt, gap, slide float64, shade func(x, y int, q tubePt) color.RGBA) {
-	arc := hdSpine(pts)
-	spikes := titanSpikes(pts, arc, slide)
-	k := c.k()
-	sp := make([]spinePt, len(pts))
-	for i, p := range pts {
-		p.x, p.y = c.toPx(p.x, p.y)
-		p.r *= k
-		sp[i] = p
-	}
-	// idx is what each pixel shows: point i of the body, or spike -2-j.
-	idx := make([]int32, c.w*c.h)
-	for i := range idx {
-		idx[i] = -1
-	}
-	horn := make([]color.RGBA, c.w*c.h)
-	ll := math.Hypot(lightDir[0], lightDir[1])
-	stamp := func(j int) {
-		s := &spikes[j]
-		m := int((math.Hypot(s.bx-s.x0, s.by-s.y0)+math.Hypot(s.x1-s.bx, s.y1-s.by))*k) + 1
-		for q := 0; q <= m; q++ {
-			u := float64(q) / float64(m)
-			v := 1 - u
-			px, py := c.toPx(v*v*s.x0+2*u*v*s.bx+u*u*s.x1, v*v*s.y0+2*u*v*s.by+u*u*s.y1)
-			rad := (s.w*math.Pow(v, 0.8) + 0.3) * k
-			for y := max(0, int(py-rad)); y <= min(c.h-1, int(py+rad)); y++ {
-				dy := float64(y) + 0.5 - py
-				for x := max(0, int(px-rad)); x <= min(c.w-1, int(px+rad)); x++ {
-					dx := float64(x) + 0.5 - px
-					if dx*dx+dy*dy > rad*rad {
-						continue
-					}
-					l := 0.38 + 0.26*u + 0.4*(dx*lightDir[0]+dy*lightDir[1])/(rad*ll) + s.shade
-					if f := u * 7; f-math.Floor(f) < 0.16 && u < 0.7 {
-						l -= 0.1 // the rings of its growth
-					}
-					idx[y*c.w+x], horn[y*c.w+x] = int32(-2-j), rq(titanHorn, l, x, y)
-				}
-			}
-		}
-	}
-	next := 0
-	for i := range sp {
-		for ; next < len(spikes) && spikes[next].at <= i; next++ {
-			stamp(next)
-		}
-		p := &sp[i]
-		r2 := p.r * p.r
-		for y := max(0, int(p.y-p.r)); y <= min(c.h-1, int(p.y+p.r)); y++ {
-			dy := float64(y) + 0.5 - p.y
-			for x := max(0, int(p.x-p.r)); x <= min(c.w-1, int(p.x+p.r)); x++ {
-				if dx := float64(x) + 0.5 - p.x; dx*dx+dy*dy <= r2 {
-					idx[y*c.w+x] = int32(i)
-				}
-			}
-		}
-	}
-	for ; next < len(spikes); next++ {
-		stamp(next)
-	}
-	arcOf := func(i int32) float64 {
-		if i <= -2 {
-			return spikes[-2-i].arc
-		}
-		return arc[i]
-	}
-	for y := 0; y < c.h; y++ {
-		for x := 0; x < c.w; x++ {
-			i := idx[y*c.w+x]
-			switch {
-			case i == -1:
-			case i <= -2:
-				col := horn[y*c.w+x]
-				for _, o := range [4][2]int{{1, 0}, {0, 1}, {-1, 0}, {0, -1}} { // a line where it meets the body or another
-					if nx, ny := x+o[0], y+o[1]; c.in(nx, ny) && idx[ny*c.w+nx] != i && idx[ny*c.w+nx] != -1 {
-						col = mix(col, colInk, 0.5)
-						break
-					}
-				}
-				c.put(x, y, col)
-			default:
-				p := &sp[i]
-				dx, dy := float64(x)+0.5-p.x, float64(y)+0.5-p.y
-				along := (dx*p.ny - dy*p.nx) / k // ahead of the point, in art pixels
-				q := tubePt{s: p.s, arc: arc[i] + along, t: (dx*p.nx + dy*p.ny) / p.r, nx: p.nx, ny: p.ny, r: p.r / k}
-				if col := shade(x, y, q); col.A > 0 {
-					c.put(x, y, col)
-				} else {
-					idx[y*c.w+x] = -1
-				}
-			}
-		}
-	}
-	// What lies under a later coil is in its shadow.
-	for y := 0; y < c.h; y++ {
-		for x := 0; x < c.w; x++ {
-			i := idx[y*c.w+x]
-			if i == -1 {
-				continue
-			}
-			ai := arcOf(i)
-			for d := 1; d <= 6; d++ {
-				dark := 0.0
-				for _, o := range [4][2]int{{0, -d}, {-d, 0}, {d, 0}, {0, d}} {
-					nx, ny := x+o[0], y+o[1]
-					if !c.in(nx, ny) {
-						continue
-					}
-					if j := idx[ny*c.w+nx]; j != -1 && arcOf(j) > ai+gap {
-						dark = 0.62 - 0.09*float64(d)
-						if o[0] > 0 || o[1] > 0 {
-							dark *= 0.5 // the lit side of what is above
-						}
-						break
-					}
-				}
-				if dark > 0 {
-					c.put(x, y, mix(c.at(x, y), colInk, dark))
-					break
-				}
-			}
-		}
-	}
-}
-
-// --- the head -----------------------------------------------------------
+// tbProj is where world point p is drawn, in art pixels from the anchor.
+func tbProj(p vec3) (float64, float64) { return p.x, tbSq*p.y - tbUp*p.z }
 
 var (
-	titanSkull = []knob{{-4, -2, 8.6}, {6, -3.2, 8.4}, {15, -2.2, 6.6}, {23.5, -0.6, 4.4}}
-	titanJaw   = []knob{{-4, 3.4, 5.4}, {8, 3.8, 4.6}, {21, 3, 3.1}}
+	tbL   = vec3{lightDir[0], lightDir[1], lightDir[2]}
+	tbHv  = vec3{lightDir[0], lightDir[1], lightDir[2] + 1}.unit() // half way to the eye: the glints
+	tbUpS = tbScr(vec3{0, 0, 1})                                   // up, in the picture
 )
+
+// tbTone is ramp r at t (0..1), blended between its colours.
+func tbTone(r ramp, t float64) color.RGBA {
+	p := clamp01(t) * float64(len(r)-1)
+	i := min(int(p), len(r)-2)
+	return mix(r[i], r[i+1], p-float64(i))
+}
+
+// tbRadius is the body's half width at s: 0 the tip of the tail, 1 the neck.
+func tbRadius(s float64) float64 {
+	return 2.2 + 17.3*smooth(clamp01(s/0.3)) - 3.6*smooth(clamp01((s-0.8)/0.2))
+}
+
+// --- the body ---------------------------------------------------------------
+
+// tbSample is one of the spheres the body is drawn as.
+type tbSample struct {
+	w        vec3    // its middle, in the world
+	r, s     float64 // its half width; and 0 at the tip of the tail, 1 at the neck
+	arc      float64 // art pixels from the tip of the tail
+	lift     float64 // how far its underside is off the ground
+	sx, sy   float64 // its middle in the picture, art pixels from the anchor
+	z        float64 // how near the eye
+	t2x, t2y float64 // the way it runs in the picture
+	tan, n3  vec3    // in the picture: along it, and across it (to its right, flat in the picture)
+	b3, dor  vec3    // in the picture: out of it towards the eye; and the way its back faces
+	phiD     float64 // the angle of its back about it, from n3 towards b3
+	su, sp   float64 // how many scales, and how many belly plates, from the tip of the tail
+}
+
+// tbBody lays the last tbLen art pixels of path (tail first, a point every
+// art pixel or closer) out as the body; swell fattens it as it breathes.
+func tbBody(path []vec3, swell float64) []tbSample {
+	cum := make([]float64, len(path))
+	for i := 1; i < len(path); i++ {
+		cum[i] = cum[i-1] + path[i].sub(path[i-1]).norm()
+	}
+	total := cum[len(path)-1]
+	n := int(tbLen / tbStep)
+	pts := make([]tbSample, n+1)
+	j := 0
+	for i := range pts {
+		at := total - tbLen + float64(i)*tbStep
+		var p vec3
+		if at <= 0 { // the path is too short: the tail goes on straight
+			p = path[0].add(path[1].sub(path[0]).unit().mul(at))
+		} else {
+			for j < len(path)-2 && cum[j+1] < at {
+				j++
+			}
+			p = lerp3(path[j], path[j+1], clamp01((at-cum[j])/max(1e-9, cum[j+1]-cum[j])))
+		}
+		s := float64(i) / float64(n)
+		pts[i] = tbSample{w: p, s: s, arc: float64(i) * tbStep, r: tbRadius(s) * (1 + swell*math.Sin(s*math.Pi))}
+		pts[i].w.z += pts[i].r
+	}
+	// Its back faces up where it starts, and is carried along it from there
+	// without twisting: where it rears, its back turns away with it.
+	var dor vec3
+	for i := range pts {
+		q := &pts[i]
+		a, b := pts[max(0, i-2)].w, pts[min(n, i+2)].w
+		T := b.sub(a).unit()
+		if i == 0 {
+			dor = vec3{0, 0, 1}
+		}
+		dor = dor.sub(T.mul(dor.dot(T))).unit()
+		// where it lies level its back turns up again, as a snake's does
+		if lv := 1 - math.Abs(T.z); lv > 0 {
+			up := vec3{0, 0, 1}.sub(T.mul(T.z)).unit()
+			dor = dor.add(up.sub(dor).mul(0.08 * lv * lv)).unit()
+		}
+		if i > 0 {
+			sz := 0.6 + 0.4*q.r/tbRMax
+			q.su = pts[i-1].su + tbStep/(6.2*sz)
+			q.sp = pts[i-1].sp + tbStep/(4.6*sz)
+		}
+		q.lift = q.w.z - q.r
+		q.sx, q.sy = tbProj(q.w)
+		q.z = tbUp*q.w.y + tbSq*q.w.z
+		q.tan = tbScr(T)
+		ax, ay := tbProj(a)
+		bx, by := tbProj(b)
+		if l := math.Hypot(bx-ax, by-ay); l > 1e-6 {
+			q.t2x, q.t2y = (bx-ax)/l, (by-ay)/l
+		} else if i > 0 {
+			q.t2x, q.t2y = pts[i-1].t2x, pts[i-1].t2y
+		} else {
+			q.t2x = 1
+		}
+		q.n3 = vec3{-q.t2y, q.t2x, 0}
+		q.b3 = vec3{0, 0, 1}.sub(q.tan.mul(q.tan.z)).unit()
+		q.dor = tbScr(dor)
+		q.phiD = math.Atan2(q.dor.dot(q.b3), q.dor.dot(q.n3))
+	}
+	return pts
+}
+
+// tbSpline is a Catmull-Rom curve through ctrl, a point about every art
+// pixel.
+func tbSpline(ctrl []vec3) []vec3 {
+	var out []vec3
+	for i := 0; i+1 < len(ctrl); i++ {
+		p0, p1, p2, p3 := ctrl[max(0, i-1)], ctrl[i], ctrl[i+1], ctrl[min(len(ctrl)-1, i+2)]
+		m := max(2, int(p2.sub(p1).norm()))
+		for k := 0; k < m; k++ {
+			t := float64(k) / float64(m)
+			t2, t3 := t*t, t*t*t
+			w0 := -0.5*t3 + t2 - 0.5*t
+			w1 := 1.5*t3 - 2.5*t2 + 1
+			w2 := -1.5*t3 + 2*t2 + 0.5*t
+			w3 := 0.5*t3 - 0.5*t2
+			out = append(out, p0.mul(w0).add(p1.mul(w1)).add(p2.mul(w2)).add(p3.mul(w3)))
+		}
+	}
+	return append(out, ctrl[len(ctrl)-1])
+}
+
+// --- blades: the spines, the fins and the horns -----------------------------
+
+const tbBladeN = 20
+
+type tbBladeKind int
+
+const (
+	tbSpine tbBladeKind = iota
+	tbFin
+	tbHornK
+)
+
+// tbBlade is a curved, tapering blade in the picture, in image pixels: its
+// centre line from root to tip, and how it is lit on its two faces.
+type tbBlade struct {
+	x, y, dx, dy, w, seg [tbBladeN + 1]float64
+	z0, z1               float64
+	nL, nT               vec3 // the normals of the face towards the head and of the one towards the tail
+	side                 float64
+	kind                 tbBladeKind
+	tone                 float64
+}
+
+// newBlade is a blade rooted at (rx, ry) (image pixels) at depth rz, along
+// axis (in the picture's space) for h image pixels, curling back towards
+// -fwd at its tip by curl, w0 half as wide at the root.
+func newBlade(rx, ry, rz float64, axis, fwd vec3, h, w0, curl float64, kind tbBladeKind, tone float64) *tbBlade {
+	b := &tbBlade{kind: kind, tone: tone}
+	ex, ey := rx+axis.x*h-fwd.x*h*curl, ry+axis.y*h-fwd.y*h*curl
+	mx, my := rx+axis.x*h*0.55, ry+axis.y*h*0.55
+	for i := 0; i <= tbBladeN; i++ {
+		u := float64(i) / tbBladeN
+		a, c, d := (1-u)*(1-u), 2*u*(1-u), u*u
+		b.x[i], b.y[i] = a*rx+c*mx+d*ex, a*ry+c*my+d*ey
+		b.w[i] = w0 * math.Pow(1-u, 0.9) * (1 + 0.18*math.Sin(u*math.Pi))
+	}
+	for i := 0; i <= tbBladeN; i++ {
+		a, c := max(0, i-1), min(tbBladeN, i+1)
+		dx, dy := b.x[c]-b.x[a], b.y[c]-b.y[a]
+		l := math.Max(1e-6, math.Hypot(dx, dy))
+		b.dx[i], b.dy[i] = dx/l, dy/l
+		if i < tbBladeN {
+			b.seg[i] = math.Hypot(b.x[i+1]-b.x[i], b.y[i+1]-b.y[i])
+		}
+	}
+	b.z0, b.z1 = rz, rz+axis.z*h-fwd.z*h*curl
+	F := axis.cross(fwd).unit()
+	if F.z < 0 {
+		F = F.mul(-1)
+	}
+	G := fwd.sub(axis.mul(fwd.dot(axis))).unit()
+	b.nL, b.nT = F.add(G.mul(1.3)).unit(), F.sub(G.mul(1.3)).unit()
+	if (-b.dy[0])*fwd.x+b.dx[0]*fwd.y > 0 {
+		b.side = 1
+	} else {
+		b.side = -1
+	}
+	return b
+}
+
+// raster calls f for each pixel of the blade with how far up it (0..1) and
+// across it (-1..1) the pixel is.
+func (b *tbBlade) raster(w, h int, f func(x, y int, u, sg float64)) {
+	x0, y0, x1, y1 := math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)
+	for i := 0; i <= tbBladeN; i++ {
+		x0, x1 = min(x0, b.x[i]-b.w[i]), max(x1, b.x[i]+b.w[i])
+		y0, y1 = min(y0, b.y[i]-b.w[i]), max(y1, b.y[i]+b.w[i])
+	}
+	for y := max(0, int(y0)-1); y <= min(h-1, int(y1)+1); y++ {
+		for x := max(0, int(x0)-1); x <= min(w-1, int(x1)+1); x++ {
+			px, py := float64(x)+0.5, float64(y)+0.5
+			best, bj := math.Inf(1), 0
+			for i := 0; i <= tbBladeN; i++ {
+				if d := (px-b.x[i])*(px-b.x[i]) + (py-b.y[i])*(py-b.y[i]); d < best {
+					best, bj = d, i
+				}
+			}
+			ex, ey := px-b.x[bj], py-b.y[bj]
+			al := ex*b.dx[bj] + ey*b.dy[bj]
+			seg := b.seg[min(bj, tbBladeN-1)]
+			if al < 0 && bj > 0 {
+				seg = b.seg[bj-1]
+			}
+			u := (float64(bj) + al/math.Max(seg, 1e-6)) / tbBladeN
+			if u < 0 || u > 1 {
+				continue
+			}
+			i := min(tbBladeN-1, int(u*tbBladeN))
+			fu := u*tbBladeN - float64(i)
+			wd := b.w[i]*(1-fu) + b.w[i+1]*fu
+			sg := (-ex*b.dy[bj] + ey*b.dx[bj]) / math.Max(wd, 1e-6)
+			if math.Abs(sg) <= 1 && wd > 0.35 {
+				f(x, y, u, sg)
+			}
+		}
+	}
+}
+
+// colour is a blade's pixel u up it and sg across it, lit; shade (0..1)
+// is how much of it is in a shadow.
+func (b *tbBlade) colour(x, y int, u, sg, shade float64) color.RGBA {
+	lead := sg*b.side > 0
+	n := b.nT
+	if lead {
+		n = b.nL
+	}
+	a := math.Abs(sg)
+	// Each face is lit as it turns to the light in the picture: the one
+	// towards the upper left bright, the other dark, the ridge between.
+	j := min(tbBladeN, int(u*tbBladeN+0.5))
+	px, py := -b.dy[j], b.dx[j]
+	if sg < 0 {
+		px, py = -px, -py
+	}
+	face := (px*tbL.x + py*tbL.y) / math.Hypot(tbL.x, tbL.y)
+	l := (0.3*clamp01((n.dot(tbL)+0.3)/1.3) + 0.7*clamp01(0.42+0.5*face)) * (1 - 0.6*shade)
+	l *= 0.5 + 0.5*smooth(clamp01(u/0.32)) // where it grows out of the hide
+	if a > 0.78 {
+		l -= 0.12 * (a - 0.78) / 0.22 // its edges turn away
+	}
+	if a < 0.09 { // the ridge between its faces catches the light
+		l += 0.14 * (1 - a/0.09) * (1 - shade)
+	}
+	l += b.tone
+	var col color.RGBA
+	switch b.kind {
+	case tbFin:
+		col = tbTone(tbBronze, 0.04+0.62*l)
+		if u > 0.5 {
+			col = mix(col, tbTone(tbBone, 0.06+0.6*l), smooth((u-0.5)/0.4)*0.55)
+		}
+	default:
+		// bronze where it grows, weathered bone up it, dark at the point
+		bone := tbTone(tbBone, 0.08+0.8*l)
+		base := tbTone(tbBronze, 0.04+0.75*l)
+		col = mix(base, bone, smooth(clamp01((u-0.08)/0.4)))
+		if u < 0.5 { // the rings it grew in
+			if f := u * 15; f-math.Floor(f) < 0.2 {
+				col = mix(col, tbInk, 0.22*(1-u*1.6))
+			}
+		}
+		if u > 0.72 {
+			col = mix(col, tbTone(tbBronze, 0.05+0.4*l), smooth((u-0.72)/0.28)*0.75)
+		}
+	}
+	if sp := math.Pow(max(0, n.dot(tbHv)), 16) * (1 - shade); sp > 0.02 {
+		col = mix(col, hex(0xf6ecd0), sp*0.5)
+	}
+	return col
+}
+
+// --- drawing a pose -------------------------------------------------------------
+
+// tbPose is one frame of the snake.
+type tbPose struct {
+	path   []vec3  // its centre line in the world, tail first, at least tbLen long
+	look   float64 // the head turned from the line of the neck (radians; + looks down)
+	gape   float64 // the jaws open, 0..1
+	tongue float64 // the tongue out, 0..1
+	swell  float64 // fatter, breathing in
+	lid    float64 // its eyes narrowed, 0..1
+	drool  float64 // spittle hanging between its open jaws, 0..1
+	spread float64 // its crown of horns raised, 0..1
+}
+
+// tbRender is a frame being drawn.
+type tbRender struct {
+	c      *canvas
+	k      float64
+	ox, oy float64 // the anchor on the canvas, art pixels
+	pts    []tbSample
+	zb     []float32
+	own    []int32 // nearest the eye at each pixel: -1 nothing, a sphere of the body, or -2-i blade i
+	pa, pb []float32
+	blades []*tbBlade
+}
+
+func (p tbPose) canvas() (*canvas, float64, float64) {
+	pts := tbBody(p.path, p.swell)
+	x0, y0, x1, y1 := math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)
+	for _, q := range pts {
+		m := q.r*1.9 + 6
+		x0, x1 = min(x0, q.sx-m), max(x1, q.sx+m)
+		y0, y1 = min(y0, q.sy-m), max(y1, q.sy+m)
+	}
+	nk := pts[len(pts)-1]
+	x0, x1 = min(x0, nk.sx-80), max(x1, nk.sx+80)
+	y0, y1 = min(y0, nk.sy-80), max(y1, nk.sy+60)
+	ox, oy := -math.Floor(x0), -math.Floor(y0)
+	W, H := int(math.Ceil(x1-x0))+2, int(math.Ceil(y1-y0))+2
+	rd := &tbRender{c: hdBossCanvas(W, H), k: float64(HDDensity), ox: ox, oy: oy, pts: pts}
+	c := rd.c
+	rd.zb = make([]float32, c.w*c.h)
+	rd.own = make([]int32, c.w*c.h)
+	rd.pa, rd.pb = make([]float32, c.w*c.h), make([]float32, c.w*c.h)
+	for i := range rd.zb {
+		rd.zb[i], rd.own[i] = -1e9, -1
+	}
+	hd := rd.headFrames(p)
+	rd.stampBody()
+	rd.addCrest()
+	rd.addHorns(hd, p, false)
+	for i, b := range rd.blades {
+		rd.stampBlade(b, int32(-2-i))
+	}
+	rd.shade()
+	rd.addHorns(hd, p, true) // the horns of its near side, their roots under the skull
+	rd.head(hd, p)
+	rd.eyeGlow(hd, p, false)
+	c.outline(0.8)
+	rd.eyeGlow(hd, p, true)
+	sh := hdBossCanvas(W, H)
+	rd.groundShadow(sh)
+	for i, q := range c.px {
+		if q.A > 0 {
+			sh.px[i] = q
+		}
+	}
+	return hdCrop(sh, ox, oy)
+}
+
+// stampBody draws the spheres of the body into the depth buffer.
+func (rd *tbRender) stampBody() {
+	c, k := rd.c, rd.k
+	for i := range rd.pts {
+		q := &rd.pts[i]
+		cx, cy, R, zc := (q.sx+rd.ox)*k, (q.sy+rd.oy)*k, q.r*k, q.z*k
+		for y := max(0, int(cy-R)); y <= min(c.h-1, int(cy+R)); y++ {
+			dy := float64(y) + 0.5 - cy
+			for x := max(0, int(cx-R)); x <= min(c.w-1, int(cx+R)); x++ {
+				dx := float64(x) + 0.5 - cx
+				d2 := dx*dx + dy*dy
+				if d2 > R*R {
+					continue
+				}
+				z := zc + math.Sqrt(R*R-d2)
+				o := y*c.w + x
+				if float32(z) > rd.zb[o] {
+					rd.zb[o], rd.own[o] = float32(z), int32(i)
+					rd.pa[o] = float32((dx*q.n3.x + dy*q.n3.y) / R)
+					rd.pb[o] = float32((dx*q.t2x + dy*q.t2y) / k)
+				}
+			}
+		}
+	}
+}
+
+// stampBlade draws a blade into the depth buffer.
+func (rd *tbRender) stampBlade(b *tbBlade, id int32) {
+	c := rd.c
+	b.raster(c.w, c.h, func(x, y int, u, sg float64) {
+		o := y*c.w + x
+		if z := float32(b.z0 + (b.z1-b.z0)*u); z > rd.zb[o] {
+			rd.zb[o], rd.own[o], rd.pa[o], rd.pb[o] = z, id, float32(u), float32(sg)
+		}
+	})
+}
+
+// surf is the point of the body's surface at angle phi about sample q
+// (from its back), in image pixels, and its depth and normal there.
+func (rd *tbRender) surf(q *tbSample, phi, in float64) (float64, float64, float64, vec3) {
+	a := q.phiD + phi
+	n := q.n3.mul(math.Cos(a)).add(q.b3.mul(math.Sin(a)))
+	r := q.r * in
+	return (q.sx + rd.ox + n.x*r) * rd.k, (q.sy + rd.oy + n.y*r) * rd.k, (q.z + n.z*r) * rd.k, n
+}
+
+// addCrest sets the spines along its back and the fins down its flanks.
+func (rd *tbRender) addCrest() {
+	pts := rd.pts
+	k := rd.k
+	arc := 0.0
+	for i := range pts {
+		q := &pts[i]
+		if q.s < 0.07 || q.s > 0.975 {
+			continue
+		}
+		gap := 9 + 6.5*q.r/tbRMax
+		if q.arc < arc {
+			continue
+		}
+		arc = q.arc + gap
+		h := q.r * 1.75 * smooth(clamp01((q.s-0.05)/0.3)) * (1 - 0.5*smooth(clamp01((q.s-0.86)/0.12))) * (0.68 + 0.32*smooth(clamp01((q.s-0.3)/0.4)))
+		j := int(q.arc / gap)
+		h *= 0.82 + 0.36*hashf(j, 0, 961)
+		if h < 1.2 {
+			continue
+		}
+		x, y, z, _ := rd.surf(q, 0, 0.82)
+		sw := 0.5
+		axis := q.dor.mul(math.Cos(sw)).sub(q.tan.unit().mul(math.Sin(sw))).unit()
+		rd.blades = append(rd.blades, newBlade(x, y, z, axis, q.tan.unit(), h*k, gap*0.46*k, 0.5, tbSpine, (hashf(j, 1, 961)-0.5)*0.12))
+	}
+	// The fins: hooked spikes swept back along each flank.
+	for _, side := range []float64{-1, 1} {
+		arc = 0
+		for i := range pts {
+			q := &pts[i]
+			if q.s < 0.14 || q.s > 0.93 || q.arc < arc {
+				continue
+			}
+			gap := 5.5 + 3.5*q.r/tbRMax
+			arc = q.arc + gap
+			j := int(q.arc / gap)
+			x, y, z, out := rd.surf(q, side*0.5*math.Pi, 0.92)
+			h := q.r * 0.75 * (0.75 + 0.5*hashf(j, 2, 962)) * smooth(clamp01((q.s-0.12)/0.2))
+			h *= 1 - smooth(clamp01((out.z-0.5)/0.35)) // one turned to the eye would lie flat along it
+			if h < 1 {
+				continue
+			}
+			axis := out.mul(0.55).sub(q.tan.unit().mul(0.82)).sub(q.dor.mul(0.12)).unit()
+			rd.blades = append(rd.blades, newBlade(x, y, z, axis, q.tan.unit(), h*k, gap*0.55*k, 0.3, tbFin, (hashf(j, 3, 962)-0.5)*0.08))
+		}
+	}
+}
+
+// shadowAt is how much of a shadow pixel o lies in: what is nearer the
+// eye between it and the light, not the body's own stretch at that point.
+func (rd *tbRender) shadowAt(x, y int, z float32, arc float64) float64 {
+	c := rd.c
+	lx, ly := tbL.x, tbL.y
+	l2 := math.Hypot(lx, ly)
+	lx, ly = lx/l2, ly/l2
+	rise := tbL.z / l2
+	const reach = 42.0
+	for s := 3.0; s < reach; s += 1.5 {
+		px, py := int(float64(x)+0.5+lx*s), int(float64(y)+0.5+ly*s)
+		if !c.in(px, py) {
+			return 0
+		}
+		o := py*c.w + px
+		if rd.zb[o] > z+float32(s*rise)+2 {
+			if w := rd.own[o]; w >= 0 && math.Abs(rd.pts[w].arc-arc) < rd.pts[w].r*3.2 {
+				continue // its own body, which its light already shades
+			}
+			return 1 - s/reach
+		}
+	}
+	return 0
+}
+
+// shade colours every pixel of the body and of the blades in it.
+func (rd *tbRender) shade() {
+	c := rd.c
+	for y := 0; y < c.h; y++ {
+		for x := 0; x < c.w; x++ {
+			o := y*c.w + x
+			w := rd.own[o]
+			switch {
+			case w >= 0:
+				q := &rd.pts[w]
+				sh := rd.shadowAt(x, y, rd.zb[o], q.arc+float64(rd.pb[o]))
+				c.px[o] = rd.skin(x, y, q, float64(rd.pa[o]), float64(rd.pb[o]), sh)
+			case w <= -2:
+				b := rd.blades[-2-w]
+				sh := rd.shadowAt(x, y, rd.zb[o], -1000)
+				c.px[o] = b.colour(x, y, float64(rd.pa[o]), float64(rd.pb[o]), sh*0.8)
+			}
+		}
+	}
+}
+
+// skin colours the body's pixel (x, y): t across the sphere q it belongs
+// to, along art pixels ahead of its middle, sh in a shadow.
+func (rd *tbRender) skin(x, y int, q *tbSample, t, along, sh float64) color.RGBA {
+	t = max(-1, min(1, t))
+	st := math.Sqrt(1 - t*t)
+	n := q.n3.mul(t).add(q.b3.mul(st))
+	round := q.b3.mul(t).sub(q.n3.mul(st)) // the way round the body
+	tan := q.tan.unit()
+	d := math.Atan2(st, t) - q.phiD
+	d -= 2 * math.Pi * math.Floor((d+math.Pi)/(2*math.Pi))
+	ad := math.Abs(d) / math.Pi // 0 along the ridge of its back, 1 down the middle of its belly
+	b := d * q.r                // art pixels round from the ridge
+	a := q.arc + along          // art pixels from the tip of the tail
+	sz := 0.6 + 0.4*q.r/tbRMax
+
+	var rp ramp
+	tone, seam := 0.0, 0.0
+	var bump vec3
+	spec := hex(0xc9c27a)
+	wob := (vnoise(a*0.2, b*0.2, 941) - 0.5) * 0.09
+	switch {
+	case ad > 0.68+wob: // the plates of its belly, ridged across
+		f := q.sp + along/(4.6*sz)
+		ff := f - math.Floor(f)
+		bump = tan.mul(math.Cos(ff*math.Pi) * 0.32)
+		if ff < 0.09 {
+			seam = 0.3 * (1 - ff/0.09)
+		} else if ff < 0.3 {
+			tone += 0.06 * smooth((0.3-ff)/0.2) // the raised back edge of a plate
+		}
+		if ad < 0.76+wob { // their ends, where they meet the scales
+			seam += 0.08
+		}
+		rp, spec = tbBelly, hex(0xfff6dc)
+		tone = 0.17 + (hashf(int(math.Floor(f)), 0, 942)-0.5)*0.05
+	default:
+		// Scales: a diamond lattice wrapped round it, each scale a low dome
+		// raised at its back edge, lit on its own.
+		sc := q.su + along/(6.2*sz)
+		pu, pv := sc+b/(5.2*sz), sc-b/(5.2*sz)
+		iu, iv := math.Floor(pu), math.Floor(pv)
+		fu, fv := pu-iu, pv-iv
+		ca, cb := fu+fv-1, fu-fv
+		kk := 0.26
+		if ca < 0 {
+			kk = 0.42
+		}
+		bump = tan.mul(ca * kk).add(round.mul(cb * 0.32))
+		if e := min(fu, fv); e < 0.075 {
+			seam = 0.3 * (1 - e/0.075)
+		} else if max(fu, fv) > 0.95 {
+			seam = 0.05
+		}
+		hs := hashf(int(iu), int(iv), 943)
+		tone = (hs - 0.5) * 0.07
+		rp = tbMoss
+		// Saddles of bronze across the back, at their ends reaching down
+		// the flanks; between them, bronze blotches low on each side.
+		P := 30 * sz
+		sd := q.su * 6.2 / 30 // saddles from the tail, one every 30 art pixels at its thickest
+		sd += along / P
+		ki := math.Floor(sd + 0.5)
+		jit := hashf(int(ki), 0, 951)
+		da := (sd-ki-(jit-0.5)*0.16)*P + (vnoise(a*0.2, b*0.2, 952)-0.5)*3.5
+		// a diamond astride the ridge, rimmed dark and edged in pale gold
+		ds := math.Abs(da)/(0.4*P*(0.9+0.2*jit)) + ad/0.44 + (vnoise(a*0.35, b*0.35, 954)-0.5)*0.1
+		bronze := false
+		switch {
+		case ds < 1:
+			bronze = true
+			switch {
+			case ds > 0.76:
+				tone -= 0.27
+			case ds < 0.42:
+				tone += 0.07 // its middle, worn bright
+			}
+		case ds < 1.15:
+			tone += 0.1
+		default:
+			db := math.Abs(math.Abs(d)/math.Pi - 0.56)
+			if da2 := math.Abs(math.Abs(da) - P*0.5); math.Hypot(da2/(5.5*sz), db/0.07) < 1 {
+				bronze, tone = true, tone-0.1
+			}
+		}
+		// and a few scales of bronze among the green, near the saddles
+		if !bronze && hs < 0.07*clamp01(2-ds) {
+			bronze, tone = true, tone-0.04
+		}
+		if bronze {
+			rp, spec = tbBronze, hex(0xf2cc7a)
+		}
+		// moss and lichen grown on the old scales of its back
+		if ad < 0.36 {
+			if m := vnoise(a*0.09, b*0.12, 953); m > 0.68 {
+				tone += (m - 0.68) * 0.9
+				if rp[0] == tbBronze[0] {
+					rp = tbMoss
+				}
+			}
+		}
+	}
+	ns := n.add(bump).unit()
+	l := clamp01((ns.dot(tbL)+0.14)/1.14) + 0.08*n.dot(tbUpS) // the sun, and the sky above
+	// What faces the ground near it is in the dark under the body.
+	if low := clamp01(1 - q.lift/(q.r*1.4)); low > 0 {
+		l *= 1 - 0.55*clamp01(-n.dot(tbUpS)*1.3)*low
+	}
+	l *= 1 - 0.62*sh
+	col := tbTone(rp, 0.03+0.7*l+tone-seam)
+	if g := math.Pow(max(0, ns.dot(tbHv)), 34) * (1 - sh) * (1 - seam*3); g > 0.01 {
+		col = mix(col, spec, g*0.6)
+	}
+	rim := math.Pow(clamp01(1-n.z), 2) * clamp01(n.x*0.72+n.y*0.7) * (1 - sh*0.7)
+	if rim > 0.01 {
+		col = mix(col, tbRimCol, rim*0.62)
+	}
+	return col
+}
+
+// groundShadow lays the body's shadow on the ground under it: dark where
+// it lies, fading under what is raised.
+func (rd *tbRender) groundShadow(sh *canvas) {
+	k := rd.k
+	for i := 0; i < len(rd.pts); i += 4 {
+		q := &rd.pts[i]
+		h := q.w.z
+		fade := clamp01(1 - h/120)
+		if fade <= 0 {
+			continue
+		}
+		gx, gy := q.w.x+0.3*h+1.5, tbSq*q.w.y+q.r*0.2
+		cx, cy := (gx+rd.ox)*k, (gy+rd.oy)*k
+		rx, ry := q.r*1.15*k*(1+h/80), q.r*0.62*k*(1+h/120)
+		for y := int(cy - ry); y <= int(cy+ry); y++ {
+			for x := int(cx - rx); x <= int(cx+rx); x++ {
+				dx, dy := (float64(x)+0.5-cx)/rx, (float64(y)+0.5-cy)/ry
+				if d := dx*dx + dy*dy; d <= 1 && sh.in(x, y) {
+					a := uint8((70 + 40*(1-d)) * fade)
+					if sh.px[y*sh.w+x].A < a {
+						sh.px[y*sh.w+x] = color.RGBA{8, 12, 8, a}
+					}
+				}
+			}
+		}
+	}
+}
+
+// --- the head -----------------------------------------------------------------
+
+// The head is drawn in two frames turned about the hinge of its jaws, the
+// skull's (fr) and the jaw's (fj): u runs forward to the snout, v down.
+var (
+	tbSkull = []knob{{-16, -5.4, 11.8}, {-5, -8.2, 13}, {6, -8.8, 12.6}, {15.5, -7.2, 10.8}, {24, -5.4, 8.9}, {31, -4.4, 7.4}, {36.5, -3.4, 5.9}, {40, -2.6, 4.3}}
+	tbJaw   = []knob{{-11, 5.6, 10}, {-1, 6.6, 7.8}, {10, 6.6, 6.5}, {20, 5.8, 5.3}, {28.5, 4.9, 4.4}, {34.5, 4.1, 3.5}, {38.5, 3.6, 2.6}}
+	tbBrow  = []knob{{3.5, -17.6, 4.2}, {9.5, -18.8, 5}, {15.5, -17.8, 4.8}, {21, -15.2, 3.8}, {25, -12.4, 2.8}}
+)
+
+const (
+	tbEyeU, tbEyeV = 14.0, -10.4
+	tbTip          = 40.0 // the tip of its snout
+	tbCorner       = 11.0 // the corner of its mouth, just behind the eye
+)
+
+// tbLipUp is where the skull's lip runs, in its frame; tbLipLow the jaw's.
+func tbLipUp(u float64) float64  { return 2.3 - 1.6*smooth(clamp01((u-32)/8)) }
+func tbLipLow(u float64) float64 { return 2.5 - 0.9*smooth(clamp01((u-32)/7)) }
+
+type tbHeadPos struct {
+	fr, fj bossFrame
+	hx, hy float64 // the hinge, art pixels on the canvas
+	a      float64
+}
+
+// headFrames places the head on the end of the neck.
+func (rd *tbRender) headFrames(p tbPose) tbHeadPos {
+	nk := rd.pts[len(rd.pts)-1]
+	pr := rd.pts[len(rd.pts)-12]
+	a := math.Atan2(nk.sy-pr.sy, nk.sx-pr.sx) + p.look
+	ca, sa := math.Cos(a), math.Sin(a)
+	hu, hv := 15.0*tbHeadK, 4.0*tbHeadK
+	hx, hy := nk.sx+rd.ox+ca*hu-sa*hv, nk.sy+rd.oy+sa*hu+ca*hv
+	return tbHeadPos{
+		fr: hdFrameAt(rd.c, hx, hy, a-p.gape*0.36, tbHeadK),
+		fj: hdFrameAt(rd.c, hx, hy, a+p.gape*0.7, tbHeadK),
+		hx: hx, hy: hy, a: a,
+	}
+}
+
+// tbPlates is the armour of the head: plates in a broken lattice, size
+// big, with the distance to the nearest seam (in frame units) and the
+// way to the middle of the plate.
+func tbPlates(u, v, big float64, seed uint32) (edge, mx, my float64, id int) {
+	gu, gv := u/big, v/big
+	iu, iv := int(math.Floor(gu)), int(math.Floor(gv))
+	d1, d2 := math.Inf(1), math.Inf(1)
+	var cx, cy float64
+	for j := iv - 1; j <= iv+1; j++ {
+		for i := iu - 1; i <= iu+1; i++ {
+			px := float64(i) + 0.15 + 0.7*hashf(i, j, seed)
+			py := float64(j) + 0.15 + 0.7*hashf(i, j, seed+1)
+			d := math.Hypot(gu-px, gv-py)
+			if d < d1 {
+				d2, d1, cx, cy, id = d1, d, px, py, i*7919+j
+			} else if d < d2 {
+				d2 = d
+			}
+		}
+	}
+	return (d2 - d1) * big * 0.5, cx*big - u, cy*big - v, id
+}
+
+// head paints the jaws, the mouth, the skull, the brow, the teeth and the eye.
+func (rd *tbRender) head(hp tbHeadPos, p tbPose) {
+	c := rd.c
+	fr, fj := hp.fr, hp.fj
+	// The mouth, between the jaws.
+	if p.gape > 0.03 {
+		rd.mouth(fr, fj, p)
+		// the far row of teeth, in the dark of its mouth
+		for _, u := range []float64{15, 19.5, 24, 28.5, 33} {
+			rd.tooth(fr, u-1.2, tbLipUp(u)+0.4, tbToothLen(u, 5)*0.7, 1, 1, 0.4)
+			rd.tooth(fj, u-0.4, tbLipLow(u)-0.4, tbToothLen(u, 6)*0.6, 0.95, -1, 0.4)
+		}
+	}
+	if p.tongue > 0 {
+		rd.tongue(fr, fj, p)
+	}
+	if p.drool > 0 && p.gape > 0.5 {
+		rd.drool(fr, fj, p.drool)
+	}
+	// Its jaw's own spikes, under the chin, their roots hidden in it.
+	for i, s := range [][4]float64{{-6, 10.5, 2.35, 11}, {3, 12, 2.15, 8}, {12, 11.8, 2.0, 6.5}, {20, 10.6, 1.9, 5}} {
+		rd.hornAt(fj, s[0], s[1], s[2], s[3]*(0.9+0.1*p.spread), 1.6, 0.35, 0.25, true, 980+uint32(i))
+	}
+	// The jaw: pale scales along its lip, plates down its side, a pale throat.
+	bossPaint(c, 0.3, func(x, y int, q bossPt) color.RGBA {
+		u, v := fj.local(x, y)
+		if u > -7 && v < tbLipLow(u) {
+			return color.RGBA{}
+		}
+		l := 0.1 + q.l*0.86
+		switch {
+		case v < tbLipLow(u)+1.5*smooth(clamp01((u-tbCorner+4)/5)): // the lip, from the corner of its mouth
+			if f := u / 3.2; f-math.Floor(f) < 0.1 {
+				l -= 0.12
+			}
+			return tbTone(tbBelly, l*0.9+0.04)
+		case v > 9.2-0.1*u || q.ny > 0.55: // the throat
+			if f := (u + v*0.3) / 2.4; f-math.Floor(f) < 0.14 {
+				l -= 0.08
+			}
+			return tbTone(tbBelly, l*0.82+0.06)
+		}
+		e, mx, my, id := tbPlates(u, v, 3.6, 975)
+		l += rd.plateLight(fj, e, mx, my) - 0.04
+		rp := tbMoss
+		if hashf(id, 0, 976) < 0.35 {
+			rp = tbBronze
+		}
+		return tbTone(rp, l*0.92)
+	}, fj.knobs(tbJaw))
+	// A horn on the snout, grown out of it.
+	rd.hornAt(fr, 31.5, -9.4, -1.6, 6.5, 1.8, 0.35, 0.3, true, 993)
+	// The skull: great keeled plates over the crown, small scales on the
+	// face, a smooth pale lip, the eye sunk in a dark socket under the brow.
+	bossPaint(c, 0.32, func(x, y int, q bossPt) color.RGBA {
+		u, v := fr.local(x, y)
+		if u > -9 && v > tbLipUp(u) {
+			return color.RGBA{}
+		}
+		l := 0.06 + q.l*0.88
+		if v > tbLipUp(u)-2.2*smooth(clamp01((u-tbCorner+4)/5)) { // the lip, from the corner of its mouth
+			if f := u / 3.2; f-math.Floor(f) < 0.1 {
+				l -= 0.12
+			}
+			return tbTone(tbBelly, l*0.85+0.06)
+		}
+		if eye := math.Hypot((u-tbEyeU)/1.25, (v-tbEyeV)/0.95); eye < 5.2 {
+			return tbTone(tbBronze, (l*0.3+0.01)*smooth(clamp01((eye-2.8)/2.4)))
+		}
+		crown := v < -12.5+0.14*u
+		big := 2.5
+		if crown {
+			big = 5.8
+		}
+		e, mx, my, _ := tbPlates(u, v, big, 977)
+		l += rd.plateLight(fr, e, mx, my) * (0.55 + 0.45*big/5.8)
+		if crown && math.Abs(my) < 0.4 && e > 0.6 {
+			l += 0.07 // the keel along a plate
+		}
+		// the shadow of the brow, over the eye
+		if u > 0 && u < 28 && v > -15 && v < -5 {
+			l -= 0.34 * smooth(clamp01((v+14)/3)) * smooth(clamp01((-6-v)/3)) * clamp01(1-math.Abs(u-tbEyeU)/15)
+		}
+		rp := tbMoss
+		switch {
+		case u < 12 && v > -7.6 && v < -3+0.12*u: // a dark band back from the eye
+			rp, l = tbBronze, l*0.62
+		case crown:
+			rp, l = tbBronze, l*0.66
+		}
+		col := tbTone(rp, l*0.9)
+		if g := math.Pow(clamp01(q.l), 7) * 0.35; e > 0.5 && g > 0.02 {
+			col = mix(col, hex(0xe8d290), g)
+		}
+		return col
+	}, fr.knobs(tbSkull))
+	// Spikes along the brow.
+	rd.hornAt(fr, 9, -22.5, -2.1, 9*(0.8+0.2*p.spread), 1.9, 0.3, 0.3, true, 990)
+	rd.hornAt(fr, 15.5, -21.8, -1.95, 7*(0.8+0.2*p.spread), 1.6, 0.3, 0.3, true, 991)
+	rd.hornAt(fr, 21, -18.4, -1.8, 5.5, 1.4, 0.25, 0.3, true, 992)
+	// The heavy brow over the eye: rough, ridged bone.
+	bossPaint(c, 0.5, func(x, y int, q bossPt) color.RGBA {
+		u, v := fr.local(x, y)
+		l := 0.03 + q.l*0.8 + (vnoise(u*0.8, v*0.8, 979)-0.5)*0.2
+		if b := vnoise(u*1.5, v*1.5, 981); b < 0.32 {
+			l -= 0.16 * (0.32 - b) / 0.32 * 2 // the pits and lumps of old bone
+		}
+		return tbTone(tbBronze, l*0.9+0.03)
+	}, fr.knobs(tbBrow))
+	// Nostril.
+	nx, ny := fr.at(tbTip-3.5, -4.8)
+	for _, o := range [][3]float64{{0, 0, 1.1}, {0.4, 0.3, 0.7}} {
+		rd.c.dotPx(nx+o[0]*fr.k1(), ny+o[1]*fr.k1(), o[2]*fr.k1(), tbInk)
+	}
+	// The teeth: eight or so along each jaw from the corner of its mouth,
+	// longest towards the front, every one curved back, and great fangs.
+	const fangUp, fangUp2, fangLow = 27.5, tbTip - 3.5, 30.5
+	if p.gape > 0.12 {
+		for _, u := range []float64{13.2, 16.4, 19.6, 22.8, 26, 34, 36.6} {
+			rd.tooth(fj, u, tbLipLow(u)+0.25, tbToothLen(u, 0), 1.3, -1, 1)
+		}
+		rd.tooth(fj, fangLow, tbLipLow(fangLow)+0.25, 8*min(1, p.gape*1.6), 1.55, -1, 1)
+	}
+	for _, u := range []float64{12.6, 15.8, 19, 22.2, 24.9, 30.6, 33.4, 38.8} {
+		rd.tooth(fr, u, tbLipUp(u)-0.2, tbToothLen(u, 1)*clamp01(p.gape*3), 1.3, 1, 1)
+	}
+	rd.tooth(fr, fangUp, tbLipUp(fangUp)-0.2, 10, 1.8, 1, 1)
+	rd.tooth(fr, fangUp2, tbLipUp(fangUp2)-0.2, 6.5, 1.35, 1, 1)
+	rd.eye(hp, p)
+}
+
+// tbToothLen is how long the tooth of a row at u is: short at the back,
+// longest towards the front, each a little different.
+func tbToothLen(u float64, row uint32) float64 {
+	return (3.1 + 1.6*smooth(clamp01((u-tbCorner)/18))) * (0.9 + 0.2*hashf(int(u*10), int(row), 972))
+}
+
+// mouth paints the inside of the open mouth between the lips: a throat
+// that goes black at the back, the muted rose of the palate with its ridges
+// and of the floor, the gums along each lip, a clean dark line where the
+// lips meet them, and in front, between the tips of the jaws, open air.
+func (rd *tbRender) mouth(fr, fj bossFrame, p tbPose) {
+	var q [][3]float64
+	for u := -9.0; u <= tbTip; u += 2 {
+		q = append(q, [3]float64{u, tbLipUp(u) - 0.3, 0})
+	}
+	for u := tbTip; u >= -9; u -= 2 {
+		q = append(q, [3]float64{u, tbLipLow(u) + 0.3, 1})
+	}
+	inset := 8 * clamp01(p.gape*1.4)
+	fr.poly2(rd.c, fj, q, func(x, y int) color.RGBA {
+		u1, v1 := fr.local(x, y)
+		u2, v2 := fj.local(x, y)
+		e1, e2 := v1-tbLipUp(u1), tbLipLow(u2)-v2 // in from each lip
+		if e1 < 0 || e2 < 0 {
+			return color.RGBA{}
+		}
+		t := e1 / (e1 + e2)      // 0 at the upper lip, 1 at the lower
+		um := math.Hypot(u1, v1) // how far from the hinge
+		if um > lerpf(tbTip-1, tbTip-2, t)-inset*math.Sin(t*math.Pi) {
+			return color.RGBA{} // the air between the tips of its jaws
+		}
+		// The corner of its mouth, rounded; behind it its cheek closes the head.
+		corner := tbCorner + 5*(2*t-1)*(2*t-1)
+		if um < corner {
+			return rd.cheek(fr, um, e1, t, corner-um)
+		}
+		depth := smooth(clamp01((um - tbCorner) / (tbTip - tbCorner))) // 0 down its throat, 1 at the front
+		mid := 1 - math.Abs(2*t-1)
+		lit := depth * (1 - 0.6*mid)
+		col := mix(hex(0x060104), hex(0x24080e), clamp01(lit*1.6))
+		if t < 0.5 { // the palate faces down, out of the light
+			col = mix(col, hex(0x3c1620), clamp01((lit-0.45)*1.4))
+			if f := um / 2.6; f-math.Floor(f) < 0.2 && t < 0.38 {
+				ridge := (1 - (f-math.Floor(f))/0.2) * clamp01((0.38-t)/0.2) * depth
+				col = mix(col, hex(0x5c2a34), 0.3*ridge) // the ridges across its roof
+			}
+		} else { // its floor, lit from above
+			col = mix(col, hex(0x481a24), clamp01((lit-0.4)*1.4))
+		}
+		if e := min(e1, e2); e < 0.75 { // the gums: a thin line along each lip
+			gum := hex(0x5a2430)
+			if e2 < e1 {
+				gum = hex(0x6e3440)
+			}
+			col = mix(col, mix(hex(0x200a10), gum, 0.4+0.6*depth), 0.85*smooth(1-e/0.75))
+			if e < 0.28 {
+				col = hex(0x1a060b) // where the lip meets them
+			}
+		}
+		if d := um - corner; d < 1.4 {
+			col = mix(col, hex(0x040102), 0.6*(1-d/1.4)) // the fold deep in its corner
+		}
+		return col
+	})
+}
+
+// cheek colours the skin stretched between its jaws behind the corner of
+// its mouth: um art units from the hinge, e1 down from the upper lip, t
+// (0..1) across, toCorner short of the corner.
+func (rd *tbRender) cheek(fr bossFrame, um, e1, t, toCorner float64) color.RGBA {
+	e, mx, my, id := tbPlates(um, e1, 2.3, 986)
+	l := 0.3 + 0.2*(1-t) + 0.12*math.Sin(math.Pi*clamp01((um+9)/(tbCorner+9))) // its bulge
+	l += rd.plateLight(fr, e, mx, my) * 0.8
+	if toCorner < 2.5 {
+		l -= 0.24 * (1 - toCorner/2.5) // drawn into the corner
+	}
+	rp := tbMoss
+	if hashf(id, 0, 987) < 0.2 {
+		rp = tbBronze
+	}
+	return tbTone(rp, l*0.88)
+}
+
+// tongueStroke paints a slim, round, tapering stroke along pts (frame units
+// in f), w0 half wide at its start and w1 at its end: dark rose, lit along
+// its top, dark below.
+func (rd *tbRender) tongueStroke(f bossFrame, pts [][2]float64, w0, w1 float64) {
+	c := rd.c
+	k := f.k1()
+	px := make([][2]float64, len(pts))
+	cum := make([]float64, len(pts))
+	x0, y0, x1, y1 := math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)
+	for i, p := range pts {
+		px[i][0], px[i][1] = f.at(p[0], p[1])
+		if i > 0 {
+			cum[i] = cum[i-1] + math.Hypot(px[i][0]-px[i-1][0], px[i][1]-px[i-1][1])
+		}
+		x0, x1 = min(x0, px[i][0]), max(x1, px[i][0])
+		y0, y1 = min(y0, px[i][1]), max(y1, px[i][1])
+	}
+	total := cum[len(cum)-1]
+	if total <= 0 {
+		return
+	}
+	m := w0*k + 2
+	for y := int(y0 - m); y <= int(y1+m); y++ {
+		for x := int(x0 - m); x <= int(x1+m); x++ {
+			if !c.in(x, y) {
+				continue
+			}
+			sx, sy := float64(x)+0.5, float64(y)+0.5
+			best, bs, bex, bey := math.Inf(1), 0.0, 0.0, 0.0
+			for i := 0; i+1 < len(px); i++ {
+				ax, ay := px[i][0], px[i][1]
+				dx, dy := px[i+1][0]-ax, px[i+1][1]-ay
+				l2 := dx*dx + dy*dy
+				if l2 == 0 {
+					continue
+				}
+				s := clamp01(((sx-ax)*dx + (sy-ay)*dy) / l2)
+				ex, ey := sx-(ax+dx*s), sy-(ay+dy*s)
+				if d := ex*ex + ey*ey; d < best {
+					best, bex, bey = d, ex, ey
+					bs = (cum[i] + s*math.Sqrt(l2)) / total
+				}
+			}
+			w := lerpf(w0, w1, bs) * k
+			d := math.Sqrt(best)
+			if d > w || w < 0.4 {
+				continue
+			}
+			ny, nx := bey/w, bex/w // -1 its top edge
+			l := 0.5 - 0.42*ny - 0.12*nx
+			col := tbTone(tbTongue, l)
+			if ny < -0.15 && ny > -0.65 && bs < 0.9 {
+				col = mix(col, hex(0xc0707c), 0.45*(1-math.Abs(ny+0.4)/0.25)) // its gloss
+			}
+			c.put(x, y, col)
+		}
+	}
+}
+
+var tbTongue = mkRamp(0x1a0408, 0x340a12, 0x4e121e, 0x681a2a, 0x822a3a, 0x9c4050)
+
+// tongue puts its forked tongue out: lying along the floor of the open
+// mouth, the tip raised and tasting, or, the mouth shut, flicked out
+// through the notch in its lips.
+func (rd *tbRender) tongue(fr, fj bossFrame, p tbPose) {
+	tg := p.tongue
+	var f bossFrame
+	var body [][2]float64
+	if p.gape >= 0.15 {
+		f = fj
+		// along the floor of its mouth, clear of the teeth, the tip raised
+		tip := 24 + 9*tg
+		body = [][2]float64{{tbCorner + 1.5, -2}, {tbCorner + 6, -2.9}, {tip - 7, -2.5}, {tip - 3, -3.2 - 1.1*tg}, {tip, -4.4 - 2.2*tg}}
+	} else {
+		f = fr
+		out := tbTip + 10*tg
+		body = [][2]float64{{tbTip - 12, 1.3}, {tbTip - 2, 1.2}, {out - 4, 1.4 + 0.4*tg}, {out, 1.9 + 0.7*tg}}
+	}
+	rd.tongueStroke(f, body, 1, 0.45)
+	// the fork
+	a, b := body[len(body)-2], body[len(body)-1]
+	ang := math.Atan2(b[1]-a[1], b[0]-a[0])
+	l := 4.5 * (0.5 + 0.5*tg)
+	for _, s := range []float64{-0.42, 0.42} {
+		rd.tongueStroke(f, [][2]float64{b, {b[0] + math.Cos(ang+s*0.6)*l*0.5, b[1] + math.Sin(ang+s*0.6)*l*0.5},
+			{b[0] + math.Cos(ang+s)*l, b[1] + math.Sin(ang+s)*l}}, 0.45, 0.14)
+	}
+}
+
+// drool hangs a strand or two of spittle between its jaws.
+func (rd *tbRender) drool(fr, fj bossFrame, amt float64) {
+	c := rd.c
+	for i, s := range [][3]float64{{17, 15, 0.3}, {25, 22.5, 0.2}} {
+		ax, ay := fr.at(s[0], tbLipUp(s[0])+0.2)
+		bx, by := fj.at(s[1], tbLipLow(s[1])-0.2)
+		sag := math.Hypot(bx-ax, by-ay) * s[2] * amt
+		mx, my := (ax+bx)/2+sag*0.2, (ay+by)/2+sag
+		n := int(math.Hypot(bx-ax, by-ay)*1.5) + 2
+		for j := 0; j <= n; j++ {
+			t := float64(j) / float64(n)
+			x := (1-t)*(1-t)*ax + 2*t*(1-t)*mx + t*t*bx
+			y := (1-t)*(1-t)*ay + 2*t*(1-t)*my + t*t*by
+			r := 0.55 + 0.5*math.Sin(t*math.Pi)*float64(1-i)
+			c.dotPx(x, y, r, color.RGBA{214, 200, 204, uint8(120 + 50*math.Sin(t*math.Pi))})
+		}
+	}
+}
+
+// plateLight is how much lighter (or darker) a pixel of a plate is: the
+// bevel of its edge facing the light, the seam between plates in shadow.
+func (rd *tbRender) plateLight(f bossFrame, edge, mx, my float64) float64 {
+	if edge < 0.24 {
+		return -0.24
+	}
+	bev := 1 - clamp01((edge-0.24)/1.2)
+	if bev <= 0 {
+		return 0
+	}
+	// the edge faces away from the plate's middle
+	ex, ey := rotPt(f.a, -mx, -my)
+	l := math.Hypot(ex, ey)
+	if l < 1e-6 {
+		return 0
+	}
+	return bev * 0.24 * (ex*tbL.x + ey*tbL.y) / l / math.Hypot(tbL.x, tbL.y)
+}
+
+// tooth sets a tooth on the lip at (u, v) of frame f, l long, w wide at its
+// root, pointing down (dir 1) or up (-1); lit (0..1) dims the far row.
+func (rd *tbRender) tooth(f bossFrame, u, v, l, w, dir, lit float64) {
+	if l < 0.5 {
+		return
+	}
+	// Its middle line bends back towards the tip; it tapers to a point.
+	mid := func(g float64) float64 { return u - 0.32*l*g*g }
+	const n = 8
+	var q [][2]float64
+	for i := 0; i <= n; i++ {
+		g := float64(i) / n
+		q = append(q, [2]float64{mid(g) + w*math.Pow(1-g, 0.8), v + dir*l*g})
+	}
+	for i := n; i >= 0; i-- {
+		g := float64(i) / n
+		q = append(q, [2]float64{mid(g) - w*math.Pow(1-g, 0.8), v + dir*l*g})
+	}
+	// Which of its faces turns to the light: the one towards the snout, or
+	// the one towards the throat.
+	front := math.Cos(f.a)*tbL.x+math.Sin(f.a)*tbL.y > 0
+	f.poly(rd.c, q, func(x, y int) color.RGBA {
+		pu, pv := f.local(x, y)
+		g := clamp01((pv - v) * dir / l) // 0 at the root, 1 at the tip
+		hw := max(1e-3, w*math.Pow(1-g, 0.8))
+		s := (pu - mid(g)) / hw // -1 its back edge, 1 its front
+		var t float64
+		if (s > 0) == front {
+			t = 0.74 + 0.12*g
+			if math.Abs(s) < 0.35 {
+				t += 0.1 // the light along its ridge
+			}
+		} else {
+			t = 0.4 + 0.1*g - 0.1*math.Abs(s)
+		}
+		col := tbTone(tbBone, t*lit)
+		if g < 0.2 { // the gum it grows from
+			col = mix(col, mix(hex(0x5a2430), hex(0x84424e), lit), (0.2-g)/0.2*0.75)
+		}
+		return col
+	})
+}
+
+// eye paints an eye in its socket: a burning iris, a slit, a glint.
+func (rd *tbRender) eye(hp tbHeadPos, p tbPose) {
+	f := hp.fr
+	cx, cy := f.at(tbEyeU, tbEyeV)
+	r := 2.9 * f.k1()
+	open := 1 - 0.82*p.lid
+	for j := int(cy - r - 2); j <= int(cy+r+2); j++ {
+		for i := int(cx - r - 2); i <= int(cx+r+2); i++ {
+			du, dv := rotPt(-f.a, float64(i)+0.5-cx, float64(j)+0.5-cy)
+			du, dv = du/r, dv/(r*open)
+			d := math.Hypot(du, dv)
+			switch {
+			case d > 1.25:
+			case d > 1:
+				rd.c.put(i, j, hex(0x1a0c04))
+			case math.Abs(du) < 0.2*(1.1-dv*dv) && open > 0.3:
+				rd.c.put(i, j, hex(0x220a02))
+			default:
+				col := mix(hex(0xfff3b0), hex(0xffa830), clamp01(d*1.2))
+				col = mix(col, hex(0xc8361a), clamp01((d-0.62)*2.4+dv*0.25))
+				rd.c.put(i, j, col)
+			}
+		}
+	}
+	if open > 0.4 {
+		gx, gy := f.at(tbEyeU-0.9, tbEyeV-0.9*open)
+		rd.c.dotPx(gx, gy, 0.5*f.k1(), hex(0xfffef0))
+	}
+}
+
+// eyeGlow lays the light of its eyes round them: on what is drawn, or
+// outside, in the air about its head.
+func (rd *tbRender) eyeGlow(hp tbHeadPos, p tbPose, outside bool) {
+	c := rd.c
+	cx, cy := hp.fr.at(tbEyeU, tbEyeV)
+	R := 7 * hp.fr.k1()
+	str := 1 - 0.5*p.lid
+	for j := int(cy - R); j <= int(cy+R); j++ {
+		for i := int(cx - R); i <= int(cx+R); i++ {
+			if !c.in(i, j) {
+				continue
+			}
+			d := math.Hypot(float64(i)+0.5-cx, float64(j)+0.5-cy) / R
+			if d >= 1 {
+				continue
+			}
+			g := (1 - d) * (1 - d) * str
+			o := c.px[j*c.w+i]
+			switch {
+			case !outside && o.A > 0 && d > 0.62:
+				add := func(a uint8, b float64) uint8 { return uint8(min(255, float64(a)+b)) }
+				c.px[j*c.w+i] = color.RGBA{add(o.R, 150*g), add(o.G, 82*g), add(o.B, 14*g), o.A}
+			case outside && o.A == 0 && d < 0.75:
+				c.px[j*c.w+i] = color.RGBA{255, 170, 60, uint8(110 * g)}
+			}
+		}
+	}
+}
+
+// hornAt draws a horn of the head on the canvas (or, for a far one, into
+// the depth buffer): rooted at (u, v) in frame f, pointing along angle a
+// (in the frame), l long and w wide at its root, curling back by curl.
+func (rd *tbRender) hornAt(f bossFrame, u, v, a, l, w, curl, lift float64, near bool, seed uint32) {
+	x, y := f.at(u, v)
+	ang := f.a + a
+	zs := lift
+	if !near {
+		zs = -lift
+	}
+	axis := vec3{math.Cos(ang), math.Sin(ang), zs}.unit()
+	fwd := vec3{math.Cos(f.a), math.Sin(f.a), 0}
+	b := newBlade(x, y, 0, axis, fwd, l*f.k1(), w*f.k1(), curl, tbHornK, (hashf(int(seed), 0, 994)-0.5)*0.08)
+	if !near {
+		nk := rd.pts[len(rd.pts)-1]
+		b.z0, b.z1 = (nk.z-nk.r*0.4)*rd.k, (nk.z-nk.r*0.4)*rd.k
+		rd.blades = append(rd.blades, b)
+		return
+	}
+	b.raster(rd.c.w, rd.c.h, func(x, y int, uu, sg float64) {
+		rd.c.put(x, y, b.colour(x, y, uu, sg, 0))
+	})
+}
+
+// addHorns sets the crown of horns that fans back from its skull: the far
+// ones (near false) behind the neck, the near ones over the head.
+func (rd *tbRender) addHorns(hp tbHeadPos, p tbPose, near bool) {
+	sp := p.spread
+	for i, h := range [][6]float64{
+		// u, v, angle, length, width, curl
+		{7, -17, -2.42, 30, 3, 0.42},
+		{0, -18.5, -2.62, 40, 3.4, 0.5},
+		{-7, -17.5, -2.78, 38, 3.3, 0.45},
+		{-13, -14, -2.92, 34, 3.1, 0.4},
+		{-18, -8, -3.06, 29, 2.8, 0.35},
+		{-19, -1, 3.05, 23, 2.5, 0.3},
+		{-14, 5, 2.78, 17, 2.1, 0.28},
+	} {
+		isNear := i%2 == 0
+		if isNear != near {
+			continue
+		}
+		a := h[2] - sp*0.22*math.Sin(h[2]) // raised, they fan out wider
+		l := h[3] * (0.92 + 0.08*sp)
+		if sp < 0 {
+			l *= 1 + 0.25*sp // laid back flat along its neck
+		}
+		if !isNear {
+			l *= 0.9
+		}
+		rd.hornAt(hp.fr, h[0], h[1], a, l, h[4], h[5], 0.3, isNear, 1000+uint32(i))
+	}
+}
 
 // frameQuad fills a line from (u0, v0) to (u1, v1) of the frame, w thick.
 func frameQuad(c *canvas, f bossFrame, u0, v0, u1, v1, w float64, col color.RGBA) {
@@ -324,278 +1272,33 @@ func frameQuad(c *canvas, f bossFrame, u0, v0, u1, v1, w float64, col color.RGBA
 	f.poly(c, [][2]float64{{u0 + nx, v0 + ny}, {u1 + nx, v1 + ny}, {u1 - nx, v1 - ny}, {u0 - nx, v0 - ny}}, solid(col))
 }
 
-// frameHorn grows a horn in the frame from (u0, v0) to its tip (u1, v1),
-// bowed bend to the side and w thick at the root.
-func frameHorn(c *canvas, f bossFrame, u0, v0, u1, v1, bend, w, shade float64) {
-	dx, dy := u1-u0, v1-v0
-	l := math.Hypot(dx, dy)
-	bu, bv := (u0+u1)/2-dy/l*bend, (v0+v1)/2+dx/l*bend
-	ll := math.Hypot(lightDir[0], lightDir[1])
-	m := int(1.3*l*f.k1()) + 1
-	for q := 0; q <= m; q++ {
-		u := float64(q) / float64(m)
-		v := 1 - u
-		px, py := f.at(v*v*u0+2*u*v*bu+u*u*u1, v*v*v0+2*u*v*bv+u*u*v1)
-		rad := (w/2*math.Pow(v, 0.8) + 0.16) * f.k1()
-		for y := int(py - rad); y <= int(py+rad); y++ {
-			ey := float64(y) + 0.5 - py
-			for x := int(px - rad); x <= int(px+rad); x++ {
-				ex := float64(x) + 0.5 - px
-				d := (ex*ex + ey*ey) / (rad * rad)
-				if d > 1 {
-					continue
-				}
-				lt := 0.34 + 0.36*u + 0.42*(ex*lightDir[0]+ey*lightDir[1])/(rad*ll) + shade
-				if g := u * 8; g-math.Floor(g) < 0.15 && u < 0.75 {
-					lt -= 0.1
-				}
-				c.put(x, y, rq(titanHorn, lt, x, y))
-			}
-		}
-	}
-}
+// --- the poses ------------------------------------------------------------------
 
-// titanHead paints the head with the back of its skull at (hx, hy) art
-// pixels, looking along a; gape opens the jaws (0..1) and tongue (0..1) puts
-// the tongue out.
-func titanHead(c *canvas, hx, hy, a, gape, tongue float64) {
-	fr := hdFrameAt(c, hx, hy, a-gape*0.42, titanHeadK)
-	fj := hdFrameAt(c, hx, hy, a+gape*0.58, titanHeadK)
-	// The crown: long horns swept back from the skull, and the spikes of
-	// the frill behind the jaw.
-	frameHorn(c, fj, -4, 6.5, -17, 13, -2, 2.6, -0.14)
-	frameHorn(c, fj, -7, 4.5, -23, 7.5, -1.5, 3, -0.12)
-	frameHorn(c, fr, -9, 0, -28, 0.5, 1.5, 3.2, -0.1)
-	frameHorn(c, fr, -8, -5, -31, -9, 3, 3.8, -0.06)
-	frameHorn(c, fr, -4, -8.5, -27, -19, 4, 4.2, 0)
-	frameHorn(c, fr, 2, -10, -15, -26, 4.5, 3.8, 0.02)
-	if gape > 0 { // the inside of the mouth
-		fr.poly2(c, fj, [][3]float64{{-3, 1, 0}, {24, 1.8, 0}, {21.5, 1.4, 1}, {-3, 2, 1}}, func(x, y int) color.RGBA {
-			u, v := fr.local(x, y)
-			d := math.Hypot(u, v)
-			col := mix(colGullet, hex(0xd0606c), clamp01((d-3)/15)-hashf(x/2, y/2, 933)*0.12)
-			if f := u / 2.6; f-math.Floor(f) < 0.16 && d > 6 {
-				col = mix(col, colGullet, 0.25) // the ridges of its palate
-			}
-			return col
-		})
+// tbSerpent is the path of the snake under way, its neck at (x, 0) and
+// raised z above the ground: waves of the given phase run back down it from
+// the head, growing towards the tail. n art pixels of it, tail first.
+func tbSerpent(x, z, phase, amp, wave, n float64) []vec3 {
+	const step = 0.5
+	m := int(n / step)
+	th := make([]float64, m+1)
+	mean := 0.0
+	for i := range th {
+		sg := float64(i) * step
+		env := amp * (0.16 + 0.84*smooth(clamp01(sg/130))) * (0.9 + 0.2*sg/n)
+		th[i] = env * math.Sin(2*math.Pi*sg/wave+phase)
+		mean += th[i]
 	}
-	if tongue > 0 {
-		f, tu, tv := fj, 20.0, 0.4
-		if gape < 0.1 {
-			f, tu, tv = fr, 23, 1.6
-		}
-		e := 8 * tongue
-		frameQuad(c, f, tu-6, tv, tu+e, tv-0.4, 0.95, colTongue)
-		frameQuad(c, f, tu-6, tv+0.3, tu+e-2, tv, 0.5, hex(0x8c1c30))
-		for _, dv := range []float64{-2.6, 1.9} {
-			frameQuad(c, f, tu+e-0.3, tv-0.4, tu+e+4.2*tongue, tv-0.4+dv*tongue, 0.6, colTongue)
-		}
-	}
-	bossPaint(c, 0.25, func(x, y int, q bossPt) color.RGBA {
-		u, v := fj.local(x, y)
-		if u > -1 && v < 1.3 {
-			return color.RGBA{}
-		}
-		if u > 0 && v < 2.2 {
-			if gape > 0.05 {
-				return mix(hex(0xd88890), hex(0x9c4858), clamp01((v-1.3)/0.9))
-			}
-			return titanDark[0]
-		}
-		l := 0.15 + q.l*0.8
-		if f := u / 2.6; f-math.Floor(f) < 0.14 && v < 5 {
-			l -= 0.18 // the plates of the lip
-		}
-		if v > 6 {
-			return rq(titanRim, l-0.1, x, y) // the armour under the jaw
-		}
-		return rq(titanBelly, l, x, y)
-	}, fj.knobs(titanJaw))
-	for i, u := range []float64{16.5, 11, 5.5, 0.5} { // spikes under the chin
-		frameHorn(c, fj, u, 6.6+0.35*float64(i), u-3.5, 10+0.7*float64(i), -0.5, 1.5+0.2*float64(i), -0.1)
-	}
-	bossPaint(c, 0.3, func(x, y int, q bossPt) color.RGBA {
-		u, v := fr.local(x, y)
-		if u > -1 && v > 1.7 {
-			return color.RGBA{}
-		}
-		l := 0.12 + q.l*0.84
-		switch {
-		case v > 0.25: // the pale lip, with its heat pits
-			f := u / 2.6
-			ff := f - math.Floor(f)
-			if ff < 0.14 {
-				l -= 0.18
-			}
-			if u > 5 && u < 22 && math.Hypot((ff-0.56)*2.6, v-1) < 0.42 {
-				return titanDark[1]
-			}
-			return rq(titanBelly, l+0.08, x, y)
-		case v > -0.5 && u > 9.5:
-			return rq(titanDark, l+0.2, x, y) // the line of the mouth
-		}
-		// A dark wedge back from the eye, rimmed in bronze.
-		if w := math.Abs(v+3.6) - 0.9 - 0.2*(9-u); u < 9 && w < 0 {
-			return rq(titanDark, l+0.14, x, y)
-		} else if u < 9.6 && w < 0.7 {
-			return rq(titanRim, l*0.7+0.2, x, y)
-		}
-		// The armour of the crown: plates bigger than the body's scales,
-		// bronze along the middle of the skull, mossy at its edges.
-		pu, pv := u/4+v/3.3, u/4-v/3.3
-		fu, fv := pu-math.Floor(pu), pv-math.Floor(pv)
-		l += -0.02*v - 0.04
-		shine := fu > 0.5 && fv > 0.5
-		if fu < 0.15 || fv < 0.15 {
-			l -= 0.16
-		} else if shine {
-			l += 0.09
-		}
-		if d := math.Abs(v+9.4) + max(0, u-4)*0.16 + 0.8*vnoise(u/2.5, v/2, 939); u < 19 && d < 2.3 {
-			return rq(titanRim, l-0.12, x, y)
-		}
-		return rq(titanSkin, l+0.05, x, y)
-	}, fr.knobs(titanSkull))
-	fang := func(x, y int) color.RGBA {
-		if hashf(x/2, y, 934) < 0.25 {
-			return hex(0xcfc8b0)
-		}
-		return colFang
-	}
-	if gape > 0.25 {
-		g := min(1, gape)
-		for _, u := range []float64{17.2, 21.8} { // the fangs, curved back
-			fr.poly(c, [][2]float64{{u - 0.3, 1.5}, {u + 1.9, 1.5}, {u + 0.8, 1.6 + 5.2*g}, {u - 1.9, 1.6 + 9.6*g}, {u - 0.7, 1.6 + 4.4*g}}, fang)
-		}
-		for i, u := 0, 2.4; u < 16; i, u = i+1, u+1.75 { // and the rows of teeth behind them
-			h := 2.9 + 1.5*hashf(i, 5, 938)
-			fr.tri(c, u-0.6, 1.6, u+0.6, 1.6, u-0.5, 1.6+h, fang)
-			fj.tri(c, u+0.3, 1.4, u+1.5, 1.4, u+1.3, 1.4-0.8*h, fang)
-		}
-		fj.tri(c, 18, 1.3, 19.8, 1.3, 19.3, -3, fang)
-	}
-	// The eye, burning under a brow like a ledge.
-	ex, ey := fr.at(11, -4.6)
-	for gr := 3.6 * fr.k1(); gr > fr.k1(); gr -= 1 {
-		c.dotGlow(ex, ey, gr, withAlpha(titanEye, 16))
-	}
-	hdEye(c, fr, 11, -4.6, 1.75, titanDark[0], titanEye, hex(0xfff2a0), true)
-	frameQuad(c, fr, 6.4, -8, 14.6, -6, 2, titanDark[1])
-	frameQuad(c, fr, 6.6, -8.9, 14.2, -7, 0.7, titanRim[3])
-	frameHorn(c, fr, 8, -8.6, 2.5, -14.5, 1, 2.2, 0) // the horn of the brow
-	for i, u := range []float64{13.5, 18, 22} {      // the ridge of spikes down the snout
-		frameHorn(c, fr, u, -8.4+1.5*float64(i), u-2.6+0.4*float64(i), -12.6+2.2*float64(i), 0.5, 1.7-0.25*float64(i), 0.02)
-	}
-	nx, ny := fr.at(23.4, -2)
-	c.dotPx(nx, ny, 0.55*fr.k1(), titanDark[0])
-}
-
-// dotGlow lays a disc of light of radius r pixels about pixel (px, py),
-// only over what is drawn already.
-func (c *canvas) dotGlow(px, py, r float64, col color.RGBA) {
-	for y := int(py - r); y <= int(py+r); y++ {
-		for x := int(px - r); x <= int(px+r); x++ {
-			dx, dy := float64(x)+0.5-px, float64(y)+0.5-py
-			if dx*dx+dy*dy <= r*r && c.in(x, y) && c.px[y*c.w+x].A > 0 {
-				c.blend(x, y, col)
-			}
-		}
-	}
-}
-
-// titanSerp lays a body of length L along a serpenoid curve ending with its
-// neck at (x1, y1), heading right; the head end barely sways.
-func titanSerp(L, bend, waves, phase, squash, x1, y1 float64) []spinePt {
-	const n = 1400
-	us, vs := make([]float64, n+1), make([]float64, n+1)
-	for i := 1; i <= n; i++ {
-		s := float64(i) / n
-		steady := 1 - 0.8*smooth(clamp01((s-0.7)/0.3))
-		th := bend * steady * math.Cos(2*math.Pi*waves*s-phase)
-		us[i] = us[i-1] + math.Cos(th)*L/n
-		vs[i] = vs[i-1] + math.Sin(th)*L/n
-	}
-	// Keep it on the line of its travel: take out the drift of the whole wave.
-	drift := (vs[n*7/10] - vs[0]) / (us[n*7/10] - us[0])
-	pts := make([]spinePt, n+1)
+	mean /= float64(len(th))
+	pts := make([]vec3, m+1)
+	p := vec3{x, 0, 0}
 	for i := range pts {
-		s := float64(i) / n
-		v := vs[i] - vs[n] - drift*(us[i]-us[n])*(1-smooth(clamp01((s-0.7)/0.3)))
-		pts[i] = spinePt{x: x1 + us[i] - us[n], y: y1 + v*squash, r: titanWidth(s), s: s}
+		sg := float64(i) * step
+		p.z = z * smooth(clamp01(1-sg/90))
+		pts[m-i] = p
+		t := th[i] - mean
+		p = p.add(vec3{-math.Cos(t), -math.Sin(t), 0}.mul(step))
 	}
 	return pts
-}
-
-// titanCoil lays the body in a spiral pile about (cx, cy), winding in from
-// radius outer to inner over turns and climbing rise as it goes; the last of
-// it leaves the pile as a neck, by way of (mx, my) to (nx, ny).
-func titanCoil(cx, cy, outer, inner, turns, rise, squash, mx, my, nx, ny float64) []spinePt {
-	const n = 1800
-	const coilEnd = 0.8
-	spiral := func(s float64) (float64, float64) {
-		ang := 0.5 + 2*math.Pi*turns*s
-		rad := outer - (outer-inner)*s/coilEnd
-		return cx + rad*math.Cos(ang), cy + rad*math.Sin(ang)*squash - rise*s/coilEnd
-	}
-	pts := make([]spinePt, 0, n+1)
-	for i := 0; i <= n; i++ {
-		s := float64(i) / n
-		var x, y float64
-		if s < coilEnd {
-			x, y = spiral(s)
-		} else {
-			u := (s - coilEnd) / (1 - coilEnd)
-			x0, y0 := spiral(coilEnd)
-			ax, ay := lerpf(x0, mx, u), lerpf(y0, my, u)
-			bx, by := lerpf(mx, nx, u), lerpf(my, ny, u)
-			x, y = lerpf(ax, bx, u), lerpf(ay, by, u)
-		}
-		pts = append(pts, spinePt{x: x, y: y, r: titanWidth(s), s: s})
-	}
-	return pts
-}
-
-// titanPose is one frame of the snake.
-type titanPose struct {
-	pts          []spinePt
-	hx, hy, ha   float64 // the back of the skull, and where it looks
-	gape, tongue float64
-	slide        float64 // its markings moved along it
-	ax, ay       float64 // the anchor
-	shade        float64 // the body up to here (0..1 along it) lies on the ground
-}
-
-const titanW, titanH, titanCX, titanCY = 640, 400, 440.0, 300.0
-
-func (p titanPose) canvas() (*canvas, float64, float64) {
-	c := hdBossCanvas(titanW, titanH)
-	hdGroundShadow(c, p.pts, 0, p.shade)
-	body := hdBossCanvas(titanW, titanH)
-	titanBody(body, p.pts, 44, p.slide, titanSkinAt(p.slide))
-	titanHead(body, p.hx, p.hy, p.ha, p.gape, p.tongue)
-	body.outline(0.8)
-	for i, q := range body.px {
-		if q.A > 0 {
-			c.px[i] = q
-		}
-	}
-	return hdCrop(c, p.ax, p.ay)
-}
-
-// titanSlitherPose is the snake under way: ph is the phase of the wave. Its
-// neck is reared off the ground, the head carried high over the coils that
-// trail behind it.
-func titanSlitherPose(ph float64) titanPose {
-	const nx, ny = titanCX + 30, titanCY - 10
-	pts := titanSerp(titanLen, 1.3, 2.3, ph, 0.56, nx, ny)
-	for j := range pts {
-		u := clamp01((pts[j].s - 0.76) / 0.24)
-		pts[j].y -= 40*smooth(u) - 6*u*u*u
-		pts[j].x -= 12 * math.Sin(u*math.Pi)
-	}
-	last := pts[len(pts)-1]
-	return titanPose{pts: pts, hx: last.x - 2, hy: last.y - 1, ha: 0.08, ax: titanCX, ay: titanCY, shade: 0.8}
 }
 
 const (
@@ -610,9 +1313,95 @@ const (
 // frames in), the bite, and back.
 var titanStrikeAges = [...]int{0, 3, 6, 9, 14, 20, 26, 31, 33, 35, 37, 41, 45, 49, 53}
 
+// tbSlither is the path of the snake under way at phase ph of its waves,
+// long enough to cut a strike's neck out of.
+func tbSlither(ph float64) []vec3 { return tbSerpent(-30, 14, ph, 1.1, 300, tbLen+260) }
+
+// tbFront replaces the last stretch of path (from cut art pixels short of
+// its end) with a curve through ctrl: the body behind stays where it was,
+// the front is posed.
+func tbFront(path []vec3, cut float64, ctrl []vec3) []vec3 {
+	at, i := 0.0, len(path)-1
+	for ; i > 2 && at < cut; i-- {
+		at += path[i].sub(path[i-1]).norm()
+	}
+	// the curve leaves the body behind along the way it was going
+	c := append([]vec3{tbAt(path, cut+50), tbAt(path, cut+25), path[i]}, ctrl...)
+	k := i
+	for at2 := 0.0; k > 1 && at2 < 50; k-- {
+		at2 += path[k].sub(path[k-1]).norm()
+	}
+	return append(append([]vec3{}, path[:k]...), tbSpline(c)...)
+}
+
+// tbAt is the point of path at art pixels from its end.
+func tbAt(path []vec3, from float64) vec3 {
+	at := 0.0
+	for i := len(path) - 1; i > 0; i-- {
+		d := path[i].sub(path[i-1]).norm()
+		if at+d >= from {
+			return lerp3(path[i], path[i-1], (from-at)/d)
+		}
+		at += d
+	}
+	return path[0]
+}
+
+// tbLerpPts blends two lists of control points.
+func tbLerpPts(a, b []vec3, t float64) []vec3 {
+	out := make([]vec3, len(a))
+	for i := range a {
+		out[i] = lerp3(a[i], b[i], t)
+	}
+	return out
+}
+
+const tbStrikeCut = 200.0 // the art pixels of neck a strike moves
+
+var (
+	tbRear  = []vec3{{-168, 4, 6}, {-128, 6, 38}, {-104, 6, 84}, {-110, 4, 118}, {-86, 2, 140}, {-58, 0, 128}}
+	tbLunge = []vec3{{-150, 4, 2}, {-112, 6, 4}, {-72, 7, 8}, {-34, 8, 11}, {-4, 8, 12}, {24, 8, 10}}
+)
+
+// tbHold is pose to, its first points held near from, where the posed
+// neck leaves the body.
+func tbHold(from, to []vec3) []vec3 {
+	out := make([]vec3, len(to))
+	for i := range to {
+		out[i] = lerp3(from[i], to[i], min(1, 0.35+0.33*float64(i)))
+	}
+	return out
+}
+
+// tbRest is the front of the slither at phase 0, as control points.
+func tbRest() []vec3 {
+	p := tbSlither(0)
+	var out []vec3
+	for _, d := range []float64{165, 132, 99, 66, 33, 0} {
+		out = append(out, tbAt(p, d))
+	}
+	return out
+}
+
+// tbSpiral is a pile of coils about (cx, cy): from radius r0 at angle a0,
+// turns times round and in to r1, rising from z0 to z1; a control point
+// every twelfth of a turn.
+func tbSpiral(cx, cy, r0, r1, a0, turns, z0, z1 float64) []vec3 {
+	n := int(turns * 12)
+	out := make([]vec3, 0, n+1)
+	for i := 0; i <= n; i++ {
+		u := float64(i) / float64(n)
+		a := a0 - 2*math.Pi*turns*u
+		r := lerpf(r0, r1, u)
+		out = append(out, vec3{cx + r*math.Cos(a), cy + r*math.Sin(a), lerpf(z0, z1, math.Pow(u, 1.3))})
+	}
+	return out
+}
+
 var (
 	titanSlither = newBHAnim(titanSlitherN, func(i int) (*canvas, float64, float64) {
-		p := titanSlitherPose(-2 * math.Pi * float64(i) / titanSlitherN)
+		ph := -2 * math.Pi * float64(i) / titanSlitherN
+		p := tbPose{path: tbSlither(ph), look: 0.1 + 0.05*math.Sin(ph+0.8)}
 		if i == 5 || i == 6 {
 			p.tongue = 0.6 + 0.4*float64(i-5)
 		}
@@ -620,79 +1409,79 @@ var (
 	})
 	titanStrike = newBHAnim(len(titanStrikeAges), func(i int) (*canvas, float64, float64) {
 		age := float64(titanStrikeAges[i])
-		p := titanSlitherPose(0)
 		rear := smooth(clamp01(age / 9))
 		lunge := smooth(clamp01((age - 31) / 5))
 		if age > 42 {
-			lunge = 1 - smooth(clamp01((age-42)/12))
-			rear = 0
+			lunge, rear = 1-smooth(clamp01((age-42)/12)), 0
 		} else {
-			rear *= 1 - 0.85*lunge
+			rear *= 1 - lunge
 		}
 		shake := 0.0
 		if age > 9 && age < 31 {
 			shake = math.Sin(age * 1.9)
 		}
-		for j := range p.pts {
-			u := clamp01((p.pts[j].s - 0.6) / 0.4)
-			q := &p.pts[j]
-			q.y -= rear*(40*smooth(u)-6*u*u*u) - lunge*(26*smooth(u)-3*u*u) + shake*0.7*u
-			q.x += -rear*52*u*u + rear*20*math.Sin(u*math.Pi) + lunge*50*u*u
+		rest := tbRest()
+		ctrl := tbLerpPts(rest, tbHold(rest, tbRear), rear)
+		ctrl = tbLerpPts(ctrl, tbHold(rest, tbLunge), lunge)
+		for j := range ctrl {
+			ctrl[j].x += shake * 1.2 * float64(j) / 5
 		}
-		last := p.pts[len(p.pts)-1]
-		p.hx, p.hy = last.x-2, last.y-1
-		p.ha = -0.42*rear + 0.34*lunge
-		p.gape = 0.12 + 0.88*smooth(clamp01(age/14))
+		p := tbPose{path: tbFront(tbSlither(0), tbStrikeCut, ctrl)}
+		p.look = 0.1*(1-rear-lunge) - 0.35*rear - 0.05*lunge
+		p.gape = 0.15 + 0.85*smooth(clamp01(age/14))
+		p.spread = rear
 		switch {
 		case age >= 42:
-			p.gape = 0.3 * (1 - clamp01((age-42)/8))
+			p.gape = 0.25 * (1 - clamp01((age-42)/8))
 		case age >= 36:
-			p.gape = 0.3 // shut on its prey
+			p.gape = 0.25 // shut on its prey
 		}
 		if age >= 9 && age < 31 {
 			p.tongue = 1
 		}
-		p.shade = 0.55 + 0.25*(1-max(rear, lunge))
 		return p.canvas()
 	})
 	titanIdle = newBHAnim(titanIdleN, func(i int) (*canvas, float64, float64) {
 		// Asleep: a pile of coils that swells as it breathes, the head laid on it.
 		b := math.Sin(2 * math.Pi * float64(i) / titanIdleN)
-		const cx, cy = titanCX - 20, titanCY - 30
-		pts := titanCoil(cx, cy, 64+b*0.7, 24, 2.3, 20+b, 0.5, cx+30, cy-40, cx+48, cy-13+b*0.5)
-		for j := range pts {
-			pts[j].r *= 1 + 0.03*b*math.Sin(pts[j].s*math.Pi)
-		}
-		p := titanPose{pts: pts, hx: cx + 46, hy: cy - 14 + b*0.5, ha: 0.14, ax: cx, ay: cy + 41, shade: 0.42}
+		ctrl := tbSpiral(-10, -12, 58, 21, 2.9, 2.45, 0, 36)
+		ctrl = append(ctrl, vec3{-2, -20, 48}, vec3{12, -10, 54 + b*0.8})
+		p := tbPose{path: tbSpline(ctrl), look: 0.12, swell: 0.025 * b, lid: 0.55, spread: -1}
 		if i == 2 || i == 3 {
 			p.tongue = 0.5 + 0.5*float64(i-2)
 		}
 		return p.canvas()
 	})
 	titanRoar = newBHAnim(titanRoarN, func(i int) (*canvas, float64, float64) {
-		// Reared out of its coils, its neck spread, hissing from side to side.
+		// Reared high out of its coils, jaws wide, swaying as it roars; a
+		// ripple runs back along the coils trailing behind.
 		w := 2 * math.Pi * float64(i) / titanRoarN
-		sx := math.Sin(w) * 8
-		const cx, cy = titanCX - 20, titanCY - 30
-		pts := titanCoil(cx, cy, 66, 26, 2, 16, 0.5, cx-28+sx*0.4, cy-106, cx+6+sx, cy-116+math.Cos(w)*2)
-		for j := range pts {
-			pts[j].r *= 1 + 0.32*math.Sin(clamp01((pts[j].s-0.86)/0.13)*math.Pi)
+		ctrl := []vec3{{-430, -10, 0}, {-360, 30, 0}, {-290, 40, 0}, {-225, 12, 0}, {-165, 18, 0}, {-118, 36, 0}}
+		ctrl = append(ctrl, tbSpiral(-34, 2, 62, 36, math.Pi*1.02, 1.0, 0, 8)...)
+		ctrl = append(ctrl, []vec3{{-22, 34, 30}, {-16, 26, 72}, {-8, 18, 112}, {6, 12, 138}, {24, 8, 146}, {40, 6, 138}}...)
+		for j := range ctrl {
+			q := &ctrl[j]
+			if q.z == 0 {
+				q.y += 5 * math.Sin(w-q.x*0.025)
+			}
+			q.x += 10 * math.Sin(w+0.6) * smooth(clamp01((q.z-30)/110))
+			q.y += 5 * math.Cos(w) * smooth(clamp01((q.z-30)/110))
 		}
-		return titanPose{pts: pts, hx: cx + 4 + sx, hy: cy - 116 + math.Cos(w)*2, ha: -0.12 + math.Sin(w)*0.1,
-			gape: 0.92 + 0.08*math.Sin(2*w), tongue: 0.6 + 0.4*math.Sin(2*w), ax: cx, ay: cy + 40, shade: 0.5}.canvas()
+		p := tbPose{path: tbSpline(ctrl), look: -0.62 + 0.12*math.Sin(w-0.5), gape: 0.92 + 0.08*math.Sin(2*w),
+			tongue: 0.55 + 0.45*math.Sin(2*w), spread: 1, drool: 1}
+		return p.canvas()
 	})
 	titanGrab = newBHAnim(titanGrabN, func(i int) (*canvas, float64, float64) {
 		// Wound tight, ring on ring, round whatever it has caught: the rings
 		// draw in and ease, and slide round as it tightens.
 		w := 2 * math.Pi * float64(i) / titanGrabN
 		sq := 0.5 - 0.5*math.Cos(w)
-		const cx, cy = titanCX - 20, titanCY - 26
-		pts := titanCoil(cx, cy, 44-3.5*sq, 33-3*sq, 3.3, 74+3*sq, 0.36, cx+8, cy-120-2*sq, cx+36, cy-102+2*sq)
-		for j := range pts {
-			pts[j].r *= 1 + 0.06*sq*math.Sin(pts[j].s*math.Pi)
-		}
-		return titanPose{pts: pts, hx: cx + 34, hy: cy - 102 + 2*sq, ha: 0.55 + 0.08*math.Sin(w), gape: 0.4 + 0.25*sq, tongue: sq,
-			slide: -titanSaddle * float64(i) / titanGrabN, ax: cx, ay: cy + 24, shade: 0.3}.canvas()
+		ctrl := []vec3{{-340, 40, 0}, {-270, 10, 0}, {-200, 32, 0}, {-140, 46, 0}, {-88, 30, 0}}
+		hel := tbSpiral(0, -4, 31-3*sq, 31-3*sq, math.Pi*0.92+w*0.06, 2.25, 0, 58)
+		ctrl = append(ctrl, hel...)
+		ctrl = append(ctrl, vec3{2, -12, 88}, vec3{10, -6, 100 + 2*sq})
+		p := tbPose{path: tbSpline(ctrl), look: 0.95 + 0.06*math.Sin(w), gape: 0.45 + 0.3*sq, tongue: sq, spread: 0.6}
+		return p.canvas()
 	})
 )
 

@@ -21,19 +21,14 @@ import (
 // shallow run over pebbles with a row of stepping stones across it.
 
 var (
-	riverHD    = mkRamp(0x1c4f6c, 0x245f7f, 0x2d7193, 0x3884a6, 0x4a98b6, 0x63adc4, 0x86c4d3, 0xa9d8df).sub(2)
-	riverBed   = mkRamp(0x4d5a3e, 0x5d6a49, 0x6f7a55, 0x86906a)
-	bankEarth  = mkRamp(0x2b2118, 0x3b2e21, 0x4c3c2b, 0x5e4b36, 0x735d43, 0x8a7253)
-	stepStone  = mkRamp(0x3a3a3c, 0x55544f, 0x706d64, 0x8c887c, 0xa8a393, 0xc4bfae)
-	foamHD     = mkRamp(0x9fcfdc, 0xc3e3ea, 0xe0f1f4, 0xf7fcfd)
-	lakeHD     = mkRamp(0x173f5e, 0x1d4c6d, 0x245a7d, 0x2d6a8d, 0x3a7d9e, 0x4f93b0, 0x6aa9c1, 0x8dc0cf).sub(2)
-	lakeReeds  = mkRamp(0x3d4a22, 0x56652c, 0x718236, 0x8c9a45)
-	coralHD    = []ramp{mkRamp(0x7a4a5c, 0xa8697a, 0xcf8f94, 0xeab3a8), mkRamp(0x7d5a3a, 0xa97d4c, 0xcfa063, 0xe8c38a), mkRamp(0x5a4c7c, 0x7c68a3, 0x9c88c2, 0xbfaedb), mkRamp(0x5e6e3e, 0x7f9350, 0xa1b468, 0xc6d58e)}
-	shallowCol = hex(0x46b9bf)
-	sandSea    = hex(0x9fdcc8)
-	lagoonCol  = hex(0x6fd8cb)
-	shoalCol   = hex(0xd9e2b0)
-	dropCol    = hex(0x184a82)
+	riverHD   = mkRamp(0x1c4f6c, 0x245f7f, 0x2d7193, 0x3884a6, 0x4a98b6, 0x63adc4, 0x86c4d3, 0xa9d8df).sub(2)
+	riverBed  = mkRamp(0x4d5a3e, 0x5d6a49, 0x6f7a55, 0x86906a)
+	bankEarth = mkRamp(0x2b2118, 0x3b2e21, 0x4c3c2b, 0x5e4b36, 0x735d43, 0x8a7253)
+	stepStone = mkRamp(0x3a3a3c, 0x55544f, 0x706d64, 0x8c887c, 0xa8a393, 0xc4bfae)
+	foamHD    = mkRamp(0x9fcfdc, 0xc3e3ea, 0xe0f1f4, 0xf7fcfd)
+	lakeHD    = mkRamp(0x173f5e, 0x1d4c6d, 0x245a7d, 0x2d6a8d, 0x3a7d9e, 0x4f93b0, 0x6aa9c1, 0x8dc0cf).sub(2)
+	lakeReeds = mkRamp(0x3d4a22, 0x56652c, 0x718236, 0x8c9a45)
+	coralHD   = []ramp{mkRamp(0x7a4a5c, 0xa8697a, 0xcf8f94, 0xeab3a8), mkRamp(0x7d5a3a, 0xa97d4c, 0xcfa063, 0xe8c38a), mkRamp(0x5a4c7c, 0x7c68a3, 0x9c88c2, 0xbfaedb), mkRamp(0x5e6e3e, 0x7f9350, 0xa1b468, 0xc6d58e)}
 )
 
 const (
@@ -522,66 +517,7 @@ func reedAt(hx, hy int) bool {
 	return dx >= 0 && dx < 7 && dx%2 == 0 && hy >= top+int(hashf(x0+dx, cy, 1326)*4) && hy < cy*11+11
 }
 
-// --- the shallows of the sea -------------------------------------------------------
-
-// shallowSea lays the shallows over sea pixel c at (u, v), s tiles from the
-// shore: clear turquoise over sand, lighter towards the shore; a dark drop
-// at their edge with a line of foam along it; coral heads on reefs, calm
-// rippled sand in lagoons, a pale sandbank over a shoal.
-func (t *terrain) shallowSea(c color.RGBA, hx, hy int, u, v, s float64) color.RGBA {
-	if t.relief == nil || !t.has(int(math.Floor(u)), int(math.Floor(v)), featShallow) {
-		return c
-	}
-	// Warped, so the shallows' edge wanders off the lines of the tiles.
-	wu := u + (vnoise(u*0.35, v*0.35, 958)-0.5)*1.2 + (vnoise(u*1.6, v*1.6, 1330)-0.5)*0.25
-	wv := v + (vnoise(u*0.35+5, v*0.35, 959)-0.5)*1.2 + (vnoise(u*1.6+4, v*1.6, 1331)-0.5)*0.25
-	cs := cornersAt(wu, wv)
-	sh := cs.share(func(x, y int) bool { return t.tile(x, y) == sim.TileShallow })
-	if sh <= 0.2 {
-		return c
-	}
-	if sh < 0.5 {
-		// Just off the edge: the bottom drops away dark.
-		k := (sh - 0.2) / 0.3
-		return mix(c, withAlpha(dropCol, max(c.A, 170)), 0.55*smooth(k))
-	}
-	if sh < 0.53 && hashf(fdiv(hx, 2), hy, 1332) < 0.7 {
-		return withAlpha(foamHD.at(2), 150) // the line of foam along the drop
-	}
-	reef := cs.share(func(x, y int) bool { return t.rel(x, y).Variant() == sim.VarReef && t.tile(x, y) == sim.TileShallow })
-	lagoon := cs.share(func(x, y int) bool { return t.rel(x, y).Variant() == sim.VarLagoon && t.tile(x, y) == sim.TileShallow })
-	shoal := cs.share(func(x, y int) bool { return t.rel(x, y).Variant() == sim.VarShoal && t.tile(x, y) == sim.TileShallow })
-	in := smooth(clamp01((sh - 0.5) / 0.35))                     // 0 at the edge to 1 well in
-	near := smooth(clamp01(1 - (-s-0.1)/1.6))                    // 1 by the shore
-	col := mix(shallowCol, sandSea, 0.25+0.55*max(near, in*0.3)) // sand shows through more where shallower
-	col = mix(col, lagoonCol, lagoon*0.7)
-	a := uint8(178 + 50*in)
-	if lagoon > 0.3 {
-		// Ripples in the sand on the bottom of a calm lagoon.
-		if r := math.Sin((float64(hx)*0.25+float64(hy)*0.9)/3.2 + 6*vnoise(float64(hx)/60, float64(hy)/40, 1333)); r > 0.8 {
-			col = mix(col, sandSea, 0.35*lagoon)
-		}
-		if g := vnoise(float64(hx)/26, float64(hy)/20, 1334); g > 0.68 {
-			col = mix(col, hex(0x2f7f6a), 0.45*lagoon*smooth(clamp01((g-0.68)*12))) // sea grass
-		}
-	}
-	if shoal > 0.2 {
-		k := shoal * smooth(clamp01((vnoise(float64(hx)/30, float64(hy)/22, 1335)-0.3)*3))
-		col = mix(col, shoalCol, 0.75*k)
-		a = uint8(float64(a) + 30*k)
-	}
-	c = withAlpha(col, max(c.A, a))
-	if reef > 0.25 {
-		if cc, ok := coralHead(hx, hy, reef*in); ok {
-			return cc
-		}
-		// The reef's bed under the heads, darker than the sand.
-		if p := vnoise(float64(hx)/70, float64(hy)/55, 1339); p > 0.4 {
-			c = mix(c, withAlpha(hex(0x2f8c8f), c.A), 0.55*reef*in*smooth(clamp01((p-0.4)*6)))
-		}
-	}
-	return c
-}
+// --- the shallows of the sea: see terrainsea.go ---------------------------------
 
 // coralHead colours (hx, hy) if it is on a head of coral under the water:
 // round clumps, each its own colour, lit from the upper left, dim through

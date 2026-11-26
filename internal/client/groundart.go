@@ -1091,18 +1091,27 @@ func seaCliff(hx, hy, up int) color.RGBA {
 	return cliffHD.g(l, hx, hy)
 }
 
+// shoreFoam is the foam along the water's edge at a sea pixel s (< 0)
+// tiles out from the shore, if there is foam there.
+func shoreFoam(hx, hy int, u, v, s float64) (color.RGBA, bool) {
+	foamEdge := -0.1 - (vnoise(u*4, v*4, 72)-0.5)*0.12
+	if s > foamEdge {
+		return withAlpha(colFoam, 225), true
+	}
+	if lace := s - foamEdge; lace > -0.09 { // the foam thins out in lace
+		if 0.5*hashf(fdiv(hx, 2), fdiv(hy, 2), 78)+0.5*vnoise(float64(hx)/4, float64(hy)/3, 79) < 0.75+lace*5.5 {
+			return withAlpha(colFoam, uint8(200+lace*1100)), true
+		}
+	}
+	return color.RGBA{}, false
+}
+
 // seaWater is the tint laid over the animated water at a pixel s (< 0)
 // tiles out from the shore: foam along the edge, then turquoise shallows
 // fading to deep navy.
 func seaWater(hx, hy int, u, v, s float64) color.RGBA {
-	foamEdge := -0.1 - (vnoise(u*4, v*4, 72)-0.5)*0.12
-	if s > foamEdge {
-		return withAlpha(colFoam, 225)
-	}
-	if lace := s - foamEdge; lace > -0.09 { // the foam thins out in lace
-		if 0.5*hashf(fdiv(hx, 2), fdiv(hy, 2), 78)+0.5*vnoise(float64(hx)/4, float64(hy)/3, 79) < 0.75+lace*5.5 {
-			return withAlpha(colFoam, uint8(200+lace*1100))
-		}
+	if c, ok := shoreFoam(hx, hy, u, v, s); ok {
+		return c
 	}
 	d := clamp01(-s / 4.5)
 	p := math.Sqrt(d)*5 + (hashf(hx, hy, 82)-0.5)*0.12

@@ -15,18 +15,20 @@ import (
 type WorldStyle uint8
 
 const (
-	StyleIsland WorldStyle = iota // one island; the first worlds
-	StyleOpenV1                   // the first open worlds: caves open to the sky at any side
-	StyleOpenV2                   // caves under the mountains, entered through mouths in the south cliffs
-	StyleOpen                     // as V2, with larger deserts, swamps and beaches
-	StyleIce                      // as StyleOpen, with a frozen north; see iceage.go
-	StyleJungle                   // as StyleIce, with the woods spread over far more of the lowland
-	StyleTribal                   // as StyleJungle, with thinner woods, trails, villages, deep caves; see tribe.go
-	StyleSeas                     // as StyleTribal, but an archipelago: one land to an island; see archipelago.go
-	StyleIsles                    // as StyleSeas, with designed islands, coasts, heights and rivers; see isles.go
+	StyleIsland  WorldStyle = iota // one island; the first worlds
+	StyleOpenV1                    // the first open worlds: caves open to the sky at any side
+	StyleOpenV2                    // caves under the mountains, entered through mouths in the south cliffs
+	StyleOpen                      // as V2, with larger deserts, swamps and beaches
+	StyleIce                       // as StyleOpen, with a frozen north; see iceage.go
+	StyleJungle                    // as StyleIce, with the woods spread over far more of the lowland
+	StyleTribal                    // as StyleJungle, with thinner woods, trails, villages, deep caves; see tribe.go
+	StyleSeas                      // as StyleTribal, but an archipelago: one land to an island; see archipelago.go
+	StyleIsles                     // as StyleSeas, with designed islands, coasts, heights and rivers; see isles.go
+	StyleWoods                     // as StyleIsles, with trees spaced by their crowns, trails and undergrowth; see woods.go
+	StyleBeaches                   // as StyleWoods, with wide beaches, dunes and driftwood; see beaches.go
 
 	// StyleLatest is what a new game is made with.
-	StyleLatest = StyleIsles
+	StyleLatest = StyleBeaches
 )
 
 // biomeShares is how much of the lowland each biome takes, and how wide the

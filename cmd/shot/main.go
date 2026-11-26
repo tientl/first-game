@@ -24,6 +24,7 @@ import (
 
 	"survivalgame/internal/client"
 	"survivalgame/internal/protocol"
+	"survivalgame/internal/server"
 	"survivalgame/internal/sim"
 )
 
@@ -50,7 +51,7 @@ func main() {
 	open := flag.Bool("open", false, "an open world instead of the 96x96 island")
 	sizes := flag.Bool("sizes", false, "with -menu: show the difficulty picker (it took the place of the world-size picker)")
 	size := flag.Int("size", 256, "open world size")
-	at := flag.String("at", "", "open world: stand at desert, marsh, pond (a swamp with ponds), cave, mountain, ash or lava; or by the nearest cavemouth, cavein, pyramid, village, path, giant (tree) or hut (at its door); and in the newest worlds at waterfall, ramp (through a cliff) or lagoon (see isles.go)")
+	at := flag.String("at", "", "open world: stand at desert, marsh, pond (a swamp with ponds), cave, mountain, ash or lava; or by the nearest cavemouth, cavein, pyramid, village, path, giant (tree) or hut (at its door); and in the newest worlds at waterfall, ramp (through a cliff), lagoon or beach (see isles.go)")
 	female := flag.Bool("female", false, "the player is a woman")
 	hair := flag.Int("hair", 0, "the player's hair style, 0 to 6 (6: the shaggy mane)")
 	hairColor := flag.Int("haircolor", 0, "the player's hair colour, 0 to 7")
@@ -87,6 +88,7 @@ func main() {
 	bossPose := flag.Int("bosspose", 0, "with -bosses: shift which pose each boss shows")
 	bossAge := flag.Int("bossage", -1, "how many frames into its state each boss and sea monster is shown (-1: as many as -frames)")
 	flag.BoolVar(&demoBosses, "demobosses", false, "with -bosses: only Titanoboa and the Megalodon, the bar showing Titanoboa's health")
+	flag.StringVar(&titanAt, "titanat", "", "with -bosses: dx,dy[,1], where to put Titanoboa, in tiles from the player (default -7,-3.5), facing left with ,1; the Megalodon is left out")
 	encounterFlag := flag.String("encounter", "", "play a real meeting with a boss of the demo, titan or shark, and write its stills as <o>_approach.png, _lair.png, _intro.png and _arena.png; see encounter.go")
 	encGIF := flag.Bool("encgif", false, "with -encounter: also write every fourth frame of the entrance as <o>_gif_NNN.png")
 	king := flag.Bool("king", false, "put the mammoth king by the player, with a mammoth of its herd for scale; -bosspose picks its state (0 idle, 1 chase, 2 strike, 3 special, 4 roar), -bossage how far into it")
@@ -108,21 +110,34 @@ func main() {
 	trunkSheet := flag.Bool("trunksheet", false, "write the trunk sheet instead of a frame: the foot of every kind of tree close up, three times the size (see internal/client/trunksheet.go)")
 	costFlag := flag.Bool("cost", false, "print what the art drawn in code has cost once the frame is taken: the bytes of its images, the time to draw the start-up set and the trees drawn ahead, and the Go heap")
 	moveBy := flag.String("move", "", "dx,dy: stand this many tiles from where the other flags put the player (to stand behind a tree, at a door)")
+	standAt := flag.String("pos", "", "x,y: stand on this tile, whatever the other flags say (to see one place in worlds of two styles)")
 	scaleOnly := flag.String("scaleonly", "", "with -scalesheet: only the groups whose name contains this (trees, conifers, swamp, low, buildings, rocks, creatures)")
 	scaleTitle := flag.String("scaletitle", "", "with -scalesheet: a heading for the sheet")
 	subPixel := flag.Bool("subpixel", true, "let the camera and moving things sit between art pixels, on screen pixels (false: whole art pixels, as before HD art)")
 	reveal := flag.Bool("reveal", false, "the whole map seen: no fog on the map (M) and the minimap")
-	styleFlag := flag.Int("style", -1, "with -open: the world style to make (default: the latest; 7 is the archipelago before the designed islands)")
 	gifN := flag.Int("gif", 0, "write a GIF of this many frames (with -crop: of that region, not enlarged) as <o>.gif, from the frame -frames picks")
 	gifStep := flag.Int("gifstep", 2, "with -gif: game frames between the GIF's frames")
 	benchN := flag.Int("bench", 0, "time this many frames before the capture, vsync off, and print what they took and the ground's memory")
 	thin := flag.Float64("thin", 1, "keep about this share of the trees, bushes and rocks round the player (to see the ground)")
+	styleFlag := flag.Int("style", -1, "with -open: the world style to make (default: the latest; 7 is the archipelago before the designed islands, 8 the designed islands before the woods were spaced, 9 the woods before the wide beaches)")
+	canopyFlag := flag.Bool("canopy", false, "print the share of the view the canopy covers: the drawings of trees and the like, taller than a player (see internal/client/canopyshare.go)")
+	oldSave := flag.Bool("oldsave", false, "with -open: save the world as a game from before the woods were thinned (version 19) and load it again, which thins them (see internal/sim/thinwoods.go)")
+	loadSave := flag.String("load", "", "load this save file (a copy of one) instead of making a world, an older one thinned as the game would; stand where its first player stood (-move is from there)")
+	fellR := flag.Float64("fell", 0, "fell every tree within this many tiles of the player (stumps), before -days")
+	days := flag.Float64("days", 0, "let this many days go by for what grows: stumps, saplings, young trees, the woods filling their gaps (see internal/sim/regrow.go)")
+	regrowStrip := flag.Bool("regrow", false, "put the stages a felled tree grows back through in a row right of the player: stump, sapling, young tree, grown tree")
+	realState := flag.Bool("real", false, "show every entity as it is (by default every ninth shows harvested, to see those states too)")
+	exact := flag.Bool("exact", false, "draw on a screen exactly -w by -h pixels, whatever size the window gets (a window taller than the desktop is cut short, and a 1061-pixel screen is not 1080p: the interface is drawn at scale 1, not 2)")
+	iconHD := flag.Bool("iconhd", true, "the HD item icons, at the screen's own resolution (false: the old 16x16 icons, scaled up; see internal/client/iconhd.go)")
+	iconSheet := flag.Bool("iconsheet", false, "write the icon sheet instead of a frame: every HD item icon next to its old one, in 1080p hotbar slots and three times as big")
 	flag.Parse()
+	client.SetMeasureCanopy(*canopyFlag)
 	client.SetHeroHD(*herohd)
 	client.SetScaleOnly(*scaleOnly, *scaleTitle)
 	client.SetHDTest(*hdTest)
 	client.SetEnvHD(*envHD)
 	client.SetCritterHD(*critterHD)
+	client.SetIconHD(*iconHD)
 	client.SetSubPixel(*subPixel)
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
@@ -144,9 +159,34 @@ func main() {
 			style = sim.WorldStyle(*styleFlag)
 		}
 	}
-	w, err := sim.Generate(sim.GenConfig{Seed: *seed, Width: N, Height: N, Style: style})
-	if err != nil {
-		log.Fatal(err)
+	var w *sim.World
+	var err error
+	var savedAt []float64 // where the save's first player stood
+	switch {
+	case *loadSave != "":
+		f, ferr := server.ReadSave(*loadSave)
+		if ferr != nil {
+			log.Fatal(ferr)
+		}
+		if w, err = sim.Load(f.World); err != nil {
+			log.Fatal(err)
+		}
+		N, _ = w.Size()
+		*open = true
+		if ps := f.World.Players; len(ps) > 0 {
+			savedAt = []float64{ps[0].X, ps[0].Y}
+		}
+	default:
+		if w, err = sim.Generate(sim.GenConfig{Seed: *seed, Width: N, Height: N, Style: style}); err != nil {
+			log.Fatal(err)
+		}
+		if *oldSave {
+			d := w.Save()
+			d.Version = 19 // the last version before the woods were thinned
+			if w, err = sim.Load(d); err != nil {
+				log.Fatal(err)
+			}
+		}
 	}
 	_, mapH := w.Size() // taller than N when caves lie under the islands
 	surfH := 0
@@ -154,6 +194,9 @@ func main() {
 		surfH = w.SurfaceHeight()
 	}
 	sx, sy := w.Spawn()
+	if savedAt != nil {
+		sx, sy = savedAt[0], savedAt[1]
+	}
 	if *coast {
 		tiles := w.Tiles()
 		// In an open world, a beach by the sea rather than a marsh pond:
@@ -250,6 +293,7 @@ func main() {
 	}
 	if x, y, ok := islesSpot(w, *at, sx, sy); ok { // see isles.go
 		sx, sy, *at = x, y, ""
+		log.Printf("standing at %.1f,%.1f", sx, sy)
 	}
 	if *at == "cavemouth" || *at == "cavein" || *at == "giant" || *at == "hut" {
 		k := sim.EntityCaveMouth
@@ -375,9 +419,19 @@ func main() {
 		}
 		sx, sy = bx, by
 	}
+	var px, py float64
+	if n, _ := fmt.Sscanf(*standAt, "%g,%g", &px, &py); n == 2 {
+		sx, sy = px+0.5, py+0.5
+	}
 	var mdx, mdy float64
 	if n, _ := fmt.Sscanf(*moveBy, "%g,%g", &mdx, &mdy); n == 2 {
 		sx, sy = sx+mdx, sy+mdy
+	}
+	if *fellR > 0 {
+		log.Printf("felled %d trees", w.DevFell(sx, sy, *fellR))
+	}
+	if *days > 0 {
+		w.DevPassTime(uint64(*days * sim.DayTicks)) // see internal/sim/regrow.go
 	}
 	tick := uint64(sim.DayTicks) + uint64(*dayFrac*sim.DayTicks)
 
@@ -479,7 +533,7 @@ func main() {
 	w.EachEntityIn(cx-20, cy-20, cx+20, cy+20, func(e sim.Entity) {
 		n++
 		ready := e.Ready
-		if n%9 == 0 { // show some harvested states too
+		if n%9 == 0 && !*realState { // show some harvested states too
 			ready = false
 		}
 		snap.Entities = append(snap.Entities, protocol.EntityView{
@@ -577,6 +631,9 @@ func main() {
 	}
 	if *woodsFlag {
 		addWoods(&snap, sx, sy)
+	}
+	if *regrowStrip {
+		addRegrowStrip(&snap, w, sx, sy) // see regrow.go
 	}
 	if *jungleFlag {
 		addJungle(&snap, sx, sy)
@@ -688,6 +745,8 @@ func main() {
 		put(sim.CreatureTrike, -1, -6.8, sim.CreatureIdle, true)
 		put(sim.CreatureTrike, 1.5, -1.5, sim.CreatureChase, true) // charging, head down
 		put(sim.CreatureStego, 5.5, -5.5, sim.CreatureIdle, true)
+		put(sim.CreatureAnkylo, 8.5, -6.5, sim.CreatureIdle, true)
+		put(sim.CreatureAnkylo, -10.5, 1, sim.CreatureRoar, false) // its club turned on someone
 		put(sim.CreatureRex, 8, 1.5, sim.CreatureRoar, true)
 		put(sim.CreatureRaptor, -6.5, 3, sim.CreatureIdle, false)
 		put(sim.CreatureRaptor, -4.8, 4.2, sim.CreatureStrike, false)
@@ -698,6 +757,8 @@ func main() {
 			put(sim.CreaturePlesio, 1.5, 4.6, sim.CreatureStrike, true)
 		}
 	}
+	putDinosA(&snap, sx, sy, *coast) // dinosa.go
+	putAnkylo(&snap, sx, sy)         // ankylo.go
 	if *eat {
 		for i := range snap.Creatures {
 			if c := &snap.Creatures[i]; c.State == sim.CreatureIdle && c.Kind.Feeds() {
@@ -884,6 +945,9 @@ func main() {
 		inner = &menuGame{m}
 	}
 	g := &shooter{inner: inner, frames: *frames, out: *out, crop: *crop, cost: *costFlag, gifN: *gifN, gifStep: max(1, *gifStep), bench: *benchN}
+	if *exact {
+		g.fixW, g.fixH = *winW, *winH
+	}
 	if *benchN > 0 {
 		ebiten.SetVsyncEnabled(false)
 		ebiten.SetTPS(ebiten.SyncWithFPS)
@@ -894,11 +958,17 @@ func main() {
 	if *trunkSheet {
 		g.trunks = game
 	}
+	if *iconSheet {
+		g.icons = game
+	}
 	if err := ebiten.RunGame(g); err != nil && !errors.Is(err, ebiten.Termination) {
 		log.Fatal(err)
 	}
 	if g.err != nil {
 		log.Fatal(g.err)
+	}
+	if *canopyFlag {
+		log.Printf("canopy covers %.0f%% of the view; own figure silhouetted: %v", 100*client.CanopyShare(), client.SelfSilhouetted())
 	}
 	log.Printf("wrote %s", *out)
 }
@@ -929,12 +999,14 @@ type shooter struct {
 	err    error
 	sheet  *client.Game // write its scale sheet instead of the frame
 	trunks *client.Game // write its trunk sheet instead of the frame
+	icons  *client.Game // write its icon sheet instead of the frame
 	cost   bool         // print what the art has cost
 
 	gifN, gifStep int           // -gif: frames to keep, and game frames between them
 	gifFrames     []*image.RGBA // kept so far
 	gifAt         int           // the game frame the last was kept at
 	bench         int           // -bench: frames to time
+	fixW, fixH    int           // -exact: the screen's size, whatever the window's
 	benchTimes    []time.Duration
 	benchLast     time.Time
 }
@@ -980,6 +1052,9 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 	if s.trunks != nil {
 		final = s.trunks.TrunkSheet()
 	}
+	if s.icons != nil {
+		final = s.icons.IconSheet()
+	}
 	if s.sheet != nil {
 		final = s.sheet.ScaleSheet()
 		printArtCost("with the whole sheet drawn")
@@ -1008,7 +1083,12 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 	s.err, s.done = err, true
 }
 
-func (s *shooter) Layout(w, h int) (int, int) { return s.inner.Layout(w, h) }
+func (s *shooter) Layout(w, h int) (int, int) {
+	if s.fixW > 0 {
+		return s.fixW, s.fixH
+	}
+	return s.inner.Layout(w, h)
+}
 
 type menuGame struct{ m *client.Menu }
 

@@ -9,8 +9,8 @@ import (
 )
 
 // The night hunter (sim/nightstalker.go): Troodon, a small, long-legged,
-// feathered dinosaur the colour of charcoal, with a pale throat, a barred
-// fan at the end of its stiff tail, and huge amber eyes. It is drawn from
+// feathered dinosaur the colour of charcoal, with a pale throat, a long
+// stiff tail barred to its dark point, and huge amber eyes. It is drawn from
 // dinos/troodon.png by the rig in dinorigs.go. In the dark there is little
 // of it to see but its eyes, which shine: drawEyeshine paints them over the
 // night, after the lighting.
@@ -185,7 +185,7 @@ func (g *Game) troodonFrame(c protocol.CreatureView, moving bool) (rigFrame, flo
 	case c.State == sim.CreatureHurt:
 		return held(troodonHurt), 0
 	case moving && (c.State == sim.CreatureChase || c.State == sim.CreatureFlee):
-		return rigFrameOf("troodon", side, stridePose(rigPose{tilt: 0.08, head: 0.1}, t*gaitFrames/8, 1.4)), 0
+		return rigFrameOf("troodon", side, stridePose(rigPose{tilt: 0.08, head: 0.1, tail: 0.06}, t*gaitFrames/8, 1.4)), 0
 	case c.State == sim.CreatureChase: // waiting at the edge of the light
 		if (t/45)%6 == 2 {
 			return held(troodonHiss), 0

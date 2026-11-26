@@ -64,8 +64,8 @@ it and pick one with a flag, or make both from the same code with
   `drawFine`-style path in `hd.go` (flush, then draw on `wd.canvas` scaled by
   `wd.r`).
 - UI (bag icons, the character screen) draws on the screen: `drawSprite`
-  sizes HD sprites right there too. Item icons are plain `*ebiten.Image`s,
-  not sprites: they need their own density handling when redrawn.
+  sizes HD sprites right there too. Item icons have their own pipeline:
+  see "Item icons" below.
 - A figure drawn through a scratch image (struck in `jolt.go`, cut off at
   the water in `searender.go`) uses a `fineBuf` (`hd.go`): a drawTarget in
   art pixels on an image HDDensity times finer, put on the world with
@@ -85,8 +85,13 @@ it and pick one with a flag, or make both from the same code with
   DumpLimbAnim -v` writes sheets and GIFs of the strides and blows and what
   they cost.
 - The dinosaurs drawn from PNGs are HD: `dinos/hd/*.png` are the drawings
-  of `dinos/` redrawn 3x as fine by `dinos/hd/gen.py` (rerun it after
-  changing a drawing or its settings there). The rig (`dinorig.go`) is still
+  of `dinos/` redrawn 3x as fine. The rex and the three-horn are painted
+  over their drawings by `go run ./cmd/dinopaint` from descriptions in
+  `internal/dinopaint` (masses, muscles, materials, scales, eyes, teeth,
+  horns; see `dinos/hd/README.md` to add one); the others are still upscaled
+  by `dinos/hd/gen.py`. An open jaw at HD shows a mouth with a tongue and
+  lower teeth (`mouthHD`); a rig whose drawing has the upper teeth above
+  its jaw line says `drawnTeeth`. The rig (`dinorig.go`) is still
   measured in the pixels of the density-1 drawing and scales itself; its
   canvases carry `dens`, which `mk` turns into an HD sprite. `dinoHD = false`
   brings back the density-1 drawings. Strides, wingbeats and wound-up blows
@@ -196,6 +201,18 @@ go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
   `dressFoot` laying grass, snow, sand or mud over the roots. Every bark
   ramp is in `barkOf`, which is how `isTrunk` tells wood from leaves.
   `shot -trunksheet` shows the foot of every kind of tree three times as big.
+- The mangrove (`mangrove.go`) is wood laid out in the tree's own space (x
+  across, z towards the viewer, h up) and seen from the game's angle: stilt
+  roots leaving the trunk at different heights all round it, some forking or
+  splitting into fingers, aerial roots from the crown and pencil roots in
+  the mud, each a tube lit as a cylinder, with bark, rings, lenticels and
+  the tide's algae and barnacles low down. Far ones are drawn first and
+  darker, each with its shadow on the ground. Four variants (`mgSeeds`, the
+  layouts picked by eye), each drawn in the water and on the sand
+  (`mangroveSets`); the ripples and reflections under the roots that stand
+  in the sea are drawn with the tree (`drawMangroveWater`). `MANGROVE_DUMP=dir
+  go test ./internal/client -run DumpMangroves` writes sheets of every look
+  and of the roots close up.
 - Rocks, ore veins, coal seams, pebbles and the furnace (`rockart.go`) are
   built of convex blocks (each the inside of a few planes) seen from the
   game's angle: each pixel takes the face it meets first, so faces come out
@@ -221,3 +238,88 @@ frame from the state and how long the beast has been in it (`stateAge`).
 `BOSS_ANIM=dir go test ./internal/client -run DumpHDAnim -v` writes every
 frame and what they cost; `shot -bosses -demobosses -bosspose N -bossage F`
 shows them in the game.
+
+## Item icons
+
+The old item icons are 16 x 16 pixel maps (`itemicons.go` and the
+`gen*Icons` of each file), drawn on the interface's canvas, which is blown
+up 2 times at 1080p and 4 at 4K (`uiscale.go`): an icon pixel became a
+block of 6 screen pixels in a bag slot. HD icons (`iconhd.go`) are painted
+in code at the screen's own resolution instead, one icon pixel to one
+screen pixel, like the world.
+
+- **Design box.** A painter draws in a 16 x 16 box of design units, the box
+  the old icon filled, so the HD icon takes its place and size exactly. It
+  is baked once per size in screen pixels, the first time it is shown (and
+  ahead, on another goroutine, at the sizes of the screen's UI scale): 96
+  in a bag or hotbar slot at 1080p, 64 in a chest and on a recipe card, 32
+  for a recipe's ingredients; half that at 720p, twice at 4K. Under 40
+  pixels it is painted bigger and shrunk; at 16 or less the old icon is
+  drawn (it was made for 16). The box sits inside a margin as wide as the
+  outline, so nothing is cut off.
+- **On the screen.** `g.drawItem(dst, item, x, y, size, alpha)` (UI
+  pixels) draws an item's icon: HD if it has one, else the old one, scaled
+  as before. On the UI canvas an HD icon is not drawn there: it waits, and
+  `uiBreak` puts the canvas, then the icons, then `uiTop` on the screen.
+  What must cover an icon (a stack's count, a key badge, the torch's bar)
+  is drawn on `overIcons(dst)`. `uiBreak` is called by `dim`, the notice
+  and the dev console, and `endUI` ends with it: call it before anything new
+  that is drawn over item icons (a tooltip, a dialog), or it will end up
+  under them. World uses (a drop on the ground, a held item) still take
+  the old icons from `g.art.icons`.
+- **Off.** `shot -iconhd=false` (`SetIconHD`) gives every item its old icon.
+
+### The look (the pilot set, `iconhd_pilot.go`)
+
+- A clear silhouette that reads at slot size: fill the box (about 1 to 15),
+  few big masses, small detail only where it says what the thing is.
+- Light from the top left (`lightDir`), the world's. Each material is a
+  ramp of 4 or 5 tones picked in clean bands (`pick`): shadow, mid, light,
+  a highlight; glints are single `icGlint` marks, never gradients.
+- Outline: the bake puts it on (`outlineIcon`), 1 pixel up to about 100
+  across, 2 at 4K. Near ink where the edge faces away from the light, the
+  colour it borders darkened where it faces the light. A part painted over
+  another darkens a line on the one beneath (`contact`), so a lashing, an
+  end of a log, a berry stand apart.
+- A soft shadow falls down and to the right (`dropShadow`); glow and steam
+  (`soft`) go over everything, without outline.
+- Materials, each with its tell: wood grain streaks along a rod and rings
+  on a cut end (`shRod`, `shRing`); stone in flat faces with lit lips and
+  dark creases (`shFacet`), knapped stone and flint in shallow scallops
+  (`knap`); flint glassy with a glint, in a chalky rind; meat red with fat
+  flecks and a fat rind, roast meat with grill bands; berries round with a
+  sharp glint and bounced light below (`shSphere`); cord and rope twisted
+  (`shCord`, `binding`); hide flat and mottled with fur at the edge.
+- Tools lie from the bottom left to the top right, the working end up, its
+  edge towards the light; food is turned a little.
+- Colours from the old icons' ramps (`iiWood`, `iiLeaf`, `ciPot`...) and,
+  for stone, the COMFY52 tones of the boulders (`rkGraniteMat`): an icon
+  looks like the thing on the ground.
+
+### Adding an icon
+
+1. Write a painter, `func icThing(p *icv)`, in a file of its own group
+   (say `iconhd_ores.go`), and register it in that file's `init`:
+   `regIcon(sim.ItemThing, icThing)`. Nothing else changes: every UI that
+   shows the item picks it up, and the old icon stays as the fallback.
+2. Paint back to front, in design units: `p.fill(shape, shader)` a new
+   part, `p.add` more of the last part (no line between), `p.on` marks on
+   what is there, `p.under` a part behind, `p.soft` glow. Shapes are those
+   of `hdfig.go` (`sCap`, `sEll`, `sPoly`, `sPath`, `.or`, `.and`, `.sub`,
+   `.grow`, `.moved`) and `iEll`, `iBlend`, `sTaper`, `sRing`, `.rough`;
+   `frameOf` lays out a tool's head in its haft's frame. A shader gets the
+   pixel's design point (`f.x`, `f.y`), its depth in the part (`f.d`) and
+   the edge's outward normal (`f.gx`, `f.gy`), and returns a colour.
+3. Look at it: `ICON_DUMP=dir go test ./internal/client -run DumpIcons -v`
+   writes `icons_hd.png` (each icon at 96 and three times bigger, in a
+   second or so; `ICON_ONLY=<item number>` for one). In the game:
+   `go run ./cmd/shot -exact -w 1920 -h 1080 -iconsheet -o s.png` (old and
+   new in 1080p hotbar slots, the smaller sizes, and x3), and
+   `-overlay recipes -bagfrom 1` for the bag with its recipe cards.
+   `-exact` matters on a desktop shorter than 1080: without it the window
+   is cut short and the interface drawn at scale 1.
+4. `go test ./internal/client -run HDIcons` bakes every icon at every size
+   and fails if one covers too little of its box or touches its edge.
+
+A pilot icon took 10 to 20 minutes, most of it looking at it at 96 and x3
+and moving a few numbers; a bake costs 1 to 8 ms at 96 pixels.

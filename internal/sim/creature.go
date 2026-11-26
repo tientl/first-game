@@ -85,6 +85,8 @@ const (
 	// The toads of the ponds and the marsh: see toad.go.
 	CreatureToad     // green and warty: its touch poisons
 	CreatureGlowToad // harmless; it glows at night
+
+	CreatureAnkylo // Ankylosaurus: armoured, it swings a bony tail club; see ankylo.go
 	NumCreatureKinds
 )
 
@@ -179,8 +181,13 @@ type creatureDef struct {
 	deep     bool         // swims anywhere in the water, appearing a little off the coast
 	openOnly bool         // never on the old island maps
 	herd     int          // appears in groups of this many
+	herdMin  int          // with herd: in groups of herdMin to herd, at random (0: always herd)
 	away     float64      // never appears this close to where players start
 	offshore [2]int       // a deep swimmer lives this many tiles off the coast, least and most; zero: the sea reptiles' range
+	// since is the first world style made with it in place; an older world
+	// gets it as its animals are topped up (repopulate), which keeps how
+	// older worlds are made as it was.
+	since WorldStyle
 
 	// How a kind with a home lives; see homes.go.
 	homeOn      map[Tile]float64 // how well each tile suits a home (0: never); nil: every spawn tile alike
@@ -466,10 +473,13 @@ func (w *World) spawnCreatures() {
 			continue
 		}
 		f.target[k] = max(creatureMinPerKind, len(spots)/d.tilesPer)
+		if w.style < d.since {
+			continue // new since this world's style: it comes as the animals are topped up
+		}
 		if d.herd > 1 {
 			for n := 0; n < f.target[k]; {
 				i := spots[w.random().IntN(len(spots))]
-				got := w.addHerd(k, float64(int(i)%w.width)+0.5, float64(int(i)/w.width)+0.5, min(d.herd, f.target[k]-n))
+				got := w.addHerd(k, float64(int(i)%w.width)+0.5, float64(int(i)/w.width)+0.5, min(w.herdSize(k), f.target[k]-n))
 				n += max(got, 1) // a spot with no room still counts, so this ends
 			}
 			continue
@@ -529,7 +539,7 @@ func (w *World) repopulate() {
 				continue
 			}
 			if h := k.def().herd; h > 1 {
-				w.addHerd(k, x, y, min(h, f.target[k]-count[k]))
+				w.addHerd(k, x, y, min(w.herdSize(k), f.target[k]-count[k]))
 				break
 			}
 			w.addCreature(k, x, y)
@@ -701,6 +711,8 @@ func (w *World) stepCreature(c *Creature) {
 		w.stepTroodon(c) // see nightstalker.go
 	case CreatureToad, CreatureGlowToad:
 		w.stepToad(c) // see toad.go
+	case CreatureAnkylo:
+		w.stepAnkylo(c) // see ankylo.go
 	default:
 		w.wander(c)
 	}
@@ -909,7 +921,8 @@ func (w *World) catch(p *Player, c *Creature) bool {
 	}
 	// What a kill gives falls on the ground (see drops.go), so a full bag
 	// never stops a blow; only a fish comes straight off the line into it.
-	dmg := w.blow(p, c.Kind) // see combat.go
+	dmg := w.blow(p, c.Kind)  // see combat.go
+	dmg = armoured(p, c, dmg) // an Ankylosaurus's plates: see ankylo.go
 	if c.Kind == CreatureToad && Punches(p.Held()) && c.biteCD == 0 {
 		w.toadPoisons(c, p) // a bare fist on a poison toad: see toad.go
 	}

@@ -110,10 +110,19 @@ func TestChoppingATree(t *testing.T) {
 		t.Fatalf("wood = %d after chopping a stump, want %d", p.Inv.Count(ItemWood), TreeYield)
 	}
 
+	// It grows back: a sapling by the stump, then a young tree. See regrow.go.
 	w.RemovePlayer(id) // keep the regrow wait free of night-time deaths
-	stepN(w, TreeRegrowTicks)
-	if !tree.Ready || tree.HP != maxHP(EntityTree, false) {
-		t.Fatalf("tree after regrow: ready=%v hp=%d, want ready with %d hp", tree.Ready, tree.HP, maxHP(EntityTree, false))
+	stepN(w, StumpTicks)
+	if tree.Kind != EntitySapling || SeedKind(tree.Var) != SeedTree {
+		t.Fatalf("a day after felling: %s var %d, want a tree sapling", tree.Kind.Name(), tree.Var)
+	}
+	stepN(w, int(SeedTree.growTicks()))
+	if tree.Kind != EntityTree || !tree.Ready || tree.Big || tree.HP != maxHP(EntityTree, false) {
+		t.Fatalf("tree after regrow: %s ready=%v big=%v hp=%d, want a young tree with %d hp", tree.Kind.Name(), tree.Ready, tree.Big, tree.HP, maxHP(EntityTree, false))
+	}
+	stepN(w, YoungTreeTicks)
+	if tree.Big {
+		t.Fatal("a felled young tree grew up into a grown one")
 	}
 }
 

@@ -460,8 +460,8 @@ func (w *World) interact(p *Player, e *Entity) bool {
 				w.angerBees(p, e) // the hive comes down with it
 				e.Var = 0
 			}
-			e.Ready = false // stump until it regrows, at the same size
-			e.RegrowAt = w.tick + TreeRegrowTicks
+			e.Ready = false // a stump, until a sapling comes up by it: see regrow.go
+			e.RegrowAt = w.tick + StumpTicks
 			w.dropAt(x, y, w.treeYield(e))
 		})
 	case EntityGiantTree:

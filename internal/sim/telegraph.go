@@ -41,6 +41,7 @@ type pendingBlow struct {
 	dmg   float64
 	foe   PlayerID
 	reach float64
+	knock float64 // tiles it throws the player back; see ankylo.go
 }
 
 // strike starts c's blow at p: at once for a beast with no wind-up, else
@@ -78,7 +79,13 @@ func (w *World) stepBlow(c *Creature) {
 	if p == nil || p.Dead || p.Asleep || math.Hypot(p.X-c.X, p.Y-c.Y) > b.reach {
 		return // it saw it coming and stepped out of reach
 	}
+	if c.Kind == CreatureAnkylo && headOn(c, p.X, p.Y) {
+		return // round at its head: the club swings behind it (ankylo.go)
+	}
 	land(c, p, b.dmg)
+	if b.knock > 0 {
+		w.shove(p, c.X, c.Y, b.knock)
+	}
 }
 
 // windingUp reports whether c is still drawing back its blow.

@@ -83,10 +83,17 @@ func Generate(cfg GenConfig) (*World, error) {
 		if cfg.Style >= StyleSeas {
 			w.addUnderground(seed) // see underground.go
 		}
+		woods := cfg.Style >= StyleWoods // trees spaced by their crowns: see woods.go
+		if woods {
+			w.carveTrails(seed)
+		}
 		if cfg.Style >= StyleIsles {
 			w.scatterIsles(rng, rand.New(rand.NewPCG(cfg.Seed, 0xb16b16))) // see islescatter.go
 		} else {
 			w.scatterOpen(rng, rand.New(rand.NewPCG(cfg.Seed, 0xb16b16)))
+		}
+		if woods {
+			w.plantWoods(seed, sx, sy)
 		}
 		w.scatterPebbles(rand.New(rand.NewPCG(cfg.Seed, 0x9ebb1e)))
 		w.scatterOres(rand.New(rand.NewPCG(cfg.Seed, 0x0de5)))
@@ -104,6 +111,11 @@ func Generate(cfg GenConfig) (*World, error) {
 		}
 		w.spawnX, w.spawnY = float64(sx)+0.5, float64(sy)+0.5
 		w.growGiants(rand.New(rand.NewPCG(cfg.Seed, 0x6a17))) // see jungle.go
+		if woods {
+			w.clearUnderGiants()
+			w.capHives() // a hive to about hivesPerTrees trees: see regrow.go
+			w.fillUndergrowth(seed)
+		}
 		w.clearAround(sx, sy, clearSpawnRadius)
 		w.scatterDeepOres(rand.New(rand.NewPCG(cfg.Seed, 0x1ade)), sx, sy) // jade deep in the caves, flint by the spawn: see orevein.go
 		w.starterKit(rng)
@@ -112,7 +124,10 @@ func Generate(cfg GenConfig) (*World, error) {
 			w.spawnTribes()
 			w.guardPyramid()
 		}
-		w.placeBosses()                                                // see bosses.go
+		w.placeBosses() // see bosses.go
+		if woods {
+			w.clearUnderGiants() // and the giant over Titanoboa's hollow
+		}
 		w.scatterClay(rand.New(rand.NewPCG(cfg.Seed, 0xc1a7)))         // see cooking.go
 		w.scatterFlora(rand.New(rand.NewPCG(cfg.Seed, 0xf107a)), seed) // after everything else: see flora.go
 		w.spawnToads()                                                 // by the ponds the lilies grow on: see toad.go
@@ -120,6 +135,7 @@ func Generate(cfg GenConfig) (*World, error) {
 			w.unblockCrossings() // see islescatter.go
 			w.unblockIslands()
 		}
+		w.planWoods(seed) // what the woods grow back to: see regrow.go
 		return w, nil
 	}
 
@@ -138,6 +154,7 @@ func Generate(cfg GenConfig) (*World, error) {
 	w.scatterClay(rand.New(rand.NewPCG(cfg.Seed, 0xc1a7))) // see cooking.go
 	w.scatterFlora(rand.New(rand.NewPCG(cfg.Seed, 0xf107a)), seed)
 	w.spawnToads()
+	w.planWoods(seed) // what the woods grow back to: see regrow.go
 	return w, nil
 }
 

@@ -1,12 +1,19 @@
 package main
 
 import (
+	"fmt"
+
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
 
 // demoBosses leaves only the two bosses of the demo in addBosses.
 var demoBosses bool
+
+// titanAt, if set (-titanat dx,dy[,1]), is where addBosses puts Titanoboa, in
+// tiles from the player (facing left with ,1): to frame it next to them,
+// the Megalodon left out.
+var titanAt string
 
 // addBosses puts the six bosses round the player standing on a beach, the
 // sea below: the land ones on the sand and grass, the Megalodon and a
@@ -26,14 +33,20 @@ func addBosses(snap *protocol.Snapshot, sx, sy float64, pose int) {
 		})
 	}
 	st := func(i int) sim.CreatureState { return states[(i+pose)%len(states)] }
-	put(0, sim.CreatureTitanoboa, -7, -3.5, st(0), false)
+	tx, ty, tl := -7.0, -3.5, 0
+	if titanAt != "" {
+		fmt.Sscanf(titanAt, "%g,%g,%d", &tx, &ty, &tl)
+	}
+	put(0, sim.CreatureTitanoboa, tx, ty, st(0), tl == 1)
 	put(2, sim.CreatureMammothKing, 0.5, -5.5, st(2), true)
 	put(3, sim.CreatureCarcharo, 7.5, -3, st(3), true)
 	put(4, sim.CreatureGiganoto, -6.5, 1.2, st(4), false)
 	// In the sea, which starts 2.5 tiles below the player.
 	put(1, sim.CreatureSpino, -3, 4.2, sim.CreatureLurk, false)
 	megaSt := []sim.CreatureState{sim.CreatureChase, sim.CreatureSpecial, sim.CreatureLurk, sim.CreatureStrike}[pose%4]
-	put(5, sim.CreatureMegalodon, 4.5, 5, megaSt, true)
+	if titanAt == "" { // a shot framing Titanoboa may have moved off the beach
+		put(5, sim.CreatureMegalodon, 4.5, 5, megaSt, true)
+	}
 	if pose%2 == 1 { // and a Spinosaurus bursting out
 		put(6, sim.CreatureSpino, 1.5, 3.2, sim.CreatureSpecial, true)
 	}

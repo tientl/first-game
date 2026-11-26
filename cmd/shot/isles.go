@@ -12,7 +12,8 @@ import (
 //
 //   - waterfall: below a river dropping over a cliff;
 //   - ramp: below a ramp cut through a cliff between two levels;
-//   - lagoon: on a spit of sand, a lagoon behind it and reefs out to sea.
+//   - lagoon: on a spit of sand, a lagoon behind it and reefs out to sea;
+//   - beach: on a wide beach, the sea in view (since sim.StyleBeaches).
 //
 // Each is the one nearest the spawn that shows the most of what it is.
 
@@ -97,6 +98,22 @@ func islesSpot(w *sim.World, what string, sx, sy float64) (x, y float64, ok bool
 					continue
 				}
 				score = float64(lagoon) + 1.5*float64(reef) + 0.3*float64(shallow)
+			case "beach":
+				// Sand underfoot, a broad beach round, the sea a few tiles off.
+				if t != sim.TileSand {
+					continue
+				}
+				sea := count(tx, ty-6, 16, 3, func(t sim.Tile, _ sim.Relief) bool { return t.Sea() })
+				if sea < 20 {
+					continue
+				}
+				// Land behind it, not an islet all of sand; near the spawn.
+				green := count(tx, ty+6, 16, 4, func(t sim.Tile, _ sim.Relief) bool { return t == sim.TileGrass || t == sim.TileForest })
+				if green < 30 {
+					continue
+				}
+				sand := count(tx, ty, 16, 8, func(t sim.Tile, _ sim.Relief) bool { return t == sim.TileSand })
+				score = float64(min(sand, 160)) + 0.2*float64(sea) - math.Hypot(float64(tx)-sx, float64(ty)-sy)/4
 			default:
 				var ok bool
 				if score, px, py, ok = moreSpots(what, tx, ty, t, r, at, count); !ok {

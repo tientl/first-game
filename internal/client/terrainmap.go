@@ -23,11 +23,8 @@ var (
 	mapCliff    = hex(0x2a211d)
 	mapFall     = hex(0xdff2f8)
 	mapLake     = hex(0x2f78b4)
-	mapReef     = hex(0x3fa9b0)
 	mapCoral    = hex(0xd98e9a)
 	mapLagoon   = hex(0x72d6cc)
-	mapShoal    = hex(0xb8dcbc)
-	mapShallowC = hex(0x4cbcc6)
 )
 
 // mapRelief lays rivers, cliffs, ramps and the levels over map land pixel
@@ -70,7 +67,8 @@ func (t *terrain) mapRelief(c color.RGBA, u, v float64) color.RGBA {
 }
 
 // mapShallow colours map sea pixel c at (u, v) over the shallows, lakes and
-// sea stacks.
+// sea stacks: the sea by its depth, as the ground draws it (see
+// terrainsea.go), eased into c, the open sea, out where it is deepest.
 func (t *terrain) mapShallow(c color.RGBA, u, v float64) color.RGBA {
 	if t.relief == nil {
 		return c
@@ -81,21 +79,27 @@ func (t *terrain) mapShallow(c color.RGBA, u, v float64) color.RGBA {
 		return mapCliff // a sea stack
 	case t.tile(tx, ty) == sim.TileWater && t.rel(tx, ty).Variant() == sim.VarLake:
 		return mapLake
-	case t.tile(tx, ty) != sim.TileShallow:
+	}
+	d := t.seaDepthAt(u, v)
+	if d >= 0.995 {
 		return c
 	}
-	switch t.rel(tx, ty).Variant() {
-	case sim.VarReef:
-		if hashf(int(u*4), int(v*4), 1450) < 0.18 {
-			return mapCoral
+	w := seaColor(d)
+	a := float64(w.A) / 255
+	col := mix(colWaterBG, withAlpha(w, 255), a)
+	col.A = 255
+	col = mix(col, c, smooth(clamp01((d-0.8)/0.2)))
+	if t.tile(tx, ty) == sim.TileShallow {
+		switch t.rel(tx, ty).Variant() {
+		case sim.VarReef:
+			if hashf(int(u*4), int(v*4), 1450) < 0.14 {
+				return mapCoral
+			}
+		case sim.VarLagoon:
+			col = mix(col, mapLagoon, 0.35)
 		}
-		return mapReef
-	case sim.VarLagoon:
-		return mapLagoon
-	case sim.VarShoal:
-		return mapShoal
 	}
-	return mapShallowC
+	return col
 }
 
 // --- the minimap's pieces -----------------------------------------------------------

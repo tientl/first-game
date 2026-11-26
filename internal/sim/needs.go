@@ -70,7 +70,7 @@ func init() {
 	diets[CreatureThesc] = grazer(false, true)
 	diets[CreatureOrnitho] = grazer(false, true)
 	diets[CreatureAnzu] = grazer(false, false)
-	diets[CreatureRex] = hunter(12, 12*TicksPerSecond, CreatureThesc, CreatureOrnitho, CreatureTrike, CreatureToro, CreatureBrachio)
+	diets[CreatureRex] = hunter(12, 12*TicksPerSecond, CreatureThesc, CreatureOrnitho, CreatureTrike, CreatureToro, CreatureBrachio, CreatureAnkylo)
 	diets[CreatureRaptor] = hunter(3, 8*TicksPerSecond, CreatureRabbit, CreatureThesc, CreatureOrnitho)
 	diets[CreatureAchero] = hunter(2, 8*TicksPerSecond, CreatureRabbit, CreatureOrnitho, CreatureThesc)
 	diets[CreatureSabre] = hunter(4, 8*TicksPerSecond, CreatureRabbit, CreatureOrnitho, CreatureThesc)
@@ -328,6 +328,9 @@ func (w *World) maul(c *Creature, dmg int) bool {
 // evade is a hunted creature's step: run from hunter h until blown, or for
 // the horned grazers, turn and gore it. It reports whether it acted.
 func (w *World) evade(c, h *Creature, diet *dietDef) bool {
+	if c.Kind == CreatureAnkylo {
+		return w.ankyloDefend(c, h) // its club, not its horns: see ankylo.go
+	}
 	d := c.Kind.def()
 	dist := math.Hypot(h.X-c.X, h.Y-c.Y)
 	if dist > PreyFleeDist {

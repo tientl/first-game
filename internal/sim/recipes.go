@@ -475,6 +475,8 @@ const (
 
 	NoticeFoodPoison // Arg: ItemKind eaten that poisons; see flora.go
 	NoticeCured      // Arg: ItemKind that drew the poison out
+
+	NoticeArmoured // Arg: CreatureKind whose armour took half the blow; see ankylo.go
 )
 
 // CommandKind is a discrete player request, as opposed to held input.

@@ -70,7 +70,7 @@ type legCut struct {
 	l0, l1         float64
 }
 
-func cutLeg(w *canvas, l rigLimb, pad, k int, far bool) legCut {
+func cutLeg(w *canvas, l rigLimb, pad, k int, far bool, own *legOwner) legCut {
 	kf := float64(k)
 	c := legCut{fore: l.fore, far: far, inside: far || l.r == 0, top: l.top*k + pad}
 	for _, q := range l.j {
@@ -78,6 +78,9 @@ func cutLeg(w *canvas, l rigLimb, pad, k int, far bool) legCut {
 	}
 	n := len(c.P) - 1
 	x0, x1 := l.x0*k+pad, (l.x1+1)*k-1+pad
+	if own != nil {
+		x0, x1 = own.x0, own.x1 // the leg as painted, not its columns (dinolegmask.go)
+	}
 	zr := l.r * kf
 	if zr == 0 {
 		zr = c.P[1].sub(c.P[0]).len()/2 + kf
@@ -94,14 +97,14 @@ func cutLeg(w *canvas, l rigLimb, pad, k int, far bool) legCut {
 		for x := 0; x < c.bw; x++ {
 			i := y*c.bw + x
 			c.seg[i] = -1
-			q := w.px[(y+c.by)*w.w+x+c.bx]
+			q, mine := own.pick(w.px[(y+c.by)*w.w+x+c.bx], x+c.bx, y+c.by) // dinolegmask.go
 			if q.A < 128 {
 				continue
 			}
 			p := rigPt{float64(x+c.bx) + 0.5, float64(y+c.by) + 0.5}
 			s := -1
 			if y+c.by >= c.top {
-				if x+c.bx < x0 || x+c.bx > x1 {
+				if x+c.bx < x0 || x+c.bx > x1 || !mine {
 					continue
 				}
 				best := math.Inf(1)
@@ -110,7 +113,7 @@ func cutLeg(w *canvas, l rigLimb, pad, k int, far bool) legCut {
 						best, s = d, j
 					}
 				}
-			} else if segDist(p, c.P[0], c.P[1]) <= zr {
+			} else if segDist(p, c.P[0], c.P[1]) <= zr && mine {
 				s = 0
 			} else {
 				continue
@@ -406,7 +409,7 @@ func stepJoints(w *canvas, r dinoRig, p rigPose, pad, k int) float64 {
 	if !ok {
 		cuts = make([]legCut, n)
 		for i, l := range r.legs {
-			cuts[i] = cutLeg(w, l, pad, k, r.far>>uint(i)&1 == 1)
+			cuts[i] = cutLeg(w, l, pad, k, r.far>>uint(i)&1 == 1, legOwnerOf(r.file, i, pad, k))
 		}
 		dinoMu.Lock()
 		legCuts[key] = cuts
@@ -449,6 +452,7 @@ func stepJoints(w *canvas, r dinoRig, p rigPose, pad, k int) float64 {
 			}
 		}
 	}
+	leg := make([]bool, len(w.px)) // what the legs drew
 	ly := &legLayer{w: w.w, h: w.h, px: legWork.px, pr: legWork.pr}
 	back := legWork.back // the far legs, one over another, to go behind the body
 	bx0, by0, bx1, by1 := w.w, w.h, 0, 0
@@ -461,6 +465,7 @@ func stepJoints(w *canvas, r dinoRig, p rigPose, pad, k int) float64 {
 			ly.x0, ly.y0, ly.x1, ly.y1 = w.w, w.h, 0, 0
 			J, th := c.solve(feet[i], drop)
 			c.draw(ly, J, th)
+			ly.trimJoints(k)
 			to := w.px
 			if c.far {
 				to = back
@@ -471,6 +476,7 @@ func stepJoints(w *canvas, r dinoRig, p rigPose, pad, k int) float64 {
 					if o := y*w.w + x; ly.pr[o] != 0 {
 						if c.far || ly.pr[o]&under == 0 || to[o].A < 128 {
 							to[o] = ly.px[o]
+							leg[o] = true
 						}
 						ly.pr[o] = 0
 					}
@@ -483,6 +489,7 @@ func stepJoints(w *canvas, r dinoRig, p rigPose, pad, k int) float64 {
 					o := y*w.w + x
 					if back[o].A >= 128 && w.px[o].A < 128 && !hole[o] {
 						w.px[o] = back[o]
+						leg[o] = true
 					}
 					back[o] = color.RGBA{}
 				}
@@ -553,5 +560,144 @@ func stepJoints(w *canvas, r dinoRig, p rigPose, pad, k int) float64 {
 	for _, f := range fills {
 		w.px[f.o] = f.q
 	}
+	// Where a leg inside the body was cut away under it, the flank ends
+	// cleanly, and no specks are left about the legs.
+	for i := range cuts {
+		if c := &cuts[i]; c.inside {
+			tidyCut(w, leg, c.bx, c.bx+c.bw, c.top+int(drop), k)
+		}
+	}
+	for i := range cuts {
+		c := &cuts[i]
+		despeck(w, c.bx, c.by, c.bx+c.bw, min(w.h, c.by+c.bh+int(drop)), 3*k)
+	}
 	return drop
+}
+
+// tidyCut cleans the flank of canvas w where a leg inside the body was cut
+// away from row top down (the body left behind, the leg posed elsewhere):
+// in the band of rows about the cut, columns x0-x1, the body's slivers one
+// pixel wide go, and its pixels left over nothing are shaded as its edge.
+// leg marks the pixels the legs drew, which are left alone.
+func tidyCut(w *canvas, leg []bool, x0, x1, top, k int) {
+	y0, y1 := max(1, top-3*k), min(w.h-1, top+k)
+	x0, x1 = max(1, x0), min(w.w-1, x1)
+	solid := func(x, y int) bool { return w.px[y*w.w+x].A >= 128 }
+	body := func(x, y int) bool { return solid(x, y) && !leg[y*w.w+x] }
+	for range 2 {
+		var gone []int
+		for y := y0; y < y1; y++ {
+			for x := x0; x < x1; x++ {
+				if body(x, y) && !solid(x-1, y) && !solid(x+1, y) && !solid(x, y+1) {
+					gone = append(gone, y*w.w+x) // a sliver hanging down
+				}
+			}
+		}
+		for _, o := range gone {
+			w.px[o] = color.RGBA{}
+		}
+	}
+	var edge []int
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			if body(x, y) && !solid(x, y+1) {
+				edge = append(edge, y*w.w+x)
+			}
+		}
+	}
+	for _, o := range edge {
+		q := w.px[o]
+		w.px[o] = color.RGBA{uint8(int(q.R) * 3 / 5), uint8(int(q.G) * 3 / 5), uint8(int(q.B) * 3 / 5), q.A}
+	}
+}
+
+// despeck clears, in the box x0-x1, y0-y1 of canvas w, the bits of solid
+// pixels smaller than n that touch nothing else (8-connected) and stay
+// clear of the box's edge: loose specks of a turned leg.
+func despeck(w *canvas, x0, y0, x1, y1, n int) {
+	x0, y0, x1, y1 = max(0, x0), max(0, y0), min(w.w, x1), min(w.h, y1)
+	if x1 <= x0 || y1 <= y0 {
+		return
+	}
+	bw := x1 - x0
+	seen := make([]bool, bw*(y1-y0))
+	var stack, comp []int
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			s := (y-y0)*bw + x - x0
+			if seen[s] || w.px[y*w.w+x].A < 128 {
+				continue
+			}
+			comp, stack = comp[:0], append(stack[:0], s)
+			seen[s] = true
+			edge := false
+			for len(stack) > 0 && len(comp) <= n {
+				q := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				comp = append(comp, q)
+				qx, qy := q%bw+x0, q/bw+y0
+				for dy := -1; dy <= 1; dy++ {
+					for dx := -1; dx <= 1; dx++ {
+						X, Y := qx+dx, qy+dy
+						if X < x0 || Y < y0 || X >= x1 || Y >= y1 {
+							if X >= 0 && Y >= 0 && X < w.w && Y < w.h && w.px[Y*w.w+X].A >= 128 {
+								edge = true // it goes on past the box
+							}
+							continue
+						}
+						if t := (Y-y0)*bw + X - x0; !seen[t] && w.px[Y*w.w+X].A >= 128 {
+							seen[t] = true
+							stack = append(stack, t)
+						}
+					}
+				}
+			}
+			if len(comp) > n || edge || len(stack) > 0 {
+				continue
+			}
+			for _, q := range comp {
+				w.px[(q/bw+y0)*w.w+q%bw+x0] = color.RGBA{}
+			}
+		}
+	}
+}
+
+// trimJoints keeps, of the pixels a leg's segments lent each other around a
+// joint (priority 1), only those that close a crack: with the leg's own
+// pixels on both sides of them, across or along, within a few pixels. Lent
+// pixels anywhere else are the neighbour's flesh turned the wrong way, and
+// would stick out of the leg as specks and slivers when a joint bends far.
+func (ly *legLayer) trimJoints(k int) {
+	reach := 3 * k
+	own := func(x, y int) bool {
+		if x < ly.x0 || y < ly.y0 || x >= ly.x1 || y >= ly.y1 {
+			return false
+		}
+		return ly.pr[y*ly.w+x]&^under > 1
+	}
+	hit := func(x, y, dx, dy int) bool {
+		for i := 1; i <= reach; i++ {
+			if own(x+dx*i, y+dy*i) {
+				return true
+			}
+		}
+		return false
+	}
+	var drop []int
+	for y := ly.y0; y < ly.y1; y++ {
+		for x := ly.x0; x < ly.x1; x++ {
+			o := y*ly.w + x
+			if ly.pr[o]&^under != 1 {
+				continue
+			}
+			if (hit(x, y, -1, 0) && hit(x, y, 1, 0)) || (hit(x, y, 0, -1) && hit(x, y, 0, 1)) ||
+				(hit(x, y, -1, -1) && hit(x, y, 1, 1)) || (hit(x, y, -1, 1) && hit(x, y, 1, -1)) {
+				continue
+			}
+			drop = append(drop, o)
+		}
+	}
+	for _, o := range drop {
+		ly.pr[o], ly.px[o] = 0, color.RGBA{}
+	}
 }

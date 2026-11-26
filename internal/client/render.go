@@ -370,6 +370,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 			}
 		}
 	}
+	beginCanopy(dst) // see canopyshare.go
 	for _, d := range list {
 		align(dst, d.sx, d.sy)
 		if d.drop {
@@ -410,6 +411,8 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		}
 		g.drawEntity(dst, e, d)
 	}
+	endCanopy()
+	g.drawHiddenSelf(dst) // the player's own figure, if the leaves hide it: see hiddenself.go
 	alignCamera(dst)
 }
 
@@ -543,35 +546,39 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		}
 		// Skew moves the top more on a taller sprite: big trunks are stiffer.
 		stiff := 1 / treeScale[size]
-		if g.tileAt(int(e.TX), int(e.TY)) == sim.TileSnow { // frosted pines on the snow
-			pines := a.snowPinesOf(size)
-			return pines[int(h/8)%len(pines)], 0.02 * stiff
-		}
 		tile := g.tileAt(int(e.TX), int(e.TY))
-		if tile == sim.TileMarsh { // bald cypresses and dead snags; see swampart.go
-			return swampTree(size, h), 0.02 * stiff
-		}
 		forest := tile == sim.TileForest
-		// Prehistoric trees, by terrain: giant redwoods and monkey-puzzles
-		// in the woods, cycads and ginkgos in the open, tree ferns in both.
-		anc, v := a.ancientOf(size), int(h/8)
-		switch pick := (h >> 20) % 20; {
-		case forest && pick < 3:
+		// The look follows from the tile (see sim.TreeLookAt, which the
+		// woods are spaced by): prehistoric trees by terrain, giant redwoods
+		// and monkey-puzzles in the woods, cycads and ginkgos in the open,
+		// tree ferns in both.
+		v := int(h / 8)
+		switch sim.TreeLookAt(int(e.TX), int(e.TY), tile) {
+		case sim.LookSnowPine: // frosted pines on the snow
+			pines := a.snowPinesOf(size)
+			return pines[v%len(pines)], 0.02 * stiff
+		case sim.LookSwamp: // bald cypresses and dead snags; see swampart.go
+			return swampTree(size, h), 0.02 * stiff
+		case sim.LookRedwood:
+			anc := a.ancientOf(size)
 			return anc.redwoods[v%len(anc.redwoods)], 0.008 * stiff
-		case forest && pick < 5, tile == sim.TileGrass && pick < 1:
+		case sim.LookAraucaria:
+			anc := a.ancientOf(size)
 			return anc.araucarias[v%len(anc.araucarias)], 0.015 * stiff
-		case forest && pick < 7, tile == sim.TileGrass && pick < 4:
+		case sim.LookTreeFern:
+			anc := a.ancientOf(size)
 			return anc.ferns[v%len(anc.ferns)], 0.05 * stiff
-		case tile == sim.TileGrass && pick < 8:
+		case sim.LookCycad:
+			anc := a.ancientOf(size)
 			return anc.cycads[v%len(anc.cycads)], 0.02 * stiff
-		case tile == sim.TileGrass && pick < 11:
+		case sim.LookGinkgo:
+			anc := a.ancientOf(size)
 			return anc.ginkgos[v%len(anc.ginkgos)], 0.035 * stiff
+		case sim.LookPine:
+			pines := a.treesOf(size).pines
+			return pines[v%len(pines)], 0.02 * stiff
 		}
 		set := a.treesOf(size)
-		if forest && h%5 < 1 {
-			pines := set.pines
-			return pines[int(h/8)%len(pines)], 0.02 * stiff
-		}
 		// Vines hang in the woods; out in the open only now and then.
 		trees := set.trees
 		if v := (h >> 12) % 10; forest && v < 6 || v == 0 {
@@ -594,6 +601,9 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		}
 		return a.tuftPicked, 0
 	case sim.EntityTwig:
+		if g.tileAt(int(e.TX), int(e.TY)) == sim.TileSand {
+			return a.driftwood, 0 // washed up on a beach
+		}
 		return a.twig, 0
 	case sim.EntityWall:
 		return a.wall, 0
@@ -615,7 +625,7 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		}
 		return g.cropSprite(e), 0.05
 	case sim.EntityFlora:
-		return floraEntitySprite(e) // see florarender.go
+		return g.floraEntitySprite(e) // see florarender.go
 	case sim.EntityBurrow:
 		return a.beasts.burrow, 0
 	case sim.EntityDen:
@@ -681,6 +691,7 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		tint = nil
 	}
 	solid := g.seeThrough(e, s, d) // fading while it hides someone; see occlude.go
+	noteCanopy(s, d.sx, d.sy)      // see canopyshare.go
 	if tint != nil || solid < 1 {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(-s.ax, -s.ay)

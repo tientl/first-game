@@ -46,9 +46,11 @@ func beginUI(screen *ebiten.Image) (ui *ebiten.Image, uw, uh int) {
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
 	s := uiScaleFor(sh)
 	uiScaleNow = s
+	uiStart() // HD item icons: see iconhd.go
 	if s == 1 {
 		return screen, sw, sh
 	}
+	uiScreen = screen
 	uw, uh = (sw+s-1)/s, (sh+s-1)/s
 	if uiLayer == nil || uiLayer.Bounds().Dx() != uw || uiLayer.Bounds().Dy() != uh {
 		if uiLayer != nil {
@@ -65,10 +67,8 @@ func endUI(screen, ui *ebiten.Image) {
 	if ui == screen {
 		return
 	}
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Scale(float64(uiScaleNow), float64(uiScaleNow))
-	op.Filter = ebiten.FilterNearest
-	screen.DrawImage(ui, op)
+	uiFlush(true) // the canvas, then the HD item icons over it: see iconhd.go
+	uiScreen = nil
 }
 
 // uiPoint maps a screen point to the UI canvas at scale s.

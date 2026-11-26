@@ -23,7 +23,22 @@ func main() {
 	size := flag.Int("size", sim.SizeHuge, "world size in tiles")
 	seed := flag.Uint64("seed", 42, "world seed")
 	style := flag.Int("style", int(sim.StyleLatest), "world style (the generator)")
+	woodsMap := flag.String("woodsmap", "", "write a map of the woods to this PNG instead (thick woods dark, ordinary mid green, trees as dots) and stop; see woodsmap.go")
+	region := flag.String("region", "", "with -woodsmap: x0,y0,x1,y1, the tiles to show (default: the whole surface)")
+	px := flag.Int("px", 2, "with -woodsmap: pixels to a tile")
 	flag.Parse()
+	if *woodsMap != "" {
+		w, err := sim.Generate(sim.GenConfig{Seed: *seed, Width: *size, Height: *size, Style: sim.WorldStyle(*style)})
+		if err != nil {
+			log.Fatal(err)
+		}
+		x0, y0, x1, y1 := 0, 0, *size, *size
+		fmt.Sscanf(*region, "%d,%d,%d,%d", &x0, &y0, &x1, &y1)
+		if err := writeWoodsMap(w, *woodsMap, x0, y0, x1, y1, *px); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	runtime.GC()
 	var before runtime.MemStats
@@ -90,6 +105,22 @@ func main() {
 	}
 	fmt.Println()
 	fmt.Printf("islands: %d\n", len(w.Islands()))
+	// The beaches: how deep the sand is straight inland from each tile of
+	// sand on the shore (see sim.BeachDepths).
+	if bd, shore := w.BeachDepths(); len(bd) > 0 {
+		ds := make([]int, len(bd))
+		wide := 0
+		for i, b := range bd {
+			ds[i] = b.N
+			if b.N >= 5 {
+				wide++
+			}
+		}
+		sort.Ints(ds)
+		q := func(p float64) int { return ds[min(len(ds)-1, int(p*float64(len(ds))))] }
+		fmt.Printf("beaches: %d of %d shore tiles sandy; depth p10 %d, p25 %d, median %d, p75 %d, p90 %d; %.0f%% at least 5 deep\n",
+			len(bd), shore, q(0.1), q(0.25), q(0.5), q(0.75), q(0.9), 100*float64(wide)/float64(len(bd)))
+	}
 	ents := map[string]int{}
 	w.EachEntityIn(0, 0, W, H, func(e sim.Entity) { ents[e.Kind.Name()]++ })
 	crs := map[string]int{}
