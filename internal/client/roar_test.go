@@ -12,8 +12,10 @@ import (
 func TestBeastCallsAreUsable(t *testing.T) {
 	bank := genSFX()
 	for _, name := range []string{
+		// The synthesised calls; the recorded voices that replaced rex_growl and
+		// the sabre-tooth's are tested in realvoice_test.go.
 		"roar", "roar_far", "hoot", "chirp", "boom", "croak", "bellow", "trumpet", "snarl",
-		"rex_growl", "raptor_screech", "raptor_click", "sabre_roar", "sabre_snarl", "sabre_growl", "croc_hiss",
+		"raptor_screech", "raptor_click", "croc_hiss",
 	} {
 		vs := bank[name]
 		if len(vs) == 0 {
@@ -87,7 +89,7 @@ func TestBeastsCallNowAndThen(t *testing.T) {
 
 	ch.pick(snap, 0, 0, t0, always) // the first call only starts the clock
 	call, ok := ch.pick(snap, 0, 0, t0.Add(100*time.Millisecond), always)
-	if !ok || call.c.ID != rex.ID || call.voice.name != "roar" {
+	if !ok || call.c.ID != rex.ID || call.voice.name != "rex_roar" {
 		t.Fatalf("call %+v %v: the tyrant should roar", call, ok)
 	}
 	if !ch.calling(rex, t0.Add(time.Second)) {

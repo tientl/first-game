@@ -15,9 +15,10 @@ import (
 )
 
 // Every sound in the game is synthesised in code at start-up (sfx.go,
-// music.go), like the art. They are played through one software mixer that
-// feeds a single Ebitengine player, so panning, pitch variation and smooth
-// volume changes are all under our control.
+// music.go), like the art, but the creatures' voices, which are made from
+// recordings of real animals (realvoice.go). They are played through one
+// software mixer that feeds a single Ebitengine player, so panning, pitch
+// variation and smooth volume changes are all under our control.
 
 const sampleRate = 44100
 
@@ -302,7 +303,11 @@ func (s *soundSystem) setVolume(music bool, v float64) {
 
 // play starts a one-shot sound. vol is 0..1, pan -1..1, rate 1 = as made.
 func (s *soundSystem) play(name string, vol, pan, rate float64) {
-	if s == nil || vol <= 0.001 || !(rate > 0.01 && rate < 100) {
+	if s == nil {
+		return
+	}
+	rate *= speedOf(name) // a recorded voice kept at half rate: see realvoice.go
+	if vol <= 0.001 || !(rate > 0.01 && rate < 100) {
 		return // a rate at or below zero would play backwards, off the start of the data
 	}
 	vs := s.sfx[name]
