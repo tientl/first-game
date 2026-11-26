@@ -899,7 +899,7 @@ func (g *Game) drawCreature(dst drawTarget, c protocol.CreatureView, d drawable)
 		x += math.Round(math.Sin(float64(g.frame) * 0.9)) // struggling in the snare
 	}
 	wades := c.Kind == sim.CreatureCrab || crocLike(c.Kind)
-	if wades && g.tileAt(int(math.Floor(float64(c.X))), int(math.Floor(float64(c.Y)))) == sim.TileWater {
+	if wades && g.tileAt(int(math.Floor(float64(c.X))), int(math.Floor(float64(c.Y)))).Swimmable() {
 		op.ColorScale.Scale(0.72, 0.86, 0.95, 1) // wading: seen through the shallows
 	}
 	op.GeoM.Translate(x-s.ax, d.sy-bob-s.ay)

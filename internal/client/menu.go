@@ -99,8 +99,10 @@ func NewMenu(info SaveInfo) *Menu {
 var difficulties = []sim.Difficulty{sim.DiffBasic, sim.DiffSkilled, sim.DiffLord}
 
 // NewDifficulty is the difficulty picked for the new world, after MenuNew.
-// Every new world is the largest size.
 func (m *Menu) NewDifficulty() sim.Difficulty { return m.diff }
+
+// NewSize is the size picked for the new world, after MenuNew, in tiles.
+func (m *Menu) NewSize() int { return m.diffs.worldSize() }
 
 // NewLook is the look made on the character screen, after MenuNew.
 func (m *Menu) NewLook() sim.Look { return m.look }

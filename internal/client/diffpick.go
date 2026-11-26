@@ -72,6 +72,7 @@ type diffPicker struct {
 	frame  int
 	buf    *ebiten.Image
 	scenes [diffBack]diffScene
+	size   int // the world size picked: see sizepick.go
 
 	// Where draw put the panel on the screen, for the mouse.
 	ox, oy, scale  float64
@@ -170,6 +171,9 @@ func (p *diffPicker) handle() int {
 	mx, my := uiCursor()
 	moved := mx != p.lastMX || my != p.lastMY
 	p.lastMX, p.lastMY = mx, my
+	if p.sizeKeys((float64(mx)-p.ox)/p.scale, (float64(my)-p.oy)/p.scale, inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft)) {
+		return -1
+	}
 	i := diffHit((float64(mx)-p.ox)/p.scale, (float64(my)-p.oy)/p.scale)
 	if i < 0 {
 		return -1
@@ -219,6 +223,7 @@ func (p *diffPicker) draw(screen *ebiten.Image) {
 		drawText(b, ">", float64(r.Min.X)+16, float64(r.Min.Y)+10, colKey, text.AlignStart, 2)
 	}
 	drawText(b, "Quay lại", diffW/2, float64(r.Min.Y)+10, colWhite, text.AlignCenter, 2)
+	p.drawSize(b)
 	drawText(b, "A/D hoặc chuột để chọn · Enter để xác nhận · Esc để quay lại", diffW/2, diffH-26, colMuted, text.AlignCenter, 1)
 
 	p.scale, p.ox, p.oy = diffFit(sw, sh)

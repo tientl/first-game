@@ -37,7 +37,7 @@ func floraEntitySprite(e protocol.EntityView) (sprite, float64) {
 // casts its own into the water.
 func (g *Game) floraShadow(e protocol.EntityView) float64 {
 	f := sim.FloraKind(e.Var) % sim.NumFlora
-	if g.tileAt(int(e.TX), int(e.TY)) == sim.TileWater {
+	if g.tileAt(int(e.TX), int(e.TY)).Sea() {
 		return 0
 	}
 	if !e.Ready {
@@ -56,7 +56,7 @@ var mangroveRipples sprite
 // drawFloraUnder draws what lies under plant e before it: the rings round a
 // mangrove's roots where it stands in the water.
 func (g *Game) drawFloraUnder(dst drawTarget, e protocol.EntityView, d drawable) {
-	if e.Kind != sim.EntityFlora || sim.FloraKind(e.Var) != sim.FloraMangrove || g.tileAt(int(e.TX), int(e.TY)) != sim.TileWater {
+	if e.Kind != sim.EntityFlora || sim.FloraKind(e.Var) != sim.FloraMangrove || !g.tileAt(int(e.TX), int(e.TY)).Sea() {
 		return
 	}
 	if mangroveRipples.img == nil {

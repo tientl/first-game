@@ -237,7 +237,13 @@ func (b *bake) pixel(x, y int, u, v float64) (color.RGBA, bool) {
 		if c, ok := b.rockPixel(b.rock, x, y, u, v, false); ok {
 			return c, false // mountains stand above everything else
 		}
-		c := b.land(hx, hy, u, v)
+		if c, ok := t.riverPixel(hx, hy, u, v); ok {
+			return c, false // see terrainfeatures.go
+		}
+		if c, ok := t.cliffPixel(hx, hy, u, v); ok {
+			return c, false
+		}
+		c := t.reliefShade(b.land(hx, hy, u, v), hx, hy, u, v)
 		if b.rock != nil {
 			if o := b.rock.over[y*chunkPW+x]; o > 0 {
 				c = mix(c, colInk, rockShadow(int(o))) // at the foot of a mountain's face
@@ -260,6 +266,9 @@ func (b *bake) pixel(x, y int, u, v float64) (color.RGBA, bool) {
 	}
 	up := int(b.landUp[y*chunkPW+x])
 	if t.pondAt(u, v) > 0.5 {
+		if c, ok := t.lakePixel(hx, hy, u, v, s); ok {
+			return c, false // a lake: see terrainfeatures.go
+		}
 		return swampWater(hx, hy, u, v, s, up), false // still, murky water: no surf
 	}
 	// Sea. A south-facing shore gets an earth wall hanging below it.
@@ -269,7 +278,7 @@ func (b *bake) pixel(x, y int, u, v float64) (color.RGBA, bool) {
 	if up <= coastUp && hashf(fdiv(hx, 2), hy, 74) < 1.3-float64(up-cliffH*groundDens)/float64(2*groundDens) {
 		return withAlpha(colFoam, 200), false // foam at the wall's foot, breaking up
 	}
-	return seaWater(hx, hy, u, v, s), true
+	return t.shallowSea(seaWater(hx, hy, u, v, s), hx, hy, u, v), true
 }
 
 // rockShadow is how dark open ground is o pixels under a rock face.
@@ -333,7 +342,8 @@ const edgeW = 0.26
 // with the next one in ragged strokes and clumps.
 func (b *bake) land(hx, hy int, u, v float64) color.RGBA {
 	best, second, margin := b.t.landType(u, v)
-	if second == best || margin >= edgeW {
+	ew := b.t.edgeWidth(u, v) // see terrainfeatures.go
+	if second == best || margin >= ew {
 		return b.biome(best, hx, hy, u, v)
 	}
 	// Which of the two shows must come out the same from either side of the
@@ -349,7 +359,7 @@ func (b *bake) land(hx, hy int, u, v float64) color.RGBA {
 	} else {
 		n = 0.3*hashf(fdiv(hx, 2), fdiv(hy, 2), 802) + 0.7*n
 	}
-	e := d/edgeW*0.5 + n - 0.5
+	e := d/ew*0.5 + n - 0.5
 	k, other := lo, hi
 	if e <= 0 {
 		k, other, e = hi, lo, -e
