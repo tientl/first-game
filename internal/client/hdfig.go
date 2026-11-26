@@ -228,6 +228,72 @@ func newFigLayer(w, h int) *figLayer {
 type figHD struct {
 	n      uint16
 	ox, oy float64 // every shape is shifted by this
+	// xf bends the figure as it is drawn: each in turn (the innermost
+	// first) carries every shape, dot and shader of it, before the shift.
+	// A torso leaning from the hips, a head nodding on the neck, a jaw
+	// dropped, the whole figure toppling over its feet: see motion.go.
+	xf []figMap
+}
+
+// figMap carries the figure's own pixels somewhere else: to, and back.
+type figMap interface {
+	to(x, y float64) (float64, float64)
+	from(x, y float64) (float64, float64)
+}
+
+// figXf is an affine map: (x, y) goes to (a*x + b*y + c, d*x + e*y + f).
+type figXf struct{ a, b, c, d, e, f float64 }
+
+// xfRot turns by ang about (cx, cy): clockwise on the screen.
+func xfRot(ang, cx, cy float64) figXf {
+	sn, cs := math.Sin(ang), math.Cos(ang)
+	return figXf{cs, -sn, cx - cs*cx + sn*cy, sn, cs, cy - sn*cx - cs*cy}
+}
+
+// xfScale scales by kx, ky about (cx, cy): a torso bent towards or away
+// from the viewer is seen shorter.
+func xfScale(kx, ky, cx, cy float64) figXf {
+	return figXf{kx, 0, cx - kx*cx, 0, ky, cy - ky*cy}
+}
+
+// xfMove shifts by (dx, dy).
+func xfMove(dx, dy float64) figXf { return figXf{1, 0, dx, 0, 1, dy} }
+
+func (m figXf) to(x, y float64) (float64, float64) {
+	return m.a*x + m.b*y + m.c, m.d*x + m.e*y + m.f
+}
+
+func (m figXf) from(x, y float64) (float64, float64) {
+	det := m.a*m.e - m.b*m.d
+	x, y = x-m.c, y-m.f
+	return (m.e*x - m.b*y) / det, (-m.d*x + m.a*y) / det
+}
+
+// jawMap drops everything below row y0 between columns x0 and x1 by dy:
+// a jaw opened as it chews. The rows it leaves are the lip's, stretched.
+type jawMap struct{ x0, x1, y0, dy float64 }
+
+func (m jawMap) to(x, y float64) (float64, float64) {
+	if x >= m.x0 && x < m.x1 && y > m.y0 {
+		return x, y + m.dy
+	}
+	return x, y
+}
+
+func (m jawMap) from(x, y float64) (float64, float64) {
+	if x >= m.x0 && x < m.x1 && y > m.y0 {
+		return x, math.Max(m.y0, y-m.dy)
+	}
+	return x, y
+}
+
+// fwd is where the figure's point (x, y) lands, bent by xf (before the
+// shift).
+func (f *figHD) fwd(x, y float64) (float64, float64) {
+	for _, m := range f.xf {
+		x, y = m.to(x, y)
+	}
+	return x, y
 }
 
 func (f *figHD) fill(l *figLayer, s shape, col shader) {
@@ -236,6 +302,10 @@ func (f *figHD) fill(l *figLayer, s shape, col shader) {
 }
 
 func (f *figHD) add(l *figLayer, s shape, col shader) {
+	if len(f.xf) > 0 {
+		f.addBent(l, s, col)
+		return
+	}
 	c := l.c
 	x0, y0 := max(0, int(math.Floor(s.x0+f.ox))-1), max(0, int(math.Floor(s.y0+f.oy))-1)
 	x1, y1 := min(c.w-1, int(math.Ceil(s.x1+f.ox))+1), min(c.h-1, int(math.Ceil(s.y1+f.oy))+1)
@@ -254,10 +324,56 @@ func (f *figHD) add(l *figLayer, s shape, col shader) {
 	}
 }
 
+// addBent is add with the figure bent by xf: each pixel of the canvas
+// takes the shape and the shading of the point of the figure that lands
+// on it.
+func (f *figHD) addBent(l *figLayer, s shape, col shader) {
+	c := l.c
+	x0, y0, x1, y1 := math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)
+	clampF := func(v float64) float64 { return math.Max(-4096, math.Min(4096, v)) }
+	for _, p := range [4][2]float64{{s.x0, s.y0}, {s.x1, s.y0}, {s.x0, s.y1}, {s.x1, s.y1}} {
+		px, py := f.fwd(clampF(p[0]), clampF(p[1]))
+		x0, y0, x1, y1 = math.Min(x0, px), math.Min(y0, py), math.Max(x1, px), math.Max(y1, py)
+	}
+	// A turn can carry a corner of the box further than the corners: pad
+	// by how far the box's middle may swing.
+	pad := 0.5 * math.Hypot(clampF(s.x1)-clampF(s.x0), clampF(s.y1)-clampF(s.y0))
+	cx, cy := f.fwd((clampF(s.x0)+clampF(s.x1))/2, (clampF(s.y0)+clampF(s.y1))/2)
+	x0, y0 = math.Max(x0, cx-pad)-3, math.Max(y0, cy-pad)-3
+	x1, y1 = math.Min(x1, cx+pad)+3, math.Min(y1, cy+pad)+3
+	ix0, iy0 := max(0, int(math.Floor(x0+f.ox))-1), max(0, int(math.Floor(y0+f.oy))-1)
+	ix1, iy1 := min(c.w-1, int(math.Ceil(x1+f.ox))+1), min(c.h-1, int(math.Ceil(y1+f.oy))+1)
+	for y := iy0; y <= iy1; y++ {
+		for x := ix0; x <= ix1; x++ {
+			sx, sy := float64(x)+0.5-f.ox, float64(y)+0.5-f.oy
+			for i := len(f.xf) - 1; i >= 0; i-- {
+				sx, sy = f.xf[i].from(sx, sy)
+			}
+			d := s.d(sx, sy)
+			if d > 0 {
+				continue
+			}
+			if p := col(int(math.Floor(sx)), int(math.Floor(sy)), d); p.A > 0 {
+				c.px[y*c.w+x] = p
+				l.part[y*c.w+x] = f.n
+			}
+		}
+	}
+}
+
+// canvasAt is the canvas pixel the figure's pixel (x, y) lands on.
+func (f *figHD) canvasAt(x, y int) (int, int) {
+	if len(f.xf) == 0 {
+		return x + int(math.Round(f.ox)), y + int(math.Round(f.oy))
+	}
+	px, py := f.fwd(float64(x)+0.5, float64(y)+0.5)
+	return int(math.Floor(px + f.ox)), int(math.Floor(py + f.oy))
+}
+
 // dot colours one pixel: a detail of the part already there, or of the
 // last part if the pixel was empty.
 func (f *figHD) dot(l *figLayer, x, y int, col color.RGBA) {
-	x, y = x+int(math.Round(f.ox)), y+int(math.Round(f.oy))
+	x, y = f.canvasAt(x, y)
 	c := l.c
 	if !c.in(x, y) {
 		return
@@ -289,7 +405,7 @@ func (f *figHD) stamp(l *figLayer, x0, y0 int, rows []string, flip bool, pal fun
 
 // at reads a layer's pixel, in the figure's own coordinates.
 func (f *figHD) at(l *figLayer, x, y int) (color.RGBA, uint16) {
-	x, y = x+int(math.Round(f.ox)), y+int(math.Round(f.oy))
+	x, y = f.canvasAt(x, y)
 	if !l.c.in(x, y) {
 		return color.RGBA{}, 0
 	}

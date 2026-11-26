@@ -101,6 +101,10 @@ func (g *Game) sailFrame(b protocol.BoatView) int {
 // drawSwimmer draws p in the water at d: the head and shoulders above the
 // surface, rings spreading round them.
 func (g *Game) drawSwimmer(dst drawTarget, p protocol.PlayerView, d drawable) {
+	if playerHD && playerJointed { // strokes, and the water round them; see swimhd.go
+		g.drawSwimmerHD(dst, p, d)
+		return
+	}
 	b := g.art.bodyIn(p.Look, p.Wear)
 	dir := p.Dir & 3
 	tint := playerColors[int(p.ID)%len(playerColors)]

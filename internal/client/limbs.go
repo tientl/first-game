@@ -111,6 +111,14 @@ const (
 	loSit // astride a mount
 )
 
+// upMotion and loMotion are where the motions of motion.go begin among
+// the arms' and the legs' animations: motion m is upMotion+m and
+// loMotion+m, the same frame in both halves.
+const (
+	upMotion upAnim = 64
+	loMotion loAnim = 64
+)
+
 type upKey struct {
 	dir   sim.Dir
 	anim  upAnim
@@ -118,6 +126,13 @@ type upKey struct {
 }
 
 const upSit = 0x80
+
+// legNear and legFar, in a loKey's frame, draw only the near leg or only
+// the far one (sideways): a rider's, on either side of the mount (ride.go).
+const (
+	legNear = 0x40
+	legFar  = 0x20
+)
 
 type loKey struct {
 	dir   sim.Dir
@@ -127,6 +142,10 @@ type loKey struct {
 
 // gaitDef is a way of going: cycle art pixels of ground to a stride of both
 // legs, each foot down for duty of it and lifted lift image pixels between.
+// The walk dips two pixels at each contact and rises at the passing pose, as
+// LPC's walk dips one of its 47 (bounce negative: low with both feet down);
+// the run sinks as a foot takes the weight and rises in the air, three of
+// LPC's pixels, five or six of ours (see HD_ART.md).
 type gaitDef struct {
 	cycle, duty, lift  float64
 	crouch, bounce     float64 // the hips' drop, and how far it rises in the air, image pixels
@@ -135,7 +154,7 @@ type gaitDef struct {
 }
 
 var (
-	stepGait = gaitDef{cycle: 19, duty: 0.6, lift: 5, arm: 0.4, elbow: 0.15, elbow1: 0.3}
+	stepGait = gaitDef{cycle: 19, duty: 0.6, lift: 5, crouch: 1, bounce: -1, arm: 0.5, elbow: 0.15, elbow1: 0.3}
 	runGait  = gaitDef{cycle: 46, duty: 0.32, lift: 13, crouch: 3.5, bounce: 2.5, arm: 0.9, elbow: 1.3, elbow1: 0.25, lean: 0.12}
 )
 
@@ -223,13 +242,19 @@ func (gd gaitDef) arms(ph float64) (a [2]armJ) {
 
 // lowerPose is the legs of a frame.
 type lowerPose struct {
-	leg   [2]legJ // on the hand side (the near one sideways), and the other
-	drop  float64 // the hips' drop, in image pixels
-	lean  float64
-	reach float64 // how far ahead of the hip a foot comes down: see legK
+	leg    [2]legJ // on the hand side (the near one sideways), and the other
+	drop   float64 // the hips' drop, in image pixels
+	lean   float64
+	reach  float64 // how far ahead of the hip a foot comes down: see legK
+	spread float64 // seen from the front or the back, how far each knee goes out to its side, image pixels
+	tuck   [2]bool // seen from the front or the back, the foot is hidden behind its knee: kneeling
 }
 
 func lowerPoseOf(k loKey) lowerPose {
+	k.frame &^= legNear | legFar
+	if k.anim >= loMotion {
+		return motionPose(motionID(k.anim-loMotion), int(k.frame), k.dir).lo
+	}
 	ph := (float64(k.frame) + 0.5) / loFrames
 	switch k.anim {
 	case loWalk:
@@ -250,10 +275,22 @@ type upperPose struct {
 	arm        [2]armJ // the hand that holds things, and the other
 	lagX, lagY float64
 	shut       bool
+
+	// What the trunk and the head do (motion.go): drawn bent, not skewed.
+	tilt   float64 // the trunk leans forwards from the hips, radians; back if negative
+	nod    float64 // the head bows on the neck, radians; thrown back if negative
+	roll   float64 // seen from the front or the back, the trunk sways towards the hand's side, radians
+	jaw    float64 // the jaw dropped, image pixels: biting, chewing
+	open   [2]bool // a hand open, not a fist
+	breath float64 // image pixels the chest rises with a breath
+	fore   [2]bool // a hand up before the face: over the head, or hidden by it from behind
 }
 
 func upperPoseOf(k upKey) upperPose {
 	k.frame &^= upSit
+	if k.anim >= upMotion {
+		return motionPose(motionID(k.anim-upMotion), int(k.frame), k.dir).up
+	}
 	side := k.dir == sim.DirRight
 	rest := armJ{el: armBend, ab: armOut}
 	p := upperPose{arm: [2]armJ{rest, rest}}
@@ -356,6 +393,7 @@ func newLimbGen(l sim.Look, wear sim.Wear) *figGen {
 type legGeom struct {
 	hx, hy, kx, ky, ax, ay float64
 	pitch                  float64
+	tuck                   bool // the foot is behind the knee: not drawn
 }
 
 // hipX is the column of a leg's hip facing d: the hand side's, or the other's.
@@ -396,6 +434,12 @@ func legGeo(d sim.Dir, i int, p lowerPose) legGeom {
 	g.hx, g.hy = proj(0, hu)
 	g.kx, g.ky = proj(kf, ku)
 	g.ax, g.ay = proj(dx, hu+dy)
+	if d != sim.DirRight && p.spread != 0 { // the knees part, the feet less
+		out := p.spread * (1 - 2*float64(i))
+		g.kx += out
+		g.ax += out * 0.45
+	}
+	g.tuck = d != sim.DirRight && p.tuck[i]
 	if d == sim.DirRight {
 		g.pitch = l.pitch
 	}
@@ -414,6 +458,7 @@ func (g *figGen) leg(lg legGeom, dim, toe float64, view sim.Dir) {
 		g.bareLeg(lg, dim, view)
 	}
 	switch {
+	case lg.tuck:
 	case g.wear&sim.WearBoots != 0:
 		g.boot(lg, dim, toe, view == sim.DirRight)
 	default:
@@ -524,6 +569,11 @@ func skirtOf(k upKey, t float64) skirt {
 		}
 		p.leg, p.drop = gd.legs((float64(k.frame&^upSit) + 0.5) / upFrames)
 		p.reach = gd.half()
+	case k.anim >= upMotion:
+		p = motionPose(motionID(k.anim-upMotion), int(k.frame&^upSit), k.dir).lo
+		if p == (lowerPose{}) {
+			return skirt{}
+		}
 	default:
 		return skirt{}
 	}
@@ -702,6 +752,16 @@ func (g *figGen) arm(sl, hd *figLayer, d sim.Dir, i int, a armGeom) {
 
 // clear empties layer l under shape s.
 func (f *figHD) clear(l *figLayer, s shape) {
+	if len(f.xf) > 0 { // bent: mark what the shape covers, then empty it
+		mark := newFigLayer(l.c.w, l.c.h)
+		f.add(mark, s, plain(color.RGBA{A: 255}))
+		for i, p := range mark.c.px {
+			if p.A > 0 {
+				l.c.px[i], l.part[i] = color.RGBA{}, 0
+			}
+		}
+		return
+	}
 	f.add(l, s, func(x, y int, _ float64) color.RGBA {
 		x, y = x+int(math.Round(f.ox)), y+int(math.Round(f.oy))
 		l.c.px[y*l.c.w+x] = color.RGBA{}
@@ -718,6 +778,7 @@ type headKey struct {
 	dir        sim.Dir
 	shut       bool
 	lagX, lagY float64
+	bend       bendKey // the trunk's lean and the head's nod: see motion.go
 }
 
 // headArt is a head by itself, on the layers it goes on.
@@ -734,7 +795,9 @@ func (hc headCache) get(l sim.Look, k headKey) *headArt {
 	}
 	g := newLimbGen(l, 0)
 	g.lagX, g.lagY = k.lagX, k.lagY
+	g.f.xf = k.bend.head(k.dir, l.Female)
 	g.tallHead(k.dir, k.shut)
+	k.bend.mouth(&g.f, g.T, k.dir, l)
 	h := &headArt{g.B, g.T, g.f.n}
 	if hc != nil {
 		hc[k] = h
@@ -783,9 +846,18 @@ func bakeUpper(l sim.Look, w sim.Wear, k upKey, heads headCache) upperCanvas {
 	p := upperPoseOf(k)
 	g := newLimbGen(l, w)
 	f := &g.f
+	bend := bendOf(p)
+	f.xf = bend.trunk(k.dir)
 	var out upperCanvas
 	for i := range out.arm {
 		out.arm[i] = armGeo(l.Female, k.dir, i, p.arm[i])
+		out.arm[i].open = p.open[i]
+		if p.fore[i] {
+			out.arm[i].layer = armOver
+			if k.dir == sim.DirUp {
+				out.arm[i].layer = armBehind
+			}
+		}
 	}
 	if k.anim == upFallen {
 		out.arm[1].open = true
@@ -809,7 +881,7 @@ func bakeUpper(l sim.Look, w sim.Wear, k upKey, heads headCache) upperCanvas {
 	}
 	g.tallBody(k.dir, skirtOf(k, skirtT(l.Female, w)))
 	f.oy = 0
-	h := heads.get(l, headKey{k.dir, p.shut, p.lagX, p.lagY})
+	h := heads.get(l, headKey{k.dir, p.shut, p.lagX, p.lagY, bend})
 	layOver(g.B, h.B, f.n)
 	layOver(g.T, h.T, f.n)
 	f.n += h.n
@@ -820,6 +892,13 @@ func bakeUpper(l sim.Look, w sim.Wear, k upKey, heads headCache) upperCanvas {
 	rimLayers(g.FA.c, g.B.c, g.U.c, g.S.c, g.A.c, g.T.c)
 	rimLayers(g.AO.c, g.TO.c)
 	out.layer = [numUpLayers]*canvas{g.FA.c, g.B.c, g.U.c, g.S.c, g.A.c, g.T.c, g.AO.c, g.TO.c}
+	for i := range out.arm { // where the hands went with the trunk
+		a := &out.arm[i]
+		a.hx, a.hy = f.fwd(a.hx, a.hy)
+		if k.dir == sim.DirRight {
+			a.swing -= p.tilt
+		}
+	}
 	return out
 }
 
@@ -827,7 +906,14 @@ func bakeUpper(l sim.Look, w sim.Wear, k upKey, heads headCache) upperCanvas {
 func bakeLower(l sim.Look, w sim.Wear, k loKey) (*canvas, lowerPose) {
 	p := lowerPoseOf(k)
 	g := newLimbGen(l.Sanitized(), w)
-	g.legs(k.dir, p)
+	switch { // one leg by itself: a rider's, either side of the mount
+	case k.frame&legNear != 0:
+		g.leg(legGeo(k.dir, 0, p), 0, 2.8, k.dir)
+	case k.frame&legFar != 0:
+		g.leg(legGeo(k.dir, 1, p), 0.16, 2.8, k.dir)
+	default:
+		g.legs(k.dir, p)
+	}
 	innerLines(0.4, g.L)
 	g.L.c.outline(0.72)
 	return g.L.c, p

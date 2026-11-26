@@ -83,6 +83,7 @@ type Game struct {
 	hurtAt        map[sim.PlayerID]int        // frame each player was last struck; see jolt.go
 	joltBuf       *fineBuf                    // scratch for drawing a struck player
 	gaits         map[sim.PlayerID]*gaitState // each player's stride; see limbdraw.go
+	moves         map[sim.PlayerID]*moState   // what each player is doing besides; see motionpick.go
 	heldAge       int                         // see HoldBlows in punch.go
 	prevCreatures map[sim.CreatureID]protocol.CreatureView
 	hearts        []heartFX      // floating up from beasts being fed; see ride.go
@@ -428,6 +429,7 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 	g.noteSwings(s)
 	g.classifySwings(old, s)
 	g.noteHurts(s)
+	g.noteMotions(old, s)
 	if !g.selKnown && sim.IsHotbar(int(s.Self.Selected)) {
 		g.hotSel, g.sentSel, g.selKnown = int(s.Self.Selected), int(s.Self.Selected), true
 	}

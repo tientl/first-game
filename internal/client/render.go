@@ -392,6 +392,13 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		}
 		if d.creature {
 			c := g.curr.Creatures[d.idx]
+			if c.Ridden { // the rider's far leg, behind it; see ridehd.go
+				for _, i := range riders {
+					if p := g.curr.Players[i]; p.Mount == c.ID {
+						g.drawRiderBehind(dst, p, c, d)
+					}
+				}
+			}
 			g.drawCreature(dst, c, d)
 			if c.Ridden {
 				for _, i := range riders {
@@ -669,6 +676,8 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		return // flat: drawn with the soil, under everything
 	case e.Kind == sim.EntityGiantRoot:
 		return // part of the giant, drawn whole from its front
+	case e.Kind == sim.EntityGrave && g.graveFalling(e):
+		return // its player is still falling; see motiondraw.go
 	case e.Kind == sim.EntityLairProp:
 		g.drawLairProp(dst, e, d) // see lairrender.go
 		return
@@ -725,6 +734,9 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 
 func (g *Game) drawPlayer(dst drawTarget, p protocol.PlayerView, d drawable) {
 	if p.Dead {
+		if g.drawDying(dst, p, d) { // the fall first; see motiondraw.go
+			return
+		}
 		drawAt(dst, g.art.tombstone, d.sx, d.sy, 1, 1, 0, nil)
 		return
 	}
@@ -762,6 +774,11 @@ func (g *Game) drawStanding(dst drawTarget, p protocol.PlayerView, d drawable) {
 	}
 	if heroHD {
 		g.drawHeroHD(dst, p, d) // the trial hero; see herohddraw.go
+		return
+	}
+	if playerHD && playerJointed && g.fordWading(d) { // knee-deep in a ford; see swimhd.go
+		g.drawWader(dst, p, d)
+		g.drawAilments(dst, p, d)
 		return
 	}
 	if playerHD && playerJointed { // see limbdraw.go
@@ -846,6 +863,10 @@ func (g *Game) drawAilments(dst drawTarget, p protocol.PlayerView, d drawable) {
 // drawSleeper draws p lying in bed, head on the pillow, under a blanket.
 // The server snaps a sleeper onto the bed's tile, so the bed is at (sx, sy).
 func (g *Game) drawSleeper(dst drawTarget, p protocol.PlayerView, d drawable) {
+	if playerHD && playerJointed { // laid down under a fur, breathing; see sleephd.go
+		g.drawSleeperHD(dst, p, d)
+		return
+	}
 	tint := playerColors[int(p.ID)%len(playerColors)]
 	// Turned a quarter left: the feet anchor goes to the foot of the bed and
 	// the head to the pillow. Breathing lifts the blanket a pixel.

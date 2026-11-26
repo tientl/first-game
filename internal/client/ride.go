@@ -18,7 +18,7 @@ func seat(k sim.CreatureKind) (back, height float64) {
 	s := beastScale(k) // measured on the designs; the beasts are drawn bigger
 	switch k {
 	case sim.CreatureTrike:
-		return 2 * s, 18 * s
+		return 2 * s, 13.5 * s
 	case sim.CreatureRaptor:
 		return 1 * s, 14 * s
 	case sim.CreatureMammoth:
@@ -44,6 +44,10 @@ var saddleRamp = mkRamp(0x4a2a18, 0x6e4224, 0x925c34, 0xb57a48)
 
 // drawRider draws p on the back of its mount c, drawn at d.
 func (g *Game) drawRider(dst drawTarget, p protocol.PlayerView, c protocol.CreatureView, d drawable) {
+	if playerHD && playerJointed { // a seat for each mount, with its stride; see ridehd.go
+		g.drawRiderHD(dst, p, c, d)
+		return
+	}
 	back, height := seat(c.Kind)
 	side := 1.0
 	dir := sim.DirRight

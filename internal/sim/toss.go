@@ -56,6 +56,7 @@ func (w *World) toss(p *Player, slot, n int) {
 	}
 	w.pileAt(p, x, y, s.Item, n)
 	p.notify(NoticeTossed, uint8(s.Item))
+	p.did(DeedToss, s.Item)
 }
 
 // pileAt lays n of k at (x, y), thrown by p: onto a pile of the same thing

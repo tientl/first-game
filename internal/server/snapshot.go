@@ -65,6 +65,7 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 	for i := range players {
 		p := &players[i]
 		cast, bobX, bobY := p.Cast()
+		deed, deedItem, deedSeq := p.Deed()
 		if math.Abs(p.X-self.X) > r || math.Abs(p.Y-self.Y) > r {
 			continue
 		}
@@ -87,6 +88,9 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Swimming:  s.world.Swimming(p),
 			Bees:      p.Swarmed(),
 			HurtSeq:   p.HurtSeq(),
+			DeedSeq:   deedSeq,
+			Deed:      deed,
+			DeedItem:  deedItem,
 			HasAxe:    hasAxe,
 			AxeTier:   axeTier,
 			Armor:     armor,
