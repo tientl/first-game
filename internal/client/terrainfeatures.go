@@ -431,7 +431,7 @@ func (t *terrain) cliffPixel(hx, hy int, u, v float64) (color.RGBA, bool) {
 	}
 	// Only a step at a cliff is a face; a slope or a ramp is not.
 	top := int(math.Floor(v - d))
-	if !t.cliffEdge(int(math.Floor(u)), top) {
+	if t.cliffness(u, v-d-0.2) < 0.45+0.3*(vnoise(u*1.7, v*0.6, 996)-0.5) {
 		return color.RGBA{}, false
 	}
 	f := 1 - d/cliffFaceH // 1 just under the lip, 0 at the foot
@@ -471,14 +471,14 @@ func (t *terrain) cliffLight(c color.RGBA, u, v float64) color.RGBA {
 	here := math.Round(t.contourAt(u, v))
 	k := 1.0
 	for _, s := range [3][2]float64{{0, -0.13}, {-0.12, 0}, {0.12, 0}} {
-		if math.Round(t.contourAt(u+s[0], v+s[1])) < here && (t.cliffEdge(tx, ty) || t.cliffEdge(int(math.Floor(u+s[0])), int(math.Floor(v+s[1])))) {
-			k = min(k, 0.48) // the lip: beyond it, the drop
+		if math.Round(t.contourAt(u+s[0], v+s[1])) < here {
+			k = min(k, 1-0.52*t.cliffness(u, v)) // the lip: beyond it, the drop
 		}
 	}
 	// Below a face, its shadow.
 	for _, dv := range []float64{cliffFaceH + 0.2, cliffFaceH + 0.5, cliffFaceH + 0.8} {
-		if math.Round(t.contourAt(u, v-dv)) > here && t.cliffEdge(tx, int(math.Floor(v-dv))) {
-			k = min(k, 0.62+0.38*(dv-cliffFaceH)/0.9)
+		if math.Round(t.contourAt(u, v-dv)) > here {
+			k = min(k, 1-0.38*(1-(dv-cliffFaceH)/0.9)*t.cliffness(u, v-dv-0.2))
 			break
 		}
 	}
@@ -577,15 +577,18 @@ func (t *terrain) reliefShade(c color.RGBA, hx, hy int, u, v float64) color.RGBA
 		}
 	}
 	if a := at(sim.VarRamp); a > 0 {
-		c = mix(c, pathRamp.at(3), 0.7*a)
-		if fy := v - math.Floor(v); math.Mod(fy*3, 1) < 0.16 {
-			c = scaleCol(c, 1-0.3*a) // the steps worn into it
-		} else if math.Mod(fy*3, 1) < 0.28 {
-			c = scaleCol(c, 1+0.12*a)
+		c = mix(c, pathRamp.at(3), 0.6*a)
+		if s := a - 0.45; s > 0 {
+			// The steps worn into it, wavering.
+			if m := math.Mod(v*2+0.15*vnoise(u*3, v, 997), 1); m < 0.12 {
+				c = scaleCol(c, 1-0.45*s)
+			} else if m < 0.22 {
+				c = scaleCol(c, 1+0.2*s)
+			}
 		}
 	}
-	if wet > 0 {
-		c = mix(c, hex(0x2b5a30), 0.16*wet)
+	if k := t.tile(tx, ty); wet > 0 && (k == sim.TileGrass || k == sim.TileForest || k == sim.TileMarsh) {
+		c = mix(c, hex(0x2b5a30), 0.16*wet) // lusher by the water
 	}
 	return c
 }
@@ -643,15 +646,14 @@ func (t *terrain) mapShallow(c color.RGBA, u, v float64) color.RGBA {
 	return mix(c, tint, 0.65)
 }
 
-// cliffEdge reports whether a step of the levels found at tile (tx, ty)
-// is a cliff's: a cliff there or just below (the contours wander), and no
-// ramp cut through it.
-func (t *terrain) cliffEdge(tx, ty int) bool {
-	ramp := func(x, y int) bool { return t.tile(x, y).Walkable() && t.rel(x, y).Variant() == sim.VarRamp }
-	for _, y := range []int{ty, ty + 1, ty - 1} {
-		if ramp(tx, y) {
-			return false
-		}
-	}
-	return t.tile(tx, ty) == sim.TileCliff || t.tile(tx, ty+1) == sim.TileCliff || t.tile(tx, ty-1) == sim.TileCliff
+// cliffness is how much a step of the levels at (u, v) is a cliff's: 1 by
+// a cliff, 0 on a slope or by a ramp cut through one, eased between tiles
+// and warped like the contours, so a cliff's face ends raggedly.
+func (t *terrain) cliffness(u, v float64) float64 {
+	wu := u + (vnoise(u*1.1, v*1.3, 992)-0.5)*2*cliffWarp
+	wv := v + (vnoise(u*1.3+7, v*1.1, 993)-0.5)*2*cliffWarp
+	cs := cornersAt(wu, wv)
+	cliff := cs.share(func(x, y int) bool { return t.tile(x, y) == sim.TileCliff })
+	ramp := cs.share(func(x, y int) bool { return t.tile(x, y).Walkable() && t.rel(x, y).Variant() == sim.VarRamp })
+	return clamp01(cliff*2.4 - ramp*3)
 }
