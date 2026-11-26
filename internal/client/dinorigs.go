@@ -133,7 +133,7 @@ var dinoRigs = map[string]dinoRig{
 		neck: rigPart{pivot: rigPt{31, 18}, dir: headUp(0.9), maxY: 20},
 		jaw:  [2]rigPt{{41, 7}, {46.5, 7.2}},
 		far:  0b10,
-		tail: rigPart{pivot: rigPt{13, 19}, dir: math.Pi, maxY: 25},
+		tail: rigPart{pivot: rigPt{13, 19}, dir: math.Pi, maxY: 30}, // the rump down to the legs
 	},
 	"thesc": {
 		file: "thesc", stride: 2.5,
