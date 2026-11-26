@@ -505,13 +505,15 @@ const (
 	CmdCookTakeDown              // take my open station down, or its gear off the fire; it must be empty
 	CmdCookStoke                 // put a coal or a log on the fire of my open station
 	CmdFeed                      // give the held food to the beast pointed at, or the nearest that eats it; see aim.go
+	CmdDevBuild                  // free build: put build palette piece Slot on tile (TX, TY) when At, else in front; see devbuild.go
+	CmdDevRemove                 // free build: take the structure on tile (TX, TY) away when At, else the one in front
 )
 
 // Command is a discrete player request. Fields not used by Kind are ignored.
 type Command struct {
 	Kind     CommandKind
 	Recipe   RecipeID
-	Slot, To uint8 // inventory slot indices
+	Slot, To uint8 // inventory slot indices; for CmdDevBuild, Slot is the build palette's piece
 	Count    uint8 // CmdToss: how many, clamped to what the slot holds
 	// CmdCraft of a structure and CmdPlace: At says to build on tile
 	// (TX, TY), which the server checks (reach, free ground); without it

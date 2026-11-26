@@ -96,8 +96,12 @@ func (c *craftView) scrollBy(rows int) {
 	c.scroll = max(0, min(c.scroll+rows, last))
 }
 
-// canCraft reports whether r can be made right here, right now.
+// canCraft reports whether r can be made right here, right now: in free
+// build, anything but a second of a tool (see buildpalette.go).
 func (g *Game) canCraft(r sim.Recipe) bool {
+	if g.freeBuild() {
+		return !g.haveTool(r)
+	}
 	return g.curr.Self.Inv.HasAll(r.Inputs) && !g.haveTool(r) &&
 		(!r.NearFire || g.byFire()) && (!r.NearFurnace || g.byFurnace())
 }
@@ -178,7 +182,12 @@ func (g *Game) drawCraft(screen *ebiten.Image, sw, sh int) {
 		}
 	}
 	g.text(screen, "Chế tạo", px+20, py+14, colWhite, text.AlignStart, 2)
-	g.text(screen, fmt.Sprintf("%d món làm được ngay", n), px+pw-20, py+22, colGood, text.AlignEnd, 1)
+	if g.freeBuild() {
+		g.drawDevBadge(screen, px+pw-20, py+21) // see buildpalette.go
+		g.text(screen, "Xây tự do: làm mọi món, không tốn gì", px+pw-20-g.textWidth("DEV")-20, py+22, colGood, text.AlignEnd, 1)
+	} else {
+		g.text(screen, fmt.Sprintf("%d món làm được ngay", n), px+pw-20, py+22, colGood, text.AlignEnd, 1)
+	}
 
 	// The tabs.
 	c.tabY, c.tabH = py+56, 28

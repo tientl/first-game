@@ -62,8 +62,18 @@ Chạy client trên Linux cần cgo và các gói X11/GL dev (xem tài liệu c�
 | `kill [bán kính]` | giết thú hoang trong 12 ô (thú nuôi thì không) |
 | `heal`, `god [on\|off]`, `reveal`, `pos` | hồi đầy máu và no; bật/tắt bất tử; mở hết bản đồ; xem toạ độ |
 | `list items [lọc]`, `list beasts [lọc]`, `help` | danh sách đồ, thú; các lệnh |
+| `freebuild [on\|off]` | bật/tắt **xây tự do** (mặc định bật trong chế độ dev; gõ `freebuild` không kèm gì thì đảo lại) |
 
-Mã ở `internal/sim/dev.go` (các việc), `internal/sim/devcmd.go` (đọc lệnh), `internal/server/dev.go`, `internal/client/devconsole.go`, `cmd/game/dev.go`. Bất tử, tốc độ và thời tiết ép không bao giờ vào bản lưu. Xem nhanh bảng lệnh: `go run ./cmd/shot -open -devconsole`.
+**Xây tự do** (nhãn góc trên thành **DEV · XÂY TỰ DO**):
+
+- Chế tạo mọi món mà không cần nguyên liệu, không cần đứng gần lửa trại, lò nung hay đồ nấu; không mất gì trong túi. Bảng chế tạo (C) sáng hết, mỗi thẻ có huy hiệu **DEV** thay cho chữ "làm được / thiếu".
+- **B** mở **bảng xây**: mọi thứ đặt được, chia mục Nhà cửa (tường gỗ, tường đá, cửa, sàn, hàng rào chông, bẫy, giường, rương, lều), Lửa & bếp (lửa trại, đuốc cắm, lò nung, cối giã, lò nướng bánh, giàn phơi, nồi / giàn nướng / chảo trên lửa), Trồng trọt (luống đất, các hạt giống), Trang trí (hoa, đầu thú trên cọc, cột vật tổ, lửa làng, xương, đá cổ, gốc cây gãy, da rắn). Nhấp một món để cầm: bóng xanh/đỏ dưới con trỏ, chuột trái đặt, món vẫn trên tay để đặt tiếp, giữ chuột trái và kéo để đặt liền một dãy; chuột phải hoặc Esc thôi. Không cần có món đó, không mất gì. Đặt được trong 7 ô.
+- Luật mặt đất vẫn giữ: không đặt xuống biển, sông, vách đá, ô đã có thứ khác, chỗ có người đứng; hạt giống, luống đất, hoa cần đất mềm.
+- **Shift + chuột phải** gỡ ngay thứ dưới con trỏ (tường, lửa, cây, đá…), không trả lại gì; đồ trong rương, trong nồi thì rơi ra đất. Kim tự tháp, cửa hang, cây cổ thụ khổng lồ, xác người chơi, rương cổ thì không gỡ được.
+- Chặt cây, đập đá, đào quặng, dỡ tường: một nhát, không cần dụng cụ.
+- Lựa chọn bật/tắt được lưu trong `dev-save.json`; server không ở chế độ dev thì từ chối mọi lệnh xây tự do, và bản lưu thường không bao giờ có nó.
+
+Mã ở `internal/sim/dev.go` (các việc), `internal/sim/devcmd.go` (đọc lệnh), `internal/sim/devbuild.go` (xây tự do), `internal/server/dev.go`, `internal/client/devconsole.go`, `internal/client/buildpalette.go`, `cmd/game/dev.go`. Bất tử, tốc độ và thời tiết ép không bao giờ vào bản lưu. Xem nhanh bảng lệnh: `go run ./cmd/shot -open -devconsole`; bảng xây: `go run ./cmd/shot -open -freebuild -overlay palette`; một căn nhà dựng bằng xây tự do: `go run ./cmd/shot -open -devbase -devpiece 1 -aim 0,3 -real`.
 
 ## Âm thanh
 

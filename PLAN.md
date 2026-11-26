@@ -45,6 +45,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Bảng lệnh (phím `~`): `give <đồ> <số>`, `tp <làng|trùm N|hang|kim tự tháp|x y>`, `spawn <thú>`, `time <giờ|đêm|ngày>`, `season <mùa>`, `weather <thời tiết>`, `speed <hệ số>`, `kill` (thú quanh), `heal`.
   - Hiện hết bản đồ (bỏ vùng chưa khám phá).
   - Không bao giờ bật trong bản phát hành: chỉ khi chạy với `-dev`.
+- [x] **Xây tự do** trong chế độ dev (`sim/devbuild.go`, `client/buildpalette.go`; mặc định bật, lệnh `freebuild on|off`, nhãn "DEV · XÂY TỰ DO", lưu trong `dev-save.json`): chế tạo mọi món không cần nguyên liệu, không cần lửa / lò, không mất gì (thẻ chế tạo sáng hết, có huy hiệu DEV); **B** mở bảng xây với mọi thứ đặt được (tường, cửa, sàn, rào, giường, rương, lều, lửa, đuốc, lò, đồ nấu trên lửa, luống đất, hạt giống, hoa, đầu thú, đồ trang trí), chọn rồi đặt liên tục, giữ kéo để đặt một dãy, luật mặt đất vẫn giữ; **Shift + chuột phải** gỡ ngay, không trả lại gì; chặt, đập, đào một nhát. Server không ở chế độ dev thì từ chối, bản lưu thường không bao giờ có. Giao thức 47.
 
 ## 2. Đồ hoạ
 

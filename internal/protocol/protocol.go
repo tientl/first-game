@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 46
+const Version = 47
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -174,6 +174,8 @@ type SelfState struct {
 	Notice    sim.NoticeKind
 	NoticeArg uint8
 	NoticeSeq uint32
+
+	DevBuild bool // free build is on: only from a server in dev mode; see sim/devbuild.go
 }
 
 // CookView is a player's cooking: the buffs dishes gave them, and the

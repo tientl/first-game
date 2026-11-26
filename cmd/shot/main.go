@@ -131,6 +131,9 @@ func main() {
 	exact := flag.Bool("exact", false, "draw on a screen exactly -w by -h pixels, whatever size the window gets (a window taller than the desktop is cut short, and a 1061-pixel screen is not 1080p: the interface is drawn at scale 1, not 2)")
 	iconHD := flag.Bool("iconhd", true, "the HD item icons, at the screen's own resolution (false: the old 16x16 icons, scaled up; see internal/client/iconhd.go)")
 	iconSheet := flag.Bool("iconsheet", false, "write the icon sheet instead of a frame: every HD item icon next to its old one, in 1080p hotbar slots and three times as big")
+	freeBuild := flag.Bool("freebuild", false, "dev mode with free build on: the DEV · XÂY TỰ DO tag, every recipe lit with a DEV badge; -overlay palette opens the build palette (see internal/sim/devbuild.go)")
+	devBase := flag.Bool("devbase", false, "build a small base round the player through free build's own commands: the ground cleared, then walls, a door, floors, a bed, fires, a farm, flowers (implies -freebuild; see dev.go)")
+	devPiece := flag.Int("devpiece", -1, "a piece of the build palette in hand, by its number (free build): its ghost under -aim")
 	flag.Parse()
 	client.SetMeasureCanopy(*canopyFlag)
 	client.SetHeroHD(*herohd)
@@ -528,6 +531,11 @@ func main() {
 		}
 	}
 	snap.Self.Inv.Add(sim.ItemSpear, 1)
+	if *devBase {
+		*freeBuild = true
+		buildDevBase(w, sx, sy) // see dev.go
+	}
+	snap.Self.DevBuild = *freeBuild
 
 	cx, cy := int(math.Floor(sx)), int(math.Floor(sy))
 	n := 0
@@ -832,8 +840,9 @@ func main() {
 		snap.Tornadoes = []protocol.TornadoView{{ID: 1, X: float32(sx - 6), Y: float32(sy + 1)}}
 	}
 
-	// A campfire next to the spawn, so lighting is visible at night.
-	if !*sea {
+	// A campfire next to the spawn, so lighting is visible at night; not
+	// in the base built by -devbase, which has its own.
+	if !*sea && !*devBase {
 		snap.Entities = append(snap.Entities, protocol.EntityView{
 			ID: 1 << 30, Kind: sim.EntityCampfire, TX: int16(cx + 2), TY: int16(cy), Ready: true,
 			Fuel: sim.FireStartFuel,
@@ -924,6 +933,12 @@ func main() {
 	}
 	if *buildID >= 0 {
 		game.StartBuild(sim.RecipeID(*buildID))
+	}
+	if *freeBuild {
+		game.SetDev(true) // the DEV tag, which names free build
+	}
+	if *devPiece >= 0 {
+		game.StartPiece(*devPiece)
 	}
 	game.HoldBlows(*blowAge)
 	if *devCon {

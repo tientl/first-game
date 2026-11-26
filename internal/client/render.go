@@ -245,6 +245,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.drawCook(ui, uw, uh) // see cookui.go
 	case overlayCraft:
 		g.drawCraft(ui, uw, uh) // see craftui.go
+	case overlayPalette:
+		g.drawPalette(ui, uw, uh) // see buildpalette.go
 	}
 	g.drawNotice(ui, uw)      // above the bag, so a failed craft or meal says why
 	g.drawVictory(ui, uw, uh) // every boss has fallen; see bossui.go

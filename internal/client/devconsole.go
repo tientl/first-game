@@ -193,6 +193,9 @@ func (g *Game) drawDev(screen *ebiten.Image, sw, sh int) {
 	}
 	uiBreak() // over the hotbar's HD icons: see iconhd.go
 	tag := "DEV"
+	if g.freeBuild() {
+		tag = "DEV · XÂY TỰ DO" // see buildpalette.go
+	}
 	tw := float32(g.textWidth(tag))
 	panel(screen, 250, 12, tw+16, 24)
 	g.text(screen, tag, 258, 17, colDevTag, text.AlignStart, 1)

@@ -31,6 +31,7 @@ var DevHelp = []string{
 	"speed <hệ số>         tốc độ đi (1 là thường)",
 	"kill [bán kính]       giết thú hoang quanh mình (mặc định 12 ô)",
 	"heal   god [on|off]   reveal   pos   boat (thuyền dưới chân)   list items|beasts [lọc]   help",
+	"freebuild [on|off]    xây tự do: chế tạo, dựng không tốn gì · B: bảng xây · Shift+chuột phải: gỡ",
 }
 
 // devCommands maps each command's folded names to its canonical one.
@@ -50,6 +51,8 @@ var devCommands = map[string]string{
 	"list": "list", "ds": "list", "danhsach": "list",
 	"pos": "pos", "where": "pos", "odau": "pos",
 	"boat": "boat", "thuyen": "boat",
+	"freebuild": "freebuild", "build": "freebuild", "creative": "freebuild", "fb": "freebuild",
+	"xaytudo": "freebuild", "xay": "freebuild",
 }
 
 // DevCommand runs one console line for player id.
@@ -127,6 +130,8 @@ func (w *World) DevCommand(id PlayerID, line string) DevResult {
 		} else {
 			r.say("Bất tử: tắt")
 		}
+	case "freebuild":
+		w.devFreeBuildCmd(&r, p, args)
 	case "reveal":
 		w.DevReveal(id)
 		r.Revealed = true
@@ -149,6 +154,36 @@ func (w *World) DevCommand(id PlayerID, line string) DevResult {
 		w.devList(&r, args)
 	}
 	return r
+}
+
+// devFreeBuildCmd is `freebuild [on|off]`: without a word it turns free
+// build over.
+func (w *World) devFreeBuildCmd(r *DevResult, p *Player, args []string) {
+	for len(args) > 0 && (fold(args[0]) == "tu" || fold(args[0]) == "do") {
+		args = args[1:] // "xây tự do bật"
+	}
+	on := !w.freeBuild(p)
+	if len(args) > 0 {
+		switch fold(args[0]) {
+		case "on", "bat", "1":
+			on = true
+		case "off", "tat", "0":
+			on = false
+		default:
+			r.say("freebuild on hoặc freebuild off")
+			return
+		}
+	}
+	if !w.DevSetFreeBuild(p.ID, on) {
+		r.say("Xây tự do chỉ có trong chế độ dev")
+		return
+	}
+	if on {
+		r.say("Xây tự do: bật — chế tạo và dựng không tốn gì, chặt và đập một nhát")
+		r.say("B: bảng xây (chọn rồi chuột trái đặt, giữ kéo để đặt liền) · Shift + chuột phải: gỡ công trình")
+	} else {
+		r.say("Xây tự do: tắt")
+	}
 }
 
 // devSplit splits a line into words; "quoted words" stay together.

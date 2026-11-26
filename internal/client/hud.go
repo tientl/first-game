@@ -599,8 +599,8 @@ func (g *Game) contextHint() (key, s string, c color.Color) {
 	if g.curr.Self.Dead {
 		return "", "", nil
 	}
-	if r, ok := sim.RecipeByID(g.build.recipe); ok && g.build.on {
-		return "Chuột trái:", "dựng " + r.Name + " · chuột phải hoặc Esc: thôi", colGood
+	if name, ok := g.buildName(); ok { // see buildpalette.go
+		return "Chuột trái:", "dựng " + name + " · chuột phải hoặc Esc: thôi", colGood
 	}
 	if verb, ok := g.boatHint(); ok { // see searender.go
 		return "E:", verb, colGood
@@ -685,9 +685,9 @@ func (g *Game) drawHelp(screen *ebiten.Image, sw, sh int) {
 	}
 	held := g.myHeld()
 	lines := []line{{"WASD", "di chuyển — nhân vật quay theo hướng đi", colMuted}}
-	if r, ok := sim.RecipeByID(g.build.recipe); ok && g.build.on { // see mouse.go
+	if name, ok := g.buildName(); ok { // see mouse.go, buildpalette.go
 		lines = append(lines,
-			line{"Chuột trái", "dựng " + r.Name + " ở ô dưới con trỏ (xanh: được · đỏ: không)", colGood},
+			line{"Chuột trái", "dựng " + name + " ở ô dưới con trỏ (xanh: được · đỏ: không)", colGood},
 			line{"Chuột phải", "thôi xây (hoặc Esc)", colMuted})
 	} else {
 		lines = append(lines,
@@ -724,6 +724,11 @@ func (g *Game) drawHelp(screen *ebiten.Image, sw, sh int) {
 		craft, cc = fmt.Sprintf("chế tạo (%d món làm được)", n), colGood
 	}
 	lines = append(lines, line{"C", craft, cc}, line{"Tab / I", "túi đồ", colMuted})
+	if g.freeBuild() { // see buildpalette.go
+		lines = append(lines,
+			line{"B", "bảng xây (xây tự do: không tốn gì)", colGood},
+			line{"Shift + chuột phải", "gỡ công trình dưới con trỏ", colGood})
+	}
 	if held.Valid() {
 		lines = append(lines, line{"G", "vứt 1 món đang cầm xuống đất (Shift+G: cả chồng)", colMuted})
 	}

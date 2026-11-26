@@ -88,3 +88,85 @@ func TestDevCommandsRunInDevMode(t *testing.T) {
 		t.Error("reveal should send the explored map")
 	}
 }
+
+// freeTileBy is an empty tile of soft ground a couple of tiles from the
+// player, to build on.
+func freeTileBy(t *testing.T, s *Server, id sim.PlayerID) (int16, int16) {
+	t.Helper()
+	p, _ := s.world.Player(id)
+	px, py := int(p.X), int(p.Y)
+	for r := 2; r <= 4; r++ {
+		for ty := py - r; ty <= py+r; ty++ {
+			for tx := px - r; tx <= px+r; tx++ {
+				if _, taken := s.world.EntityAt(tx, ty); !taken && s.world.TileAt(tx, ty).Soft() {
+					return int16(tx), int16(ty)
+				}
+			}
+		}
+	}
+	t.Fatal("no free tile near the player")
+	return 0, 0
+}
+
+func devBuild(tx, ty int16) protocol.ClientMsg {
+	return protocol.ClientMsg{Kind: protocol.ClientCommand, Command: sim.Command{Kind: sim.CmdDevBuild, At: true, TX: tx, TY: ty}}
+}
+
+// A server not in dev mode drops free build's commands, refuses to turn it
+// on, and never says it is on.
+func TestFreeBuildRefusedOutsideDevMode(t *testing.T) {
+	s := newTestServer(t)
+	c, id := join(t, s, "Tien")
+	tx, ty := freeTileBy(t, s, id)
+	send(t, c, devBuild(tx, ty))
+	send(t, c, devLine("freebuild on"))
+	s.tick()
+	if r := devReply(t, c); !r.Rejected {
+		t.Errorf("freebuild on: %+v, want a refusal", r)
+	}
+	if _, built := s.world.EntityAt(int(tx), int(ty)); built {
+		t.Error("a dev build went through on a server not in dev mode")
+	}
+	s.world.DevSetFreeBuild(id, true) // even asked of the world directly
+	send(t, c, devBuild(tx, ty))
+	s.tick()
+	if _, built := s.world.EntityAt(int(tx), int(ty)); built || s.world.DevFreeBuild(id) {
+		t.Error("free build turned on outside dev mode")
+	}
+	if snap := latest(t, c); snap.Self.DevBuild {
+		t.Error("the snapshot says free build is on")
+	}
+	if isClosed(c) {
+		t.Error("a refused dev build should not cost the connection")
+	}
+}
+
+// In dev mode free build is on from the start: the snapshot says so and a
+// piece goes down from nothing.
+func TestFreeBuildOnInDevMode(t *testing.T) {
+	s, err := New(Config{Seed: 42, Width: 64, Height: 64, InterestRadius: 10, Dev: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, id := join(t, s, "Dev")
+	if !s.world.DevFreeBuild(id) {
+		t.Fatal("dev mode: free build should start on")
+	}
+	tx, ty := freeTileBy(t, s, id)
+	send(t, c, devBuild(tx, ty)) // piece 0: a wooden wall
+	s.tick()
+	if e, built := s.world.EntityAt(int(tx), int(ty)); !built || e.Kind != sim.EntityWall {
+		t.Errorf("dev build in dev mode: %+v", e)
+	}
+	if snap := latest(t, c); !snap.Self.DevBuild {
+		t.Error("the snapshot should say free build is on")
+	}
+	send(t, c, devLine("freebuild off"))
+	s.tick()
+	if r := devReply(t, c); r.Rejected || s.world.DevFreeBuild(id) {
+		t.Errorf("freebuild off: %+v", r)
+	}
+	if snap := latest(t, c); snap.Self.DevBuild {
+		t.Error("the snapshot still says free build is on")
+	}
+}

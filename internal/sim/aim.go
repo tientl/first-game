@@ -221,7 +221,13 @@ func BlocksPlayers(k EntityKind) bool { return blocksPlayers(k) }
 // stand, which a structure that blocks them may not be put on. why is the
 // notice when it fails.
 func BuildSpot(px, py float64, tx, ty int, k EntityKind, soft bool, tileAt func(tx, ty int) Tile, taken func(tx, ty int) bool, standers [][2]float64) (ok bool, why NoticeKind) {
-	if dx, dy := float64(tx)+0.5-px, float64(ty)+0.5-py; dx*dx+dy*dy > PlaceReach*PlaceReach {
+	return BuildSpotWithin(PlaceReach, px, py, tx, ty, k, soft, tileAt, taken, standers)
+}
+
+// BuildSpotWithin is BuildSpot with reach in place of PlaceReach: DevReach
+// in free build (see devbuild.go).
+func BuildSpotWithin(reach, px, py float64, tx, ty int, k EntityKind, soft bool, tileAt func(tx, ty int) Tile, taken func(tx, ty int) bool, standers [][2]float64) (ok bool, why NoticeKind) {
+	if dx, dy := float64(tx)+0.5-px, float64(ty)+0.5-py; dx*dx+dy*dy > reach*reach {
 		return false, NoticeTooFar
 	}
 	t := tileAt(tx, ty)
@@ -244,13 +250,7 @@ func BuildSpot(px, py float64, tx, ty int, k EntityKind, soft bool, tileAt func(
 
 // buildSpot is BuildSpot in w for p; on failure p is told why.
 func (w *World) buildSpot(p *Player, tx, ty int, k EntityKind, soft bool) bool {
-	var standers [][2]float64
-	for _, id := range w.playerOrder {
-		if o := w.players[id]; !o.Dead {
-			standers = append(standers, [2]float64{o.X, o.Y})
-		}
-	}
-	ok, why := BuildSpot(p.X, p.Y, tx, ty, k, soft, w.TileAt, func(tx, ty int) bool { return w.entityAt(tx, ty) != nil }, standers)
+	ok, why := BuildSpotWithin(w.placeReach(p), p.X, p.Y, tx, ty, k, soft, w.TileAt, func(tx, ty int) bool { return w.entityAt(tx, ty) != nil }, w.standers())
 	if ok && !w.canPlace(tx, ty) {
 		ok, why = false, NoticeNoSpace
 	}

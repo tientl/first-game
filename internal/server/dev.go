@@ -4,19 +4,30 @@ import (
 	"log"
 
 	"survivalgame/internal/protocol"
+	"survivalgame/internal/sim"
 )
 
 // devMaxLine bounds a dev console line, in bytes.
 const devMaxLine = 200
 
-// devJoin readies a newly joined player in dev mode: god mode on and the
-// whole map seen, before the Welcome carries it.
+// devJoin readies a newly joined player in dev mode: god mode on, the
+// whole map seen, before the Welcome carries it, and free build on unless
+// the dev save says it was turned off.
 func (s *Server) devJoin(p *peer) {
 	if !s.cfg.Dev {
 		return
 	}
 	s.world.DevSetGod(p.player, true)
 	s.world.DevReveal(p.player)
+	if !s.world.DevFreeBuildChosen(p.player) {
+		s.world.DevSetFreeBuild(p.player, true)
+	}
+}
+
+// devCommandRefused reports whether c is a free-build command a server not
+// in dev mode must drop.
+func (s *Server) devCommandRefused(c sim.Command) bool {
+	return sim.IsDevCommand(c.Kind) && !s.cfg.Dev
 }
 
 // devCommand runs a dev console line from p, or refuses it when the server

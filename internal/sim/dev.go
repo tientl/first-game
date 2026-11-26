@@ -4,8 +4,9 @@ import "math"
 
 // Dev mode: tools for testing the game quickly, reached only through a
 // server started in dev mode (see server.Config.Dev and devcmd.go). Nothing
-// here is saved: god mode, the speed factor and a forced weather last as
-// long as the process, and a world that never had them steps exactly as
+// here is saved but the free build setting (devbuild.go), and that only in
+// a dev world's save: god mode, the speed factor and a forced weather last
+// as long as the process, and a world that never had them steps exactly as
 // before. Moving the clock (DevSetTime, DevSetSeason) is a real change to
 // the world and is saved like any other.
 
@@ -20,8 +21,10 @@ const (
 
 // devPlayer is a player's dev-mode state.
 type devPlayer struct {
-	god   bool    // takes no harm, never hungry or cold
-	speed float64 // walking and swimming speed factor; 0 means 1
+	god      bool    // takes no harm, never hungry or cold
+	speed    float64 // walking and swimming speed factor; 0 means 1
+	build    bool    // free build: see devbuild.go
+	buildSet bool    // build was chosen, here or in the dev save; until then it starts on
 }
 
 func (d devPlayer) speedFactor() float64 {
@@ -35,6 +38,7 @@ func (d devPlayer) speedFactor() float64 {
 type devWorld struct {
 	weather Weather // forced weather, when forced is set
 	forced  bool
+	on      bool // the server runs in dev mode: see SetDevMode in devbuild.go
 }
 
 // DevPlace is somewhere `tp` can go.
@@ -349,7 +353,7 @@ func (w *World) DevForceWeather(wt Weather) {
 }
 
 // DevClearWeather lets the weather follow the seed again.
-func (w *World) DevClearWeather() { w.dev = devWorld{} }
+func (w *World) DevClearWeather() { w.dev.weather, w.dev.forced = 0, false }
 
 // DevWeatherForced reports whether the weather is held by DevForceWeather.
 func (w *World) DevWeatherForced() bool { return w.dev.forced }
