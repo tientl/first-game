@@ -13,7 +13,7 @@ import (
 
 // floraEntitySprite is entitySprite for a wild plant: its sprite and how
 // much it sways in the wind.
-func floraEntitySprite(e protocol.EntityView) (sprite, float64) {
+func (g *Game) floraEntitySprite(e protocol.EntityView) (sprite, float64) {
 	f := sim.FloraKind(e.Var) % sim.NumFlora
 	sway := 0.0
 	if e.Ready {
@@ -29,6 +29,9 @@ func floraEntitySprite(e protocol.EntityView) (sprite, float64) {
 		case sim.FloraMangrove:
 			sway = 0.008
 		}
+	}
+	if f == sim.FloraMangrove { // several looks, in the water or not: see mangrove.go
+		return mangroveSprite(int(e.TX), int(e.TY), e.Ready, g.tileAt(int(e.TX), int(e.TY)).Sea()), sway
 	}
 	return floraSprite(f, e.Ready), sway
 }
@@ -51,19 +54,14 @@ func (g *Game) floraShadow(e protocol.EntityView) float64 {
 	}[f]
 }
 
-var mangroveRipples sprite
-
-// drawFloraUnder draws what lies under plant e before it: the rings round a
-// mangrove's roots where it stands in the water.
+// drawFloraUnder draws what lies under plant e before it: the rings of
+// water round a mangrove's roots where they stand in the sea, and their
+// reflections.
 func (g *Game) drawFloraUnder(dst drawTarget, e protocol.EntityView, d drawable) {
-	if e.Kind != sim.EntityFlora || sim.FloraKind(e.Var) != sim.FloraMangrove || !g.tileAt(int(e.TX), int(e.TY)).Sea() {
+	if e.Kind != sim.EntityFlora || sim.FloraKind(e.Var) != sim.FloraMangrove {
 		return
 	}
-	if mangroveRipples.img == nil {
-		mangroveRipples = mkUp(genMangroveRipples())
-	}
-	k := 1 + 0.04*float64((g.frame/20+int(e.ID))%3)
-	drawAt(dst, mangroveRipples, d.sx, d.sy, k, k, 0, nil)
+	g.drawMangroveWater(dst, e, d) // see mangrove.go
 }
 
 // floraHidden reports whether plant e is not to be seen: a water plant
