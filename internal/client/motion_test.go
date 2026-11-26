@@ -131,3 +131,51 @@ func sanitize(s string) string {
 }
 
 var _ = image.Pt
+
+// TestMotionCost reports what drawing every frame of every motion costs for
+// one look, as the game keeps it: the halves' images cut to what is drawn
+// on them, for the three facings drawn (left is right mirrored, as big
+// again).
+func TestMotionCost(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow")
+	}
+	l := sim.Look{Hair: sim.HairLong}
+	heads := headCache{}
+	bytes, n := 0, 0
+	start := time.Now()
+	size := func(c *canvas) int {
+		x0, y0, x1, y1 := c.w, c.h, -1, -1
+		for y := 0; y < c.h; y++ {
+			for x := 0; x < c.w; x++ {
+				if c.px[y*c.w+x].A > 0 {
+					x0, y0, x1, y1 = min(x0, x), min(y0, y), max(x1, x), max(y1, y)
+				}
+			}
+		}
+		if x1 < 0 {
+			return 0
+		}
+		return 4 * (x1 - x0 + 1) * (y1 - y0 + 1)
+	}
+	for m := moIdle; m < numMotions; m++ {
+		for _, d := range []sim.Dir{sim.DirDown, sim.DirUp, sim.DirRight} {
+			for f := 0; f < m.frames(); f++ {
+				lo, up := m.keys(d, f)
+				uc := bakeUpper(l, 0, up, heads)
+				lc, _ := bakeLower(l, 0, lo)
+				k := 1
+				if d == sim.DirRight {
+					k = 2 // and its mirror, facing left
+				}
+				for _, c := range uc.layer {
+					bytes += k * size(c)
+				}
+				bytes += k * size(lc)
+				n += 2 * k
+			}
+		}
+	}
+	t.Logf("every motion of one look: %d half-frames, %.1f MB, drawn in %v (%.2f ms a half-frame)",
+		n, float64(bytes)/1e6, time.Since(start), float64(time.Since(start).Milliseconds())/float64(n))
+}

@@ -128,6 +128,79 @@ it and pick one with a flag, or make both from the same code with
   down, in what it wore; the map's head marker is its head. Not
   density-aware yet: the sprite export in `export.go`.
 
+## Motion reference (LPC)
+
+The player's motions (`motion.go`) follow the animation set of the
+Universal LPC sheets: their key poses and their rhythm, drawn on our own
+figure. No LPC art is used or kept in the repository (most of it is
+CC-BY-SA or GPL with a no-DRM clause); the sheets were only studied, and
+`motion_compare.gif` (made outside the repository) sets theirs beside ours
+for review. LPC frames are 64 x 64, 13 to a row, rows facing up, left,
+down, right; its body is about 47 pixels tall where ours is 93, so one of
+their pixels is two of ours. Its previewer steps every animation at 8
+frames a second (125 ms) and holds a pose by repeating it in the cycle.
+
+What each LPC animation does, measured off the body and head layers:
+
+| LPC | frames, time | what happens | ours |
+|---|---|---|---|
+| walk | 8 + stand, 1 s | dips 1 px on the two contact frames, level between; arms swing against the legs | `stepGait`: dips 2 px at contact (`bounce -1`), arm swing 0.5 rad; the stride stays matched to the ground covered |
+| run | 8, 1 s | sinks 1 px as a foot takes the weight, rises 2 in the air; arms bent square, trunk forward | `runGait` already did this (5-6 px), kept |
+| idle | 2 poses, 0 0 1 (375 ms) | the second rises 1 px: a breath | `moIdle`: the trunk fills 1.5 px, arms float out; slowed to 2.3 s, as a 375 ms twitch reads as a jitter at our size |
+| combat idle | 2 poses, 0 0 1 | knees bent, weapon up in front, a 2 px dip on the off beat | `moReady`: 250/125 ms, dip 2.5 px, held after a blow or with a beast on the attack within 6 tiles |
+| slash | 6, 750 ms | ready; a 1-2 px dip with the weapon cocked low behind (anticipation); behind; the sweep (contact); rising (follow-through); held | `moChop` (axe, pick, hoe) and `moSlash` (a sword's forehand): the same beats over the tool's angle; the sim's timing (`chopAngle`, `slashAngle`, `cleaveAngle`) is unchanged, the frame is picked from the angle |
+| 1h backslash | 0-5 then 7-12, 1.5 s | a forehand from over the head down across, then a backhand low to high; the head dips 1-3 px on the strikes | `moBackslash`: a sword's blows alternate forehand and backhand |
+| thrust | 8, 1 s | ready; drawn back with the weight back (2 frames); driven out (contact); held 3 frames with a 1 px dip; back | `moThrust`, with a lunge, on the spear's 12-frame clock (`thrustFrame`) |
+| shoot | 13, 1.6 s | bow up (3), nock, draw to the cheek (2), hold (3), loose, down (3) | `moShoot`, ready for a bow (none in the game yet; the sheet draws one in code); `moThrow` is it short and underhand, for a toss |
+| hurt | 6, 750 ms, facing down only | head top 15, 16, 23, 27, 33, 43: knees go, a kneel, a slump, face down | its timing for the flinch (`moHurt`, over the jolt's 14 frames); its poses for the fall (`moDie`), ending on the body as it lies |
+| sit | 3 poses, 625 ms each | down on the ground, the head 8-10 px lower | `moSitDown`, `moSit`, `moStandUp`: by a burning fire after 4 s standing still; up at once on moving, at twice the speed |
+| emote, spellcast | 3 poses held 625 ms; 7 in 875 ms | hands to the chest, arms up; hands rise and spread, held, down | the rhythm of eating and drinking (`moEatBite`, `moEatHand`, `moEatBowl`, `moDrink`): up, held at the mouth, down |
+| jump | 5, ~750 ms | a 3 px crouch, launch, 3-4 px up, land | its rhythm for getting on and off a mount; no jump in the game |
+| climb, halfslash | | | not used: nothing climbs; no weapon needs a third blow |
+
+What LPC has no row for is ours, timed the same way: the crouch to pick
+something up and the reach into a tree (`moGather`, `moReachUp`), scooping
+at the water on one knee (`moScoop`; cupped hands `moDrinkWater`, ready for
+a drink from the water the game does not have yet), the breaststroke and
+treading water (`moSwim` by the water covered, `moTread`; `swimhd.go`),
+sleeping (`moSleep`, laid down under a fur in `sleephd.go`; `moWake`), and
+riding (`moRide`, `moRideRun`, `moRideWide`, `moRideIdle`, `moMount`,
+`moDismount`; `ridehd.go`).
+
+How a motion is drawn: a key pose (`kp`) sets both halves of the figure;
+the trunk's lean, the head's nod and the jaw are drawn bent, not skewed:
+every shape, dot and shader of the figure goes through `figHD.xf`
+(`hdfig.go`), so a lean is drawn again, crisp. Which motion a player is in
+is read off the snapshots (`motionpick.go`): the deed counter the server
+sends (`sim/deeds.go`: eating, scooping, tossing), a blow begun, a mount
+gained or lost, death, sleep; and off the client's own clock.
+
+Layers, back to front, of a standing figure (`drawFig`): what the hand
+holds when facing up; the far sleeve (`upFar`); the far hand and the hair
+behind the body (`upBack`); the legs; the bare trunk and the fur (`upBody`);
+the clothes (`upShirt`); the body armour; the sleeves (`upArms`); the head,
+the hands, the belt and the mantle (`upTop`); the helmet; what is held,
+facing down or sideways; a raised arm (`upArmsOver`) and its fist
+(`upTopOver`). Sideways the far arm is drawn behind the trunk; from behind
+the mantle covers the back and long hair lies over the mantle (the head is
+laid over the body's layers); a hand up at the mouth comes over the face,
+or from behind goes out of sight behind the head (`kp.fore0`). A rider's
+far leg is drawn before the mount, the rest after; a swimmer under the
+surface is drawn faint before what is above it.
+
+Colours come from tables, not code: skin from `skinTones`, hair from
+`hairColors` (`look.go`), and the clothes are drawn in greys and tinted
+with the player's colour as they are drawn (`upperTinted`); a new skin,
+hair or cloth colour is a new entry.
+
+What it costs: every frame of every motion of one look is 1632
+half-frames, 14 MB if all were shown, 1.3 ms each to draw; they are drawn
+the first time they are shown, so a session pays for what it shows.
+`go run ./cmd/shot -w 1920 -h 1080 -motionsheet dir` plays every motion
+through the game's own drawing and writes `motion_sheet.png` and a GIF of
+each group; `MOTION_POSES=dir go test ./internal/client -run
+DumpMotionPoses` writes the bare poses.
+
 ## Checking
 
 ```sh

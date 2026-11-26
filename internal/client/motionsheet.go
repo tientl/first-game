@@ -112,6 +112,9 @@ func (g *Game) MotionSheets(dir string) error {
 	if err := sheetPNG(filepath.Join(dir, "motion_sheet.png"), sheet); err != nil {
 		return err
 	}
+	if err := g.compareStrips(filepath.Join(dir, "compare")); err != nil {
+		return err
+	}
 	// The GIFs: reels side by side, every facing, playing together.
 	gifs := map[string][]string{}
 	for _, r := range reels {
@@ -466,3 +469,73 @@ var (
 	_ = fmt.Sprint
 	_ = ebiten.NewImage
 )
+
+// compareStrips writes, for each LPC animation a motion follows, the
+// motion's key poses facing right as a strip (one cell a pose) and their
+// times in milliseconds, for setting beside LPC's own (an internal review,
+// made outside the game: no LPC art is in the game or its repository).
+func (g *Game) compareStrips(dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	buf := newFineBuf(cellW, cellH)
+	cw, ch := cellW*HDDensity, cellH*HDDensity
+	look := sim.Look{Hair: sim.HairShaggy, HairColor: 2, Skin: 1}
+	b := g.art.bodyIn(look, 0)
+	tint := playerColors[int(sheetID)%len(playerColors)]
+	type strip struct {
+		name   string
+		frames func() ([]figDraw, []int)
+	}
+	motionStrip := func(m motionID) func() ([]figDraw, []int) {
+		return func() ([]figDraw, []int) {
+			var fs []figDraw
+			for f := 0; f < m.frames(); f++ {
+				lo, up := m.keys(sim.DirRight, f)
+				fs = append(fs, figDraw{b: b, up: up, lo: lo, tint: tint})
+			}
+			return fs, motions[m].ms
+		}
+	}
+	gait := func(lo loAnim, up upAnim, cycleMs int) func() ([]figDraw, []int) {
+		return func() ([]figDraw, []int) {
+			var fs []figDraw
+			var ms []int
+			for f := 0; f < loFrames; f++ {
+				fs = append(fs, figDraw{b: b, up: upKey{sim.DirRight, up, uint8(f * upFrames / loFrames)}, lo: loKey{sim.DirRight, lo, uint8(f)}, tint: tint})
+				ms = append(ms, cycleMs/loFrames)
+			}
+			return fs, ms
+		}
+	}
+	strips := []strip{
+		{"walk", gait(loWalk, upWalk, 1000)}, {"run", gait(loRun, upRun, 1000)},
+		{"idle", motionStrip(moIdle)}, {"combat_idle", motionStrip(moReady)},
+		{"slash", motionStrip(moChop)}, {"backslash", motionStrip(moBackslash)},
+		{"thrust", motionStrip(moThrust)}, {"shoot", motionStrip(moShoot)},
+		{"hurt", motionStrip(moDie)}, {"sit", motionStrip(moSitDown)},
+		{"spellcast", motionStrip(moDrink)}, {"emote", motionStrip(moEatBite)},
+	}
+	for _, s := range strips {
+		fs, ms := s.frames()
+		img := image.NewRGBA(image.Rect(0, 0, len(fs)*cw, ch))
+		for i, f := range fs {
+			buf.img.Fill(reelGrass)
+			drawFig(buf, f, cellX, cellY)
+			cell := image.NewRGBA(image.Rect(0, 0, cw, ch))
+			buf.img.ReadPixels(cell.Pix)
+			draw.Draw(img, image.Rect(i*cw, 0, (i+1)*cw, ch), cell, image.Point{}, draw.Src)
+		}
+		if err := sheetPNG(filepath.Join(dir, s.name+".png"), img); err != nil {
+			return err
+		}
+		txt := ""
+		for _, m := range ms {
+			txt += fmt.Sprintf("%d\n", m)
+		}
+		if err := os.WriteFile(filepath.Join(dir, s.name+".txt"), []byte(txt), 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
