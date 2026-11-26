@@ -5,9 +5,11 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 
 	"survivalgame/internal/protocol"
@@ -47,6 +49,9 @@ type ScaleRow struct {
 func (g *Game) scaleGroups() (names []string, groups [][]scaleEntry) {
 	a := g.art
 	add := func(name string, es ...scaleEntry) {
+		if scaleOnly != "" && !strings.Contains(strings.ToLower(name), strings.ToLower(scaleOnly)) {
+			return
+		}
 		names, groups = append(names, name), append(groups, es)
 	}
 	ent := func(name string, e protocol.EntityView) scaleEntry {
@@ -57,35 +62,38 @@ func (g *Game) scaleGroups() (names []string, groups [][]scaleEntry) {
 		return protocol.EntityView{Kind: k, Var: v, Ready: true}
 	}
 	nShape := len(leafRamps)
-	tree := func(sh treeShape, size int) sprite { return a.trees[size][int(sh)*nShape] }
+	sets := [2]treeSet{a.treesOf(0), a.treesOf(1)}
+	anc := [2]ancientTrees{a.ancientOf(0), a.ancientOf(1)}
+	fruit := a.fruitOf()
+	tree := func(sh treeShape, size int) sprite { return sets[size].trees[int(sh)*nShape] }
 
 	add("Trees",
 		scaleEntry{name: "round (small)", s: tree(shapeRound, 0)},
 		scaleEntry{name: "round", s: tree(shapeRound, 1)},
 		scaleEntry{name: "tall", s: tree(shapeTall, 1)},
-		scaleEntry{name: "fork", s: a.vineTrees[1][int(shapeFork)*nShape+1]},
+		scaleEntry{name: "fork", s: sets[1].vined[int(shapeFork)*nShape+1]},
 		scaleEntry{name: "spread", s: tree(shapeSpread, 1)},
-		scaleEntry{name: "oak", s: a.trees[1][int(shapeOak)*nShape+2]},
+		scaleEntry{name: "oak", s: sets[1].trees[int(shapeOak)*nShape+2]},
 		scaleEntry{name: "weeping", s: tree(shapeWeeping, 1)},
 	)
 	add("Conifers and ancient trees",
-		scaleEntry{name: "pine (small)", s: a.pines[0][1]},
-		scaleEntry{name: "pine", s: a.pines[1][1]},
-		scaleEntry{name: "snow pine", s: a.snowPines[1][2]},
-		scaleEntry{name: "tree fern", s: a.ancient[1].ferns[0]},
-		scaleEntry{name: "cycad", s: a.ancient[1].cycads[0]},
-		scaleEntry{name: "araucaria", s: a.ancient[1].araucarias[0]},
-		scaleEntry{name: "ginkgo", s: a.ancient[1].ginkgos[0]},
-		scaleEntry{name: "redwood (small)", s: a.ancient[0].redwoods[0]},
-		scaleEntry{name: "redwood", s: a.ancient[1].redwoods[0]},
+		scaleEntry{name: "pine (small)", s: sets[0].pines[1]},
+		scaleEntry{name: "pine", s: sets[1].pines[1]},
+		scaleEntry{name: "snow pine", s: a.snowPinesOf(1)[2]},
+		scaleEntry{name: "tree fern", s: anc[1].ferns[0]},
+		scaleEntry{name: "cycad", s: anc[1].cycads[0]},
+		scaleEntry{name: "araucaria", s: anc[1].araucarias[0]},
+		scaleEntry{name: "ginkgo", s: anc[1].ginkgos[0]},
+		scaleEntry{name: "redwood (small)", s: anc[0].redwoods[0]},
+		scaleEntry{name: "redwood", s: anc[1].redwoods[0]},
 	)
 	woods := woodsArtOf()
 	add("Swamp, fruit and jungle trees",
-		scaleEntry{name: "cypress", s: swampTree(1, 8)},
+		scaleEntry{name: "cypress", s: swampTree(1, 9)},
 		scaleEntry{name: "snag", s: swampTree(1, 0)},
-		scaleEntry{name: "fig", s: a.fruit.figs[0]},
-		scaleEntry{name: "fruit ginkgo", s: a.fruit.ginkgos[0]},
-		scaleEntry{name: "palm", s: a.fruit.palms[0]},
+		scaleEntry{name: "fig", s: fruit.figs[0]},
+		scaleEntry{name: "fruit ginkgo", s: fruit.ginkgos[0]},
+		scaleEntry{name: "palm", s: fruit.palms[0]},
 		scaleEntry{name: "banana", s: woods.banana[0]},
 		scaleEntry{name: "glow tree", s: a.tribal.glow[2]},
 		scaleEntry{name: "giant tree", s: woods.giants[0]},
@@ -173,7 +181,8 @@ func (g *Game) ScaleHeights() []ScaleRow {
 			if e.s.img == nil {
 				continue
 			}
-			rows = append(rows, ScaleRow{names[i], e.name, int(math.Round(e.s.ay * HDDensity)), e.s.ay / playerArtH})
+			h := standH(e.s)
+			rows = append(rows, ScaleRow{names[i], e.name, int(math.Round(h * HDDensity)), h / playerArtH})
 		}
 	}
 	return rows
@@ -186,7 +195,7 @@ func (g *Game) ScaleSheet() image.Image {
 		g.art = getArt()
 	}
 	const (
-		sheetW = 1280.0 // art pixels: 3840 image pixels
+		sheetW = 640.0 // art pixels: 1920 image pixels
 		gap    = 7.0
 		labelH = 14.0 // art pixels under the ground line for the two lines of a label
 		titleH = 12.0
@@ -204,6 +213,9 @@ func (g *Game) ScaleSheet() image.Image {
 	var titles []title
 	var marks [][2]float64 // where a player stands
 	y := 6.0
+	if scaleTitle != "" {
+		y += 16
+	}
 	for gi, es := range groups {
 		titles = append(titles, title{names[gi], y})
 		y += titleH
@@ -255,14 +267,18 @@ func (g *Game) ScaleSheet() image.Image {
 		g.drawFigureJ(buf, me, sim.DirDown, loKey{dir: sim.DirDown}, upKey{dir: sim.DirDown}, m[0], m[1], 0)
 	}
 	const K = HDDensity
+	if scaleTitle != "" {
+		drawText(buf.img, scaleTitle, 8*K, 5*K, color.RGBA{0xff, 0xe9, 0x9a, 0xff}, text.AlignStart, 3)
+	}
 	for _, t := range titles {
 		drawText(buf.img, t.s, 8*K, t.y*K, colWhite, text.AlignStart, 2)
 	}
 	for _, p := range all {
 		cx := (p.x - p.e.s.ax + p.e.s.w()/2) * K
-		px := int(math.Round(p.e.s.ay * K))
+		sh := standH(p.e.s)
+		px := int(math.Round(sh * K))
 		drawText(buf.img, p.e.name, cx, (p.y+1.5)*K, colWhite, text.AlignCenter, 1)
-		drawText(buf.img, fmt.Sprintf("%d px  %.1fx", px, p.e.s.ay/playerArtH), cx, (p.y+7.5)*K, color.RGBA{0xff, 0xe9, 0x9a, 0xff}, text.AlignCenter, 1)
+		drawText(buf.img, fmt.Sprintf("%d px  %.1fx", px, sh/playerArtH), cx, (p.y+7.5)*K, color.RGBA{0xff, 0xe9, 0x9a, 0xff}, text.AlignCenter, 1)
 	}
 	b := buf.img.Bounds()
 	img := image.NewRGBA(b)
@@ -279,5 +295,43 @@ var (
 )
 
 // ArtCost is what the art drawn in code has cost so far: the bytes of its
-// images, and how long the start-up set took to draw.
-func ArtCost() (bytes int64, startup time.Duration) { return artBytes.Load(), artTime }
+// images, how long the start-up set took to draw, and how long the trees
+// drawn ahead after it took (0 until they are done; see lazyart.go).
+func ArtCost() (bytes int64, startup, warm time.Duration) {
+	return artBytes.Load(), artTime, time.Duration(warmTime.Load())
+}
+
+// scaleOnly, when set, keeps only the groups of the sheet whose name
+// contains it (shot -scaleonly); scaleTitle heads the sheet.
+var scaleOnly, scaleTitle string
+
+// SetScaleOnly keeps only the groups of the scale sheet whose name contains
+// only, and heads the sheet with title.
+func SetScaleOnly(only, title string) { scaleOnly, scaleTitle = only, title }
+
+// standH is how tall s stands above its ground point, in art pixels: from
+// its anchor up to its highest solid pixel, not to the top of its canvas
+// (which may leave room for a swing or a sway). It reads the image back, so
+// it runs inside the game loop, like ScaleSheet.
+func standH(s sprite) float64 {
+	if h, ok := standHs[s.img]; ok {
+		return h
+	}
+	b := s.img.Bounds()
+	pix := make([]byte, 4*b.Dx()*b.Dy())
+	s.img.ReadPixels(pix)
+	top := b.Dy()
+	for y := 0; y < b.Dy() && top == b.Dy(); y++ {
+		for x := range b.Dx() {
+			if pix[4*(y*b.Dx()+x)+3] >= 128 {
+				top = y
+				break
+			}
+		}
+	}
+	h := s.ay - float64(top)/float64(s.density())
+	standHs[s.img] = h
+	return h
+}
+
+var standHs = map[*ebiten.Image]float64{}

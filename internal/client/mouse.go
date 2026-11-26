@@ -528,7 +528,7 @@ func (g *Game) drawAimCues(screen *ebiten.Image, cam camera, scale float64, tg, 
 	if far.ok {
 		if x, y, w, h, ok := g.targetBox(far, cam); ok {
 			drawBrackets(screen, x*scale, y*scale, w*scale, h*scale, colGhostBad)
-			g.text(screen, "Xa quá — lại gần hơn", (x+w/2)*scale, y*scale-22*uiK(), colGhostBad, text.AlignCenter, uiK())
+			g.text(screen, "Xa quá — lại gần hơn", (x+w/2)*scale, max(y*scale-22*uiK(), 4), colGhostBad, text.AlignCenter, uiK())
 		}
 	}
 	if gv := g.ghost(); gv.ok {

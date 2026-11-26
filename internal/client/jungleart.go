@@ -33,34 +33,44 @@ const (
 	monkeyPoses
 )
 
-var woods *woodsArt
+// woodsSet is the woods' art, drawn the first time it is wanted (see
+// lazyart.go).
+var woodsSet = lazy[*woodsArt]{gen: genWoodsArt}
 
-// woodsArtOf draws the woods' art the first time it is wanted.
-func woodsArtOf() *woodsArt {
-	if woods != nil {
-		return woods
-	}
+// woodsArtOf is the woods' art.
+func woodsArtOf() *woodsArt { return woodsSet.get() }
+
+func genWoodsArt() *woodsArt {
 	a := &woodsArt{}
-	for v := uint64(1); v <= 3; v++ {
-		a.banana = append(a.banana, genBananaTree(fruitScale, v, true))
-		a.bananaBare = append(a.bananaBare, genBananaTree(fruitScale, v, false))
-	}
-	for v, sh := range []treeShape{shapeRound, shapeOak} {
-		a.giants = append(a.giants, genBroadleaf(sh, v, true, giantScale, uint64(v)*17+3))
-	}
-	a.giantStump = genStump(giantScale * 1.15)
+	a.banana, a.bananaBare, a.giants = make([]sprite, 3), make([]sprite, 3), make([]sprite, 2)
+	inParallel(8, func(i int) {
+		switch {
+		case i < 3:
+			a.banana[i] = genBananaTree(bananaScale, uint64(i+1), true)
+		case i < 6:
+			a.bananaBare[i-3] = genBananaTree(bananaScale, uint64(i-2), false)
+		default:
+			v := i - 6
+			sh := []treeShape{shapeRound, shapeOak}[v]
+			a.giants[v] = trimmed(broadleafCanvas(sh, leafRamps[v], uint32(v), true, giantScale, uint64(v)*17+3, giantGirth))
+		}
+	})
+	a.giantStump = genStump(giantGirth / 5.6)
 	a.hive, a.hiveEmpty = genHive(true), genHive(false)
 	for pose := range monkeyPoses {
 		s := genMonkey(pose)
 		a.monkey[0][pose] = s
 		a.monkey[1][pose] = mirrorSprite(s)
 	}
-	woods = a
 	return a
 }
 
 // giantScale is how much bigger than a small tree a giant is drawn.
-const giantScale = 2.7
+const giantScale = 4.6
+
+// giantGirth is half the thickness of a giant's trunk, in art pixels: its
+// foot covers most of the sim.GiantW tiles it stands on.
+const giantGirth = 21
 
 var (
 	bananaLeafRamp = mkRamp(0x1c4a1e, 0x2a6a24, 0x3d8a2a, 0x5aa833, 0x82c446, 0xaedb62)

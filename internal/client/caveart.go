@@ -43,11 +43,16 @@ var (
 // the middle of its tile: the foot of the face runs along the tile's south
 // edge. The exit's is the floor at the foot of the steps.
 const (
-	caveMouthW, caveMouthH   = 100, 94
-	caveMouthAX, caveMouthAY = 50.0, 60.0
+	caveMouthW, caveMouthH   = 100, 94 + caveMouthRise
+	caveMouthAX, caveMouthAY = 50.0, 60.0 + caveMouthRise
 	caveExitW, caveExitH     = 84, 92
 	caveExitAX, caveExitAY   = 42.0, 72.0
 )
+
+// caveMouthRise is how much taller the outcrop and its doorway stand than
+// they first did, in art pixels: two more courses of the jambs' blocks, so
+// the player (playerArtH) walks in under the lintel with room to spare.
+const caveMouthRise = 17
 
 func genCaveArt() caveArt {
 	return caveArt{
@@ -169,7 +174,7 @@ func caveMouthCanvas() *canvas {
 	const seed = 900
 	// The doorway: f0 is its threshold, the arch springs at ys.
 	const f0, half, archRY = ay + 8.0, 10.5, 11.0
-	const ys = f0 - 13
+	const ys = f0 - 13 - caveMouthRise
 
 	unit := func(px float64) float64 { return (px - ax) / 42 }
 	// The foot of the face bows back at the ends, as the outcrop is round.
@@ -182,7 +187,7 @@ func caveMouthCanvas() *canvas {
 	brow := func(px float64) (stepped, smooth float64) {
 		u := unit(px)
 		e := math.Pow(math.Max(0, 1-math.Pow(u, 10)), 0.4)
-		h := 28 + 9*(1-u*u) + 5*math.Exp(-math.Pow((u+0.55)/0.2, 2)) - 6*math.Exp(-math.Pow((u-0.66)/0.16, 2))
+		h := 28 + caveMouthRise + 9*(1-u*u) + 5*math.Exp(-math.Pow((u+0.55)/0.2, 2)) - 6*math.Exp(-math.Pow((u-0.66)/0.16, 2))
 		st := (math.Floor(vnoise(px*0.1, 7, seed)*4) - 1.5) * 2.6
 		if math.Abs(u) < 0.36 {
 			st = math.Max(st, -1) // room for the lintel
@@ -290,7 +295,7 @@ func caveMouthCanvas() *canvas {
 			return
 		}
 		dx := px - ax
-		v := (f0 - py) / (archRY + 13) // 0 at the threshold, 1 at the crown
+		v := (f0 - py) / (archRY + 13 + caveMouthRise) // 0 at the threshold, 1 at the crown
 		col := mix(caveWallRamp[1], caveBlack, clamp01(v*1.8))
 		jamb := dx > half-3.4*(1-0.6*v)
 		if jamb {
@@ -300,7 +305,7 @@ func caveMouthCanvas() *canvas {
 		} else if dx < -half+1.5 {
 			col = caveWallRamp.pick(0.12, x, y)
 		}
-		if tt := v / 0.36; tt < 1 {
+		if tt := v / 0.21; tt < 1 {
 			// The floor: the sun reaches in past the left jamb.
 			l := 0.8 - 0.7*tt - 0.3*clamp01(-dx/half-0.15) + (vnoise(px*0.7, py*1.2, seed+13)-0.5)*0.2
 			if jamb {
@@ -311,10 +316,10 @@ func caveMouthCanvas() *canvas {
 		rocks.put(x, y, col)
 	})
 	// Roots hanging in the doorway.
-	for _, r := range [][3]float64{{-4.5, 1, 5.5}, {2, 0.5, 3.5}, {5.5, 1.5, 6.5}} {
+	for _, r := range [][3]float64{{-4.5, 1, 7.5}, {-1, 0.8, 4}, {2, 0.5, 5.5}, {5.5, 1.5, 9}} {
 		for s := 0.0; s < r[2]; s += 0.25 {
 			px := ax + r[0] + math.Sin(s*0.7+r[0])*0.5
-			rocks.put(int(px*hdK3), int((f0-24+r[1]+s)*hdK3), caveDirtRamp.pick(0.5-0.3*s/r[2], 0, 0))
+			rocks.put(int(px*hdK3), int((f0-24-caveMouthRise+r[1]+s)*hdK3), caveDirtRamp.pick(0.5-0.3*s/r[2], 0, 0))
 		}
 	}
 
@@ -322,8 +327,10 @@ func caveMouthCanvas() *canvas {
 	for i, b := range [][5]float64{
 		{ax - half - 2.4, f0 - 4.4, 4.2, 4.8, 0.95}, {ax + half + 2.6, f0 - 4.2, 4.4, 4.6, 0.8},
 		{ax - half - 2.8, f0 - 13, 3.8, 4.4, 1}, {ax + half + 3, f0 - 12.6, 4, 4.6, 0.84},
-		{ax - half - 0.6, f0 - 21, 4.4, 3.9, 1.04}, {ax + half + 0.8, f0 - 20.6, 4.4, 4.1, 0.88},
-		{ax + 0.3, f0 - 27.2, 13, 3.7, 1.06},
+		{ax - half - 2.5, f0 - 21.6, 4, 4.5, 0.98}, {ax + half + 2.7, f0 - 21.2, 4.2, 4.6, 0.82},
+		{ax - half - 2.9, f0 - 30.2, 3.8, 4.4, 1.02}, {ax + half + 2.9, f0 - 29.8, 4, 4.5, 0.86},
+		{ax - half - 0.6, f0 - 21 - caveMouthRise, 4.4, 3.9, 1.04}, {ax + half + 0.8, f0 - 20.6 - caveMouthRise, 4.4, 4.1, 0.88},
+		{ax + 0.3, f0 - 27.2 - caveMouthRise, 13, 3.7, 1.06},
 	} {
 		blockHD(rocks, b[0], b[1], b[2], b[3], b[4], paleRockRamp, uint32(seed+20+i))
 	}
@@ -401,7 +408,7 @@ func caveMouthCanvas() *canvas {
 	}
 
 	// Creepers hanging down the face, one across a corner of the doorway.
-	for i, v := range [][2]float64{{-27, 9}, {-13.5, 15}, {-6.5, 8.5}, {8, 6}, {12.5, 17}, {25, 8}} {
+	for i, v := range [][2]float64{{-27, 14}, {-20, 7}, {-13.5, 26}, {-6.5, 8.5}, {8, 6}, {12.5, 22}, {19, 9}, {25, 15}} {
 		b, _ := brow(ax + v[0])
 		creeperHD(c, ax+v[0], b+1.5, v[1], uint32(seed+80+i))
 	}

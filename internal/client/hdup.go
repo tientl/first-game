@@ -3,6 +3,9 @@ package client
 import (
 	"image/color"
 	"math"
+	"runtime"
+	"sync"
+	"sync/atomic"
 )
 
 // HD art for the things that stand in the world. Two roads lead to an HD
@@ -221,4 +224,26 @@ func upscale3(c *canvas) *canvas {
 		}
 	}
 	return o
+}
+
+// inParallel runs job(0) to job(n-1) on every core and waits for them all.
+// The big sprites of the world (trees several times the player's height)
+// are drawn this way, each by its own seed, so the start-up stays short.
+func inParallel(n int, job func(i int)) {
+	var wg sync.WaitGroup
+	next := atomic.Int64{}
+	for range max(1, min(n, runtime.NumCPU())) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				i := int(next.Add(1)) - 1
+				if i >= n {
+					return
+				}
+				job(i)
+			}
+		}()
+	}
+	wg.Wait()
 }

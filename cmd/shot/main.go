@@ -15,6 +15,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -49,7 +50,7 @@ func main() {
 	open := flag.Bool("open", false, "an open world instead of the 96x96 island")
 	sizes := flag.Bool("sizes", false, "with -menu: show the difficulty picker (it took the place of the world-size picker)")
 	size := flag.Int("size", 256, "open world size")
-	at := flag.String("at", "", "open world: stand at desert, marsh, pond (a swamp with ponds), cave, mountain, ash or lava")
+	at := flag.String("at", "", "open world: stand at desert, marsh, pond (a swamp with ponds), cave, mountain, ash or lava; or by the nearest cavemouth, cavein, pyramid, village, path or giant (tree)")
 	female := flag.Bool("female", false, "the player is a woman")
 	hair := flag.Int("hair", 0, "the player's hair style, 0 to 5")
 	hairColor := flag.Int("haircolor", 0, "the player's hair colour, 0 to 7")
@@ -102,9 +103,14 @@ func main() {
 	devCon := flag.Bool("devconsole", false, "open the dev console (as with -dev in cmd/game), with a few commands run on the world; see dev.go")
 	critterHD := flag.Bool("critterhd", true, "the HD art of the code-drawn animals (false: the original density-1 art, to compare)")
 	scaleSheet := flag.Bool("scalesheet", false, "write the scale sheet instead of a frame: the player next to every tree, plant, rock and building, with heights (see internal/client/scalesheet.go); the heights are printed too")
+	costFlag := flag.Bool("cost", false, "print what the art drawn in code has cost once the frame is taken: the bytes of its images, the time to draw the start-up set and the trees drawn ahead, and the Go heap")
+	moveBy := flag.String("move", "", "dx,dy: stand this many tiles from where the other flags put the player (to stand behind a tree, at a door)")
+	scaleOnly := flag.String("scaleonly", "", "with -scalesheet: only the groups whose name contains this (trees, conifers, swamp, low, buildings, rocks, creatures)")
+	scaleTitle := flag.String("scaletitle", "", "with -scalesheet: a heading for the sheet")
 	subPixel := flag.Bool("subpixel", true, "let the camera and moving things sit between art pixels, on screen pixels (false: whole art pixels, as before HD art)")
 	flag.Parse()
 	client.SetHeroHD(*herohd)
+	client.SetScaleOnly(*scaleOnly, *scaleTitle)
 	client.SetHDTest(*hdTest)
 	client.SetEnvHD(*envHD)
 	client.SetCritterHD(*critterHD)
@@ -230,10 +236,13 @@ func main() {
 			}
 		}
 	}
-	if *at == "cavemouth" || *at == "cavein" {
+	if *at == "cavemouth" || *at == "cavein" || *at == "giant" {
 		k := sim.EntityCaveMouth
-		if *at == "cavein" {
+		switch *at {
+		case "cavein":
 			k = sim.EntityCaveExit
+		case "giant": // in front of the nearest giant of the old forest (-move to step aside)
+			k = sim.EntityGiantTree
 		}
 		best := math.Inf(1)
 		px, py := sx, sy
@@ -345,6 +354,10 @@ func main() {
 			}
 		}
 		sx, sy = bx, by
+	}
+	var mdx, mdy float64
+	if n, _ := fmt.Sscanf(*moveBy, "%g,%g", &mdx, &mdy); n == 2 {
+		sx, sy = sx+mdx, sy+mdy
 	}
 	tick := uint64(sim.DayTicks) + uint64(*dayFrac*sim.DayTicks)
 
@@ -840,7 +853,7 @@ func main() {
 		}
 		inner = &menuGame{m}
 	}
-	g := &shooter{inner: inner, frames: *frames, out: *out, crop: *crop}
+	g := &shooter{inner: inner, frames: *frames, out: *out, crop: *crop, cost: *costFlag}
 	if *scaleSheet {
 		g.sheet = game
 	}
@@ -878,6 +891,7 @@ type shooter struct {
 	done   bool
 	err    error
 	sheet  *client.Game // write its scale sheet instead of the frame
+	cost   bool         // print what the art has cost
 }
 
 func (s *shooter) Update() error {
@@ -897,10 +911,12 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 	img := image.NewRGBA(b)
 	screen.ReadPixels(img.Pix)
 	var final image.Image = img
+	if s.sheet != nil || s.cost {
+		printArtCost("at the frame")
+	}
 	if s.sheet != nil {
-		bytes, startup := client.ArtCost()
-		fmt.Printf("art drawn in code: %.1f MB of images; start-up set drawn in %v\n", float64(bytes)/(1<<20), startup.Round(time.Millisecond))
 		final = s.sheet.ScaleSheet()
+		printArtCost("with the whole sheet drawn")
 		for _, r := range s.sheet.ScaleHeights() {
 			fmt.Printf("%-30s %-22s %5d px %5.2fx\n", r.Group, r.Name, r.Px, r.Players)
 		}
@@ -1071,3 +1087,18 @@ func addWoods(snap *protocol.Snapshot, sx, sy float64) {
 
 // troodonLeaper is the night hunter -troodon shows in mid-leap.
 const troodonLeaper = sim.CreatureID(1<<24 + 1)
+
+// printArtCost prints what the art drawn in code has cost so far, and the Go
+// heap (after a collection).
+func printArtCost(when string) {
+	bytes, startup, warm := client.ArtCost()
+	runtime.GC()
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	ahead := "not done yet"
+	if warm > 0 {
+		ahead = warm.Round(time.Millisecond).String()
+	}
+	fmt.Printf("art %s: %.1f MB of images drawn in code; start-up set drawn in %v; trees drawn ahead in %s; Go heap %.0f MB in use, %.0f MB from the OS\n",
+		when, float64(bytes)/(1<<20), startup.Round(time.Millisecond), ahead, float64(m.HeapInuse)/(1<<20), float64(m.Sys)/(1<<20))
+}

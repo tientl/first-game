@@ -48,26 +48,27 @@ func mk(c *canvas, ax, ay float64) sprite {
 type art struct {
 	// Trees and boulders come in two sizes, indexed by sizeIdx. Each tree
 	// in vineTrees is the one at the same index in trees, hung with vines.
-	trees, vineTrees, pines [2][]sprite
-	ancient                 [2]ancientTrees // prehistoric trees; see treeart.go
-	snowPines               [2][]sprite     // conifers on the snow, frosted; see iceart.go
-	heldIvorySpear          sprite
-	stumps                  [2]sprite
-	boulders                [2][]sprite
-	bushFull                sprite
-	bushPicked              sprite
-	tuftFull                sprite
-	tuftPicked              sprite
-	twig                    sprite
-	wall, bed               sprite
-	blanket                 sprite
+	// They are drawn the first time they are wanted: see lazyart.go.
+	treeSets       [2]lazy[treeSet]
+	ancients       [2]lazy[ancientTrees] // prehistoric trees; see treeart.go
+	snowPineSets   [2]lazy[[]sprite]     // conifers on the snow, frosted; see iceart.go
+	heldIvorySpear sprite
+	stumps         [2]sprite
+	boulders       [2][]sprite
+	bushFull       sprite
+	bushPicked     sprite
+	tuftFull       sprite
+	tuftPicked     sprite
+	twig           sprite
+	wall, bed      sprite
+	blanket        sprite
 
 	heldSpear, heldTorch, heldRod sprite
-	farm                          farmArt  // pebbles, the hoe, soil and sweet potatoes
-	ore                           oreArt   // ores, the furnace and the tools of every tier
-	gear                          gearArt  // stone walls and the swords of every tier
-	fruit                         fruitArt // fruit trees, ripe and picked; see fruitart.go
-	open                          openArt  // cacti, reeds, mushrooms, coal
+	farm                          farmArt        // pebbles, the hoe, soil and sweet potatoes
+	ore                           oreArt         // ores, the furnace and the tools of every tier
+	gear                          gearArt        // stone walls and the swords of every tier
+	fruitSet                      lazy[fruitArt] // fruit trees, ripe and picked; see fruitart.go
+	open                          openArt        // cacti, reeds, mushrooms, coal
 	campBack                      sprite
 	campFront                     sprite
 	flames                        [flameFrames]sprite
@@ -129,8 +130,6 @@ var (
 func newArt() *art {
 	a := &art{}
 	for size := range 2 {
-		a.trees[size], a.vineTrees[size], a.pines[size] = genTrees(treeScale[size])
-		a.ancient[size] = genAncientTrees(treeScale[size])
 		a.stumps[size] = genStump(stumpScale[size])
 		for v := 0; v < 3; v++ {
 			a.boulders[size] = append(a.boulders[size], genBoulder(v, boulderScale[size]))
@@ -142,14 +141,9 @@ func newArt() *art {
 	a.wall, a.bed, a.blanket = genWall(), genBed(), genBlanket()
 	a.heldSpear, a.heldTorch, a.heldRod = genHeldSpear(), genHeldTorch(), genHeldRod()
 	a.heldIvorySpear = genHeldIvorySpear()
-	for size := range 2 {
-		for v := range pineVariants {
-			a.snowPines[size] = append(a.snowPines[size], genPineOf(v, treeScale[size], uint64(v)*13+1, true))
-		}
-	}
+	a.initLazyTrees() // drawn when first wanted; see lazyart.go
 	a.ore = genOreArt()
 	a.gear = genGearArt()
-	a.fruit = genFruitArt()
 	a.farm = genFarmArt()
 	a.open = genOpenArt()
 	a.campBack, a.campFront = genCampfire()
@@ -245,7 +239,7 @@ func leafCluster(c *canvas, blobs []blob, cx, cy, rx, ry float64, rp ramp, seed 
 // Trees, stumps and boulders are generated at two scales, small then big
 // (indexed by sizeIdx); at scale 1 each gen function draws its original shape.
 var (
-	treeScale    = [2]float64{0.78, 1.12}
+	treeScale    = [2]float64{1.9, 2.75}
 	stumpScale   = [2]float64{0.8, 1.25}
 	boulderScale = [2]float64{0.75, 1.2}
 )

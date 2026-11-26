@@ -24,7 +24,13 @@ var (
 	coconutRamp = mkRamp(0x2a1a10, 0x45301c, 0x644828, 0x846336)
 )
 
-const fruitScale = 0.95 // fruit trees come in one size
+// Fruit trees come in one size each: a fig or a ginkgo is a small tree, a
+// coconut palm a tall one, a banana plant twice a man's height.
+const (
+	fruitScale  = 1.7
+	palmScale   = 2.3
+	bananaScale = 1.35
+)
 
 // fruitArt is the fruit trees' art, ripe and picked, two of each.
 type fruitArt struct {
@@ -34,17 +40,27 @@ type fruitArt struct {
 }
 
 func genFruitArt() fruitArt {
-	var a fruitArt
-	for v := uint64(1); v <= 2; v++ {
-		shape := []treeShape{shapeRound, shapeOak}[v-1]
-		a.figs = append(a.figs, fruitTree(shape, figLeafRamp, 11, 80+v, figRamp, 12))
-		a.figsBare = append(a.figsBare, fruitTree(shape, figLeafRamp, 11, 80+v, nil, 0))
-		shape = []treeShape{shapeOak, shapeTall}[v-1]
-		a.ginkgos = append(a.ginkgos, fruitTree(shape, ginkgoRamp, 7, 90+v, nutRamp, 14))
-		a.ginkgosBare = append(a.ginkgosBare, fruitTree(shape, ginkgoRamp, 7, 90+v, nil, 0))
-		a.palms = append(a.palms, genPalm(fruitScale, v, true))
-		a.palmsBare = append(a.palmsBare, genPalm(fruitScale, v, false))
-	}
+	const each = 2
+	mk := func() []sprite { return make([]sprite, each) }
+	a := fruitArt{mk(), mk(), mk(), mk(), mk(), mk()}
+	inParallel(6*each, func(i int) {
+		v := uint64(i%each + 1)
+		fig, ginkgo := []treeShape{shapeRound, shapeOak}[v-1], []treeShape{shapeOak, shapeTall}[v-1]
+		switch i / each {
+		case 0:
+			a.figs[v-1] = fruitTree(fig, figLeafRamp, 11, 80+v, figRamp, 30)
+		case 1:
+			a.figsBare[v-1] = fruitTree(fig, figLeafRamp, 11, 80+v, nil, 0)
+		case 2:
+			a.ginkgos[v-1] = fruitTree(ginkgo, ginkgoRamp, 7, 90+v, nutRamp, 34)
+		case 3:
+			a.ginkgosBare[v-1] = fruitTree(ginkgo, ginkgoRamp, 7, 90+v, nil, 0)
+		case 4:
+			a.palms[v-1] = genPalm(palmScale, v, true)
+		case 5:
+			a.palmsBare[v-1] = genPalm(palmScale, v, false)
+		}
+	})
 	return a
 }
 
@@ -65,7 +81,7 @@ func fruitTree(shape treeShape, leaves ramp, tex uint32, seed uint64, rp ramp, n
 					continue
 				}
 				placed++
-				berryHD(c, float64(x), float64(y), 3.3, rp, leaves[0])
+				berryHD(c, float64(x), float64(y), 3.8, rp, leaves[0])
 				continue
 			}
 			placed++
@@ -97,9 +113,9 @@ func genPalm(s float64, seed uint64, coconuts bool) sprite {
 	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*k
 	lean := math.Copysign(r(5, 9), r(-1, 1)) * s
 	tx, ty := bx+lean, by-r(40, 46)*s
-	trunk := limb{bx, by, bx + lean*0.1, (by + ty) / 2, tx, ty, 2.2 * s, 1.5 * s}
+	trunk := limb{bx, by, bx + lean*0.1, (by + ty) / 2, tx, ty, 1.6 * s, 1.1 * s}
 	drawLimbIn(c, trunk, palmTrunk, 83)
-	for t := 0.06; t < 0.97; t += 0.07 { // the rings left by old fronds
+	for t := 0.04; t < 0.98; t += 0.07 * k / s { // the rings left by old fronds, a hand apart
 		x, y := trunk.at(t)
 		w := lerpf(trunk.w0, trunk.w1, t)
 		c.line(x-w, y, x+w, y, func(px, py int, _ float64) color.RGBA { return palmTrunk[0] })
@@ -114,8 +130,9 @@ func genPalm(s float64, seed uint64, coconuts bool) sprite {
 		frond(c, tx, ty, a, r(19, 24)*s, palmRamp, false, 150+uint32(i))
 	}
 	if coconuts { // hanging in front of the fronds' bases
-		for _, d := range [][2]float64{{-2.2, 2}, {2, 2.2}, {0, 3.6}} {
-			c.ellipse(tx+d[0]*s, ty+d[1]*s, 2.4*s, 2.4*s, func(x, y int, nx, ny float64) color.RGBA {
+		for _, d := range [][2]float64{{-3.6, 1.2}, {3.4, 1.6}, {-1.8, 2.6}, {1.9, 3}, {0, 4.6}} {
+			nut := 1.25 * k // a coconut is the size of a head, whatever the palm's
+			c.ellipse(tx+d[0]*nut, ty+d[1]*nut, 2.1*nut, 2.1*nut, func(x, y int, nx, ny float64) color.RGBA {
 				if c.hd() { // the husk's fibres
 					return coconutRamp.pick(lum(nx, ny)+(hashf(x/2, y, 151)-0.5)*0.25, x, y)
 				}
@@ -129,7 +146,8 @@ func genPalm(s float64, seed uint64, coconuts bool) sprite {
 
 // fruitTreeSprite is fruit tree e, with fruit while it is ripe.
 func (g *Game) fruitTreeSprite(e protocol.EntityView) (sprite, float64) {
-	a := &g.art.fruit
+	f := g.art.fruitOf()
+	a := &f
 	ripe, bare, sway := a.figs, a.figsBare, 0.03
 	switch e.Kind {
 	case sim.EntityGinkgoTree:

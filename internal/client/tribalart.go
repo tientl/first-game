@@ -1281,12 +1281,12 @@ func genTrap(set bool) sprite {
 }
 
 func genTorchStick() sprite {
-	c := newEnvCanvas(6, 20)
-	c.line(3, 19, 3, 5, func(x, y int, t float64) color.RGBA { return trunkRamp.pick(0.6, x, y) })
-	c.line(2, 19, 2, 5, func(x, y int, t float64) color.RGBA { return trunkRamp.pick(0.35, x, y) })
+	c := newEnvCanvas(6, 30) // a torch stands to the player's shoulder
+	c.line(3, 29, 3, 5, func(x, y int, t float64) color.RGBA { return trunkRamp.pick(0.6, x, y) })
+	c.line(2, 29, 2, 5, func(x, y int, t float64) color.RGBA { return trunkRamp.pick(0.35, x, y) })
 	c.rect(1, 3, 4, 3, func(x, y int) color.RGBA { return strawRamp.pick(0.4, x, y) }) // the wrapped head
 	c.outline(0.6)
-	return mkUp(c, 3, 19)
+	return mkUp(c, 3, 29)
 }
 
 func genTreasure(open bool) sprite {
@@ -1316,7 +1316,13 @@ func genTreasure(open bool) sprite {
 	return mkUp(c, 12, 20)
 }
 
-func genHut() sprite { c, ax, ay := hutCanvas(); return mkUp(c, ax, ay) }
+func genHut() sprite {
+	if envHD {
+		return mkUp(genHutHD()) // see hdhut.go
+	}
+	c, ax, ay := hutCanvas()
+	return mkUp(c, ax, ay)
+}
 
 // hutCanvas draws a hut of the tribe: a round wall of lashed poles under a
 // shaggy cone of thatch, a skull over its hide-hung doorway.

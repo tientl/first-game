@@ -26,6 +26,7 @@ func getArt() *art {
 		start := time.Now()
 		sharedArt = newArt()
 		artTime = time.Since(start) // see ArtCost in scalesheet.go
+		sharedArt.warmCommon()      // the trees, drawn ahead; see lazyart.go
 	}
 	return sharedArt
 }

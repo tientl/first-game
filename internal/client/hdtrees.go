@@ -14,7 +14,7 @@ func genPineHD(variant int, s float64, seed uint64, snowy bool) sprite {
 	S := s * k
 	c := markHD(newCanvas(int(math.Ceil(34*S)), int(math.Ceil(62*S))))
 	bx, by := float64(c.w/2), float64(c.h)-3*k // ground point
-	tw := max(2, math.Round(2*s*s)) * k        // half the trunk's width
+	tw := math.Round(trunkHalf(s)*0.8) * k     // half the trunk's width
 	drawLimbHD(c, limb{bx, by, bx, by - 6*S, bx, by - 12*S, tw, tw * 0.85}, trunkRamp, 0.75, 7)
 	for _, side := range []float64{-1, 1} { // the foot spreads a little
 		drawLimbHD(c, limb{bx, by - 3*S, bx + side*tw*0.6, by - S, bx + side*tw*1.5, by, tw * 0.5, 0.5 * k}, trunkRamp, 0.75, 7)

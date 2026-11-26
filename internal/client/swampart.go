@@ -170,7 +170,7 @@ func genCypress(variant int, s float64) sprite {
 	rng := rand.New(rand.NewPCG(uint64(variant)*41+3, 161))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
 	hk := hdK()
-	s *= 1.12 * hk
+	s *= 0.85 * hk
 	c := markHD(newCanvas(int(math.Ceil(66*s)), int(math.Ceil(86*s))))
 	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*hk
 	girth := 2.9 * s
@@ -281,7 +281,7 @@ func genSnag(variant int, s float64) sprite {
 	rng := rand.New(rand.NewPCG(uint64(variant)*53+11, 181))
 	r := func(lo, hi float64) float64 { return lo + rng.Float64()*(hi-lo) }
 	hk := hdK()
-	s *= 1.1 * hk
+	s *= 0.8 * hk
 	c := markHD(newCanvas(int(math.Ceil(40*s)), int(math.Ceil(64*s))))
 	bx, by := math.Round(float64(c.w)/2), float64(c.h)-3*hk
 	girth := 2.4 * s
@@ -343,21 +343,28 @@ func genSnag(variant int, s float64) sprite {
 	return trimmed(c, bx, by)
 }
 
-// swampTrees holds the swamp's trees per size, made the first time needed.
-var swampTrees [2]struct{ cypress, snags []sprite }
+// swampSets holds the swamp's trees per size, drawn the first time they are
+// wanted (see lazyart.go).
+var swampSets = [2]lazy[swampSet]{{gen: func() swampSet { return genSwampSet(0) }}, {gen: func() swampSet { return genSwampSet(1) }}}
+
+type swampSet struct{ cypress, snags []sprite }
+
+func genSwampSet(size int) swampSet {
+	t := swampSet{make([]sprite, 4), make([]sprite, 2)}
+	inParallel(6, func(v int) {
+		if v < 4 {
+			t.cypress[v] = genCypress(v, treeScale[size])
+		} else {
+			t.snags[v-4] = genSnag(v-4, treeScale[size])
+		}
+	})
+	return t
+}
 
 // swampTree picks the look of a tree standing in the swamp from h, its
 // tile's hash: mostly cypresses, one in four long dead.
 func swampTree(size int, h uint32) sprite {
-	t := &swampTrees[size]
-	if t.cypress == nil {
-		for v := range 4 {
-			t.cypress = append(t.cypress, genCypress(v, treeScale[size]))
-		}
-		for v := range 2 {
-			t.snags = append(t.snags, genSnag(v, treeScale[size]))
-		}
-	}
+	t := swampSets[size].get()
 	if h%4 == 0 {
 		return t.snags[int(h/8)%len(t.snags)]
 	}

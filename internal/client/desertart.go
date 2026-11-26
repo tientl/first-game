@@ -63,11 +63,11 @@ const (
 	pyrAy     = float64(pyrCanH - pyrBelow)
 
 	// The porch built out from the south face around the entrance.
-	porchH    = 34.0 // its height
+	porchH    = 48.0 // its height: a doorway the player (playerArtH) walks through upright
 	porchRoof = 12.0 // the depth of its flat roof
-	porchHW   = 22.0 // half its width
-	doorHW    = 9.0
-	doorH     = 24.0
+	porchHW   = 24.0 // half its width
+	doorHW    = 10.0
+	doorH     = 37.0
 )
 
 // pyramidCanvas draws the pyramid; the anchor is the middle of the south
