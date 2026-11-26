@@ -433,6 +433,9 @@ func (g *Game) shadowWidth(e protocol.EntityView) float64 {
 	if w, ok := lairShadow(e); ok {
 		return w
 	}
+	if w, ok := caveShadow(e); ok { // see cavethings.go
+		return w
+	}
 	if w, ok := tribalShadow(e); ok {
 		return w
 	}
@@ -680,6 +683,8 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		return // its player is still falling; see motiondraw.go
 	case e.Kind == sim.EntityLairProp:
 		g.drawLairProp(dst, e, d) // see lairrender.go
+		return
+	case g.drawCaveThing(dst, e, d): // see cavethings.go
 		return
 	case g.floraHidden(e):
 		return // under the ice

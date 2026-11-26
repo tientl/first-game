@@ -310,7 +310,8 @@ func (w *World) stepPlayer(p *Player) {
 		}
 		p.Dir = dirToward(mx, my)
 	}
-	w.travel(p) // through a cave mouth; see underground.go
+	w.travel(p)   // through a cave mouth; see underground.go
+	w.caveStep(p) // the natural caves' webs and lava; see caveprops.go
 	p.explored.Reveal(p.X, p.Y)
 
 	w.faceAim(p) // the player faces the mouse; see aim.go
@@ -476,6 +477,8 @@ func (w *World) interact(p *Player, e *Entity) bool {
 			w.removeEntity(e)
 			w.dropAt(x, y, w.boulderYield(e))
 		})
+	case EntityStalagmite, EntityCaveProp:
+		return w.touchCave(p, e, withTool) // see caveprops.go
 	case EntityCorpse:
 		return w.butcher(p, e) // see drops.go
 	case EntityTrophy:

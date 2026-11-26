@@ -477,6 +477,13 @@ const (
 	NoticeCured      // Arg: ItemKind that drew the poison out
 
 	NoticeArmoured // Arg: CreatureKind whose armour took half the blow; see ankylo.go
+
+	// The natural caves: see cavesys.go and caveprops.go.
+	NoticeDeepCaves  // down the rope into the deep caves
+	NoticeUpperCaves // back up the rope out of the deep caves
+	NoticeLavaBurn   // burnt by the lava, stood against it
+	NoticePainting   // Arg: the picture on the wall (see PaintingOf)
+	NoticeFossil     // Arg: ItemKind dug out of a great skeleton in the rock
 )
 
 // CommandKind is a discrete player request, as opposed to held input.

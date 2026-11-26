@@ -106,16 +106,18 @@ func (w *World) growVein(rng *rand.Rand, v veinDef, tx, ty int) int {
 // scatterDeepOres lays jade deep in the caves, once the ways in are known,
 // and makes sure some flint lies near the spawn (sx, sy).
 func (w *World) scatterDeepOres(rng *rand.Rand, sx, sy int) {
-	depth := w.caveReach()
-	deep := int32(0) // in small caves, the deeper half
-	for _, d := range depth {
-		deep = max(deep, d)
+	if !w.naturalCaves() { // the natural caves lay their jade on their lower level: see cavedress.go
+		depth := w.caveReach()
+		deep := int32(0) // in small caves, the deeper half
+		for _, d := range depth {
+			deep = max(deep, d)
+		}
+		deep = min(jadeDeep, deep/2)
+		w.scatterVeins(rng, []veinDef{jadeVein}, func(tx, ty int) bool {
+			d := depth[ty*w.width+tx]
+			return d >= deep
+		})
 	}
-	deep = min(jadeDeep, deep/2)
-	w.scatterVeins(rng, []veinDef{jadeVein}, func(tx, ty int) bool {
-		d := depth[ty*w.width+tx]
-		return d >= deep
-	})
 	for v, tries := 0, 0; v < homeFlintVeins && tries < homeFlintTries; tries++ {
 		a := rng.Float64() * 2 * math.Pi
 		r := homeFlintNear + rng.Float64()*(homeFlintFar-homeFlintNear)

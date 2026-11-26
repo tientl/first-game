@@ -55,7 +55,11 @@ import (
 //     out by island and by distance from home (wilds.go). Nothing older
 //     changes, but an older game would make the wrong world of such a save,
 //     so it must refuse it.
-const SaveVersion = 23
+//   - 24: worlds of StyleCaves: a natural cave system under each island, on
+//     two levels (cavesys.go), with its stalagmites, ropes and props, and
+//     torches that burn on in it. Nothing older changes, but an older game
+//     would make the wrong world of such a save, so it must refuse it.
+const SaveVersion = 24
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.

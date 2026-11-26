@@ -56,6 +56,7 @@ type World struct {
 	genH     int                 // the height the generator was asked for: what a save keeps
 	surfaceH int                 // rows above ground, when the caves lie below; see underground.go
 	links    map[[2]int]caveLink // cave mouths and ways up: where each leads
+	caves    *caveWorld          // the natural caves, since StyleCaves; nil before: see cavesys.go
 
 	woods woodsPlan // where the woods' trees stand, which they grow back to; see regrow.go
 
@@ -239,6 +240,9 @@ func (w *World) stepEntities() {
 				w.removeEntity(e) // left empty: grass again
 			}
 		case EntityCampfire, EntityTorchStand:
+			if e.Kind == EntityTorchStand && w.caveLevel(e.TY) >= 0 {
+				break // a torch set in the natural caves burns on, to mark the way: see caveprops.go
+			}
 			e.Fuel--
 			if w.wetFire(e.TX, e.TY) {
 				e.Fuel-- // rain: it burns down twice as fast

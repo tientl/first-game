@@ -22,7 +22,23 @@ func ankyloAt(t *testing.T, x float64, left bool, px float64) (*World, *Creature
 }
 
 func TestAnkylosaursComeInSmallGroupsInTheNewestWorlds(t *testing.T) {
-	w, err := Generate(GenConfig{Seed: 7, Width: SizeLarge, Height: SizeLarge, Style: StyleLatest})
+	// The sizes of the groups of three worlds: the few groups of one may all
+	// be of a size by chance.
+	sizes := map[int]bool{}
+	groups := 0
+	for _, seed := range []uint64{7, 8, 9} {
+		groups += ankyloGroups(t, seed, sizes)
+	}
+	if groups > 2 && len(sizes) < 2 {
+		t.Errorf("every one of %d groups has the same size: they should vary", groups)
+	}
+}
+
+// ankyloGroups checks the ankylosaurs of a newest world of the seed, notes
+// the sizes of their groups in sizes and returns how many groups there are.
+func ankyloGroups(t *testing.T, seed uint64, sizes map[int]bool) int {
+	t.Helper()
+	w, err := Generate(GenConfig{Seed: seed, Width: SizeLarge, Height: SizeLarge, Style: StyleLatest})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,21 +60,18 @@ func TestAnkylosaursComeInSmallGroupsInTheNewestWorlds(t *testing.T) {
 		}
 		groups[[2]float64{c.homeX, c.homeY}]++
 	}
-	sizes := map[int]bool{}
 	for _, n := range groups {
 		if n < 1 || n > ankyloDef.herd {
 			t.Errorf("a group of %d, want 1 to %d", n, ankyloDef.herd)
 		}
 		sizes[n] = true
 	}
-	if len(groups) > 2 && len(sizes) < 2 {
-		t.Errorf("every one of %d groups has the same size: they should vary", len(groups))
-	}
 	// The count follows the islands, as the other grazers' do (see wilds.go):
 	// the world tops up to as many as it was made with.
 	if w.fauna.target[CreatureAnkylo] != len(cs) {
 		t.Errorf("target %d, want the %d it was made with", w.fauna.target[CreatureAnkylo], len(cs))
 	}
+	return len(groups)
 }
 
 func TestAnOlderWorldGetsItsAnkylosaursAsItIsToppedUp(t *testing.T) {

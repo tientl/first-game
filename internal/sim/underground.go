@@ -274,12 +274,18 @@ func (w *World) travel(p *Player) {
 	if c := w.creatureByID(p.mount); c != nil {
 		c.X, c.Y = dest.x, dest.y
 	}
+	from := w.caveLevel(int(math.Floor(p.Y)))
 	p.X, p.Y = dest.x, dest.y
 	p.travelCD = TravelHold
 	p.explored.Reveal(p.X, p.Y)
-	if w.Underground(int(dest.y)) {
+	switch to := w.caveLevel(int(math.Floor(dest.y))); {
+	case to == 1:
+		p.notify(NoticeDeepCaves, 0) // down the rope: see cavesys.go
+	case to == 0 && from == 1:
+		p.notify(NoticeUpperCaves, 0)
+	case w.Underground(int(dest.y)):
 		p.notify(NoticeIntoCave, 0)
-	} else {
+	default:
 		p.notify(NoticeOutOfCave, 0)
 	}
 }
