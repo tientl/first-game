@@ -60,13 +60,16 @@ var dinoRigs = map[string]dinoRig{
 	"brachio": {
 		file: "brachio", stride: 3,
 		legs: []rigLimb{
-			hind(21, 35, 80, rigPt{29, 72}, rigPt{30, 90}, rigPt{29.5, 102}, rigPt{32, 111.5}),
+			// the near legs take only their own flank as they swing, not the chest
+			{x0: 21, x1: 35, top: 80, r: 7, j: []rigPt{{29, 72}, {30, 90}, {29.5, 102}, {32, 111.5}}},
 			hind(36, 45, 81, rigPt{41, 74}, rigPt{41.5, 90}, rigPt{41, 100}, rigPt{43, 108.5}),
 			fore(50, 59, 81, rigPt{55, 74}, rigPt{54.5, 90}, rigPt{55, 100}, rigPt{56.5, 108.5}),
-			fore(60, 73, 80, rigPt{66, 72}, rigPt{65.5, 90}, rigPt{66, 102}, rigPt{67.5, 111.5}),
+			{x0: 60, x1: 73, top: 80, r: 7, j: []rigPt{{66, 72}, {65.5, 90}, {66, 102}, {67.5, 111.5}}, fore: true},
 		},
-		head: rigPart{pivot: rigPt{83.5, 25.5}, dir: headUp(0.98), maxY: 60},
-		neck: rigPart{pivot: rigPt{72, 44}, dir: headUp(0.98), maxY: 80},
+		// The neck and the head bend about the top of the neck, so lowered they
+		// fold over the throat and open no gap along the top.
+		head: rigPart{pivot: rigPt{78.8, 25.1}, dir: headUp(0.98), maxY: 60},
+		neck: rigPart{pivot: rigPt{65.5, 39.5}, dir: headUp(0.98), maxY: 80},
 		jaw:  [2]rigPt{{99, 12.5}, {107, 13.5}},
 		gait: walkGait, far: 0b0110,
 		tail: rigPart{pivot: rigPt{22, 66}, dir: math.Pi, maxY: 92},
@@ -113,11 +116,12 @@ var dinoRigs = map[string]dinoRig{
 			{x0: 45, x1: 64, top: 56, r: 9, j: []rigPt{{53, 47}, {60, 65.5}, {49.5, 72}, {52, 83}, {65, 85}}},
 			{x0: 27, x1: 44, top: 56, r: 7, j: []rigPt{{40, 48}, {41, 60}, {33, 71}, {35, 83}, {45, 85}}},
 		},
-		head:  rigPart{pivot: rigPt{70, 39}, dir: headUp(math.Pi / 4), maxY: 56},
-		jaw:   [2]rigPt{{84, 33}, {103, 33}},
-		teeth: true,
-		far:   0b10,
-		tail:  rigPart{pivot: rigPt{38, 39}, dir: math.Pi, maxY: 50},
+		head:       rigPart{pivot: rigPt{70, 39}, dir: headUp(math.Pi / 4), maxY: 56},
+		jaw:        [2]rigPt{{84, 34}, {103, 34}}, // the upper teeth are above this line, in the drawing
+		drawnTeeth: true,
+		teeth:      true,
+		far:        0b10,
+		tail:       rigPart{pivot: rigPt{38, 39}, dir: math.Pi, maxY: 50},
 	},
 	"ornitho": {
 		file: "ornitho", stride: 3, runner: true,
@@ -132,15 +136,16 @@ var dinoRigs = map[string]dinoRig{
 		tail: rigPart{pivot: rigPt{13, 19}, dir: math.Pi, maxY: 25},
 	},
 	"thesc": {
-		file: "thesc", stride: 2.5,
-		legs: []rigLimb{
-			hind(23, 31, 25, rigPt{27, 20}, rigPt{28.5, 25}, rigPt{25, 28}, rigPt{25.5, 31.5}, rigPt{31, 32.5}),
-			hind(13, 22, 25, rigPt{17.5, 20}, rigPt{18.5, 25}, rigPt{15, 28}, rigPt{15.5, 31.5}, rigPt{21, 32.5}),
+		// Drawn again long and low (2026-11): the joints measured on the new drawing.
+		file: "thesc", stride: 4,
+		legs: []rigLimb{ // the near leg, then the far one behind it
+			hind(70, 86, 32, rigPt{73, 24}, rigPt{80, 33}, rigPt{74.4, 42.6}, rigPt{76.6, 46.2}, rigPt{84.6, 46.8}),
+			hind(56, 69, 32, rigPt{65, 24}, rigPt{70.6, 33.6}, rigPt{64.2, 42.6}, rigPt{66, 46.2}, rigPt{73.4, 46.8}),
 		},
-		head: rigPart{pivot: rigPt{33, 10.5}, dir: headUp(0.6), maxY: 15},
-		jaw:  [2]rigPt{{41, 11}, {47, 11.4}},
+		head: rigPart{pivot: rigPt{101, 18}, dir: headUp(0.25), maxY: 24},
+		jaw:  [2]rigPt{{117.6, 16.4}, {124.4, 16.8}},
 		far:  0b10,
-		tail: rigPart{pivot: rigPt{12, 13}, dir: math.Pi, maxY: 20},
+		tail: rigPart{pivot: rigPt{60, 17}, dir: math.Pi, maxY: 26},
 	},
 	"anzu": {
 		file: "anzu", stride: 3,
@@ -164,9 +169,10 @@ var dinoRigs = map[string]dinoRig{
 	},
 	"plesio": {
 		file: "plesio", ax: 23, ay: 45,
-		head:  rigPart{pivot: rigPt{34, 40}, dir: headUp(0.9), maxY: 45},
-		jaw:   [2]rigPt{{51.5, 9.5}, {60.5, 9.6}},
-		teeth: true,
+		head:       rigPart{pivot: rigPt{34, 40}, dir: headUp(0.9), maxY: 45},
+		jaw:        [2]rigPt{{51.5, 10.15}, {60.6, 10.25}}, // the upper teeth are above this line, in the drawing
+		teeth:      true,
+		drawnTeeth: true,
 	},
 	"pteroPerch": {file: "ptero_perch", ax: 28, ay: 38},
 	// The fliers are seen from above, heading right: the far wing up the

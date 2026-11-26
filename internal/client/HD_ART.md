@@ -85,8 +85,13 @@ it and pick one with a flag, or make both from the same code with
   DumpLimbAnim -v` writes sheets and GIFs of the strides and blows and what
   they cost.
 - The dinosaurs drawn from PNGs are HD: `dinos/hd/*.png` are the drawings
-  of `dinos/` redrawn 3x as fine by `dinos/hd/gen.py` (rerun it after
-  changing a drawing or its settings there). The rig (`dinorig.go`) is still
+  of `dinos/` redrawn 3x as fine. The rex and the three-horn are painted
+  over their drawings by `go run ./cmd/dinopaint` from descriptions in
+  `internal/dinopaint` (masses, muscles, materials, scales, eyes, teeth,
+  horns; see `dinos/hd/README.md` to add one); the others are still upscaled
+  by `dinos/hd/gen.py`. An open jaw at HD shows a mouth with a tongue and
+  lower teeth (`mouthHD`); a rig whose drawing has the upper teeth above
+  its jaw line says `drawnTeeth`. The rig (`dinorig.go`) is still
   measured in the pixels of the density-1 drawing and scales itself; its
   canvases carry `dens`, which `mk` turns into an HD sprite. `dinoHD = false`
   brings back the density-1 drawings. Strides, wingbeats and wound-up blows

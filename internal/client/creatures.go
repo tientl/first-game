@@ -841,7 +841,7 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 	case sim.CreatureOrnitho, sim.CreatureAnzu:
 		return 13
 	case sim.CreatureThesc:
-		return 18
+		return 30 // drawn long and low now (thesc.png)
 	case sim.CreatureAchero:
 		return 12
 	case sim.CreatureTroodon:
@@ -970,7 +970,10 @@ func (g *Game) drawSeaReptile(dst drawTarget, cam camera, c protocol.CreatureVie
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(sx-s.ax, sy+bob-s.ay)
 	if c.State == sim.CreatureLurk {
-		op.ColorScale.ScaleAlpha(0.45) // seen through the water
+		s = plesioUnderWater(c.FaceLeft, g.frame+int(c.ID)*7) // its soft shape through the water (plesiowater.go)
+		op.GeoM.Reset()
+		op.GeoM.Translate(sx-s.ax, sy+bob-s.ay)
+		op.ColorScale.ScaleAlpha(0.7)
 		drawSprite(dst, s, op)
 		return
 	}

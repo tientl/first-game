@@ -70,7 +70,7 @@ type legCut struct {
 	l0, l1         float64
 }
 
-func cutLeg(w *canvas, l rigLimb, pad, k int, far bool) legCut {
+func cutLeg(w *canvas, l rigLimb, pad, k int, far bool, own *legOwner) legCut {
 	kf := float64(k)
 	c := legCut{fore: l.fore, far: far, inside: far || l.r == 0, top: l.top*k + pad}
 	for _, q := range l.j {
@@ -78,6 +78,9 @@ func cutLeg(w *canvas, l rigLimb, pad, k int, far bool) legCut {
 	}
 	n := len(c.P) - 1
 	x0, x1 := l.x0*k+pad, (l.x1+1)*k-1+pad
+	if own != nil {
+		x0, x1 = own.x0, own.x1 // the leg as painted, not its columns (dinolegmask.go)
+	}
 	zr := l.r * kf
 	if zr == 0 {
 		zr = c.P[1].sub(c.P[0]).len()/2 + kf
@@ -94,14 +97,14 @@ func cutLeg(w *canvas, l rigLimb, pad, k int, far bool) legCut {
 		for x := 0; x < c.bw; x++ {
 			i := y*c.bw + x
 			c.seg[i] = -1
-			q := w.px[(y+c.by)*w.w+x+c.bx]
+			q, mine := own.pick(w.px[(y+c.by)*w.w+x+c.bx], x+c.bx, y+c.by) // dinolegmask.go
 			if q.A < 128 {
 				continue
 			}
 			p := rigPt{float64(x+c.bx) + 0.5, float64(y+c.by) + 0.5}
 			s := -1
 			if y+c.by >= c.top {
-				if x+c.bx < x0 || x+c.bx > x1 {
+				if x+c.bx < x0 || x+c.bx > x1 || !mine {
 					continue
 				}
 				best := math.Inf(1)
@@ -110,7 +113,7 @@ func cutLeg(w *canvas, l rigLimb, pad, k int, far bool) legCut {
 						best, s = d, j
 					}
 				}
-			} else if segDist(p, c.P[0], c.P[1]) <= zr {
+			} else if segDist(p, c.P[0], c.P[1]) <= zr && mine {
 				s = 0
 			} else {
 				continue
@@ -406,7 +409,7 @@ func stepJoints(w *canvas, r dinoRig, p rigPose, pad, k int) float64 {
 	if !ok {
 		cuts = make([]legCut, n)
 		for i, l := range r.legs {
-			cuts[i] = cutLeg(w, l, pad, k, r.far>>uint(i)&1 == 1)
+			cuts[i] = cutLeg(w, l, pad, k, r.far>>uint(i)&1 == 1, legOwnerOf(r.file, i, pad, k))
 		}
 		dinoMu.Lock()
 		legCuts[key] = cuts

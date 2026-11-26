@@ -21,6 +21,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # skin: the texture laid over the hide; cell: its size in image pixels.
 # eyes: boxes (x0, y0, x1, y1) of the iris in the drawing's pixels; slit: a hunter's pupil.
 # teeth: the box of the mouth, where pale pixels are teeth.
+# Painted by hand-written descriptions in Go instead (internal/dinopaint,
+# cmd/dinopaint; see README.md here): this script leaves them alone.
+PAINTED = {'rex', 'trike', 'toro', 'stego', 'thesc', 'brachio', 'plesio'}
+
 CFG = {
     'rex':         dict(skin='scale', cell=(5, 4), eyes=[(87, 20, 88, 20)], slit=True, teeth=(82, 31, 105, 34)),
     'trike':       dict(skin='scale', cell=(5, 4), eyes=[(62, 32, 62, 32)]),
@@ -243,6 +247,8 @@ def redraw(name):
 
 
 if __name__ == '__main__':
-    for n in sys.argv[1:] or sorted(CFG):
+    for n in sys.argv[1:] or sorted(set(CFG) - PAINTED):
+        if n in PAINTED:
+            sys.exit(n + ' is painted by cmd/dinopaint now: go run ./cmd/dinopaint ' + n)
         redraw(n)
         print('wrote', n)
