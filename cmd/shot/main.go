@@ -745,6 +745,8 @@ func main() {
 		put(sim.CreatureTrike, -1, -6.8, sim.CreatureIdle, true)
 		put(sim.CreatureTrike, 1.5, -1.5, sim.CreatureChase, true) // charging, head down
 		put(sim.CreatureStego, 5.5, -5.5, sim.CreatureIdle, true)
+		put(sim.CreatureAnkylo, 8.5, -6.5, sim.CreatureIdle, true)
+		put(sim.CreatureAnkylo, -10.5, 1, sim.CreatureRoar, false) // its club turned on someone
 		put(sim.CreatureRex, 8, 1.5, sim.CreatureRoar, true)
 		put(sim.CreatureRaptor, -6.5, 3, sim.CreatureIdle, false)
 		put(sim.CreatureRaptor, -4.8, 4.2, sim.CreatureStrike, false)
@@ -756,6 +758,7 @@ func main() {
 		}
 	}
 	putDinosA(&snap, sx, sy, *coast) // dinosa.go
+	putAnkylo(&snap, sx, sy)         // ankylo.go
 	if *eat {
 		for i := range snap.Creatures {
 			if c := &snap.Creatures[i]; c.State == sim.CreatureIdle && c.Kind.Feeds() {

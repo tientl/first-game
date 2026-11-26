@@ -727,6 +727,8 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		return sim.ItemKind(arg).Def().Name + " có độc — bạn trúng độc! (nhai Thảo dược để giải)"
 	case sim.NoticeCured:
 		return sim.ItemKind(arg).Def().Name + " đã giải độc"
+	case sim.NoticeArmoured:
+		return "Giáp xương đỡ mất nửa đòn — vòng lên đánh vào đầu " + strings.ToLower(sim.CreatureKind(arg).Name())
 	case sim.NoticeNeedSeed:
 		return "Cần giống để trồng: khoai lang, thóc, ngô hoặc hạt bí"
 	case sim.NoticeChestFull:
@@ -777,6 +779,8 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 			verb = " mổ!"
 		case sim.CreatureStego:
 			verb = " quất đuôi!"
+		case sim.CreatureAnkylo:
+			verb = " quật chùy đuôi, văng ra xa!"
 		case sim.CreaturePtero:
 			verb = " mổ!"
 		case sim.CreatureSpider:

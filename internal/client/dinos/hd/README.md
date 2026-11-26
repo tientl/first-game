@@ -66,6 +66,11 @@ guide (`dinos/<name>.png`): open it enlarged with a grid to measure.
    straight edges or holes. More helpers for a description's details:
    `Plate` (a stegosaur's plates), `RimSpikes` (a frill's), `Gloss` (wet
    skin), `Fuzz` (a fuzzy coat), `Trace`/`Clear` (drawn water), `Tint`.
+   Armour (`armour.go`, the ankylosaur's): `Scutes` lays bony plates edge
+   to edge in bands down from the back, keeled, rimmed with pale bone, the
+   skin dark between them; it changes the light and the materials, so it
+   comes first among the details, then `Redraw`. Spikes on the body painted
+   between `Mark` and `Claim` stay with the body when a leg below steps.
 7. Paint, add the name to `PAINTED` in `gen.py`, and look:
 
    ```sh

@@ -133,6 +133,7 @@ func lerpPose(a, b rigPose, t float64) rigPose {
 		step: l(a.step, b.step), head: l(a.head, b.head), neck: l(a.neck, b.neck),
 		open: l(a.open, b.open), tail: l(a.tail, b.tail), wings: l(a.wings, b.wings),
 		squash: l(sq(a.squash), sq(b.squash)), tilt: l(a.tilt, b.tilt), lift: l(a.lift, b.lift),
+		sweep: l(a.sweep, b.sweep),
 	}
 }
 
