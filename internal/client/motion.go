@@ -49,6 +49,11 @@ const (
 	moDismount            // and down off it
 	moRide                // astride, the mount walking: the rider sways with it
 	moRideRun             // the mount running: lean in, bounce
+	moSwim                // a breaststroke: reach, sweep out, pull in, shoot forward, glide
+	moTread               // treading water: hands sculling, legs turning, bobbing
+	moRideIdle            // astride a beast standing still: breathing
+	moSleep               // lying asleep: on the back, on one side, the other, curled on the ground; each breathing in and out
+	moWake                // sitting up out of sleep, standing, a stretch and a yawn
 	numMotions
 )
 
@@ -93,6 +98,11 @@ var motions = [numMotions]motionDef{
 	moDismount:   {"dismount", []int{100, 120, 120, 100, 160}, false, "jump"},
 	moRide:       {"ride", []int{125, 125, 125, 125, 125, 125, 125, 125}, true, "walk"},
 	moRideRun:    {"ride (run)", []int{80, 80, 80, 80, 80, 80, 80, 80}, true, "run"},
+	moSwim:       {"swim", []int{70, 70, 70, 70, 70, 70, 70, 70}, true, "walk"},
+	moTread:      {"tread water", []int{220, 200, 220, 220, 200, 220}, true, "idle"},
+	moRideIdle:   {"ride (still)", []int{700, 450, 700, 450}, true, "idle"},
+	moSleep:      {"sleep", []int{1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500}, false, "sit"},
+	moWake:       {"wake", []int{170, 150, 150, 260, 300, 170}, false, "spellcast"},
 }
 
 // frames is how many key poses m has.
@@ -245,6 +255,19 @@ func motionKey(m motionID, f int, side, back bool) kp {
 		return sitKey(m, f, side)
 	case moMount, moDismount, moRide, moRideRun:
 		return rideKey(m, f, side)
+	case moRideIdle:
+		k := rideKey(moRide, 0, side)
+		k.breath = [4]float64{0, 1, 1.5, 0.6}[f]
+		k.drop = 0
+		return k
+	case moSleep:
+		return sleepPoseKey(f)
+	case moWake:
+		return wakeKey(f, side)
+	case moSwim:
+		return swimKey(f, side, back)
+	case moTread:
+		return treadKey(f, side)
 	}
 	return kp{a0: armRest, a1: armRest}
 }
@@ -880,4 +903,135 @@ func (b bendKey) mouth(f *figHD, T *figLayer, d sim.Dir, l sim.Look) {
 		}
 		f.dot(T, x, 42, c)
 	}
+}
+
+// swimKey is a breaststroke (no LPC row swims; its rhythm is the walk's
+// eight beats): arms out ahead in the glide (0, 1), swept out and down (2),
+// pulled in under the chin as the head comes up for air (3), the knees
+// drawn up (4), the arms shot forward as the legs kick (5), and into the
+// glide (6, 7). Sideways the body lies forward into the water, the head up.
+// Only the head and shoulders show: the rest is drawn under the surface
+// (swimhd.go).
+func swimKey(f int, side, back bool) kp {
+	var k kp
+	type st struct{ sh, el, ab, lift, kf, ku float64 }
+	s := [8]st{
+		{0.95, 0.05, 0.1, 0, -9, 4},
+		{0.9, 0.1, 0.15, 0, -9, 4},
+		{0.55, 0.25, 0.55, -1, -6, 6},
+		{0.15, 1.9, 0.35, -2.5, 2, 10},
+		{0.35, 2.2, 0.15, -2, 5, 12},
+		{0.75, 1.0, 0.1, -0.5, -12, 3},
+		{0.95, 0.15, 0.08, 0.5, -11, 3},
+		{0.95, 0.05, 0.1, 0.5, -10, 4},
+	}[f]
+	if side {
+		k.a0 = armJ{sh: s.sh, el: s.el, ab: 0.05, out: 1}
+		k.a1 = armJ{sh: s.sh - 0.08, el: s.el, ab: 0.05}
+		k.tilt, k.nod = 0.62, -0.55-0.12*clamp01(-s.lift/2)
+		k.l0 = legJ{f: s.kf, u: s.ku, pitch: 0.6}
+		k.l1 = legJ{f: s.kf - 2, u: s.ku + 1, pitch: 0.6}
+		k.lagX = -2
+	} else {
+		// From the front or the back the arms sweep out to the sides
+		// and in.
+		ab := [8]float64{0.25, 0.4, 1.15, 0.7, 0.2, 0.15, 0.2, 0.25}[f]
+		k.a0 = armJ{sh: math.Max(0.6, s.sh+0.4), el: s.el * 0.8, ab: ab}
+		k.a1 = k.a0
+		k.tilt = 0.35
+		k.nod = -0.2
+		if back {
+			k.nod = 0.1
+		}
+		k.l0, k.l1 = legJ{f: s.kf * 0.3, u: s.ku}, legJ{f: s.kf * 0.3, u: s.ku}
+		k.spread = [8]float64{2, 2, 3, 6, 8, 4, 2, 2}[f]
+	}
+	k.drop = s.lift
+	return k
+}
+
+// treadKey is treading water, upright: the hands scull out and in just
+// under the surface, the legs turn under, the head bobs.
+func treadKey(f int, side bool) kp {
+	u := float64(f) / 6 * 2 * math.Pi
+	sc := math.Sin(u)
+	k := kp{
+		a0:   armJ{sh: 0.5 + 0.2*sc, el: 0.7, ab: 0.75 + 0.3*sc},
+		a1:   armJ{sh: 0.5 - 0.2*sc, el: 0.7, ab: 0.75 - 0.3*sc},
+		l0:   legJ{f: 5 * math.Cos(u), u: 6 + 4*math.Sin(u)},
+		l1:   legJ{f: -5 * math.Cos(u), u: 6 - 4*math.Sin(u)},
+		drop: -1.2 * math.Cos(u),
+		nod:  -0.08,
+		lagY: math.Round(math.Cos(u)),
+	}
+	if side {
+		k.a0 = armJ{sh: 0.6 + 0.35*sc, el: 0.6, ab: 0.1}
+		k.a1 = armJ{sh: 0.6 - 0.35*sc, el: 0.6, ab: 0.1}
+		k.tilt = 0.08
+	} else {
+		k.spread = 4
+	}
+	return k
+}
+
+// sleepPoseKey is a sleeper's pose, drawn standing and laid down
+// (sleephd.go): frame 2*pose + breath. On the back (0) the knees are up and
+// a hand on the chest; on the side (1, seen from the side and laid down
+// either way) curled, the knees drawn up, the upper arm before the chest;
+// curled on the ground (2) the lower arm folded under the head for a
+// pillow; and (3) on the back, stirring, an arm thrown out.
+func sleepPoseKey(f int) kp {
+	b := float64(f % 2)
+	k := kp{shut: true, breath: 1.4 * b}
+	switch f / 2 {
+	case 0, 3:
+		k.a0 = armJ{sh: 0.55, el: 1.7, ab: -0.05}
+		k.a1 = armJ{sh: 0.1, el: 0.3, ab: 0.22}
+		k.l0, k.l1 = legJ{f: 14}, legJ{f: 12}
+		k.drop, k.spread = 21, 3
+		if f/2 == 3 {
+			k.a1 = armJ{sh: 0.2, el: 0.4, ab: 1.5}
+			k.l1 = legJ{f: 4}
+			k.drop = 14
+		}
+	case 1:
+		k.a0 = armJ{sh: 1.25, el: 1.35}
+		k.a1 = armJ{sh: 1.5, el: 1.2}
+		k.l0, k.l1 = legJ{f: 24, u: 13, pitch: 0.4}, legJ{f: 21, u: 10, pitch: 0.4}
+		k.drop, k.tilt, k.nod = 16, 0.35, 0.25
+	case 2:
+		k.a0 = armJ{sh: 1.15, el: 1.3}
+		k.a1 = armJ{sh: 2.85, el: 2.1} // folded under the head
+		k.l0, k.l1 = legJ{f: 25, u: 14, pitch: 0.4}, legJ{f: 20, u: 9, pitch: 0.4}
+		k.drop, k.tilt, k.nod = 16, 0.4, 0.3
+	}
+	return k
+}
+
+// wakeKey is getting up out of sleep: sitting up (0), a squat (1), up with
+// the arms rising (2), the stretch, arms high, the head back in a yawn (3,
+// 4), and down (5).
+func wakeKey(f int, side bool) kp {
+	switch f {
+	case 0:
+		return sitKey(moSit, 0, side)
+	case 1:
+		return sitKey(moSitDown, 1, side)
+	}
+	up := [6]float64{0, 0, 0.5, 1, 1, 0.3}[f]
+	k := kp{
+		a0:   armJ{sh: lerpf(0.3, 2.9, up), el: lerpf(0.6, 0.35, up), ab: lerpf(armOut, 0.4, up)},
+		a1:   armJ{sh: lerpf(0.3, 2.9, up), el: lerpf(0.6, 0.35, up), ab: lerpf(armOut, 0.4, up)},
+		tilt: -0.1 * up, nod: -0.25 * up, breath: 1.6 * up,
+		drop: -footLift(0.3 * up),
+		l0:   legJ{pitch: 0.3 * up, u: footLift(0.3 * up)}, l1: legJ{pitch: 0.3 * up, u: footLift(0.3 * up)},
+		shut: f == 3 || f == 4,
+	}
+	if f == 3 || f == 4 {
+		k.jaw = 1 // a yawn
+	}
+	if !side {
+		k.a0.ab, k.a1.ab = lerpf(armOut, 0.55, up), lerpf(armOut, 0.55, up)
+	}
+	return k
 }

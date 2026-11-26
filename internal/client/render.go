@@ -769,6 +769,11 @@ func (g *Game) drawStanding(dst drawTarget, p protocol.PlayerView, d drawable) {
 		g.drawHeroHD(dst, p, d) // the trial hero; see herohddraw.go
 		return
 	}
+	if playerHD && playerJointed && g.fordWading(d) { // knee-deep in a ford; see swimhd.go
+		g.drawWader(dst, p, d)
+		g.drawAilments(dst, p, d)
+		return
+	}
 	if playerHD && playerJointed { // see limbdraw.go
 		dir := p.Dir & 3
 		lo, up := g.stride(p, dir, d.wx, d.wy, d.moving)
@@ -851,6 +856,10 @@ func (g *Game) drawAilments(dst drawTarget, p protocol.PlayerView, d drawable) {
 // drawSleeper draws p lying in bed, head on the pillow, under a blanket.
 // The server snaps a sleeper onto the bed's tile, so the bed is at (sx, sy).
 func (g *Game) drawSleeper(dst drawTarget, p protocol.PlayerView, d drawable) {
+	if playerHD && playerJointed { // laid down under a fur, breathing; see sleephd.go
+		g.drawSleeperHD(dst, p, d)
+		return
+	}
 	tint := playerColors[int(p.ID)%len(playerColors)]
 	// Turned a quarter left: the feet anchor goes to the foot of the bed and
 	// the head to the pillow. Breathing lifts the blanket a pixel.

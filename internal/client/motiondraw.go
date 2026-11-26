@@ -41,12 +41,23 @@ func (g *Game) drawDying(dst drawTarget, p protocol.PlayerView, d drawable) bool
 		drawFig(dst, figDraw{b: b, armor: armor, up: up, lo: lo, tint: tint, rot: way * 0.75}, x, y)
 	case 5: // down, on the back, as the body lies
 		dust(dst, x, y, age-moDie.startOf(5), uint32(p.ID))
-		drawFig(dst, figDraw{b: b, armor: armor, up: upKey{dir: sim.DirDown, anim: upFallen}, tint: tint, rot: -math.Pi / 2}, x+14, y-3)
+		g.drawLaidBody(dst, p, d)
 	default:
 		lo, up := moDie.keys(dir, fr)
 		drawFig(dst, figDraw{b: b, armor: armor, up: up, lo: lo, tint: tint}, x, y)
 	}
 	return true
+}
+
+// drawLaidBody draws p lying on their back where they fell, as their body
+// lies (bodyart.go): head to the left, an arm thrown up past it.
+func (g *Game) drawLaidBody(dst drawTarget, p protocol.PlayerView, d drawable) {
+	var armor *armorArt
+	if p.Armor > sim.TierStone {
+		armor = g.art.armor(p.Armor, p.Look.Female)
+	}
+	drawFig(dst, figDraw{b: g.art.bodyIn(p.Look, p.Wear), armor: armor, up: upKey{dir: sim.DirDown, anim: upFallen},
+		tint: playerColors[int(p.ID)%len(playerColors)], rot: -math.Pi / 2}, d.sx+14, d.sy-3)
 }
 
 // graveFalling reports whether body e is where a player is still falling:

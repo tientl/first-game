@@ -118,6 +118,7 @@ func main() {
 	gifN := flag.Int("gif", 0, "write a GIF of this many frames (with -crop: of that region, not enlarged) as <o>.gif, from the frame -frames picks")
 	gifStep := flag.Int("gifstep", 2, "with -gif: game frames between the GIF's frames")
 	benchN := flag.Int("bench", 0, "time this many frames before the capture, vsync off, and print what they took and the ground's memory")
+	motionSheet := flag.String("motionsheet", "", "write the player's motion sheet and GIFs into this folder instead of a frame (see internal/client/motionsheet.go)")
 	thin := flag.Float64("thin", 1, "keep about this share of the trees, bushes and rocks round the player (to see the ground)")
 	styleFlag := flag.Int("style", -1, "with -open: the world style to make (default: the latest; 7 is the archipelago before the designed islands, 8 the designed islands before the woods were spaced, 9 the woods before the wide beaches)")
 	canopyFlag := flag.Bool("canopy", false, "print the share of the view the canopy covers: the drawings of trees and the like, taller than a player (see internal/client/canopyshare.go)")
@@ -958,6 +959,9 @@ func main() {
 	if *trunkSheet {
 		g.trunks = game
 	}
+	if *motionSheet != "" {
+		g.motions, g.motionDir = game, *motionSheet
+	}
 	if *iconSheet {
 		g.icons = game
 	}
@@ -990,17 +994,19 @@ func (c *fakeConn) Messages() <-chan protocol.ServerMsg { return c.ch }
 func (c *fakeConn) Close() error                        { return nil }
 
 type shooter struct {
-	inner  ebiten.Game
-	frames int
-	n      int
-	out    string
-	crop   string
-	done   bool
-	err    error
-	sheet  *client.Game // write its scale sheet instead of the frame
-	trunks *client.Game // write its trunk sheet instead of the frame
-	icons  *client.Game // write its icon sheet instead of the frame
-	cost   bool         // print what the art has cost
+	inner     ebiten.Game
+	frames    int
+	n         int
+	out       string
+	crop      string
+	done      bool
+	err       error
+	sheet     *client.Game // write its scale sheet instead of the frame
+	trunks    *client.Game // write its trunk sheet instead of the frame
+	motions   *client.Game // write its motion sheets into motionDir instead of the frame
+	motionDir string
+	icons     *client.Game // write its icon sheet instead of the frame
+	cost      bool         // print what the art has cost
 
 	gifN, gifStep int           // -gif: frames to keep, and game frames between them
 	gifFrames     []*image.RGBA // kept so far
@@ -1040,6 +1046,13 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 			return
 		}
 		log.Printf("wrote %s", gifPath(s.out))
+	}
+	if s.motions != nil {
+		s.err, s.done = s.motions.MotionSheets(s.motionDir), true
+		if s.err == nil {
+			log.Printf("wrote the motion sheets in %s", s.motionDir)
+		}
+		return
 	}
 	b := screen.Bounds()
 	img := image.NewRGBA(b)

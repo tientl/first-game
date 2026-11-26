@@ -37,7 +37,10 @@ type moState struct {
 	deadX       float32 // where
 	deadY       float32
 	wasSwimming bool
-	wadeAt      int // when they came out of the water or went in: see swimhd.go
+	wadeAt      int      // when they came out of the water or went in: see swimhd.go
+	swim        swimGait // their stroke; see swimhd.go
+	asleepAt    int      // when they lay down to sleep; see sleephd.go
+	wokeAt      int      // and got up
 }
 
 // Sitting down by a fire comes after standing this long near it, in
@@ -56,7 +59,7 @@ func (g *Game) moveState(id sim.PlayerID) *moState {
 	st := g.moves[id]
 	if st == nil {
 		st = &moState{movedAt: g.frame, blowAt: never, deedAt: never, sitAt: never, standAt: never,
-			mountAt: never, dismountAt: never, deadAt: never, wadeAt: never}
+			mountAt: never, dismountAt: never, deadAt: never, wadeAt: never, asleepAt: never, wokeAt: never}
 		g.moves[id] = st
 	}
 	return st
@@ -110,6 +113,12 @@ func (g *Game) noteMotions(old, cur protocol.Snapshot) {
 			st.deadAt, st.deadDir, st.deadX, st.deadY = g.frame, q.Dir&3, q.X, q.Y
 		case !p.Dead:
 			st.deadAt = never
+		}
+		switch {
+		case p.Asleep && !q.Asleep:
+			st.asleepAt, st.wokeAt = g.frame, never
+		case !p.Asleep && q.Asleep && !p.Dead:
+			st.wokeAt, st.asleepAt = g.frame, never
 		}
 		if p.Swimming != q.Swimming {
 			st.wadeAt = g.frame
@@ -165,6 +174,9 @@ func (g *Game) motionOf(p protocol.PlayerView, moving bool) (motionID, int, bool
 			}
 			return m, m.frameAt(age), true
 		}
+	}
+	if fr, ok := g.waking(p, st); ok && !moving { // up out of bed; see sleephd.go
+		return moWake, fr, true
 	}
 	// Getting up from the ground: at twice the speed of sitting down, the
 	// feet already going.
