@@ -142,8 +142,9 @@ func (w *World) seaDistance(most int) []uint8 {
 	return d
 }
 
-// isleLevels works out the height level of every land tile.
-func (w *World) isleLevels(im *isleMap, toSea []uint8, seed uint32) []uint8 {
+// isleLevels works out the height level of every land tile; beach (nil
+// before StyleBeaches) keeps the ground on and behind a beach level.
+func (w *World) isleLevels(im *isleMap, toSea []uint8, beach *beachField, seed uint32) []uint8 {
 	W, H := w.width, w.height
 	lev := make([]uint8, len(w.tiles))
 	for i, t := range w.tiles {
@@ -164,7 +165,7 @@ func (w *World) isleLevels(im *isleMap, toSea []uint8, seed uint32) []uint8 {
 		}
 		_, coast := cliffShare(s)
 		sea := int(toSea[i])
-		if sea <= 2 {
+		if sea <= 2 || beach.level(i) {
 			l = 0
 		}
 		if coast > 0 && sea <= 4+int(3*fbm(x/11, y/11, seed+72, 2)) && s.cliffCoast(x, y, coast) {

@@ -51,7 +51,7 @@ func main() {
 	open := flag.Bool("open", false, "an open world instead of the 96x96 island")
 	sizes := flag.Bool("sizes", false, "with -menu: show the difficulty picker (it took the place of the world-size picker)")
 	size := flag.Int("size", 256, "open world size")
-	at := flag.String("at", "", "open world: stand at desert, marsh, pond (a swamp with ponds), cave, mountain, ash or lava; or by the nearest cavemouth, cavein, pyramid, village, path, giant (tree) or hut (at its door); and in the newest worlds at waterfall, ramp (through a cliff) or lagoon (see isles.go)")
+	at := flag.String("at", "", "open world: stand at desert, marsh, pond (a swamp with ponds), cave, mountain, ash or lava; or by the nearest cavemouth, cavein, pyramid, village, path, giant (tree) or hut (at its door); and in the newest worlds at waterfall, ramp (through a cliff), lagoon or beach (see isles.go)")
 	female := flag.Bool("female", false, "the player is a woman")
 	hair := flag.Int("hair", 0, "the player's hair style, 0 to 6 (6: the shaggy mane)")
 	hairColor := flag.Int("haircolor", 0, "the player's hair colour, 0 to 7")
@@ -109,6 +109,7 @@ func main() {
 	trunkSheet := flag.Bool("trunksheet", false, "write the trunk sheet instead of a frame: the foot of every kind of tree close up, three times the size (see internal/client/trunksheet.go)")
 	costFlag := flag.Bool("cost", false, "print what the art drawn in code has cost once the frame is taken: the bytes of its images, the time to draw the start-up set and the trees drawn ahead, and the Go heap")
 	moveBy := flag.String("move", "", "dx,dy: stand this many tiles from where the other flags put the player (to stand behind a tree, at a door)")
+	standAt := flag.String("pos", "", "x,y: stand on this tile, whatever the other flags say (to see one place in worlds of two styles)")
 	scaleOnly := flag.String("scaleonly", "", "with -scalesheet: only the groups whose name contains this (trees, conifers, swamp, low, buildings, rocks, creatures)")
 	scaleTitle := flag.String("scaletitle", "", "with -scalesheet: a heading for the sheet")
 	subPixel := flag.Bool("subpixel", true, "let the camera and moving things sit between art pixels, on screen pixels (false: whole art pixels, as before HD art)")
@@ -117,7 +118,7 @@ func main() {
 	gifStep := flag.Int("gifstep", 2, "with -gif: game frames between the GIF's frames")
 	benchN := flag.Int("bench", 0, "time this many frames before the capture, vsync off, and print what they took and the ground's memory")
 	thin := flag.Float64("thin", 1, "keep about this share of the trees, bushes and rocks round the player (to see the ground)")
-	styleFlag := flag.Int("style", -1, "with -open: the world style to make (default: the latest; 7 is the archipelago before the designed islands, 8 the designed islands before the woods were spaced)")
+	styleFlag := flag.Int("style", -1, "with -open: the world style to make (default: the latest; 7 is the archipelago before the designed islands, 8 the designed islands before the woods were spaced, 9 the woods before the wide beaches)")
 	canopyFlag := flag.Bool("canopy", false, "print the share of the view the canopy covers: the drawings of trees and the like, taller than a player (see internal/client/canopyshare.go)")
 	oldSave := flag.Bool("oldsave", false, "with -open: save the world as a game from before the woods were thinned (version 19) and load it again, which thins them (see internal/sim/thinwoods.go)")
 	loadSave := flag.String("load", "", "load this save file (a copy of one) instead of making a world, an older one thinned as the game would; stand where its first player stood (-move is from there)")
@@ -287,6 +288,7 @@ func main() {
 	}
 	if x, y, ok := islesSpot(w, *at, sx, sy); ok { // see isles.go
 		sx, sy, *at = x, y, ""
+		log.Printf("standing at %.1f,%.1f", sx, sy)
 	}
 	if *at == "cavemouth" || *at == "cavein" || *at == "giant" || *at == "hut" {
 		k := sim.EntityCaveMouth
@@ -411,6 +413,10 @@ func main() {
 			}
 		}
 		sx, sy = bx, by
+	}
+	var px, py float64
+	if n, _ := fmt.Sscanf(*standAt, "%g,%g", &px, &py); n == 2 {
+		sx, sy = px+0.5, py+0.5
 	}
 	var mdx, mdy float64
 	if n, _ := fmt.Sscanf(*moveBy, "%g,%g", &mdx, &mdy); n == 2 {

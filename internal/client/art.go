@@ -60,6 +60,7 @@ type art struct {
 	tuftFull       sprite
 	tuftPicked     sprite
 	twig           sprite
+	driftwood      sprite // a twig lying on the sand: see terrainsea.go
 	wall, bed      sprite
 	blanket        sprite
 
@@ -140,6 +141,7 @@ func newArt() *art {
 	a.bushFull, a.bushPicked = genBush(true), genBush(false)
 	a.tuftFull, a.tuftPicked = genTuft(true), genTuft(false)
 	a.twig = genTwig()
+	a.driftwood = genDriftwood()
 	a.wall, a.bed, a.blanket = genWall(), genBed(), genBlanket()
 	a.heldSpear, a.heldTorch, a.heldRod = genHeldSpear(), genHeldTorch(), genHeldRod()
 	a.heldIvorySpear = genHeldIvorySpear()

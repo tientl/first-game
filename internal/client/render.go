@@ -601,6 +601,9 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		}
 		return a.tuftPicked, 0
 	case sim.EntityTwig:
+		if g.tileAt(int(e.TX), int(e.TY)) == sim.TileSand {
+			return a.driftwood, 0 // washed up on a beach
+		}
 		return a.twig, 0
 	case sim.EntityWall:
 		return a.wall, 0

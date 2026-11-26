@@ -63,6 +63,7 @@ type terrain struct {
 
 	relief []sim.Relief // per tile, in worlds made since sim.StyleIsles; see terrainfeatures.go
 	feat   []uint8      // per tile, what of the relief lies near: see terrainfeatures.go
+	depth  []uint8      // per tile, the sea's depth, eased: see terrainsea.go
 }
 
 func newTerrain(w, h int, tiles []sim.Tile) *terrain {
