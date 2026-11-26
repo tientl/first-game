@@ -68,6 +68,9 @@ func init() {
 // herdSize is how many of kind k appear together this time: herd, or for a
 // kind that comes in groups of different sizes, herdMin to herd at random.
 func (w *World) herdSize(k CreatureKind) int {
+	if r := w.fauna.herdRange[k]; r[1] > 0 { // since StyleWilds: see wildRules
+		return r[0] + w.random().IntN(r[1]-r[0]+1)
+	}
 	d := k.def()
 	if d.herdMin <= 0 || d.herdMin >= d.herd {
 		return d.herd

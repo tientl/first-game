@@ -371,6 +371,7 @@ type fauna struct {
 	shallow   []bool                    // per tile: water along the shore, where fish swim
 	spawnAt   [NumCreatureKinds][]int32 // per kind: tile indices where it may appear
 	target    [NumCreatureKinds]int     // per kind: the population the world tops up to
+	herdRange [NumCreatureKinds][2]int  // since StyleWilds: per kind, the size of its groups (see wildRules); zero: its def's
 	homes     []homeRec                 // burrows and dens, in the order they were dug
 	seated    bool                      // homes checked after loading; see reseatHomes
 	drinkers  []*Creature               // those drinking at the start of this tick; see drinkerNear
@@ -462,18 +463,33 @@ func (w *World) spawnCreatures() {
 	f := &w.fauna
 	sx, sy := int(math.Floor(w.spawnX)), int(math.Floor(w.spawnY))
 	all := w.allSpawnSpots(sx, sy) // see spawnspots.go
+	var wl *wilds
+	if w.style >= StyleWilds {
+		wl = w.newWilds(&all) // the animals by island: see wilds.go
+	}
 	for k := CreatureKind(1); k < NumCreatureKinds; k++ {
 		d := k.def()
 		if d.openOnly && w.style == StyleIsland {
 			continue
 		}
+		if wl != nil && wl.rules[k] != nil {
+			w.spawnWild(wl, wl.rules[k])
+			continue
+		}
 		spots := all[k]
+		if wl != nil && k == CreatureSnake { // no snake on the home island, even coming back: see wilds.go
+			spots = slices.DeleteFunc(slices.Clone(spots), func(i int32) bool { return w.onHome(wl.index, int(i)%w.width, int(i)/w.width) })
+		}
 		f.spawnAt[k] = spots
 		if len(spots) == 0 {
 			continue
 		}
-		f.target[k] = max(creatureMinPerKind, len(spots)/d.tilesPer)
-		if w.style < d.since {
+		tilesPer := d.tilesPer
+		if n, ok := wildsTilesPer[k]; ok && wl != nil {
+			tilesPer = n
+		}
+		f.target[k] = max(creatureMinPerKind, len(spots)/tilesPer)
+		if w.style < d.since && wl == nil {
 			continue // new since this world's style: it comes as the animals are topped up
 		}
 		if d.herd > 1 {
@@ -490,10 +506,13 @@ func (w *World) spawnCreatures() {
 				away := clearSpawnRadius + 2
 				if k == CreatureSnake {
 					away = snakeSpawnClear + 2
+					if wl != nil && w.onHome(wl.index, tx, ty) {
+						return false // no snake on the home island: see wilds.go
+					}
 				}
 				return max(abs(tx-sx), abs(ty-sy)) >= away
 			}
-			f.target[k] = max(creatureMinPerKind, int(w.homeWeight(k, spots)/float64(d.tilesPer)))
+			f.target[k] = max(creatureMinPerKind, int(w.homeWeight(k, spots)/float64(tilesPer)))
 			homes := max(creatureMinPerKind, int(math.Ceil(float64(f.target[k])/d.meanFamily())))
 			if placed := w.placeHomes(k, spots, homes, ok); placed > 0 {
 				f.target[k] = placed // what the world tops itself up to
@@ -508,6 +527,9 @@ func (w *World) spawnCreatures() {
 			}
 			w.addCreature(k, float64(tx)+0.5, float64(ty)+0.5)
 		}
+	}
+	if wl != nil {
+		w.fillIsles(wl) // every island of some size has a few herds
 	}
 }
 
@@ -538,7 +560,7 @@ func (w *World) repopulate() {
 			if _, d := w.nearestPlayer(x, y); d < creatureSpawnAway {
 				continue
 			}
-			if h := k.def().herd; h > 1 {
+			if h := max(k.def().herd, f.herdRange[k][1]); h > 1 {
 				w.addHerd(k, x, y, min(w.herdSize(k), f.target[k]-count[k]))
 				break
 			}

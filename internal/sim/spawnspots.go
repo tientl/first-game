@@ -24,6 +24,10 @@ func (w *World) allSpawnSpots(sx, sy int) [NumCreatureKinds][]int32 {
 			break
 		}
 	}
+	var fromHome []uint8 // since StyleWilds: tiles from the home island's land; see wilds.go
+	if w.style >= StyleWilds {
+		fromHome = w.homeSeaDistance(w.islandIndex())
+	}
 	var out [NumCreatureKinds][]int32
 	kinds := make(chan CreatureKind)
 	var wg sync.WaitGroup
@@ -32,7 +36,7 @@ func (w *World) allSpawnSpots(sx, sy int) [NumCreatureKinds][]int32 {
 		go func() {
 			defer wg.Done()
 			for k := range kinds {
-				out[k] = w.spawnSpots(k, sx, sy, offshore)
+				out[k] = w.spawnSpots(k, sx, sy, offshore, fromHome)
 			}
 		}()
 	}
@@ -47,8 +51,13 @@ func (w *World) allSpawnSpots(sx, sy int) [NumCreatureKinds][]int32 {
 }
 
 // spawnSpots is the tiles where a creature of kind k may appear in a new
-// world whose spawn is (sx, sy).
-func (w *World) spawnSpots(k CreatureKind, sx, sy int, offshore []uint8) []int32 {
+// world whose spawn is (sx, sy); fromHome is nil, or since StyleWilds how
+// far each tile of the surface lies from the home island.
+func (w *World) spawnSpots(k CreatureKind, sx, sy int, offshore, fromHome []uint8) []int32 {
+	away := 0
+	if fromHome != nil {
+		away = wildsHomeAway[k]
+	}
 	d := k.def()
 	var spots []int32
 	for ty := 0; ty < w.height; ty++ {
@@ -62,12 +71,18 @@ func (w *World) spawnSpots(k CreatureKind, sx, sy int, offshore []uint8) []int32
 				if d.offshore[1] > 0 {
 					lo, hi = d.offshore[0], d.offshore[1]
 				}
+				if o, ok := wildsOffshore[k]; ok && fromHome != nil {
+					lo, hi = o[0], o[1]
+				}
 				if o := int(offshore[ty*w.width+tx]); o < lo || o > hi {
 					continue
 				}
 			}
 			if d.away > 0 && math.Hypot(float64(tx-sx), float64(ty-sy)) < d.away {
 				continue
+			}
+			if away > 0 && ty < len(fromHome)/w.width && int(fromHome[ty*w.width+tx]) < away {
+				continue // the home island's waters
 			}
 			if !w.creatureFits(k, float64(tx)+0.5, float64(ty)+0.5) {
 				continue

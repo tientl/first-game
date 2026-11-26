@@ -17,6 +17,7 @@ const (
 	villageIslandMin  = 90   // tiles of land an island needs for a hamlet at least
 	villagePerTiles   = 4000 // one more village per this many tiles
 	villagesPerIsland = 3
+	wildsVillages     = 10 // villagesPerIsland since StyleWilds
 	villageApart      = 30 // tiles between two villages of one island at least
 	homeVillageAway   = 22 // tiles from the spawn, on the home island
 	hamletRadius      = 4  // tiles cleared for a hamlet
@@ -67,7 +68,11 @@ func (w *World) pickIslandVillages(rng *rand.Rand, sx, sy int) {
 		if len(isl) < bigIslandTiles {
 			folk = smallIslandFolk
 		}
-		want := min(villagesPerIsland, 1+len(isl)/villagePerTiles)
+		most := villagesPerIsland
+		if w.style >= StyleWilds {
+			most = wildsVillages // the islands are fewer and bigger
+		}
+		want := min(most, 1+len(isl)/villagePerTiles)
 		spots := append([]int(nil), isl...)
 		rng.Shuffle(len(spots), func(a, b int) { spots[a], spots[b] = spots[b], spots[a] })
 		var here []Village

@@ -313,7 +313,11 @@ func TestIslesCountsGrowWithTheWorld(t *testing.T) {
 		"plants": ratio(small.flora, big.flora), "toads": ratio(small.toads, big.toads),
 		"clay": ratio(small.clay, big.clay), "burrows and dens": ratio(small.homes, big.homes),
 	} {
-		if r < 2 || r > 12 {
+		lo := 2.0
+		if name == "cave mouths" {
+			lo = 1.6 // since StyleWilds the islands are fewer and bigger, and an island has three mouths at most (underground.go)
+		}
+		if r < lo || r > 12 {
 			t.Errorf("%s: %.1f times as many in a world of four times the area", name, r)
 		}
 	}

@@ -54,9 +54,10 @@ func TestAnkylosaursComeInSmallGroupsInTheNewestWorlds(t *testing.T) {
 	if len(groups) > 2 && len(sizes) < 2 {
 		t.Errorf("every one of %d groups has the same size: they should vary", len(groups))
 	}
-	// The count follows the size of the world, as the other grazers' do.
-	if want := len(w.fauna.spawnAt[CreatureAnkylo]) / ankyloDef.tilesPer; w.fauna.target[CreatureAnkylo] != max(creatureMinPerKind, want) {
-		t.Errorf("target %d, want %d from its spawn tiles", w.fauna.target[CreatureAnkylo], want)
+	// The count follows the islands, as the other grazers' do (see wilds.go):
+	// the world tops up to as many as it was made with.
+	if w.fauna.target[CreatureAnkylo] != len(cs) {
+		t.Errorf("target %d, want the %d it was made with", w.fauna.target[CreatureAnkylo], len(cs))
 	}
 }
 

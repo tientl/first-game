@@ -51,7 +51,11 @@ import (
 //   - 22: the Ankylosaurus (ankylo.go): a save may hold a tamed one, and its
 //     bony plates in a bag or a chest, which an older game would lose.
 //     Nothing older changes.
-const SaveVersion = 22
+//   - 23: worlds of StyleWilds: fewer, bigger islands, and the animals laid
+//     out by island and by distance from home (wilds.go). Nothing older
+//     changes, but an older game would make the wrong world of such a save,
+//     so it must refuse it.
+const SaveVersion = 23
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.

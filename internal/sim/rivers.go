@@ -27,8 +27,26 @@ const (
 	deltaChannels = 3
 )
 
-// springs is how many rivers island s has.
+// springs is how many rivers island s has: since StyleWilds, more on a
+// bigger island, one more for every wildsRiverR tiles of radius past the
+// first.
 func springs(s *isle) int {
+	n := baseSprings(s)
+	if s.lay != nil && s.lay.wilds && n > 0 && s.role != roleMedium {
+		n += int(max(0, s.r-wildsRiverR) / wildsRiverR)
+		if s.role == roleHome {
+			n = max(n, 2)
+		}
+	}
+	return n
+}
+
+// wildsRiverR is how many tiles of an island's radius bring it one more
+// river, since StyleWilds.
+const wildsRiverR = 60
+
+// baseSprings is how many rivers island s has, whatever its size.
+func baseSprings(s *isle) int {
 	switch {
 	case s.role == roleIslet || s.role == roleAtoll:
 		return 0
