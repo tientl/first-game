@@ -6,13 +6,13 @@ import (
 )
 
 // Troodon: dinos/troodon.png, 53 x 35, facing right: the night hunter,
-// charcoal flecked with pale, a pale throat, a barred fan on its stiff
-// tail and a huge amber eye. Its rig is "troodon" in
+// charcoal flecked with pale, a pale throat, a long stiff tail barred to
+// its dark point and a huge amber eye. Its rig is "troodon" in
 // internal/client/dinorigs.go: hips (28, 19) and (20, 19), knees (29.5, 24)
 // and (20, 23.5), ankles (25.5, 28) and (15.5, 27.5); the legs are cut from
 // row 22, columns 23-32 (near) and 13-22 (far); the head turns about
 // (34.5, 10.5), the jaw opens about (40.5, 9) along the line to
-// (48.5, 9.4), and the tail turns about (17, 14.5).
+// (48.5, 9.4), and the tail turns about (19, 13).
 //
 // The game finds the eye by its two ambers, which nothing else may use, and
 // draws it again in every pose (internal/client/troodon.go: eyeOf,
@@ -39,7 +39,7 @@ func troodon() *Species {
 		Cone(27, 32.6, 0.6, 28.4, 31.6, 0.45),
 	)
 	body := Blend(2,
-		Path([3]float64{19, 13.6, 3.2}, [3]float64{10, 12.6, 2.0}, [3]float64{0.5, 11.8, 2.0}), // the stiff tail
+		Path([3]float64{20, 13.2, 2.8}, [3]float64{11, 12.3, 1.8}, [3]float64{4, 11.7, 0.8}, [3]float64{0.4, 11.4, 0.3}), // the long stiff tail
 		Ellipse(25, 15.4, 7.5, 4.6, 0.05),
 		Cone(30, 13, 3.2, 35, 6.5, 2.4), // the neck
 		Poly(32, 2, 34, 1.6, 39, 2.4, 45, 4.6, 49, 5.5, 49.5, 7.5, 47, 8.6, 39, 9, 36, 10, 33, 10, 31, 6), // the head
@@ -69,10 +69,18 @@ func troodon() *Species {
 			// The black cap of the head, as the drawing has it.
 			{Name: "cap", Ramp: []uint32{0x09080a, 0x0f0d0f, 0x161314, 0x1e1a1a, 0x272221, 0x312b29, 0x3c3532, 0x48403c},
 				Region: Poly(30.4, 1.6, 36.6, 1.6, 38.6, 2.6, 37.4, 3.9, 36.6, 7.4, 34.6, 9.4, 31.4, 9.4, 30.6, 6)},
+			{Name: "farOlive", Ramp: []uint32{0x161310, 0x201c16, 0x2c261c, 0x3a3224, 0x48402c, 0x584e36, 0x685c40, 0x786a4a}}, // the far shank, in shadow
+			// The tail's pale bars, and its dark point.
+			{Name: "tailBar", Ramp: []uint32{0x3a342c, 0x564e42, 0x726858, 0x8e836e, 0xa89c84, 0xbeb398, 0xd2c8ae, 0xe4dcc4},
+				Region: Union(Poly(4, 8, 5.1, 8, 5.1, 16, 4, 16), Poly(8, 8, 9.1, 8, 9.1, 16, 8, 16), Poly(12, 8, 13.1, 8, 13.1, 16, 12, 16), Poly(16, 8, 17.1, 8, 17.1, 16, 16, 16)),
+				Over:   true, Only: []string{"char", "fleck", "pale"}},
+			{Name: "tailDark", Ramp: []uint32{0x09080a, 0x0f0d0f, 0x161314, 0x1e1a1a, 0x272221, 0x312b29, 0x3c3532, 0x48403c},
+				Region: Poly(-1, 8, 3, 8, 3, 16, -1, 16), Over: true, Only: []string{"char", "fleck", "pale"}},
 			{Name: "gum", Seeds: []uint32{0x2a1012},
 				Ramp: []uint32{0x14070a, 0x1e0a0d, 0x2a1012, 0x381618, 0x461c1e, 0x542226, 0x62282c, 0x703034}},
 		},
 		Recolor: []Recolor{
+			{Region: Poly(13, 24, 22.9, 24, 22.9, 36, 13, 36), From: []string{"olive"}, To: "farOlive"},
 			{Region: Poly(32.2, 19.4, 35, 19.4, 35, 22, 32.2, 22), From: []string{"white"}, To: "olive"},
 			{Region: Poly(18.4, 29.4, 22, 29.4, 22, 34, 18.4, 34), From: []string{"white"}, To: "olive"},
 			{Region: Poly(28.4, 29.4, 32, 29.4, 32, 34, 28.4, 34), From: []string{"white"}, To: "olive"},
@@ -116,18 +124,18 @@ func troodon() *Species {
 
 func troodonPlumage() *Plumage {
 	return &Plumage{Seed: 11, Edge: 0.4, Tone: 0.7, Tracts: []Tract{
-		{Name: "farThigh", Region: Poly(15, 17, 23, 17, 23, 26.4, 15, 26.4), Parts: []string{"farLeg"},
+		{Name: "farThigh", Region: Poly(15, 17, 23, 17, 23, 25.2, 15, 25.2), Parts: []string{"farLeg"},
 			Flow: Along(20, 19, 20, 23.5, 15.5, 27.5), Len: 1.9, Wid: 1.35, Fluff: 0.4, Snap: true},
 		{Name: "body", Region: Union(Poly(12, 9, 31, 9, 35.5, 9.5, 35.5, 16, 31, 21, 15, 19), Ellipse(32.8, 6, 2.2, 3.6, 0.3)),
 			Parts: []string{"body"},
-			Flow:  Along(34, 2.6, 33, 7, 30, 11, 24, 12, 18, 12.6, 12, 12.4), Len: 2.2, Wid: 1.5, Rows: 0.45, Jitter: 0.2, Fluff: 0.5, Snap: true,
+			Flow:  Along(34, 2.6, 33, 7, 30, 11, 24, 12, 18, 12.6, 12, 12.4), Len: 2.2, Wid: 1.5, Rows: 0.45, Jitter: 0.2, Fluff: 0.5, Snap: true, Hang: Poly(-1, 20.8, 54, 20.8, 54, 40, -1, 40),
 			TipMat: "fleck", TipLen: 0.3, TipGuide: true, TipElse: "char"},
 		{Name: "crown", Region: Poly(31, 1, 37.4, 1, 37.4, 3.2, 35, 4.6, 33.4, 9.6, 30.5, 9.6), Parts: []string{"body"},
 			Flow: Along(38, 2.3, 35, 2.6, 32.6, 6, 31.6, 9.5), Len: 1.2, Wid: 0.9, Fluff: 0.35, Snap: true},
-		// The stiff tail: its feathers lie back along it, longest at the fan.
-		{Name: "tail", Region: Poly(-1, 8.5, 13, 9.4, 13.5, 12.8, 13, 15.5, -1, 15.5), Parts: []string{"body"},
-			Flow: Along(16, 12.9, 8, 12.3, 0, 11.8), Len: 2.6, Wid: 1.1, Rows: 0.36, Tip: 0.5, Shaft: 0.1, Fluff: 0.6, Grow: 0.04},
-		{Name: "nearThigh", Region: Poly(23, 17, 33, 17, 33, 26.4, 23, 26.4), Parts: []string{"nearLeg"},
+		// The long stiff tail: its feathers lie flat along it to a point.
+		{Name: "tail", Region: Poly(-1, 8.5, 19, 9, 19.5, 13, 19, 16, -1, 13.5), Parts: []string{"body"},
+			Flow: Along(21, 13.1, 11, 12.3, 3, 11.6, -1, 11.3), Len: 2.4, Wid: 1.0, Rows: 0.38, Tip: 0.8, Shaft: 0.1, Inset: 0.05},
+		{Name: "nearThigh", Region: Poly(23, 17, 33, 17, 33, 25.2, 23, 25.2), Parts: []string{"nearLeg"},
 			Flow: Along(28, 19, 29.5, 24, 25.5, 28), Len: 1.9, Wid: 1.35, Fluff: 0.4, Snap: true},
 		{Name: "arm", Region: Poly(30, 14.4, 33.4, 15.6, 33.6, 19.8, 31.6, 19.6, 30.2, 16.8), Parts: []string{"arm"},
 			Flow: Along(30.6, 15.2, 31.8, 17.6, 32.7, 19.6), Len: 1.4, Wid: 1.0, Fluff: 0.3, Snap: true},

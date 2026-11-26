@@ -35,6 +35,7 @@ type Tract struct {
 	Relief   float64 // how strongly each feather is modelled (0: 1)
 	Fringe   float64 // the edge of each tip lighter (+) or darker (-)
 	Fluff    float64 // how far the feathers make the outline, in from the guide's edge and out past it (0: they keep to it)
+	Hang     SDF     // where they may not reach out past the drawing: below the hips, where they would hang into the legs' cut
 	Inset    float64 // how far inside the body a feather's middle must be (0: a quarter of Wid)
 	Snap     bool    // each feather lit all over with the drawing's marks at its middle
 	SnapMat  bool    // and all one material, the one at its middle
@@ -388,7 +389,8 @@ func (p *Painter) Plumage(pl *Plumage) {
 				continue
 			}
 			o := own[i]
-			p.In[i] = o.tr >= 0 && (oldIn[i] || pl.Tracts[o.tr].Fluff > 0)
+			grow := o.tr >= 0 && pl.Tracts[o.tr].Fluff > 0 && (pl.Tracts[o.tr].Hang == nil || pl.Tracts[o.tr].Hang(x, y) > 0)
+			p.In[i] = o.tr >= 0 && (oldIn[i] || grow)
 		}
 	}
 	// No lone pixels left by that.

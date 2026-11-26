@@ -94,7 +94,7 @@ func rotPts(a float64, q [][2]float64) [][2]float64 {
 
 // raptorRun is what a running raptor's stride is built on: stretched out
 // low, head and tail level.
-var raptorRun = rigPose{tilt: 0.07, head: 0.08}
+var raptorRun = rigPose{tilt: 0.07, head: 0.08, tail: 0.06} // the long tail lifted a little
 
 func genRaptor(pose int) sprite { c, ax, ay := raptorCanvas(pose); return mk(c, ax, ay) }
 

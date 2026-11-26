@@ -115,14 +115,15 @@ func anzu() *Species {
 
 func anzuPlumage() *Plumage {
 	return &Plumage{Seed: 17, Edge: 0.4, Tone: 0.85, Tracts: []Tract{
-		{Name: "farThigh", Region: Poly(11, 30, 23, 30, 23, 41, 11, 41), Parts: []string{"farLeg"},
+		{Name: "farThigh", Region: Poly(11, 30, 23, 30, 23, 38.8, 11, 38.8), Parts: []string{"farLeg"},
 			Flow: Along(18, 31, 17.5, 40, 16, 45), Len: 2.4, Wid: 1.7, Fluff: 0.5, Snap: true},
 		{Name: "body", Region: Poly(11, 19.5, 34, 19.5, 36.5, 24, 36, 31, 30, 35, 13, 34), Parts: []string{"body", "wing"},
-			Flow: Along(34, 20.5, 28, 21.6, 20, 23.2, 13, 24.2), Len: 2.7, Wid: 1.9, Rows: 0.45, Jitter: 0.2, Fluff: 0.55, Snap: true},
+			Flow: Along(34, 20.5, 28, 21.6, 20, 23.2, 13, 24.2), Len: 2.7, Wid: 1.9, Rows: 0.45, Jitter: 0.2, Fluff: 0.55, Snap: true,
+			Hang: Poly(-1, 34.5, 51, 34.5, 51, 56, -1, 56)},
 		// The fan of the tail, its long feathers spreading back and up.
 		{Name: "tail", Region: Poly(-1, 14, 12.5, 17, 14, 24, 12.5, 32, -1, 32), Parts: []string{"body"},
 			Flow: Fan(15, 25, 9, -2.85), Len: 5, Wid: 1.6, Rows: 0.34, Tip: 0.4, Shaft: 0.14, Fluff: 0.8, Grow: 0.02},
-		{Name: "nearThigh", Region: Poly(21, 30, 34, 30, 34, 40.6, 21, 40.6), Parts: []string{"nearLeg"},
+		{Name: "nearThigh", Region: Poly(21, 30, 34, 30, 34, 38.8, 21, 38.8), Parts: []string{"nearLeg"},
 			Flow: Along(27, 31, 27.5, 40, 25.5, 46.5), Len: 2.4, Wid: 1.7, Fluff: 0.5, Snap: true},
 		// The folded wing: orange, its feathers edged in cream along the bottom.
 		{Name: "wing", Region: Poly(33.4, 26.2, 32.6, 30.8, 26, 32.2, 14, 33.8, 13, 30.4, 18, 28, 26, 26.5, 30, 25.8), Parts: []string{"wing"},

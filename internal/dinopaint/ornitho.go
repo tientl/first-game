@@ -59,6 +59,7 @@ func ornitho() *Species {
 				Ramp: []uint32{0x5a5048, 0x7a7064, 0x9c9282, 0xbcb4a0, 0xd6cebc, 0xe8e2d2, 0xf4f0e4, 0xfffcf4}, Bias: 0.1},
 			{Name: "pale", Seeds: []uint32{0xc8b894, 0x9a8a6c},
 				Ramp: []uint32{0x30261c, 0x483a2c, 0x62503e, 0x7e6a52, 0x9a8468, 0xb49e80, 0xcab698, 0xdccab0}},
+			{Name: "farPink", Ramp: []uint32{0x1e1416, 0x2c1e20, 0x3e2a2c, 0x523a3a, 0x684c4a, 0x7e5e5a, 0x94726c, 0xa8867e}}, // the far shank, in shadow
 			{Name: "beak", Seeds: []uint32{0xdcb648, 0xa8842e, 0xf2d878, 0x5a4418}, Ramp: ornithoBeak, Relief: 0.3, Region: beak},
 		},
 		// The shanks as slender as the drawing's, whose outline is half their
@@ -70,6 +71,7 @@ func ornitho() *Species {
 			Cut(Poly(22, 37.2, 32, 37.2, 32, 43.6, 22, 43.6), Cone(25.2, 37.5, 1.05, 25.5, 44, 0.95)),
 		},
 		Recolor: []Recolor{
+			{Region: Poly(13, 31, 22.9, 31, 22.9, 48, 13, 48), From: []string{"pink"}, To: "farPink"},
 			{Region: Circle(39.8, 4.8, 1.4), From: []string{"white", "brown"}, To: "pink"}, // the eye is painted again
 			{Region: Poly(33, 24, 36, 24, 36, 27, 33, 27), From: []string{"white"}, To: "pale"},
 		},
@@ -104,16 +106,17 @@ func ornitho() *Species {
 
 func ornithoPlumage() *Plumage {
 	return &Plumage{Seed: 13, Edge: 0.4, Tone: 0.7, Tracts: []Tract{
-		{Name: "farThigh", Region: Poly(11, 23, 23, 23, 23, 31.4, 11, 31.4), Parts: []string{"farLeg"},
+		{Name: "farThigh", Region: Poly(11, 23, 23, 23, 23, 30.4, 11, 30.4), Parts: []string{"farLeg"},
 			Flow: Along(18, 26, 19.5, 32.5, 16, 37.5), Len: 2.2, Wid: 1.6, Fluff: 0.45, Snap: true},
 		{Name: "body", Region: Poly(8, 12, 31.5, 12.5, 33.5, 17, 31, 25, 10, 27, 7, 20), Parts: []string{"body", "wing"},
-			Flow: Along(31.5, 15.5, 26, 15.2, 18, 15.6, 10, 16.6), Len: 2.5, Wid: 1.75, Rows: 0.45, Jitter: 0.2, Fluff: 0.55, Snap: true},
+			Flow: Along(31.5, 15.5, 26, 15.2, 18, 15.6, 10, 16.6), Len: 2.5, Wid: 1.75, Rows: 0.45, Jitter: 0.2, Fluff: 0.55, Snap: true,
+			Hang: Poly(-1, 29.5, 53, 29.5, 53, 50, -1, 50)},
 		// Fine down on the neck: the drawing's bare pink, lightly furred.
 		{Name: "neck", Region: Poly(29.5, 7, 37, 2.5, 38, 8.6, 34.6, 15, 33.6, 20, 28.5, 19.5), Parts: []string{"body"},
 			Flow: Along(36, 3.4, 34.2, 9.5, 32, 15, 29.6, 19.5), Len: 1.1, Wid: 0.62, Hair: true, Relief: 0.55, Fluff: 0.25, Snap: true},
 		{Name: "tail", Region: Poly(-1, 12, 11, 13, 12.5, 17, 11, 23, -1, 23), Parts: []string{"body"},
 			Flow: Fan(16, 17.5, 8, 3.1416), Len: 3.8, Wid: 1.5, Rows: 0.36, Tip: 0.5, Shaft: 0.12, Fluff: 0.7, Grow: 0.02},
-		{Name: "nearThigh", Region: Poly(20, 23, 33, 23, 33, 31.4, 20, 31.4), Parts: []string{"nearLeg"},
+		{Name: "nearThigh", Region: Poly(20, 23, 33, 23, 33, 30.4, 20, 30.4), Parts: []string{"nearLeg"},
 			Flow: Along(27, 26, 28.5, 32.5, 25, 37.5), Len: 2.2, Wid: 1.6, Fluff: 0.45, Snap: true},
 		{Name: "wing", Region: Poly(30.4, 19, 31.4, 22.6, 25, 25.2, 13.4, 27.2, 14, 24, 21, 21.2, 27, 19.4), Parts: []string{"wing"},
 			Flow: Along(31, 20.6, 26, 22.2, 20, 24.2, 14, 25.6), Len: 4.6, Wid: 1.4, Rows: 0.34, Tip: 0.55, Shaft: 0.1, Fluff: 0.35,
