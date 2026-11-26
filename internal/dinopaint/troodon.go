@@ -288,9 +288,9 @@ func troodonBelly(x, y float64) float64 {
 // it, closer and narrower to the dark point.
 var troodonTailBars = func() SDF {
 	var bs []SDF
-	for i, b := range [][2]float64{{31.2, 1.7}, {27.2, 1.55}, {23.6, 1.4}, {20.4, 1.25}, {17.5, 1.1}, {14.9, 0.95}, {12.6, 0.8}} {
+	for i, b := range [][2]float64{{22.8, 1.6}, {19.6, 1.45}, {16.8, 1.3}, {14.3, 1.15}, {12.1, 1.0}, {10.2, 0.85}, {8.6, 0.7}} {
 		cx, w := b[0], b[1]
-		cy := 12.1 + 0.025*cx
+		cy := 12.0 + 0.04*cx
 		bs = append(bs, Ellipse(cx, cy, 0.65*w, 1.6+0.1*float64(6-i), -0.35))
 	}
 	u := Union(bs...)
