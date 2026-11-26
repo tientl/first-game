@@ -227,6 +227,7 @@ type chunkResult struct {
 	data  []byte
 	shore []byte // nil when the chunk has no coast
 	roof  []byte // nil when the chunk has no cave under a mountain
+	water []byte // nil when the chunk has no water that moves: see terrainanim.go
 }
 
 type groundCache struct {
@@ -235,6 +236,7 @@ type groundCache struct {
 	chunks map[chunkKey]*ebiten.Image
 	shores map[chunkKey]*ebiten.Image // coast distances for the surf; absent inland
 	roofs  map[chunkKey]*ebiten.Image // the rock over caves; absent where there are none
+	waters map[chunkKey]*ebiten.Image // the water maps of the moving water; absent where there is none
 
 	// roofAlpha is how much of the cave roofs to draw: 1 from outside, 0
 	// for a player inside a cave; caveIn eases between them (see caves.go).
@@ -252,10 +254,11 @@ type groundCache struct {
 
 func newGroundCache() *groundCache {
 	n := max(1, runtime.NumCPU()-1)
-	return &groundCache{
+	gc := &groundCache{
 		chunks:    make(map[chunkKey]*ebiten.Image),
 		shores:    make(map[chunkKey]*ebiten.Image),
 		roofs:     make(map[chunkKey]*ebiten.Image),
+		waters:    make(map[chunkKey]*ebiten.Image),
 		roofAlpha: 1,
 		used:      make(map[chunkKey]int),
 		pending:   make(map[chunkKey]bool),
@@ -264,6 +267,8 @@ func newGroundCache() *groundCache {
 		wave:      genWaveTexture(),
 		style:     groundStyle,
 	}
+	liveGround = gc // see terrainanim.go
+	return gc
 }
 
 // reset switches to a new map and forgets every cached chunk.
@@ -283,12 +288,16 @@ func (gc *groundCache) reset(terr *terrain) {
 		img.Deallocate()
 		delete(gc.roofs, k)
 	}
+	for k, img := range gc.waters {
+		img.Deallocate()
+		delete(gc.waters, k)
+	}
 	clear(gc.used)
 	clear(gc.pending)
 }
 
 // store keeps a baked chunk.
-func (gc *groundCache) store(k chunkKey, ground, shore, roof []byte) *ebiten.Image {
+func (gc *groundCache) store(k chunkKey, ground, shore, roof, water []byte) *ebiten.Image {
 	img := ebiten.NewImage(chunkPW, chunkPH)
 	img.WritePixels(ground)
 	gc.chunks[k] = img
@@ -302,6 +311,11 @@ func (gc *groundCache) store(k chunkKey, ground, shore, roof []byte) *ebiten.Ima
 		r.WritePixels(roof)
 		gc.roofs[k] = r
 	}
+	if water != nil {
+		w := ebiten.NewImage(chunkW, chunkH)
+		w.WritePixels(water)
+		gc.waters[k] = w
+	}
 	return img
 }
 
@@ -313,9 +327,9 @@ func (gc *groundCache) request(k chunkKey) {
 	terr, gen := gc.terr, gc.gen
 	go func() {
 		gc.sem <- struct{}{}
-		data, shore, roof := terr.bakeChunk(k)
+		data, shore, roof, water := terr.bakeChunkAll(k)
 		<-gc.sem
-		gc.results <- chunkResult{k, gen, data, shore, roof}
+		gc.results <- chunkResult{k, gen, data, shore, roof, water}
 	}()
 }
 
@@ -332,7 +346,7 @@ func (gc *groundCache) collect(most int) {
 			if gc.chunks[r.key] != nil {
 				continue // already baked synchronously
 			}
-			gc.store(r.key, r.data, r.shore, r.roof)
+			gc.store(r.key, r.data, r.shore, r.roof, r.water)
 		default:
 			return
 		}
@@ -358,7 +372,7 @@ func (gc *groundCache) ensure(keys []chunkKey) {
 			gc.collect(math.MaxInt) // some may be baked and waiting
 		}
 	}
-	type baked struct{ ground, shore, roof []byte }
+	type baked struct{ ground, shore, roof, water []byte }
 	out := make([]baked, len(missing))
 	var wg sync.WaitGroup
 	next := int32(-1)
@@ -371,14 +385,14 @@ func (gc *groundCache) ensure(keys []chunkKey) {
 				if i >= len(missing) {
 					return
 				}
-				g, s, r := gc.terr.bakeChunk(missing[i])
-				out[i] = baked{g, s, r}
+				g, s, r, wa := gc.terr.bakeChunkAll(missing[i])
+				out[i] = baked{g, s, r, wa}
 			}
 		}()
 	}
 	wg.Wait()
 	for i, k := range missing {
-		gc.store(k, out[i].ground, out[i].shore, out[i].roof)
+		gc.store(k, out[i].ground, out[i].shore, out[i].roof, out[i].water)
 	}
 }
 
@@ -401,6 +415,10 @@ func (gc *groundCache) evict(keep int) {
 		if r := gc.roofs[oldest]; r != nil {
 			r.Deallocate()
 			delete(gc.roofs, oldest)
+		}
+		if w := gc.waters[oldest]; w != nil {
+			w.Deallocate()
+			delete(gc.waters, oldest)
 		}
 		delete(gc.used, oldest)
 	}
@@ -452,6 +470,12 @@ func (gc *groundCache) draw(dst drawTarget, ox, oy float64, frame int) {
 		if s := gc.shores[k]; s != nil {
 			wx, wy := float64(k.cx*chunkW), float64(k.cy*chunkH)
 			drawSurf(dst, s, wx-ox, wy-oy, wx, wy, frame)
+		}
+	}
+	for _, k := range gc.keys {
+		if m := gc.waters[k]; m != nil {
+			wx, wy := float64(k.cx*chunkW), float64(k.cy*chunkH)
+			drawWaterAnim(dst, m, wx-ox, wy-oy, wx, wy, frame) // see terrainanim.go
 		}
 	}
 	// Room for what is in view and the ring baked ahead, twice over.

@@ -77,10 +77,12 @@ type bake struct {
 	warm   bool
 	x0, y0 int // the chunk's corner, in image pixels of the world
 
-	coast  []float32  // the signed coast distance of each pixel, from coastUp rows above the chunk
-	landUp []uint8    // per pixel: pixels up to the nearest land (0 on land), 255 for none near
-	rock   *rockField // nil when no rock is near
-	roofed *rockField // the same with caves roofed over; nil when no cave is near
+	coast  []float32   // the signed coast distance of each pixel, from coastUp rows above the chunk
+	landUp []uint8     // per pixel: pixels up to the nearest land (0 on land), 255 for none near
+	rock   *rockField  // nil when no rock is near
+	roofed *rockField  // the same with caves roofed over; nil when no cave is near
+	wall   *wallField  // the cliffs of the newest worlds; nil when none is near (terraincliff.go)
+	river  *riverField // their rivers; nil when none is near (terrainwater.go)
 }
 
 // rockField says where each pixel of a chunk lies on or by the rock.
@@ -130,6 +132,10 @@ func (t *terrain) newBake(k chunkKey) *bake {
 	}
 	if cave {
 		b.roofed = b.rocks(true)
+	}
+	if t.relief != nil {
+		b.wall = b.walls()
+		b.river = b.rivers()
 	}
 	return b
 }
@@ -188,7 +194,16 @@ func (b *bake) rocks(roof bool) *rockField {
 // it has a coastline, its shore image for the surf (chunkW by chunkH), and
 // if it has caves, their roof (else nil).
 func (t *terrain) bakeChunk(k chunkKey) (ground, shore, roof []byte) {
+	ground, shore, roof, _ = t.bakeChunkAll(k)
+	return ground, shore, roof
+}
+
+// bakeChunkAll is bakeChunk, and the chunk's water map for the moving
+// water drawn over it (nil when it has none; see terrainanim.go).
+func (t *terrain) bakeChunkAll(k chunkKey) (ground, shore, roof, water []byte) {
 	b := t.newBake(k)
+	var wm []byte
+	wet := false
 	c := newCanvas(chunkPW, chunkPH)
 	var rf *canvas
 	sh := make([]byte, chunkW*chunkH*4)
@@ -215,7 +230,21 @@ func (t *terrain) bakeChunk(k chunkKey) (ground, shore, roof []byte) {
 					coast = true
 				}
 			}
+			// So has the water map.
+			if t.relief != nil && x%groundDens == groundDens/2 && y%groundDens == groundDens/2 {
+				if tx, ok := b.waterTexel(x, y, u, v); ok {
+					if wm == nil {
+						wm = make([]byte, chunkW*chunkH*4)
+					}
+					i := (y/groundDens*chunkW + x/groundDens) * 4
+					copy(wm[i:i+4], tx[:])
+					wet = true
+				}
+			}
 		}
+	}
+	if !wet {
+		wm = nil
 	}
 	if !coast {
 		sh = nil
@@ -223,7 +252,7 @@ func (t *terrain) bakeChunk(k chunkKey) (ground, shore, roof []byte) {
 	if rf != nil {
 		roof = rf.bytes()
 	}
-	return c.bytes(), sh, roof
+	return c.bytes(), sh, roof, wm
 }
 
 // pixel colours image pixel (x, y) of the chunk, at (u, v) in tiles, and
@@ -233,17 +262,25 @@ func (b *bake) pixel(x, y int, u, v float64) (color.RGBA, bool) {
 	t := b.t
 	hx, hy := b.x0+x, b.y0+y
 	s := float64(b.coast[(y+coastUp)*chunkPW+x])
+	if b.wall != nil { // the cliffs: see terraincliff.go
+		if p, ok := b.wall.at(x, y); ok {
+			return b.wallPixel(p, hx, hy, u, v, func() color.RGBA { return t.reliefShade(b.land(hx, hy, u, v), hx, hy, u, v) }), false
+		}
+	}
 	if s >= 0 {
 		if c, ok := b.rockPixel(b.rock, x, y, u, v, false); ok {
 			return c, false // mountains stand above everything else
 		}
-		if c, ok := t.riverPixel(hx, hy, u, v); ok {
+		if c, ok := b.riverPixel(x, y, hx, hy, u, v); ok {
+			if b.wall != nil {
+				c = b.wall.shade(c, x, y, hx, hy)
+			}
 			return c, false // see terrainfeatures.go
 		}
-		if c, ok := t.cliffPixel(hx, hy, u, v); ok {
-			return c, false
-		}
 		c := t.reliefShade(b.land(hx, hy, u, v), hx, hy, u, v)
+		if b.wall != nil {
+			c = b.wall.shade(c, x, y, hx, hy)
+		}
 		if b.rock != nil {
 			if o := b.rock.over[y*chunkPW+x]; o > 0 {
 				c = mix(c, colInk, rockShadow(int(o))) // at the foot of a mountain's face
@@ -266,19 +303,25 @@ func (b *bake) pixel(x, y int, u, v float64) (color.RGBA, bool) {
 	}
 	up := int(b.landUp[y*chunkPW+x])
 	if t.pondAt(u, v) > 0.5 {
-		if c, ok := t.lakePixel(hx, hy, u, v, s); ok {
+		if c, ok := t.lakePixel(hx, hy, u, v, s, up); ok {
 			return c, false // a lake: see terrainfeatures.go
 		}
 		return swampWater(hx, hy, u, v, s, up), false // still, murky water: no surf
 	}
-	// Sea. A south-facing shore gets an earth wall hanging below it.
+	// Sea. A south-facing shore gets an earth wall hanging below it, a cliff
+	// a line of foam at its foot.
+	if b.wall != nil {
+		if c, ok := b.wall.seaFoot(x, y, hx, hy, s); ok {
+			return c, false
+		}
+	}
 	if up <= cliffH*groundDens {
 		return seaCliff(hx, hy, up), false
 	}
 	if up <= coastUp && hashf(fdiv(hx, 2), hy, 74) < 1.3-float64(up-cliffH*groundDens)/float64(2*groundDens) {
 		return withAlpha(colFoam, 200), false // foam at the wall's foot, breaking up
 	}
-	return t.shallowSea(seaWater(hx, hy, u, v, s), hx, hy, u, v), true
+	return t.shallowSea(seaWater(hx, hy, u, v, s), hx, hy, u, v, s), true
 }
 
 // rockShadow is how dark open ground is o pixels under a rock face.

@@ -86,6 +86,7 @@ type worldMap struct {
 	fogFirst chan []byte     // the first fog, made off the game loop: see mapperf.go
 	fogDirty image.Rectangle // tiles whose fog may be stale; empty when none
 	mini     *ebiten.Image   // the minimap's canvas
+	minis    miniPieces      // the minimap's ground, baked at its own scale: see terrainmap.go
 
 	present [sim.NumTiles]bool // tile kinds this world has, for the legend
 }
@@ -105,6 +106,7 @@ func (m *worldMap) reset(terr *terrain, explored *sim.Explored) {
 		m.fog = nil
 	}
 	m.fogFirst = nil
+	m.minis.reset(terr)
 	m.gen++
 	if m.img != nil {
 		m.img.Deallocate()
