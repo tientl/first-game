@@ -244,7 +244,7 @@ var creatureDefs = [NumCreatureKinds]creatureDef{
 		yield: ItemFish, yieldN: 1, bait: ItemWorm, tool: ItemRod,
 		water: true, onLine: true,
 		leash: 8, idle: [2]int{10, 60}, roam: [2]int{15, 50},
-		spawnOn: []Tile{TileWater}, tilesPer: 40,
+		spawnOn: []Tile{TileWater, TileShallow, TileRiver}, tilesPer: 40,
 	},
 	CreatureCrab: {
 		name: "Cua", hp: 1,
@@ -324,9 +324,9 @@ type Creature struct {
 	fedCD     int      // ticks before it takes another meal
 	healT     int      // ticks to its next point of mending, as a pet
 
-	village  int // the village a warrior belongs to, 1-based; 0 for everyone else
-	grabHP   int // a giant squid's health when it seized its boat
-	flinchCD int // ticks before a blow can make it flinch again; see combat.go
+	village  int         // the village a warrior belongs to, 1-based; 0 for everyone else
+	grabHP   int         // a giant squid's health when it seized its boat
+	flinchCD int         // ticks before a blow can make it flinch again; see combat.go
 	blow     pendingBlow // a blow drawn back, waiting to land; see telegraph.go
 
 	homeX, homeY float64
@@ -383,7 +383,7 @@ func (w *World) isShallow(tx, ty int) bool {
 		w.fauna.shallow = make([]bool, w.width*w.height)
 		for y := 0; y < w.height; y++ {
 			for x := 0; x < w.width; x++ {
-				if w.tiles[y*w.width+x] != TileWater {
+				if !w.tiles[y*w.width+x].Swimmable() {
 					continue
 				}
 				for dy := -1; dy <= 1 && !w.fauna.shallow[y*w.width+x]; dy++ {
@@ -428,7 +428,7 @@ func (w *World) creatureFits(k CreatureKind, x, y float64) bool {
 				return false
 			case d.amphibious && !land && !w.isShallow(tx, ty):
 				return false
-			case d.wades && !land && w.TileAt(tx, ty) != TileWater:
+			case d.wades && !land && !w.TileAt(tx, ty).Swimmable():
 				return false
 			case !d.water && !d.deep && !d.amphibious && !d.wades && !land:
 				return false
@@ -454,40 +454,13 @@ func (w *World) addCreature(k CreatureKind, x, y float64) *Creature {
 func (w *World) spawnCreatures() {
 	f := &w.fauna
 	sx, sy := int(math.Floor(w.spawnX)), int(math.Floor(w.spawnY))
-	var offshore []uint8 // tiles from land, for sea creatures; see coastDistance
+	all := w.allSpawnSpots(sx, sy) // see spawnspots.go
 	for k := CreatureKind(1); k < NumCreatureKinds; k++ {
 		d := k.def()
 		if d.openOnly && w.style == StyleIsland {
 			continue
 		}
-		if d.deep && offshore == nil {
-			offshore = w.coastDistance(250)
-		}
-		var spots []int32
-		for ty := 0; ty < w.height; ty++ {
-			for tx := 0; tx < w.width; tx++ {
-				t := w.tiles[ty*w.width+tx]
-				if !slices.Contains(d.spawnOn, t) || (d.water && !w.isShallow(tx, ty)) || (d.seaside && !w.seaside(tx, ty)) || (d.waterside && !w.waterside(tx, ty)) || (d.pondside && !w.pondside(tx, ty)) {
-					continue
-				}
-				if d.deep {
-					lo, hi := plesioNear, plesioFar
-					if d.offshore[1] > 0 {
-						lo, hi = d.offshore[0], d.offshore[1]
-					}
-					if o := int(offshore[ty*w.width+tx]); o < lo || o > hi {
-						continue
-					}
-				}
-				if d.away > 0 && math.Hypot(float64(tx-sx), float64(ty-sy)) < d.away {
-					continue
-				}
-				if !w.creatureFits(k, float64(tx)+0.5, float64(ty)+0.5) {
-					continue
-				}
-				spots = append(spots, int32(ty*w.width+tx))
-			}
-		}
+		spots := all[k]
 		f.spawnAt[k] = spots
 		if len(spots) == 0 {
 			continue
@@ -622,8 +595,9 @@ func (w *World) stepCreatures() {
 			f.drinkers = append(f.drinkers, c)
 		}
 	}
+	awake := w.awake()
 	for _, c := range f.creatures {
-		if !c.gone {
+		if !c.gone && !w.dozes(c, awake) { // see doze.go
 			w.stepCreature(c)
 			w.maybeDung(c) // see dung.go
 		}

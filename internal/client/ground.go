@@ -60,11 +60,14 @@ type terrain struct {
 	sdf   []float32
 	pond  []float32 // 1 in and beside swamp ponds; see swampart.go
 	under int       // the first row of the caves under the world, 0 if none: their rock is drawn black
+
+	relief []sim.Relief // per tile, in worlds made since sim.StyleIsles; see terrainfeatures.go
+	feat   []uint8      // per tile, what of the relief lies near: see terrainfeatures.go
 }
 
 func newTerrain(w, h int, tiles []sim.Tile) *terrain {
 	t := &terrain{w: w, h: h, tiles: tiles, sdf: make([]float32, w*h)}
-	land := func(x, y int) bool { return t.tile(x, y) != sim.TileWater }
+	land := func(x, y int) bool { return !t.tile(x, y).Sea() } // shallows are sea; rivers and cliffs, land
 	const capDist = 8
 	for _, wantLand := range []bool{true, false} {
 		dist := make([]int8, w*h)
@@ -169,7 +172,13 @@ func (t *terrain) landType(u, v float64) (best, second sim.Tile, margin float64)
 	var present [sim.NumTiles]bool
 	add := func(tx, ty int, w float64) {
 		k := t.tile(tx, ty)
-		if k == sim.TileWater {
+		switch {
+		case runningWater(k):
+			k = sim.TileSand // a river's bed and banks; the water is drawn over them
+		case k == sim.TileCliff:
+			k = t.cliffGround(tx, ty) // the high ground it is the edge of: see terrainfeatures.go
+		}
+		if k.Sea() {
 			k = sim.TileSand // the sea floor and beaches are sand
 			if t.pondTile(tx, ty) {
 				k = sim.TileMarsh // but a swamp pond's bed is mud

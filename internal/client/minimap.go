@@ -59,17 +59,18 @@ func (g *Game) drawMinimap(screen *ebiten.Image, x0 float64) {
 	// Off the map is unknown sea: fog, like the unseen parts of the map.
 	c.Fill(colFog)
 	mw, mh := float64(g.width)*tw, float64(g.height)*th
-	if img := m.img; img != nil {
+	fog := m.fogImage()
+	if img := m.img; img != nil && fog != nil {
 		b := img.Bounds()
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(mw/float64(b.Dx()), mh/float64(b.Dy()))
 		op.GeoM.Translate(ox, oy)
 		op.Filter = ebiten.FilterLinear
 		c.DrawImage(img, op)
-	} else {
+	} else if fog != nil {
 		vector.FillRect(c, float32(ox), float32(oy), float32(mw), float32(mh), colWaterBG, false)
 	}
-	if fog := m.fogImage(); fog != nil {
+	if fog != nil {
 		b := fog.Bounds()
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(mw/float64(b.Dx()), mh/float64(b.Dy()))

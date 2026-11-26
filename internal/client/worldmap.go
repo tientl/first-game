@@ -50,6 +50,11 @@ var mapTiles = []struct {
 	{sim.TileLava, lavaRamp, "Dung nham"},
 	{sim.TileSnow, snowRamp, "Tuyết"},
 	{sim.TilePath, pathRamp, "Đường mòn"},
+	{sim.TileShallow, mkRamp(0x4ec0c6), "Biển nông"}, // the new waters and cliffs: see terrainfeatures.go
+	{sim.TileRiver, mkRamp(0x3f8fc0), "Sông, hồ"},
+	{sim.TileFord, mkRamp(0x6ab4ca), "Chỗ lội"},
+	{sim.TileWaterfall, mkRamp(0xeaf7fa), "Thác"},
+	{sim.TileCliff, mkRamp(0x3a2a22), "Vách đá"},
 }
 
 // mapRamp is the palette the map paints land tile t with. Kinds missing from
@@ -78,6 +83,7 @@ type worldMap struct {
 
 	explored *sim.Explored   // what this player has seen, kept up to date
 	fog      *ebiten.Image   // one pixel per tile, opaque where unseen
+	fogFirst chan []byte     // the first fog, made off the game loop: see mapperf.go
 	fogDirty image.Rectangle // tiles whose fog may be stale; empty when none
 	mini     *ebiten.Image   // the minimap's canvas
 
@@ -98,6 +104,7 @@ func (m *worldMap) reset(terr *terrain, explored *sim.Explored) {
 		m.fog.Deallocate()
 		m.fog = nil
 	}
+	m.fogFirst = nil
 	m.gen++
 	if m.img != nil {
 		m.img.Deallocate()
@@ -129,17 +136,18 @@ func (m *worldMap) collect() {
 	}
 }
 
-// bakeMap draws the whole map, keeping the TileW:TileH shape of a tile.
+// bakeMap draws the whole map, keeping the TileW:TileH shape of a tile,
+// its rows shared out among the cores.
 func (t *terrain) bakeMap() (w, h int, data []byte) {
-	sx := min(mapPxPerTile, float64(mapMaxPx)/float64(max(t.w, t.h)))
+	sx := mapScale(t.w, t.h)
 	sy := sx * TileH / TileW
 	w, h = max(1, int(float64(t.w)*sx)), max(1, int(float64(t.h)*sy))
 	c := newCanvas(w, h)
-	for y := 0; y < h; y++ {
+	inRows(h, func(y int) {
 		for x := 0; x < w; x++ {
 			c.px[y*w+x] = t.mapPixel((float64(x)+0.5)/sx, (float64(y)+0.5)/sy, x, y)
 		}
-	}
+	})
 	return w, h, c.bytes()
 }
 
@@ -150,7 +158,7 @@ func (t *terrain) mapPixel(u, v float64, px, py int) color.RGBA {
 		if s > -0.12 {
 			return mix(colFoam, colShallow, 0.35)
 		}
-		return mapWater.pick(math.Sqrt(clamp01(-s/5)), px, py)
+		return t.mapShallow(mapWater.pick(math.Sqrt(clamp01(-s/5)), px, py), u, v)
 	}
 	best, second, margin := t.landType(u, v)
 	c := mapRamp(best).pick(0.5+(fbm2(u*0.25, v*0.3, 90, 2)-0.5)*1.2, px, py)
@@ -160,7 +168,7 @@ func (t *terrain) mapPixel(u, v float64, px, py int) color.RGBA {
 	if s < 0.12 {
 		c = mix(cliffRamp.at(1), c, s/0.12*0.6) // inked coastline
 	}
-	return c
+	return t.mapRelief(c, u, v)
 }
 
 // --- fog of war -------------------------------------------------------------
@@ -208,24 +216,15 @@ func (m *worldMap) fogImage() *ebiten.Image {
 		return nil
 	}
 	all := image.Rect(0, 0, w, h)
-	if m.fog == nil {
-		m.fog = ebiten.NewImage(w, h)
-		m.fogDirty = all
+	if m.fog == nil && !m.firstFog(w, h) {
+		return nil // still being made: see mapperf.go
 	}
 	r := m.fogDirty.Intersect(all)
 	m.fogDirty = image.Rectangle{}
 	if r.Empty() {
 		return m.fog
 	}
-	pix := make([]byte, 0, r.Dx()*r.Dy()*4)
-	for ty := r.Min.Y; ty < r.Max.Y; ty++ {
-		for tx := r.Min.X; tx < r.Max.X; tx++ {
-			a := uint32(fogAlpha(e, tx, ty))
-			c := mix(colFog, colFogLite, hashf(tx, ty, 500))
-			pix = append(pix, uint8(uint32(c.R)*a/255), uint8(uint32(c.G)*a/255), uint8(uint32(c.B)*a/255), uint8(a))
-		}
-	}
-	m.fog.SubImage(r).(*ebiten.Image).WritePixels(pix)
+	m.fog.SubImage(r).(*ebiten.Image).WritePixels(fogPixels(e, r))
 	return m.fog
 }
 
@@ -314,7 +313,8 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 		screen = screen.SubImage(image.Rect(int(vx0), int(vy0), int(vx0+fw), int(vy0+fh))).(*ebiten.Image)
 	}
 
-	if img := g.mapLayer(g.wmap.img, r0, rh); img != nil {
+	fog := g.mapLayer(g.wmap.fogImage(), r0, rh)
+	if img := g.mapLayer(g.wmap.img, r0, rh); img != nil && fog != nil {
 		b := img.Bounds()
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(dw/float64(b.Dx()), dh/float64(b.Dy()))
@@ -328,7 +328,7 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 		g.text(screen, "Đang vẽ bản đồ…", float64(sw)/2, y0+dh/2-8, colWhite, text.AlignCenter, 1)
 	}
 	// Only what the player has seen shows; the rest is under fog.
-	if fog := g.mapLayer(g.wmap.fogImage(), r0, rh); fog != nil {
+	if fog != nil {
 		b := fog.Bounds()
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(dw/float64(b.Dx()), dh/float64(b.Dy()))

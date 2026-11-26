@@ -188,7 +188,7 @@ func (w *World) byPond(tx, ty int) bool {
 // (tx, ty): free ground, or for a water plant free water.
 func (w *World) canHold(k EntityKind, v uint8, tx, ty int) bool {
 	if k == EntityFlora && v < uint8(NumFlora) && FloraKind(v).InWater() {
-		return w.inBounds(tx, ty) && w.tiles[ty*w.width+tx] == TileWater && w.occ[ty*w.width+tx] == 0
+		return w.inBounds(tx, ty) && w.tiles[ty*w.width+tx].Sea() && w.occ[ty*w.width+tx] == 0
 	}
 	return w.canPlace(tx, ty)
 }
@@ -250,7 +250,7 @@ func (w *World) scatterFlora(rng *rand.Rand, seed uint32) {
 			tile := w.tiles[i]
 			wet := tile.Walkable() && w.waterside(tx, ty)
 			switch tile {
-			case TileWater:
+			case TileWater, TileShallow:
 				switch {
 				case w.underground(ty):
 				case w.pondWater(tx, ty):

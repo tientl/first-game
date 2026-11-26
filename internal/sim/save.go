@@ -34,7 +34,10 @@ import (
 //     four kinds; an older world keeps the plants a fresh one would grow.
 //   - 18: everyone starts in a fur loincloth and clothes are things carried
 //     (clothes.go); a player of an older save is given the clothes they wore.
-const SaveVersion = 18
+//   - 19: worlds of StyleIsles: designed islands with shallows, cliffs, ramps,
+//     rivers and fords, and the 2048-tile size. Nothing older changes, but an
+//     older game would make the wrong world of such a save, so it must refuse it.
+const SaveVersion = 19
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.

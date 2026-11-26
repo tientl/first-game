@@ -23,7 +23,7 @@ const autosaveEvery = time.Minute
 func main() {
 	seed := flag.Uint64("seed", 0, "world seed for a new game (0 = random)")
 	name := flag.String("name", "", "player name: filled in on the character screen, and who \"Chơi tiếp\" continues as")
-	size := flag.Int("size", 0, "world width and height in tiles for a new game (0: the largest)")
+	size := flag.Int("size", 0, "world width and height in tiles for a new game (0: as picked in the menu)")
 	savePath := flag.String("save", "", "save file (default: in the user config directory)")
 	dev := flag.Bool("dev", false, "dev mode: straight into a small new world, god mode, the console on the ` key; see dev.go")
 	demo := flag.Bool("demo", sim.Demo(), "the demo: only two bosses, Titanoboa and Megalodon (also built in by -tags demo)")
@@ -154,7 +154,7 @@ func (a *app) Update() error {
 		if cfg.Seed == 0 {
 			cfg.Seed = uint64(time.Now().UnixNano())
 		}
-		size := sim.SizeHuge // every new world is the largest
+		size := a.menu.NewSize() // Lớn (1024) unless the player picked Khổng lồ (2048)
 		if a.size > 0 {
 			size = a.size // -size on the command line wins
 		}

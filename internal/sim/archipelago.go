@@ -229,7 +229,7 @@ func (w *World) landMasses() [][]int {
 	seen := make([]bool, len(w.tiles))
 	var out [][]int
 	for start, t := range w.tiles {
-		if t == TileWater || seen[start] {
+		if t.Sea() || seen[start] {
 			continue
 		}
 		comp := []int{start}
@@ -241,7 +241,7 @@ func (w *World) landMasses() [][]int {
 				if !w.inBounds(nx, ny) {
 					continue
 				}
-				if j := ny*W + nx; !seen[j] && w.tiles[j] != TileWater {
+				if j := ny*W + nx; !seen[j] && !w.tiles[j].Sea() {
 					seen[j] = true
 					comp = append(comp, j)
 				}

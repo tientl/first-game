@@ -70,6 +70,9 @@ type Game struct {
 	surfaceH      int        // rows above ground; the caves lie below; 0 if none
 	groundSeason  sim.Season // the season the ground is drawn for
 
+	relief     []sim.Relief  // each tile's level and variant; nil for worlds made before sim.StyleIsles; see terrainfeatures.go
+	seasonNext *seasonGround // the next season's ground, being worked out: see mapperf.go
+
 	// The two latest snapshots; players are drawn interpolated between them.
 	hasCurr       bool
 	curr          protocol.Snapshot
@@ -362,7 +365,9 @@ func (g *Game) onMessage(m protocol.ServerMsg) {
 		g.pondMask = sim.PondMask(w.Width, w.Height, w.Tiles)
 		g.surfaceH = w.SurfaceH
 		g.difficulty = w.Difficulty
+		g.relief = w.Relief
 		terr := newTerrain(w.Width, w.Height, w.Tiles)
+		terr.setRelief(g.relief) // see terrainfeatures.go
 		terr.under = g.caveRow()
 		g.ground.reset(terr)
 		g.groundSeason = sim.Spring
@@ -410,10 +415,16 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 	if want := groundSeason(s.Season); want != g.groundSeason {
 		// Snow on the ground and ice on the ponds come and go with winter.
 		g.groundSeason = want
-		terr := newTerrain(g.width, g.height, seasonTiles(g.width, g.height, g.tiles, want, g.pondMask))
-		terr.under = g.caveRow()
-		g.ground.reset(terr)
+		if g.width*g.height > bigGround {
+			g.startSeasonGround(want) // off the game loop: see mapperf.go
+		} else {
+			terr := newTerrain(g.width, g.height, seasonTiles(g.width, g.height, g.tiles, want, g.pondMask))
+			terr.setRelief(g.relief)
+			terr.under = g.caveRow()
+			g.ground.reset(terr)
+		}
 	}
+	g.takeSeasonGround()
 	g.noteSwings(s)
 	g.classifySwings(old, s)
 	g.noteHurts(s)

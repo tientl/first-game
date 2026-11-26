@@ -56,7 +56,7 @@ func TestOpenWorldHasEveryBiome(t *testing.T) {
 			count[tl]++
 		}
 		for k := TileWater; k < NumTiles; k++ {
-			if count[k] == 0 && k != TileIce { // ice is only the client's winter look
+			if count[k] == 0 && k != TileIce && k < TileShallow { // ice is only the client's winter look; the rest only in newer worlds
 				t.Errorf("seed %d size %d: no tile %d", c.seed, c.size, k)
 			}
 		}

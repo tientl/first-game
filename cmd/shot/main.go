@@ -50,7 +50,7 @@ func main() {
 	open := flag.Bool("open", false, "an open world instead of the 96x96 island")
 	sizes := flag.Bool("sizes", false, "with -menu: show the difficulty picker (it took the place of the world-size picker)")
 	size := flag.Int("size", 256, "open world size")
-	at := flag.String("at", "", "open world: stand at desert, marsh, pond (a swamp with ponds), cave, mountain, ash or lava; or by the nearest cavemouth, cavein, pyramid, village, path, giant (tree) or hut (at its door)")
+	at := flag.String("at", "", "open world: stand at desert, marsh, pond (a swamp with ponds), cave, mountain, ash or lava; or by the nearest cavemouth, cavein, pyramid, village, path, giant (tree) or hut (at its door); and in the newest worlds at waterfall, ramp (through a cliff) or lagoon (see isles.go)")
 	female := flag.Bool("female", false, "the player is a woman")
 	hair := flag.Int("hair", 0, "the player's hair style, 0 to 6 (6: the shaggy mane)")
 	hairColor := flag.Int("haircolor", 0, "the player's hair colour, 0 to 7")
@@ -111,6 +111,8 @@ func main() {
 	scaleOnly := flag.String("scaleonly", "", "with -scalesheet: only the groups whose name contains this (trees, conifers, swamp, low, buildings, rocks, creatures)")
 	scaleTitle := flag.String("scaletitle", "", "with -scalesheet: a heading for the sheet")
 	subPixel := flag.Bool("subpixel", true, "let the camera and moving things sit between art pixels, on screen pixels (false: whole art pixels, as before HD art)")
+	reveal := flag.Bool("reveal", false, "the whole map seen: no fog on the map (M) and the minimap")
+	styleFlag := flag.Int("style", -1, "with -open: the world style to make (default: the latest; 7 is the archipelago before the designed islands)")
 	flag.Parse()
 	client.SetHeroHD(*herohd)
 	client.SetScaleOnly(*scaleOnly, *scaleTitle)
@@ -134,6 +136,9 @@ func main() {
 	style := sim.StyleIsland
 	if *open {
 		N, style = *size, sim.StyleLatest
+		if *styleFlag >= 0 {
+			style = sim.WorldStyle(*styleFlag)
+		}
 	}
 	w, err := sim.Generate(sim.GenConfig{Seed: *seed, Width: N, Height: N, Style: style})
 	if err != nil {
@@ -238,6 +243,9 @@ func main() {
 				}
 			}
 		}
+	}
+	if x, y, ok := islesSpot(w, *at, sx, sy); ok { // see isles.go
+		sx, sy, *at = x, y, ""
 	}
 	if *at == "cavemouth" || *at == "cavein" || *at == "giant" || *at == "hut" {
 		k := sim.EntityCaveMouth
@@ -768,9 +776,14 @@ func main() {
 
 	conn := &fakeConn{ch: make(chan protocol.ServerMsg, 8)}
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerWelcome, Welcome: protocol.Welcome{
-		PlayerID: 1, Width: N, Height: mapH, Tiles: w.Tiles(),
+		PlayerID: 1, Width: N, Height: mapH, Tiles: w.Tiles(), Relief: w.Relief(),
 		Explored: shotExplored(N, mapH, sx, sy), SurfaceH: surfH,
 	}}
+	if *reveal {
+		m := <-conn.ch
+		m.Welcome.Explored = revealAll(N, mapH)
+		conn.ch <- m
+	}
 	if *fight {
 		for i := range snap.Creatures {
 			m := int16(snap.Creatures[i].Kind.MaxHP())

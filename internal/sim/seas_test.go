@@ -7,7 +7,16 @@ import (
 
 func genSeas(t *testing.T, seed uint64, size int) *World {
 	t.Helper()
-	w, err := Generate(GenConfig{Seed: seed, Width: size, Height: size, Style: StyleSeas})
+	return genStyle(t, StyleSeas, seed, size)
+}
+
+// archipelagos are the styles of world made of islands, for the tests that
+// hold for every one of them.
+var archipelagos = []WorldStyle{StyleSeas, StyleIsles}
+
+func genStyle(t *testing.T, style WorldStyle, seed uint64, size int) *World {
+	t.Helper()
+	w, err := Generate(GenConfig{Seed: seed, Width: size, Height: size, Style: style})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,33 +211,38 @@ func TestSeaWorldRuns(t *testing.T) {
 }
 
 func TestPyramidStandsOnAFarDesertIsland(t *testing.T) {
-	for _, seed := range []uint64{1, 2, 3} {
-		w := genSeas(t, seed, SizeMedium)
-		tx, ty, ok := w.Pyramid()
-		if !ok {
-			t.Fatalf("seed %d: no pyramid", seed)
+	for _, style := range archipelagos {
+		for _, seed := range []uint64{1, 2, 3} {
+			testPyramid(t, genStyle(t, style, seed, SizeMedium), seed)
 		}
-		if w.TileAt(tx, ty) != TileDesert && w.TileAt(tx, ty) != TileSand {
-			t.Errorf("seed %d: pyramid on tile %d", seed, w.TileAt(tx, ty))
+	}
+}
+
+func testPyramid(t *testing.T, w *World, seed uint64) {
+	tx, ty, ok := w.Pyramid()
+	if !ok {
+		t.Fatalf("seed %d: no pyramid", seed)
+	}
+	if w.TileAt(tx, ty) != TileDesert && w.TileAt(tx, ty) != TileSand {
+		t.Errorf("seed %d: pyramid on tile %d", seed, w.TileAt(tx, ty))
+	}
+	if d := math.Hypot(float64(tx)-w.spawnX, float64(ty)-w.spawnY); d < SizeMedium/5 {
+		t.Errorf("seed %d: pyramid %.0f tiles from the spawn", seed, d)
+	}
+	if e, ok := w.EntityAt(tx, ty+1); !ok || e.Kind != EntityTreasure {
+		t.Errorf("seed %d: no chest in the doorway", seed)
+	}
+	if !w.blocked(tx-2, ty-2) {
+		t.Errorf("seed %d: the pyramid does not block the way", seed)
+	}
+	scorpions := 0
+	for _, c := range w.fauna.creatures {
+		if c.Kind == CreatureScorpion {
+			scorpions++
 		}
-		if d := math.Hypot(float64(tx)-w.spawnX, float64(ty)-w.spawnY); d < SizeMedium/5 {
-			t.Errorf("seed %d: pyramid %.0f tiles from the spawn", seed, d)
-		}
-		if e, ok := w.EntityAt(tx, ty+1); !ok || e.Kind != EntityTreasure {
-			t.Errorf("seed %d: no chest in the doorway", seed)
-		}
-		if !w.blocked(tx-2, ty-2) {
-			t.Errorf("seed %d: the pyramid does not block the way", seed)
-		}
-		scorpions := 0
-		for _, c := range w.fauna.creatures {
-			if c.Kind == CreatureScorpion {
-				scorpions++
-			}
-		}
-		if scorpions < pyramidGuards {
-			t.Errorf("seed %d: %d scorpions", seed, scorpions)
-		}
+	}
+	if scorpions < pyramidGuards {
+		t.Errorf("seed %d: %d scorpions", seed, scorpions)
 	}
 }
 
@@ -244,7 +258,12 @@ func TestScorpionPinchesThenStings(t *testing.T) {
 }
 
 func TestCaveMouthsLeadDownAndBack(t *testing.T) {
-	w := genSeas(t, 2, SizeMedium)
+	for _, style := range archipelagos {
+		testCaveMouths(t, genStyle(t, style, 2, SizeMedium))
+	}
+}
+
+func testCaveMouths(t *testing.T, w *World) {
 	var mouths, exits []Entity
 	for _, e := range w.entities {
 		switch e.Kind {
@@ -313,7 +332,12 @@ func TestCaveMouthsLeadDownAndBack(t *testing.T) {
 // A cave mouth is a doorway in the south face of an outcrop: rock stands on
 // both sides of it and behind it, and the way in is from the tile below.
 func TestCaveMouthOpensSouth(t *testing.T) {
-	w := genSeas(t, 2, SizeMedium)
+	for _, style := range archipelagos {
+		testMouthsOpenSouth(t, genStyle(t, style, 2, SizeMedium))
+	}
+}
+
+func testMouthsOpenSouth(t *testing.T, w *World) {
 	var mouths []Entity
 	for _, e := range w.entities {
 		if e.Kind == EntityCaveMouth {

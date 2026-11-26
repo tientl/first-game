@@ -61,6 +61,9 @@ func (w *World) addUnderground(seed uint32) {
 	occ := make([]EntityID, W*newH)
 	copy(occ, w.occ)
 	w.tiles, w.occ, w.height, w.surfaceH = tiles, occ, newH, H
+	if w.relief != nil { // the caves are plain, at level 0
+		w.relief = append(w.relief, make([]Relief, W*newH-len(w.relief))...)
+	}
 	w.fauna.shallow = nil // sized for the old map; rebuilt on demand
 	top := H + undergroundGap
 	w.carveMaze(seed, top, H)
@@ -110,7 +113,7 @@ func (w *World) digCaveMouths(rng *rand.Rand) {
 		}
 		for y := ty - 1; y <= ty+1; y++ {
 			for x := tx - 2; x <= tx+2; x++ {
-				if y >= H || !w.TileAt(x, y).Walkable() || w.TileAt(x, y) == TilePath || w.TileAt(x, y) == TileLava {
+				if y >= H || !w.TileAt(x, y).Walkable() || w.TileAt(x, y) == TilePath || w.TileAt(x, y) == TileLava || w.crossing(y*W+x) {
 					return false
 				}
 				if e := w.entityAt(x, y); e != nil && (blocksPlayers(e.Kind) || e.Kind == EntityTreasure) {
