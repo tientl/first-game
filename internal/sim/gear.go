@@ -109,11 +109,11 @@ const (
 )
 
 // armorInputs is what each tier's armour is made of: hides from the hunt,
-// then bones and an Ankylosaurus's bony plates, then plates of agate, then a
+// then bones, then plates of agate, then a
 // tyrant's teeth. Stone has none.
 var armorInputs = [NumTiers][]Ingredient{
 	TierCopper:   {{Item: ItemHide, Count: armorCost}},
-	TierIron:     {{Item: ItemHide, Count: 3}, {Item: ItemBone, Count: 3}, {Item: ItemOsteoderm, Count: 2}},
+	TierIron:     {{Item: ItemHide, Count: 3}, {Item: ItemBone, Count: 5}},
 	TierPlatinum: {{Item: ItemHide, Count: 4}, {Item: ItemBone, Count: 2}, {Item: ItemPlatinumBar, Count: 3}},
 	TierDiamond:  {{Item: ItemHide, Count: 4}, {Item: ItemBone, Count: 4}, {Item: ItemRexTooth, Count: 2}},
 }

@@ -361,7 +361,7 @@ var (
 )
 
 func init() {
-	itemInfo[sim.ItemOsteoderm] = "Tấm xương bọc lưng khủng long bọc giáp, cứng như đá. Làm giáp xương (C)."
+	itemInfo[sim.ItemOsteoderm] = "Tấm xương bọc lưng khủng long bọc giáp, cứng như đá. Vật liệu quý, để dành cho đồ sau này."
 	regIcon(sim.ItemOsteoderm, icOsteoderm)
 }
 

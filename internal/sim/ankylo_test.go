@@ -270,10 +270,10 @@ func TestAnAnkylosaurGivesItsPlates(t *testing.T) {
 	if plates != has(ItemOsteoderm) {
 		t.Fatalf("%d plates on the ground, want %d", plates, has(ItemOsteoderm))
 	}
-	// They go into bone armour.
+	// Bone armour does not need them: a rare beast must not gate a tier.
 	r, _ := RecipeByID(ArmorRecipe(TierIron))
-	if !slices.ContainsFunc(r.Inputs, func(in Ingredient) bool { return in.Item == ItemOsteoderm }) {
-		t.Fatalf("bone armour is made of %+v: it should take the plates", r.Inputs)
+	if slices.ContainsFunc(r.Inputs, func(in Ingredient) bool { return in.Item == ItemOsteoderm }) {
+		t.Fatalf("bone armour is made of %+v: it should not need the plates", r.Inputs)
 	}
 }
 

@@ -17,8 +17,9 @@ import "math"
 //     a swing: that is the moment to get round to its head.
 //   - It is tamed with berries like the other grazers (it lets anyone holding
 //     them come close) and ridden as a slow mount that fights hard for its owner.
-//   - It gives meat, hides, bones and its bony plates (osteoderms), which go
-//     into bone armour (gear.go).
+//   - It gives meat, hides, bones and its bony plates (osteoderms): a material
+//     kept for later gear; bone armour does not need them, so a rare beast
+//     never gates a tier.
 
 // Tuning. Distances in tiles, times in ticks.
 const (
