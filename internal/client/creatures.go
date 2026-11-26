@@ -970,7 +970,10 @@ func (g *Game) drawSeaReptile(dst drawTarget, cam camera, c protocol.CreatureVie
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(sx-s.ax, sy+bob-s.ay)
 	if c.State == sim.CreatureLurk {
-		op.ColorScale.ScaleAlpha(0.45) // seen through the water
+		s = plesioUnderWater(c.FaceLeft, g.frame+int(c.ID)*7) // its soft shape through the water (plesiowater.go)
+		op.GeoM.Reset()
+		op.GeoM.Translate(sx-s.ax, sy+bob-s.ay)
+		op.ColorScale.ScaleAlpha(0.7)
 		drawSprite(dst, s, op)
 		return
 	}

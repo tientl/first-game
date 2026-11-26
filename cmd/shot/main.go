@@ -698,6 +698,7 @@ func main() {
 			put(sim.CreaturePlesio, 1.5, 4.6, sim.CreatureStrike, true)
 		}
 	}
+	putDinosA(&snap, sx, sy, *coast) // dinosa.go
 	if *eat {
 		for i := range snap.Creatures {
 			if c := &snap.Creatures[i]; c.State == sim.CreatureIdle && c.Kind.Feeds() {
