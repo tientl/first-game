@@ -26,29 +26,30 @@ type Tract struct {
 	Region   SDF      // where the feathers grow: those whose middle is inside it
 	Parts    []string // only on these parts (nil: any)
 	Flow     Coords
-	Len, Wid float64 // a feather's length and breadth, guide pixels
-	Rows     float64 // how far apart the rows are, in feather lengths (0: 0.42)
-	Cols     float64 // and the feathers in a row, in breadths (0: 0.82)
-	Grow     float64 // how much longer the feathers get with each pixel along the flow, in Len
-	Tip      float64 // the tips' shape: 0 round, 1 pointed
-	Shaft    float64 // how much lighter (+) or darker (-) the shaft is than the vane (0: none)
-	Relief   float64 // how strongly each feather is modelled (0: 1)
-	Fringe   float64 // the edge of each tip lighter (+) or darker (-)
-	Fluff    float64 // how far the feathers make the outline, in from the guide's edge and out past it (0: they keep to it)
-	Hang     SDF     // where they may not reach out past the drawing: below the hips, where they would hang into the legs' cut
-	Inset    float64 // how far inside the body a feather's middle must be (0: a quarter of Wid)
-	Snap     bool    // each feather lit all over with the drawing's marks at its middle
-	SnapMat  bool    // and all one material, the one at its middle
-	Hair     bool    // fine strands, not vaned feathers: pycnofibres, fur, down
-	Jitter   float64 // how irregularly they lie (0: 0.3)
-	Tint     float64 // how much one feather differs from the next (0: 0.04; hair 0.08)
-	Lift     float64 // how much the whole tract stands out of the body (light, 0: none)
-	Camber   float64 // how much a vane curves over its shaft (0: 0.05, or 0.13 with a shaft)
-	TipMat   string  // the tips of the feathers are this material (a pale fringe, a dark edge)
-	TipGuide bool    // only where the drawing has that material near the tip
-	TipElse  string  // and the drawing's marks of it that are not at a tip become this: flecks made feather tips
-	TipLen   float64 // how far down from the tip, in feather lengths (0: 0.2)
-	Mat      string  // all its feathers this material ("": the guide's)
+	Len, Wid float64  // a feather's length and breadth, guide pixels
+	Rows     float64  // how far apart the rows are, in feather lengths (0: 0.42)
+	Cols     float64  // and the feathers in a row, in breadths (0: 0.82)
+	Grow     float64  // how much longer the feathers get with each pixel along the flow, in Len
+	Tip      float64  // the tips' shape: 0 round, 1 pointed
+	Shaft    float64  // how much lighter (+) or darker (-) the shaft is than the vane (0: none)
+	Relief   float64  // how strongly each feather is modelled (0: 1)
+	Fringe   float64  // the edge of each tip lighter (+) or darker (-)
+	Fluff    float64  // how far the feathers make the outline, in from the guide's edge and out past it (0: they keep to it)
+	Hang     SDF      // where they may not reach out past the drawing: below the hips, where they would hang into the legs' cut
+	Inset    float64  // how far inside the body a feather's middle must be (0: a quarter of Wid)
+	Snap     bool     // each feather lit all over with the drawing's marks at its middle
+	SnapMat  bool     // and all one material, the one at its middle
+	Hair     bool     // fine strands, not vaned feathers: pycnofibres, fur, down
+	Jitter   float64  // how irregularly they lie (0: 0.3)
+	Tint     float64  // how much one feather differs from the next (0: 0.04; hair 0.08)
+	Lift     float64  // how much the whole tract stands out of the body (light, 0: none)
+	Camber   float64  // how much a vane curves over its shaft (0: 0.05, or 0.13 with a shaft)
+	TipMat   string   // the tips of the feathers are this material (a pale fringe, a dark edge)
+	TipGuide bool     // only where the drawing has that material near the tip
+	TipElse  string   // and the drawing's marks of it that are not at a tip become this: flecks made feather tips
+	TipOn    []string // and only over these materials (nil: any)
+	TipLen   float64  // how far down from the tip, in feather lengths (0: 0.2)
+	Mat      string   // all its feathers this material ("": the guide's)
 }
 
 // Plumage is a coat of feathers: its tracts, back to front.
@@ -451,7 +452,7 @@ func (p *Painter) Plumage(pl *Plumage) {
 				tl = 0.2
 			}
 			switch tip := p.MatID(tr.TipMat); {
-			case o.u > 1-tl && (!tr.TipGuide || q.tipMarked(o.f, tr)):
+			case o.u > 1-tl && (!tr.TipGuide || q.tipMarked(o.f, tr)) && tipOn(p, tr, i):
 				p.Mat[i] = tip
 			case tr.TipElse != "" && p.Mat[i] == tip:
 				p.Mat[i] = p.MatID(tr.TipElse)
@@ -688,4 +689,18 @@ func (p *Painter) toneField() []float64 {
 		out[i] = d
 	}
 	return out
+}
+
+// tipOn reports whether tract tr marks feather tips over pixel i's
+// material.
+func tipOn(p *Painter, tr *Tract, i int) bool {
+	if len(tr.TipOn) == 0 {
+		return true
+	}
+	for _, n := range tr.TipOn {
+		if p.Mat[i] == p.MatID(n) {
+			return true
+		}
+	}
+	return false
 }

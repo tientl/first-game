@@ -104,9 +104,11 @@ var dinoRigs = map[string]dinoRig{
 			hind(23, 32, 22, rigPt{28, 19}, rigPt{29.5, 24}, rigPt{25.5, 28}, rigPt{26.5, 33.5}, rigPt{32, 34.5}),
 			hind(13, 22, 22, rigPt{20, 19}, rigPt{20, 23.5}, rigPt{15.5, 27.5}, rigPt{16.5, 33.5}, rigPt{21.5, 34.5}),
 		},
-		head:       rigPart{pivot: rigPt{34.5, 10.5}, dir: headUp(0.5), maxY: 13},
-		jaw:        [2]rigPt{{40.5, 9}, {48.5, 9.4}},                        // the upper teeth are above this line, in the drawing
-		tail:       rigPart{pivot: rigPt{19, 13}, dir: math.Pi, maxY: 16.4}, // the long stiff tail
+		// The head and the slim neck, low and forward, turn about a cut across
+		// the neck; the upper teeth are above the jaw's line, in the drawing.
+		head:       rigPart{pivot: rigPt{34, 11.6}, dir: headUp(0.55), maxY: 15},
+		jaw:        [2]rigPt{{39, 11}, {49.4, 11.1}},
+		tail:       rigPart{pivot: rigPt{19, 13}, dir: math.Pi, maxY: 16.4},
 		drawnTeeth: true,
 		teeth:      true,
 		far:        0b10,

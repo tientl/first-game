@@ -6,13 +6,17 @@ import (
 )
 
 // Troodon: dinos/troodon.png, 53 x 35, facing right: the night hunter,
-// charcoal flecked with pale, a pale throat, a long stiff tail barred to
-// its dark point and a huge amber eye. Its rig is "troodon" in
-// internal/client/dinorigs.go: hips (28, 19) and (20, 19), knees (29.5, 24)
-// and (20, 23.5), ankles (25.5, 28) and (15.5, 27.5); the legs are cut from
-// row 22, columns 23-32 (near) and 13-22 (far); the head turns about
-// (34.5, 10.5), the jaw opens about (40.5, 9) along the line to
-// (48.5, 9.4), and the tail turns about (19, 13).
+// lean and low, leaning forward to hunt, on long slender legs with long
+// feet. Olive-black above, the dark of the back a saddle that breaks into
+// ragged bars down acid green flanks; a green throat and belly; a sleek
+// short coat finely barred darker; the forearms folded with a fringe of
+// longer feathers; a long stiff tail to a dark point; a narrow head with a
+// long snout and a grin of small serrated teeth; and a huge amber eye. Its
+// rig is "troodon" in internal/client/dinorigs.go: hips (28, 19) and
+// (20, 19), knees (29.5, 24) and (20, 23.5), ankles (25.5, 28) and
+// (15.5, 27.5); the legs are cut from row 22, columns 23-32 (near) and
+// 13-22 (far); the head turns about (34, 11.6), the jaw opens about
+// (39, 11) along the line to (49.4, 11.1), and the tail turns about (19, 13).
 //
 // The game finds the eye by its two ambers, which nothing else may use, and
 // draws it again in every pose (internal/client/troodon.go: eyeOf,
@@ -23,138 +27,147 @@ func init() { Register(troodon()) }
 // The eye's two ambers, as in the drawing.
 var troodonAmber = [2]color.NRGBA{rgb(0xffb71e), rgb(0xffdd62)}
 
+// stripes are thin bars Gap apart across the box x0-x1, y0-y1, each W wide,
+// leaning lean pixels across for each pixel down.
+func stripes(x0, x1, y0, y1, gap, w, lean float64) SDF {
+	return func(x, y float64) float64 {
+		u := (x + lean*y) / gap
+		d := math.Abs(u-math.Floor(u)-0.5)*gap - w/2
+		return max(d, x0-x, x-x1, y0-y, y-y1)
+	}
+}
+
 func troodon() *Species {
 	farLeg := Union(
-		Cone(20, 19.6, 2.7, 20, 23.5, 2.0),
-		Cone(20, 23.5, 1.8, 15.8, 27.5, 1.1),
-		Cone(15.8, 27.5, 1.0, 16.3, 32.9, 0.85),
-		Cone(16.3, 33.3, 0.85, 19.9, 33.6, 0.55),
-		Cone(17, 32.6, 0.6, 18.4, 31.6, 0.45),
+		Ellipse(18.1, 19.8, 3.4, 4.0, 0.35),   // the thigh
+		Cone(20, 23.5, 2.0, 15.5, 27.5, 1.45), // the shank
+		Cone(15.5, 27.5, 1.4, 17.1, 33.4, 1.25),
+		Cone(17.1, 33.6, 1.2, 22.1, 34, 0.75), // the toes
+		Cone(17.9, 32.8, 0.8, 19.5, 31.2, 0.55),
 	)
 	nearLeg := Union(
-		Cone(28, 19.6, 2.9, 29.3, 23.8, 2.1),
-		Cone(29.3, 23.8, 1.9, 25.8, 28, 1.1),
-		Cone(25.8, 28, 1.0, 26.4, 32.9, 0.85),
-		Cone(26.4, 33.3, 0.85, 29.9, 33.6, 0.55),
-		Cone(27, 32.6, 0.6, 28.4, 31.6, 0.45),
+		Ellipse(27.6, 19.8, 3.4, 4.0, 0.35),
+		Cone(29.5, 24, 2.0, 25.5, 28, 1.45),
+		Cone(25.5, 28, 1.4, 26.6, 33.4, 1.25),
+		Cone(26.6, 33.6, 1.2, 31.6, 34, 0.75),
+		Cone(27.4, 32.8, 0.8, 29, 31.2, 0.55),
 	)
-	body := Blend(2,
-		Path([3]float64{20, 13.2, 2.8}, [3]float64{11, 12.3, 1.8}, [3]float64{4, 11.7, 0.8}, [3]float64{0.4, 11.4, 0.3}), // the long stiff tail
-		Ellipse(25, 15.4, 7.5, 4.6, 0.05),
-		Cone(30, 13, 3.2, 35, 6.5, 2.4), // the neck
-		Poly(32, 2, 34, 1.6, 39, 2.4, 45, 4.6, 49, 5.5, 49.5, 7.5, 47, 8.6, 39, 9, 36, 10, 33, 10, 31, 6), // the head
+	body := Blend(1.6,
+		Path([3]float64{21, 13.4, 2.7}, [3]float64{11, 12.4, 2.1}, [3]float64{4, 11.8, 0.9}, [3]float64{0.4, 11.4, 0.3}), // the long stiff tail
+		Ellipse(25.2, 16, 8.2, 4.8, 0.06),
+		Cone(31.4, 13.6, 2.8, 37.6, 9.8, 1.9), // the slim neck
+		Poly(36.2, 8.6, 38.2, 6.6, 41, 6, 43.8, 6.9, 47, 8.6, 49.4, 9.8, 49.8, 10.7, 49, 11.1, 40, 11.4, 37.6, 11.8, 36, 10.6), // the narrow head
 	)
-	jaw := Poly(38, 8.9, 48.5, 9.0, 47.5, 9.9, 39, 10.1)
-	arm := Union(
-		Cone(31, 16, 1.4, 32.2, 18.4, 1.0),
-		Cone(32.2, 18.6, 0.8, 32.8, 19.6, 0.55),
+	jaw := Poly(38.8, 10.9, 48.8, 11.0, 48.2, 11.8, 45.4, 12.2, 40.4, 12.4, 38.8, 12.0)
+	arm := Union( // the forearm folded, its fringe of feathers trailing back
+		Cone(31.6, 15, 1.3, 32.6, 18.2, 0.9),
+		Cone(32.6, 18.2, 0.85, 34.4, 19, 0.6),
+		Poly(31, 16.6, 33, 18.4, 32.6, 19.4, 30.2, 20.4, 29.2, 19.8),
 	)
+	dark := []uint32{0x0b0c0a, 0x111310, 0x181b16, 0x20241d, 0x2a2f25, 0x353b2e, 0x424937, 0x515a42}
 	return &Species{
 		Name:        "troodon",
 		GuideDetail: 0.3,
-		Ink:         22,
+		Ink:         20,
 		Materials: []Material{
-			{Name: "char", Seeds: []uint32{0x383335, 0x4a4343, 0x5f5653, 0x282426, 0x1b1819, 0x7a6f68},
-				Ramp: []uint32{0x0e0c0e, 0x171416, 0x211d1e, 0x2d2827, 0x3b3532, 0x4b443f, 0x5d554e, 0x71685e}},
-			{Name: "fleck", Seeds: []uint32{0x9a8c76, 0x8c7f6c},
-				Ramp: []uint32{0x2e2824, 0x423a32, 0x574d42, 0x6e6252, 0x857762, 0x9a8b72, 0xae9f84, 0xc0b296}, Bias: 0.12, Smooth: 0.5},
-			{Name: "pale", Seeds: []uint32{0xb0a48c, 0xd0c6ac},
-				Ramp: []uint32{0x3a342c, 0x564e42, 0x726858, 0x8e836e, 0xa89c84, 0xbeb398, 0xd2c8ae, 0xe4dcc4}, Bias: 0.13},
-			{Name: "olive", Seeds: []uint32{0x716650, 0x524a3c, 0x35302a, 0x8f8366},
-				Ramp: []uint32{0x1e1a14, 0x2c261c, 0x3c3426, 0x4e4430, 0x62563a, 0x766a46, 0x8a7d54, 0x9e9064}},
-			{Name: "white", Seeds: []uint32{0xe2dcc6, 0xf0ead8},
+			{Name: "dark", Seeds: []uint32{0x1a1d17, 0x23271f, 0x2d3228, 0x393f31}, Ramp: dark},
+			{Name: "green", Seeds: []uint32{0x34500f, 0x4c7416, 0x6a9a1e, 0x8cbe2c, 0xb0dc4a},
+				Ramp: []uint32{0x22340a, 0x34500e, 0x4a7014, 0x62921a, 0x7cb222, 0x98cc30, 0xb4e044, 0xccf064}, Bias: 0.04},
+			{Name: "shank", Seeds: []uint32{0x2a2a20, 0x3c3c2c, 0x4e4e3a, 0x626048, 0x767458},
+				Ramp: []uint32{0x1a1a14, 0x26261c, 0x323226, 0x404030, 0x504e3a, 0x605e46, 0x726e52, 0x86825e}},
+			{Name: "white", Seeds: []uint32{0xd2cab0, 0xe6e0c6},
 				Ramp: []uint32{0x4e4440, 0x6e6458, 0x948a7a, 0xb4aa96, 0xcec6b0, 0xe2dcc8, 0xf0ecdc, 0xfffcf0}},
 			{Name: "eye", Seeds: []uint32{0xffb71e, 0xffdd62},
 				Ramp: []uint32{0x5a2a04, 0x8e4a08, 0xc87a12, 0xeea226, 0xf2c64c, 0xf6dc86, 0xf8e6a4, 0xfaf0c4}},
-			// The black cap of the head, as the drawing has it.
-			{Name: "cap", Ramp: []uint32{0x09080a, 0x0f0d0f, 0x161314, 0x1e1a1a, 0x272221, 0x312b29, 0x3c3532, 0x48403c},
-				Region: Poly(30.4, 1.6, 36.6, 1.6, 38.6, 2.6, 37.4, 3.9, 36.6, 7.4, 34.6, 9.4, 31.4, 9.4, 30.6, 6)},
-			{Name: "farOlive", Ramp: []uint32{0x161310, 0x201c16, 0x2c261c, 0x3a3224, 0x48402c, 0x584e36, 0x685c40, 0x786a4a}}, // the far shank, in shadow
-			// The tail's pale bars, and its dark point.
-			{Name: "tailBar", Ramp: []uint32{0x3a342c, 0x564e42, 0x726858, 0x8e836e, 0xa89c84, 0xbeb398, 0xd2c8ae, 0xe4dcc4},
-				Region: Union(Poly(4, 8, 5.1, 8, 5.1, 16, 4, 16), Poly(8, 8, 9.1, 8, 9.1, 16, 8, 16), Poly(12, 8, 13.1, 8, 13.1, 16, 12, 16), Poly(16, 8, 17.1, 8, 17.1, 16, 16, 16)),
-				Over:   true, Only: []string{"char", "fleck", "pale"}},
-			{Name: "tailDark", Ramp: []uint32{0x09080a, 0x0f0d0f, 0x161314, 0x1e1a1a, 0x272221, 0x312b29, 0x3c3532, 0x48403c},
-				Region: Poly(-1, 8, 3, 8, 3, 16, -1, 16), Over: true, Only: []string{"char", "fleck", "pale"}},
-			{Name: "gum", Seeds: []uint32{0x2a1012},
+			{Name: "gum", Seeds: []uint32{0x4a1416},
 				Ramp: []uint32{0x14070a, 0x1e0a0d, 0x2a1012, 0x381618, 0x461c1e, 0x542226, 0x62282c, 0x703034}},
+			{Name: "farShank", Ramp: []uint32{0x121210, 0x1a1a14, 0x22221a, 0x2c2c22, 0x38362a, 0x444232, 0x52503c, 0x605e48}}, // in shadow
+			// Fine darker barring across the green of the flanks and thighs.
+			{Name: "bar", Ramp: []uint32{0x1a2a0a, 0x263c0e, 0x325012, 0x406416, 0x4e781c, 0x5e8e22, 0x70a428, 0x82b830},
+				Region: stripes(13, 37, 11, 24, 1.35, 0.32, 0.35), Over: true, Only: []string{"green"}},
+			// The point of the tail, dark.
+			{Name: "tip", Ramp: []uint32{0x0b0c0a, 0x111310, 0x181b16, 0x20241d, 0x2a2f25, 0x353b2e, 0x424937, 0x515a42},
+				Region: Poly(-1, 8, 5.5, 8, 5.5, 16, -1, 16), Over: true, Only: []string{"green", "dark"}},
 		},
 		Recolor: []Recolor{
-			{Region: Poly(13, 24, 22.9, 24, 22.9, 36, 13, 36), From: []string{"olive"}, To: "farOlive"},
-			{Region: Poly(32.2, 19.4, 35, 19.4, 35, 22, 32.2, 22), From: []string{"white"}, To: "olive"},
-			{Region: Poly(18.4, 29.4, 22, 29.4, 22, 34, 18.4, 34), From: []string{"white"}, To: "olive"},
-			{Region: Poly(28.4, 29.4, 32, 29.4, 32, 34, 28.4, 34), From: []string{"white"}, To: "olive"},
-			// The eye is painted again, round.
-			{Region: Cut(Poly(30, 0, 50, 0, 50, 12, 30, 12), Circle(38.55, 5.45, 1.7)), From: []string{"eye"}, To: "char"},
-			// The snout's lighter grey is no fleck.
-			{Region: Poly(36, 3, 50, 3, 50, 9, 36, 9), From: []string{"fleck"}, To: "char"},
+			{Region: Poly(13, 24, 22.9, 24, 22.9, 36, 13, 36), From: []string{"shank"}, To: "farShank"},
+			{Region: Poly(34, 18.4, 36.5, 18.4, 36.5, 21.5, 34, 21.5), From: []string{"white"}, To: "dark"},
+			{Region: Union(Poly(18.6, 29.4, 21.5, 29.4, 21.5, 32.2, 18.6, 32.2), Poly(28.6, 29.4, 31.5, 29.4, 31.5, 32.2, 28.6, 32.2),
+				Poly(31.6, 33.4, 33.2, 33.4, 33.2, 35, 31.6, 35), Poly(21.6, 33.4, 23, 33.4, 23, 35, 21.6, 35)), From: []string{"white"}, To: "shank"},
+			{Region: Cut(Poly(30, 0, 53, 0, 53, 14, 30, 14), Circle(41, 8.4, 1.7)), From: []string{"eye"}, To: "dark"}, // the eye is painted again, round
 		},
 		Remove: []SDF{
-			Poly(32.4, 19.5, 34.6, 19.5, 34.6, 21.6, 32.4, 21.6), // the guide's claws, painted again
-			Poly(18.6, 29.5, 22, 29.5, 22, 32.4, 18.6, 32.4),
-			Poly(28.6, 29.5, 32, 29.5, 32, 32.4, 28.6, 32.4),
+			Poly(34.6, 18.6, 36.5, 18.6, 36.5, 21.5, 34.6, 21.5), // the guide's claws, painted again
+			Poly(18.6, 29.4, 21.5, 29.4, 21.5, 31.6, 18.6, 31.6),
+			Poly(28.6, 29.4, 31.5, 29.4, 31.5, 31.6, 28.6, 31.6),
 		},
 		Parts: []Part{
-			{Name: "farLeg", Shape: farLeg, Far: true, Round: 2.2, Scale: 0.65, Muscles: []Muscle{
-				Mu(20, 20.5, 2.2, 2.4, 0, 0.8),
+			{Name: "farLeg", Shape: farLeg, Far: true, Round: 2.2, Scale: 0.6, Muscles: []Muscle{
+				Mu(18.2, 19.6, 2.4, 2.8, 0.35, 0.8),
 			}},
-			{Name: "body", Shape: body, Round: 5.5, RoundAt: func(x, y float64) float64 { return lerp(5.5, 2.4, smoothstep(32, 37, x)) }, Muscles: []Muscle{
-				Mu(24.5, 14.5, 6, 3.5, 0, 0.7),     // the ribs
-				Mu(30.5, 13.5, 2.4, 2.8, 0.3, 0.6), // the shoulder
-				Mu(35.6, 4.6, 2.2, 1.4, 0, 0.6),    // behind the eye
-				Mu(44, 6.2, 3.4, 1.2, 0, 0.5),      // the snout
-				Mu(38.4, 3.6, 1.6, 0.7, 0, 0.6),    // the brow over the eye
+			{Name: "body", Shape: body, Round: 5, RoundAt: func(x, y float64) float64 { return lerp(5, 2.2, smoothstep(32, 37, x)) }, Muscles: []Muscle{
+				Mu(25, 15, 6, 3.4, 0.06, 0.7),     // the ribs
+				Mu(31, 13.4, 2.2, 2.6, 0.5, 0.5),  // the base of the neck
+				Mu(40, 7.4, 2.2, 1.1, 0, 0.6),     // the brow over the great eye
+				Mu(44.6, 8.6, 3.4, 1.2, 0.3, 0.4), // the snout
 			}},
-			{Name: "jaw", Shape: jaw, Round: 0.8, Soft: 0.5, Scale: 0.55, Mat: "char"},
-			{Name: "arm", Shape: arm, Round: 1.2, Soft: 0.5, Scale: 0.6, Mat: "olive", Muscles: []Muscle{
-				Mu(31.3, 16.4, 1, 1.4, 0.4, 0.5),
+			{Name: "jaw", Shape: jaw, Round: 0.8, Soft: 0.5, Scale: 0.5, Mat: "green"},
+			{Name: "arm", Shape: arm, Round: 1.2, Soft: 0.5, Scale: 0.6, Mat: "dark", Muscles: []Muscle{
+				Mu(31.8, 16, 1, 1.4, 0.4, 0.5),
 			}},
-			{Name: "nearLeg", Shape: nearLeg, Round: 2.4, Scale: 0.65, Onto: "body", Seam: Below(14, 20, 34, 19.5), Muscles: []Muscle{
-				Mu(28.2, 20.5, 2.4, 2.6, 0, 0.9),
+			{Name: "nearLeg", Shape: nearLeg, Round: 2.4, Scale: 0.6, Onto: "body", Seam: Below(14, 20, 34, 19.5), Muscles: []Muscle{
+				Mu(27.6, 19.6, 2.6, 3, 0.35, 0.9),
 			}},
 		},
-		Skin: Skin{Flank: 1.2, Back: 1.5, Belly: 1.0, BackDepth: 2.5, BellyDepth: 2.5, Relief: 0.8, Seed: 41},
+		Skin: Skin{Flank: 1.1, Back: 1.3, Belly: 1.0, BackDepth: 2, BellyDepth: 2, Relief: 0.8, Seed: 41},
 		Folds: []Fold{
-			{Pts: []float64{14.9, 29, 16.6, 29}, N: 3, DY: 1.0, Depth: 0.5},
-			{Pts: []float64{24.9, 29, 26.6, 29}, N: 3, DY: 1.0, Depth: 0.5},
+			{Pts: []float64{14.6, 29, 16.4, 29}, N: 3, DY: 1.2, Depth: 0.5},
+			{Pts: []float64{24.6, 29, 26.4, 29}, N: 3, DY: 1.2, Depth: 0.5},
 		},
 		Details: troodonDetails,
 	}
 }
 
 func troodonPlumage() *Plumage {
-	return &Plumage{Seed: 11, Edge: 0.4, Tone: 0.7, Tracts: []Tract{
-		{Name: "farThigh", Region: Poly(15, 17, 23, 17, 23, 25.2, 15, 25.2), Parts: []string{"farLeg"},
-			Flow: Along(20, 19, 20, 23.5, 15.5, 27.5), Len: 1.9, Wid: 1.35, Fluff: 0.4, Snap: true},
-		{Name: "body", Region: Union(Poly(12, 9, 31, 9, 35.5, 9.5, 35.5, 16, 31, 21, 15, 19), Ellipse(32.8, 6, 2.2, 3.6, 0.3)),
+	return &Plumage{Seed: 11, Edge: 0.4, Tone: 0.6, Tracts: []Tract{
+		{Name: "farThigh", Region: Poly(13, 15, 23, 15, 23, 24.2, 13, 24.2), Parts: []string{"farLeg"},
+			Flow: Along(20, 17, 20, 23.5, 15.5, 27.5), Len: 1.8, Wid: 1.3, Fluff: 0.3, Snap: true},
+		// The sleek short coat, lying close from the nape back.
+		{Name: "body", Region: Union(Poly(12, 8.5, 34, 9, 37.5, 9.5, 37.5, 16, 33, 21.5, 15, 21.5), Ellipse(37, 8.6, 2.4, 2.6, 0.3)),
 			Parts: []string{"body"},
-			Flow:  Along(34, 2.6, 33, 7, 30, 11, 24, 12, 18, 12.6, 12, 12.4), Len: 2.2, Wid: 1.5, Rows: 0.45, Jitter: 0.2, Fluff: 0.5, Snap: true, Hang: Poly(-1, 20.8, 54, 20.8, 54, 40, -1, 40),
-			TipMat: "fleck", TipLen: 0.3, TipGuide: true, TipElse: "char"},
-		{Name: "crown", Region: Poly(31, 1, 37.4, 1, 37.4, 3.2, 35, 4.6, 33.4, 9.6, 30.5, 9.6), Parts: []string{"body"},
-			Flow: Along(38, 2.3, 35, 2.6, 32.6, 6, 31.6, 9.5), Len: 1.2, Wid: 0.9, Fluff: 0.35, Snap: true},
-		// The long stiff tail: its feathers lie flat along it to a point.
-		{Name: "tail", Region: Poly(-1, 8.5, 19, 9, 19.5, 13, 19, 16, -1, 13.5), Parts: []string{"body"},
-			Flow: Along(21, 13.1, 11, 12.3, 3, 11.6, -1, 11.3), Len: 2.4, Wid: 1.0, Rows: 0.38, Tip: 0.8, Shaft: 0.1, Inset: 0.05},
-		{Name: "nearThigh", Region: Poly(23, 17, 33, 17, 33, 25.2, 23, 25.2), Parts: []string{"nearLeg"},
-			Flow: Along(28, 19, 29.5, 24, 25.5, 28), Len: 1.9, Wid: 1.35, Fluff: 0.4, Snap: true},
-		{Name: "arm", Region: Poly(30, 14.4, 33.4, 15.6, 33.6, 19.8, 31.6, 19.6, 30.2, 16.8), Parts: []string{"arm"},
-			Flow: Along(30.6, 15.2, 31.8, 17.6, 32.7, 19.6), Len: 1.4, Wid: 1.0, Fluff: 0.3, Snap: true},
+			Flow:  Along(39, 7.2, 36, 9.5, 31, 11.5, 24, 11.8, 18, 12.4, 12, 12.6), Len: 1.9, Wid: 1.3, Rows: 0.45, Jitter: 0.2, Fluff: 0.3, Snap: true,
+			Hang: Poly(-1, 20.8, 54, 20.8, 54, 40, -1, 40)},
+		{Name: "crown", Region: Poly(36, 5, 41.5, 5, 41.5, 7.2, 38, 9, 36, 9.6), Parts: []string{"body"},
+			Flow: Along(42, 6.4, 39, 6.6, 36.8, 8.6), Len: 1.1, Wid: 0.8, Fluff: 0.25, Snap: true},
+		// The long stiff tail: its feathers lie flat along it, a little
+		// longer at its edges, to the dark point.
+		{Name: "tail", Region: Poly(-1, 8.5, 19, 9, 19.5, 13, 19, 16.6, -1, 13.6), Parts: []string{"body"},
+			Flow: Along(21, 13.3, 11, 12.4, 3, 11.7, -1, 11.3), Len: 2.4, Wid: 1.0, Rows: 0.38, Tip: 0.8, Shaft: 0.1, Inset: 0.05, Fluff: 0.3},
+		{Name: "nearThigh", Region: Poly(23, 15, 33, 15, 33, 24.2, 23, 24.2), Parts: []string{"nearLeg"},
+			Flow: Along(28, 17, 29.5, 24, 25.5, 28), Len: 1.8, Wid: 1.3, Fluff: 0.3, Snap: true},
+		// The forearm folded, a fringe of longer feathers trailing back from it.
+		{Name: "fringe", Region: Poly(28.6, 15, 35, 17.4, 34.8, 19.8, 31, 21, 28.4, 20.2), Parts: []string{"arm"},
+			Flow: Along(34.4, 18.2, 32.2, 19, 29.6, 19.9, 28, 20.4), Len: 2.4, Wid: 0.9, Rows: 0.36, Tip: 0.6, Shaft: 0.08, Fluff: 0.4, Mat: "dark"},
 	}}
 }
 
 func troodonDetails(p *Painter) {
 	p.Plumage(troodonPlumage())
-	p.Teeth(TeethSpec{X0: 41.4, Y0: 8.2, X1: 48.2, Y1: 8.3, Bottom: 9.02, N: 6, Len: 0.72,
+	// The grin: small serrated teeth along both jaws.
+	p.Teeth(TeethSpec{X0: 39.6, Y0: 10.4, X1: 48.8, Y1: 10.5, Bottom: 11.02, N: 10, Len: 0.6,
 		Ramp: raptorTeeth, Gap: 0x2a1012, Seed: 17})
-	p.Lip([]float64{41, 8.2, 44.5, 8.2, 48.4, 8.3}, 8)
-	p.Nostril(47.7, 5.8, 0.45, 0.28, -0.3)
-	troodonEye(p, 38.55, 5.45)
-	p.Claw(32.7, 19.4, 33.4, 21.0, 0.7, 0.3, sickleHorn[:6])
+	p.Teeth(TeethSpec{X0: 40.2, Y0: 11.75, X1: 48.2, Y1: 11.6, Bottom: 11.05, N: 9, Len: 0.5, Up: true,
+		Ramp: raptorTeeth, Gap: 0x2a1012, Seed: 19})
+	p.Lip([]float64{39.4, 10.45, 44, 10.45, 49, 10.55}, 8)
+	p.Nostril(48.8, 9.9, 0.4, 0.24, -0.3)
+	troodonEye(p, 41, 8.4)
+	// The small clawed hand, tucked.
+	p.Claw(34.4, 18.8, 35.2, 20.4, 0.65, 0.3, sickleHorn[:6])
 	// The feet: a claw on the front toe and the sickle claw held up.
-	p.Claw(19.6, 33.3, 21.4, 33.9, 0.65, 0.15, sickleHorn[:5])
-	p.Claw(18.0, 32.1, 20.5, 30.4, 1.05, -0.55, sickleHorn)
-	p.Claw(29.6, 33.3, 31.4, 33.9, 0.7, 0.15, sickleHorn[:6])
-	p.Claw(28.0, 32.1, 30.5, 30.4, 1.1, -0.55, sickleHorn)
+	p.Claw(21.5, 33.7, 22.8, 34.4, 0.6, 0.15, sickleHorn[:5])
+	p.Claw(17.8, 32.4, 20.6, 30.6, 1.05, -0.6, sickleHorn)
+	p.Claw(31.0, 33.7, 32.6, 34.4, 0.65, 0.15, sickleHorn[:6])
+	p.Claw(27.4, 32.4, 30.2, 30.6, 1.1, -0.6, sickleHorn)
 }
 
 // troodonEye paints the great eye about (cx, cy) in the drawing's two
