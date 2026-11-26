@@ -56,42 +56,62 @@ func (p *Painter) Local(x, y float64) (int, float64) {
 }
 
 // EyeSpec is an eye: its middle and radius, the iris's colours from dark
-// to light, a slit pupil or a round one, and how much of it the upper lid
-// covers (0 to 0.5).
+// to light, a slit pupil (a hunter's) or a round one, and how heavy the
+// upper lid is (0 to 0.5; it is only ever a thin line along the top, the
+// eye open under it).
 type EyeSpec struct {
 	X, Y, R float64
 	Iris    []uint32
 	Slit    bool
 	Lid     float64
 	Squint  float64 // how much wider than tall (0: 1.25)
+	// Brow tilts the brow and the lid's line down towards the snout, a
+	// fierce, intent look (0: a hunter's, with a slit pupil, 0.25; a
+	// plant-eater's level; below 0: level whatever the pupil).
+	Brow float64
 }
 
-// Eye paints an eye in a dark socket, lit from below through the lens,
-// with the lid's shadow over it, a pupil and a glint.
+// Eye paints an eye wide open: the iris whole and round, lit from below
+// through the lens, ringed thin and dark, a slit or round pupil, a thin
+// upper lid along its top edge, the brow's shadow on the skin above it, a
+// crisp glint towards the light and a faint second one opposite.
 func (p *Painter) Eye(e EyeSpec) {
 	sq := e.Squint
 	if sq == 0 {
 		sq = 1.25
 	}
+	brow := e.Brow
+	switch {
+	case brow < 0:
+		brow = 0
+	case brow == 0 && e.Slit:
+		brow = 0.25
+	}
 	// Worked in image pixels: an eye is only a few of them across.
 	cx, cy := e.X*K, e.Y*K
 	rx, ry := e.R*sq*K, e.R*K
 	m, v := p.Local(e.X, e.Y-e.R*1.8)
-	socket := Mix(p.Step(m, 0), Ink, 0.7)
-	shadow := Mix(p.Tone(m, v-0.45), Ink, 0.35)
+	ring := Mix(p.Step(m, 0), Ink, 0.75)
+	lidC := Mix(p.Tone(m, v-0.25), Ink, 0.45)
+	browC := func(px, py int) color.NRGBA { // the brow's shadow on the skin
+		i := p.Idx(px, py)
+		return Mix(p.Tone(p.Mat[i], p.Val[i]-0.22), Ink, 0.12)
+	}
 	iris := func(t float64) color.NRGBA {
 		r := e.Iris
 		return rgb(r[max(0, min(len(r)-1, int(clamp01(t)*float64(len(r)))))])
 	}
-	lid := func(x float64) float64 { // the edge of the upper lid, drooping at the front
+	// The lid's edge: a thin line at the top of the eye, dipping towards the
+	// snout for a hunter.
+	lid := func(x float64) float64 {
 		u := (x - cx) / rx
-		return cy - ry + 2*ry*e.Lid + 0.6*u*u - 0.5*u
+		return cy - ry + ry*0.35*clamp01(e.Lid) + brow*ry*u
 	}
 	in := func(x, y float64) bool {
 		u, w := (x-cx)/rx, (y-cy)/ry
-		return u*u+w*w <= 1 && y >= lid(x)
+		return u*u+w*w <= 1
 	}
-	for py := int(cy - ry - 3); py <= int(cy+ry+2); py++ {
+	for py := int(cy - ry - 4); py <= int(cy+ry+2); py++ {
 		for px := int(cx - rx - 3); px <= int(cx+rx+3); px++ {
 			i := p.Idx(px, py)
 			if i < 0 || !p.In[i] {
@@ -100,36 +120,41 @@ func (p *Painter) Eye(e EyeSpec) {
 			x, y := float64(px)+0.5, float64(py)+0.5
 			u, w := (x-cx)/rx, (y-cy)/ry
 			switch {
+			case in(x, y) && y < lid(x)+0.9:
+				p.Out[i] = lidC // the lid, a line along the top
+			case in(x, y) && u*u+w*w > 0.72:
+				p.Out[i] = Mix(iris(0.15), ring, 0.6) // the iris's dark rim
 			case in(x, y):
-				t := 0.3 + 0.75*clamp01((y-lid(x))/(cy+ry-lid(x))) + 0.15*u
-				if (u*u+w*w > 0.62 && w > -0.2) || y < lid(x)+1 {
-					t -= 0.3 // a dark rim, and the lid's shadow along the top
-				}
+				t := 0.35 + 0.6*clamp01((y-(cy-ry))/(2*ry)) - 0.12*u
 				switch {
-				case e.Slit && math.Abs(x-cx-0.3) < 0.8 && math.Abs(w) < 0.85:
-					p.Out[i] = rgb(0x140b08)
-				case !e.Slit && math.Hypot(u, w) < 0.45:
-					p.Out[i] = rgb(0x140b08)
+				case e.Slit && math.Abs(x-cx) < max(0.75, rx*0.16) && math.Abs(w) < 0.8:
+					p.Out[i] = rgb(0x0c0705)
+				case !e.Slit && math.Hypot(u*sq, w) < 0.5:
+					p.Out[i] = rgb(0x0c0705)
 				default:
 					p.Out[i] = iris(t)
 				}
-			case in(x-1, y) || in(x+1, y) || in(x, y-1) || in(x, y+1) || in(x-1, y+1) || in(x+1, y+1):
-				p.Out[i] = socket // the socket's dark edge
-			case y < cy && math.Abs(u) < 1.15 && y > lid(x)-1.6:
-				p.Out[i] = shadow // the lid, in the brow's shadow
+			case in(x-1, y) || in(x+1, y) || in(x, y-1) || in(x, y+1):
+				p.Out[i] = ring // the ring round the eye
+			case y < cy-ry*0.4 && math.Abs(u) < 1.25 && y > lid(x)-2.2 && !in(x, y+1.5):
+				p.Out[i] = browC(px, py) // the brow's shadow, above the eye
 			default:
 				continue
 			}
 			p.Pro[i] = true
 		}
 	}
-	// The glint: where the light from the top left meets the lens.
-	gx := int(math.Floor(cx - rx*0.45))
-	gy := int(math.Floor(lid(cx-rx*0.45) + 1.2))
-	for _, d := range [][3]int{{0, 0, 255}, {1, 0, 150}, {0, 1, 110}} {
+	// The glint: crisp, high in the eye towards the light; a faint second
+	// one low on the other side.
+	gx := int(math.Floor(cx - rx*0.38))
+	gy := int(math.Floor(max(lid(cx-rx*0.38)+1.2, cy-ry*0.45)))
+	for _, d := range [][3]int{{0, 0, 255}, {1, 0, 200}, {0, 1, 140}} {
 		if i := p.Idx(gx+d[0], gy+d[1]); i >= 0 && p.Pro[i] {
-			p.Out[i] = Mix(p.Out[i], rgb(0xfffbe8), float64(d[2])/255)
+			p.Out[i] = Mix(p.Out[i], rgb(0xfffdf2), float64(d[2])/255)
 		}
+	}
+	if i := p.Idx(int(math.Floor(cx+rx*0.4)), int(math.Floor(cy+ry*0.45))); i >= 0 && p.Pro[i] {
+		p.Out[i] = Mix(p.Out[i], rgb(0xfff4d8), 0.45)
 	}
 }
 
