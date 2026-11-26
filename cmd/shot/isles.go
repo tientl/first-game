@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"strings"
 
 	"survivalgame/internal/sim"
 )
@@ -97,7 +98,13 @@ func islesSpot(w *sim.World, what string, sx, sy float64) (x, y float64, ok bool
 				}
 				score = float64(lagoon) + 1.5*float64(reef) + 0.3*float64(shallow)
 			default:
-				return 0, 0, false
+				var ok bool
+				if score, px, py, ok = moreSpots(what, tx, ty, t, r, at, count); !ok {
+					if score == math.Inf(-1) {
+						return 0, 0, false
+					}
+					continue
+				}
 			}
 			score -= math.Hypot(float64(tx)-sx, float64(ty)-sy) / 40 // the nearer the better, other things equal
 			if score > best {
@@ -115,4 +122,72 @@ func revealAll(w, h int) []byte {
 		b[i] = 0xff
 	}
 	return sim.ExploredFrom(w, h, b).Bytes()
+}
+
+// moreSpots scores tile (tx, ty) as a spot of kind what, for the terrain's
+// art (see terrain.go):
+//
+//   - gorge: below a waterfall pouring south between cliffs;
+//   - ford: by a ford over a river;
+//   - reef: by reefs and sea stacks off a coast;
+//   - lake: on the shore of a lake;
+//   - cliffs, or cliffs-desert, cliffs-snow, cliffs-ash, cliffs-grass:
+//     below a long cliff with a ramp, its high ground of that kind.
+//
+// ok=false skips the tile; a score of -Inf says what is no kind of spot.
+func moreSpots(what string, tx, ty int, t sim.Tile, r sim.Relief, at func(x, y int) (sim.Tile, sim.Relief),
+	count func(tx, ty, rx, ry int, f func(sim.Tile, sim.Relief) bool) int) (score float64, px, py int, ok bool) {
+	is := func(k sim.Tile) func(sim.Tile, sim.Relief) bool {
+		return func(t sim.Tile, _ sim.Relief) bool { return t == k }
+	}
+	switch {
+	case what == "gorge":
+		if t != sim.TileWaterfall || r.Flow() != sim.FlowSouth {
+			return 0, 0, 0, false
+		}
+		if up, _ := at(tx, ty-1); up != sim.TileRiver {
+			return 0, 0, 0, false
+		}
+		score = 3*float64(count(tx, ty, 3, 1, is(sim.TileWaterfall))) + float64(count(tx, ty, 9, 5, is(sim.TileCliff))) +
+			0.5*float64(count(tx, ty, 9, 5, is(sim.TileRiver))) - 0.5*float64(count(tx, ty, 10, 6, is(sim.TileForest)))
+		return score, tx + 3, ty + 3, true
+	case what == "ford":
+		if t != sim.TileFord {
+			return 0, 0, 0, false
+		}
+		score = float64(count(tx, ty, 8, 5, is(sim.TileRiver))) + 2*float64(count(tx, ty, 2, 2, is(sim.TileFord))) -
+			0.5*float64(count(tx, ty, 9, 6, is(sim.TileForest)))
+		return score, tx + 2, ty + 2, true
+	case what == "reef":
+		if !t.Walkable() {
+			return 0, 0, 0, false
+		}
+		reef := count(tx, ty, 12, 7, func(t sim.Tile, r sim.Relief) bool { return t == sim.TileShallow && r.Variant() == sim.VarReef })
+		stacks := count(tx, ty, 12, 7, func(t sim.Tile, r sim.Relief) bool { return t == sim.TileCliff && r.Variant() == sim.VarStack })
+		if reef < 10 {
+			return 0, 0, 0, false
+		}
+		return float64(reef) + 6*float64(min(stacks, 6)) + 0.5*float64(count(tx, ty, 12, 7, is(sim.TileCliff))), tx, ty, true
+	case what == "lake":
+		if !t.Walkable() {
+			return 0, 0, 0, false
+		}
+		lake := count(tx, ty, 10, 6, func(t sim.Tile, r sim.Relief) bool { return t == sim.TileWater && r.Variant() == sim.VarLake })
+		if lake < 20 {
+			return 0, 0, 0, false
+		}
+		return float64(lake) - 0.7*float64(count(tx, ty, 10, 6, is(sim.TileForest))), tx, ty, true
+	case what == "cliffs" || strings.HasPrefix(what, "cliffs-"):
+		if !t.Walkable() || r.Variant() != sim.VarRamp {
+			return 0, 0, 0, false
+		}
+		want := map[string]sim.Tile{"cliffs-desert": sim.TileDesert, "cliffs-snow": sim.TileSnow, "cliffs-ash": sim.TileAsh,
+			"cliffs-grass": sim.TileGrass}[what]
+		if want != 0 && t != want {
+			return 0, 0, 0, false
+		}
+		score = float64(count(tx, ty, 11, 6, is(sim.TileCliff))) - 0.6*float64(count(tx, ty, 11, 7, is(sim.TileForest)))
+		return score, tx, ty + 3, true
+	}
+	return math.Inf(-1), 0, 0, false
 }

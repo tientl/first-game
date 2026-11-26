@@ -25,7 +25,7 @@ func miniBottom() float64 { return miniTop + miniH + 2*miniPad }
 
 // miniScale is the minimap's size of one tile, in screen pixels.
 func miniScale() (tw, th float64) {
-	tw = float64(miniW) / miniTiles
+	tw = miniPx // whole pixels, so the minimap's pieces are drawn one to one: see terrainmap.go
 	return tw, tw * TileH / TileW
 }
 
@@ -61,12 +61,16 @@ func (g *Game) drawMinimap(screen *ebiten.Image, x0 float64) {
 	mw, mh := float64(g.width)*tw, float64(g.height)*th
 	fog := m.fogImage()
 	if img := m.img; img != nil && fog != nil {
-		b := img.Bounds()
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Scale(mw/float64(b.Dx()), mh/float64(b.Dy()))
-		op.GeoM.Translate(ox, oy)
-		op.Filter = ebiten.FilterLinear
-		c.DrawImage(img, op)
+		if !m.minis.draw(c, ox, oy, g.frame) {
+			// Until its pieces are baked, the whole map scaled down.
+			b := img.Bounds()
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Scale(mw/float64(b.Dx()), mh/float64(b.Dy()))
+			op.GeoM.Translate(ox, oy)
+			op.Filter = ebiten.FilterLinear
+			c.DrawImage(img, op)
+			m.minis.draw(c, ox, oy, g.frame)
+		}
 	} else if fog != nil {
 		vector.FillRect(c, float32(ox), float32(oy), float32(mw), float32(mh), colWaterBG, false)
 	}

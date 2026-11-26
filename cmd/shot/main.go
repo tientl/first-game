@@ -113,6 +113,10 @@ func main() {
 	subPixel := flag.Bool("subpixel", true, "let the camera and moving things sit between art pixels, on screen pixels (false: whole art pixels, as before HD art)")
 	reveal := flag.Bool("reveal", false, "the whole map seen: no fog on the map (M) and the minimap")
 	styleFlag := flag.Int("style", -1, "with -open: the world style to make (default: the latest; 7 is the archipelago before the designed islands)")
+	gifN := flag.Int("gif", 0, "write a GIF of this many frames (with -crop: of that region, not enlarged) as <o>.gif, from the frame -frames picks")
+	gifStep := flag.Int("gifstep", 2, "with -gif: game frames between the GIF's frames")
+	benchN := flag.Int("bench", 0, "time this many frames before the capture, vsync off, and print what they took and the ground's memory")
+	thin := flag.Float64("thin", 1, "keep about this share of the trees, bushes and rocks round the player (to see the ground)")
 	flag.Parse()
 	client.SetHeroHD(*herohd)
 	client.SetScaleOnly(*scaleOnly, *scaleTitle)
@@ -841,7 +845,8 @@ func main() {
 		conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: before}
 		snap.Players[0].HurtSeq++
 	}
-	cookScene(&snap, sx, sy) // see cook.go
+	cookScene(&snap, sx, sy)   // see cook.go
+	thinEntities(&snap, *thin) // see terrain.go
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}
 
 	if *audioSettings != "" {
@@ -878,7 +883,11 @@ func main() {
 		}
 		inner = &menuGame{m}
 	}
-	g := &shooter{inner: inner, frames: *frames, out: *out, crop: *crop, cost: *costFlag}
+	g := &shooter{inner: inner, frames: *frames, out: *out, crop: *crop, cost: *costFlag, gifN: *gifN, gifStep: max(1, *gifStep), bench: *benchN}
+	if *benchN > 0 {
+		ebiten.SetVsyncEnabled(false)
+		ebiten.SetTPS(ebiten.SyncWithFPS)
+	}
 	if *scaleSheet {
 		g.sheet = game
 	}
@@ -921,6 +930,13 @@ type shooter struct {
 	sheet  *client.Game // write its scale sheet instead of the frame
 	trunks *client.Game // write its trunk sheet instead of the frame
 	cost   bool         // print what the art has cost
+
+	gifN, gifStep int           // -gif: frames to keep, and game frames between them
+	gifFrames     []*image.RGBA // kept so far
+	gifAt         int           // the game frame the last was kept at
+	bench         int           // -bench: frames to time
+	benchTimes    []time.Duration
+	benchLast     time.Time
 }
 
 func (s *shooter) Update() error {
@@ -933,8 +949,25 @@ func (s *shooter) Update() error {
 
 func (s *shooter) Draw(screen *ebiten.Image) {
 	s.inner.Draw(screen)
+	if s.bench > 0 && s.n >= s.frames-s.bench && s.n < s.frames && !s.done {
+		s.benchFrame(screen) // see terrain.go
+	}
 	if s.n < s.frames || s.done {
 		return
+	}
+	if s.gifN > 0 {
+		if len(s.gifFrames) == 0 || s.n-s.gifAt >= s.gifStep {
+			s.gifFrame(screen)
+			s.gifAt = s.n
+		}
+		if len(s.gifFrames) < s.gifN {
+			return
+		}
+		if err := writeGIF(gifPath(s.out), s.gifFrames, max(2, int(math.Round(float64(s.gifStep)*100/60)))); err != nil {
+			s.err, s.done = err, true
+			return
+		}
+		log.Printf("wrote %s", gifPath(s.out))
 	}
 	b := screen.Bounds()
 	img := image.NewRGBA(b)
@@ -943,6 +976,7 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 	if s.sheet != nil || s.cost {
 		printArtCost("at the frame")
 	}
+	s.printBench()
 	if s.trunks != nil {
 		final = s.trunks.TrunkSheet()
 	}

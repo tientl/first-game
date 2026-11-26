@@ -652,3 +652,18 @@ func drawColorM(dst drawTarget, img *ebiten.Image, cm colorm.ColorM, op *colorm.
 		colorm.DrawImage(d.layer, img, cm, &o)
 	}
 }
+
+// drawShaderFine runs a shader over a w by h rectangle placed by op in art
+// pixels, at the full resolution of the canvas when dst is the world pass
+// (one fragment to a canvas pixel), so fine moving detail such as the water
+// of terrainanim.go keeps the grain of the HD art.
+func drawShaderFine(dst drawTarget, w, h int, s *ebiten.Shader, op *ebiten.DrawRectShaderOptions) {
+	if wd, ok := dst.(*worldDst); ok {
+		wd.flush()
+		o := *op
+		o.GeoM.Scale(wd.r, wd.r)
+		wd.canvas.DrawRectShader(w, h, s, &o)
+		return
+	}
+	dst.DrawRectShader(w, h, s, op)
+}
