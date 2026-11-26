@@ -1038,6 +1038,7 @@ func (w *World) scoop(p *Player, held ItemKind, at bool, atX, atY int) {
 	}
 	p.Inv = after
 	p.Dir = dirToward(float64(tx)+0.5-p.X, float64(ty)+0.5-p.Y)
+	p.did(DeedScoop, full)
 	p.actedAt = w.tick
 	p.notify(NoticeScooped, uint8(full))
 }

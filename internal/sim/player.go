@@ -55,6 +55,9 @@ type Player struct {
 	bees      int        // ticks a swarm keeps after them; see jungle.go
 	harm      float64    // beasts' blows on them are multiplied by this: the difficulty; 0 means 1
 	hurtSeq   uint8      // blows taken that make them jolt; see flinch in gear.go
+	deed      Deed       // the last thing done that others see done; see deeds.go
+	deedItem  ItemKind
+	deedSeq   uint8
 	beeHive   [2]float64 // where the angry bees came from
 	boat      BoatID     // the boat p is aboard, 0 if none; see boats.go
 	swim      int        // ticks spent swimming without rest
@@ -647,6 +650,7 @@ func (w *World) eat(p *Player, i int) {
 		// Raw food hurts a little, but a meal never kills.
 		p.Health = min(MaxHealth, max(p.Health+def.Health, min(p.Health, 1)))
 		w.ate(p, s.Item) // a dish's buffs, and its bowl back; see cooking.go
+		p.did(DeedEat, s.Item)
 	}
 }
 

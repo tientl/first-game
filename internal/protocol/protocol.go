@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 44
+const Version = 45
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -212,6 +212,9 @@ type PlayerView struct {
 	Swimming  bool           // in the water: drawn swimming
 	Bees      bool           // a swarm of bees is after them: drawn round them
 	HurtSeq   uint8          // goes up with every blow that makes them jolt; the client starts the jolt when it changes
+	DeedSeq   uint8          // goes up with every deed others see done (eating, scooping, tossing); the client plays it when it changes
+	Deed      sim.Deed       // the last one
+	DeedItem  sim.ItemKind   // and what it was done with
 
 	Cast       sim.CastState // fishing: whether the line is out, and whether the fish bites
 	BobX, BobY float32       // where the float sits while the line is out
