@@ -22,8 +22,7 @@ func TestRightClickDispatchByItemType(t *testing.T) {
 		{"raw meat by a fire is cooked", sim.ItemMeat, useContext{byFire: true}, sim.Command{Kind: sim.CmdCraft, Recipe: sim.RecipeCookMeat}},
 		{"raw fish by a fire is cooked", sim.ItemFish, useContext{byFire: true}, sim.Command{Kind: sim.CmdCraft, Recipe: sim.RecipeCookFish}},
 		{"berries on a beast that eats them feed it", sim.ItemBerry, useContext{feed: true, byFire: true}, sim.Command{Kind: sim.CmdFeed}},
-		{"a torch goes on the tile pointed at", sim.ItemTorch, useContext{spot: spot}, sim.Command{Kind: sim.CmdPlace, At: true, TX: 12, TY: 9}},
-		{"a torch where it cannot go goes in front", sim.ItemTorch, useContext{spot: ghostView{ok: true, tx: 12, ty: 9}}, sim.Command{Kind: sim.CmdPlace}},
+		{"a torch goes in front, not where the pointer is", sim.ItemTorch, useContext{spot: spot}, sim.Command{Kind: sim.CmdPlace}},
 		{"a seed is planted", sim.ItemBerrySeed, useContext{spot: spot}, sim.Command{Kind: sim.CmdPlace, At: true, TX: 12, TY: 9}},
 		{"a head goes on a post", head, useContext{spot: spot}, sim.Command{Kind: sim.CmdPlace, At: true, TX: 12, TY: 9}},
 		{"dung goes on what is pointed at", sim.ItemDung, useContext{aim: true, aimTX: 4, aimTY: 5}, sim.Command{Kind: sim.CmdPlace, At: true, TX: 4, TY: 5}},
@@ -175,18 +174,28 @@ func TestBuildGhostAndClick(t *testing.T) {
 	}
 }
 
-func TestATorchInHandShowsAGhostOffTargets(t *testing.T) {
+// A torch in the hand already lights the way: no ghost shows where it would
+// go, and the right button plants it in front.
+func TestATorchInHandShowsNoGhost(t *testing.T) {
 	bush := protocol.EntityView{ID: 5, Kind: sim.EntityBerryBush, TX: 11, TY: 10, Ready: true}
-	g, _ := fieldGame(bush)
+	g, c := fieldGame(bush)
 	g.curr.Players[0].Held = sim.ItemTorch
+	g.curr.Self.Inv[0] = sim.Slot{Item: sim.ItemTorch, Count: 2}
 	g.SetAim(0, 1.2) // the free tile below
-	if gv := g.ghost(); !gv.ok || !gv.valid || gv.kind != sim.EntityTorchStand {
-		t.Fatalf("torch over free ground: %+v, want a green torch", gv)
-	}
-	g.SetAim(1, 0) // on the bush: picking it comes first
 	if gv := g.ghost(); gv.ok {
-		t.Fatalf("torch over a bush: ghost %+v, want none", gv)
+		t.Fatalf("torch over free ground: ghost %+v, want none", gv)
 	}
+	if g.leftClick(-1, -1) {
+		t.Error("a left click with a torch set something down")
+	}
+	g.rightClick()
+	if want := (sim.Command{Kind: sim.CmdPlace}); len(c.cmds) != 1 || c.cmds[0] != want {
+		t.Fatalf("right click with a torch sent %v, want %+v (in front)", c.cmds, want)
+	}
+	if key, s, _ := g.contextHint(); key != "Chuột phải:" || s != "cắm đuốc xuống trước mặt" {
+		t.Errorf("the hint over the hotbar is %q %q", key, s)
+	}
+	g.SetAim(1, 0) // on the bush
 	if tg, _ := g.target(); !tg.ok || !tg.aimed || tg.e.ID != bush.ID {
 		t.Fatalf("target %+v, want the bush under the pointer", tg)
 	}
@@ -213,14 +222,13 @@ func TestHoverTargetsWhatIsUnderThePointer(t *testing.T) {
 
 func TestHotbarSlotAt(t *testing.T) {
 	const sw, sh = 1280, 720
-	total := sim.HotbarSlots*slotPx + (sim.HotbarSlots-1)*slotGap
-	x0, y := (sw-total)/2, sh-slotPx-20
+	x0, y := hotbarX0(sw), hotbarY(sh)
 	for i := range sim.HotbarSlots {
-		if got, ok := hotbarSlotAt(x0+i*(slotPx+slotGap)+slotPx/2, y+5, sw, sh); !ok || got != i {
+		if got, ok := hotbarSlotAt(x0+i*(hotPx+hotGap)+hotPx/2, y+5, sw, sh); !ok || got != i {
 			t.Fatalf("slot %d is hit as %d %v", i, got, ok)
 		}
 	}
-	if _, ok := hotbarSlotAt(x0+slotPx+1, y+5, sw, sh); ok {
+	if _, ok := hotbarSlotAt(x0+hotPx+1, y+5, sw, sh); ok {
 		t.Error("the gap between slots is a slot")
 	}
 	if _, ok := hotbarSlotAt(sw/2, y-10, sw, sh); ok {

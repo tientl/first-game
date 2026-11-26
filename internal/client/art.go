@@ -85,6 +85,7 @@ type art struct {
 	sea    seaArt                      // boats and sea monsters; see seaart.go
 	desert desertArt                   // the pyramid and the giant scorpion; see desertart.go
 	cave   caveArt                     // cave mouths and the way up; see caveart.go
+	cook   cookArt                     // pots, grills, ovens and racks; see cookart.go
 
 	shadow   *ebiten.Image // soft black disc, drawn squashed
 	light    *ebiten.Image // radial white gradient, alpha-premultiplied
@@ -182,6 +183,8 @@ func newArt() *art {
 	a.addTribalArt()
 	redrawItemIcons(&a.icons) // see itemicons.go
 	bossItemIcons(&a.icons)   // the legendary items; see bosses.go
+	genCookIcons(&a.icons)    // see cookicons.go
+	a.cook = genCookArt()
 	return a
 }
 

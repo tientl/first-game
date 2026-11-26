@@ -231,10 +231,7 @@ func serpenoid(L, bend, waves, phase, x1, y1 float64) []spinePt {
 // genSnake draws one snake sprite, facing right. Frames below snakeSlither
 // slither; then the strike and the resting coil, with and without the
 // tongue out.
-func genSnake(frame int) sprite {
-	c, ax, ay := snakeCanvas(frame)
-	return mk(c, ax, ay)
-}
+func genSnake(frame int) sprite { return critter("snake", 0, frame, 0) }
 
 // snakeCanvas draws sprite frame on a canvas and returns its anchor.
 func snakeCanvas(frame int) (c *canvas, ax, ay float64) {

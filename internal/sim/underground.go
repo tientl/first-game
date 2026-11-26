@@ -168,6 +168,9 @@ func (w *World) digCaveMouths(rng *rand.Rand) {
 
 // placeMouth puts a cave mouth on (tx, ty) and its way up at (ux, uy) in
 // the caves, digging out a chamber there joined to the nearest hall.
+// The mouth is a doorway in the south face of an outcrop: rock stands on the
+// tiles beside and behind it, and it is walked into from the tile below,
+// which is kept clear.
 func (w *World) placeMouth(tx, ty, ux, uy int) {
 	for y := ty - 1; y <= ty+1; y++ {
 		for x := tx - 2; x <= tx+2; x++ {

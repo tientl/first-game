@@ -92,7 +92,7 @@ func (g *Game) drawLines(dst drawTarget, cam camera, alpha float64) {
 
 // drawFishingLabels draws, at screen resolution, the "!" over a float the
 // fish is tugging, and what the local angler should do now.
-func (g *Game) drawFishingLabels(screen *ebiten.Image, cam camera, scale float64, sw, sh int) {
+func (g *Game) drawFishingLabels(screen *ebiten.Image, cam camera, scale float64) {
 	blink := (g.frame/6)%2 == 0
 	for _, p := range g.curr.Players {
 		if p.Cast != sim.CastBite || p.Dead {
@@ -103,8 +103,13 @@ func (g *Game) drawFishingLabels(screen *ebiten.Image, cam camera, scale float64
 		if blink {
 			c = colWhite
 		}
-		g.text(screen, "!", (fx+7)*scale, (fy-20)*scale-12, c, text.AlignCenter, 2) // beside the line, not on it
+		g.text(screen, "!", (fx+7)*scale, (fy-20)*scale-12*uiK(), c, text.AlignCenter, 2*uiK()) // beside the line, not on it
 	}
+}
+
+// drawFishingMessage says on the interface what the line is doing.
+func (g *Game) drawFishingMessage(screen *ebiten.Image, sw, sh int) {
+	blink := (g.frame/6)%2 == 0
 
 	me, ok := g.me()
 	if !ok || me.Cast == sim.CastNone || me.Dead || g.overlay != overlayNone {
@@ -118,7 +123,7 @@ func (g *Game) drawFishingLabels(screen *ebiten.Image, cam camera, scale float64
 		}
 	}
 	w := float32(g.textWidth(msg)) + 28
-	y := float32(sh) - 128
+	y := float32(sh) - slotPx - 96
 	panel(screen, float32(sw)/2-w/2, y, w, 28)
 	g.text(screen, msg, float64(sw)/2, float64(y)+6, col, text.AlignCenter, 1)
 }

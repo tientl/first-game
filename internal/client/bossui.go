@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -18,7 +19,9 @@ import (
 
 // bossUI is the client's own state of the boss screens.
 type bossUI struct {
-	shownHP float64    // the bar's trailing share, catching up with the real one
+	shownHP float64 // the bar's trailing share, catching up with the real one
+	lastHP  float64 // the share at the last frame, and the frame of the last blow
+	hitAt   int
 	closed  bool       // the victory screen was closed here
 	sent    bool       // and the server was told
 	btn     buttonList // "Tiếp tục chơi"
@@ -30,46 +33,101 @@ var (
 	colGold     = color.RGBA{255, 212, 90, 255}
 )
 
-// drawBossBar draws the health of the boss fighting this player.
+// drawBossBar draws the health of the boss fighting this player: its name,
+// a bar with a mark at half (where it flies into its rage), and behind the
+// health left a paler stretch of what the last blows took, which holds a
+// moment and then drains. It is half as big again on a Full HD screen.
 func (g *Game) drawBossBar(screen *ebiten.Image, sw int) {
 	b := g.curr.Boss
+	u := &g.boss
 	if !b.Kind.Boss() || b.MaxHP <= 0 || g.curr.Self.Dead {
-		g.boss.shownHP = 1
+		u.shownHP, u.lastHP = 1, 1
 		return
 	}
-	f := float64(b.HP) / float64(b.MaxHP)
-	if g.boss.shownHP < f {
-		g.boss.shownHP = f
+	f := max(0, float64(b.HP)/float64(b.MaxHP))
+	if u.shownHP < f {
+		u.shownHP = f
 	}
-	g.boss.shownHP += (f - g.boss.shownHP) * 0.04
-	w := float32(min(560, max(240, sw-2*262)))
-	x, y := (float32(sw)-w)/2, float32(12)
-	panel(screen, x-12, y-4, w+24, 62)
-	title, col := bossName(b.Kind), colWhite
+	if f < u.lastHP-1e-9 {
+		u.hitAt = g.frame // struck: the loss shows a while before it drains
+	}
+	u.lastHP = f
+	since := g.frame - u.hitAt
+	if since < 0 || since > 26 {
+		u.shownHP += (f - u.shownHP) * 0.07
+		if u.shownHP-f < 0.002 {
+			u.shownHP = f
+		}
+	}
+	k := float32(max(1, min(1.5, float64(sw)/1280)))
+	w := min(640*k, float32(sw)-2*270)
+	x, y := (float32(sw)-w)/2, 10*k
+	panel(screen, x-14*k, y-4*k, w+28*k, 62*k)
+	title, col := bossName(b.Kind), colGold
 	if b.Enraged {
 		title += " (nổi giận!)"
 		if (g.frame/15)%2 == 0 {
 			col = colBossRage
 		}
 	}
-	g.text(screen, title, float64(sw)/2, float64(y), col, text.AlignCenter, 1)
-	by, bh := y+28, float32(16)
-	fillRoundRect(screen, x, by, w, bh, 5, color.RGBA{30, 10, 12, 230})
-	fillRoundRect(screen, x, by, w*float32(g.boss.shownHP), bh, 5, color.RGBA{240, 200, 170, 200})
+	g.text(screen, title, float64(sw)/2, float64(y), col, text.AlignCenter, float64(k)*1.15)
+	by, bh := y+27*k, 18*k
+	fillRoundRect(screen, x-2*k, by-2*k, w+4*k, bh+4*k, 6*k, color.RGBA{96, 74, 34, 255}) // a bronze rim
+	fillRoundRect(screen, x, by, w, bh, 4*k, color.RGBA{30, 10, 12, 255})
 	fill := colBossBar
 	if b.Enraged {
 		fill = colBossRage
 	}
-	fillRoundRect(screen, x, by, w*float32(f), bh, 5, fill)
-	g.text(screen, fmt.Sprintf("%d / %d", b.HP, b.MaxHP), float64(sw)/2, float64(by)+1, colWhite, text.AlignCenter, 1)
+	if lost := float32(u.shownHP); u.shownHP > f {
+		c := color.RGBA{240, 200, 170, 230}
+		if since >= 0 && since < 8 {
+			c = color.RGBA{255, 250, 240, 255} // the flash of the blow
+		}
+		fillRoundRect(screen, x, by, w*lost, bh, 4*k, c)
+	}
+	if fw := w * float32(f); fw > 1 {
+		fillRoundRect(screen, x, by, fw, bh, 4*k, fill)
+		vector.DrawFilledRect(screen, x+3*k, by+2*k, max(0, fw-6*k), 3*k, lighten(fill, 46), false)
+		vector.DrawFilledRect(screen, x+3*k, by+bh-4*k, max(0, fw-6*k), 2*k, color.RGBA{fill.R / 2, fill.G / 2, fill.B / 2, 255}, false)
+	}
+	// The mark at half.
+	mx := x + w/2
+	mark := colGold
+	if f < 0.5 {
+		mark = color.RGBA{150, 124, 60, 255} // passed
+	}
+	vector.DrawFilledRect(screen, mx-k, by-3*k, 2*k, bh+6*k, mark, false)
+	var d vector.Path
+	d.MoveTo(mx, by-8*k)
+	d.LineTo(mx+4*k, by-3*k)
+	d.LineTo(mx, by+2*k)
+	d.LineTo(mx-4*k, by-3*k)
+	d.Close()
+	vs, is := d.AppendVerticesAndIndicesForFilling(nil, nil)
+	for i := range vs {
+		vs[i].ColorR, vs[i].ColorG, vs[i].ColorB, vs[i].ColorA = float32(mark.R)/255, float32(mark.G)/255, float32(mark.B)/255, 1
+	}
+	screen.DrawTriangles(vs, is, whitePixel(), &ebiten.DrawTrianglesOptions{AntiAlias: true})
+	g.text(screen, fmt.Sprintf("%d / %d", b.HP, b.MaxHP), float64(sw)/2, float64(by+bh/2)-7*float64(k), colWhite, text.AlignCenter, float64(k))
 	if b.Holds {
 		msg := "Bị siết! Giữ phím di chuyển để vùng ra, hoặc đánh nó"
 		c := colBad
 		if (g.frame/12)%2 == 0 {
 			c = lighten(c, 50)
 		}
-		g.text(screen, msg, float64(sw)/2, float64(y)+64, c, text.AlignCenter, 1)
+		g.text(screen, msg, float64(sw)/2, float64(y+64*k), c, text.AlignCenter, float64(k))
 	}
+}
+
+var whitePx *ebiten.Image
+
+// whitePixel is a white image to fill triangles with.
+func whitePixel() *ebiten.Image {
+	if whitePx == nil {
+		whitePx = ebiten.NewImage(3, 3)
+		whitePx.Fill(color.White)
+	}
+	return whitePx.SubImage(image.Rect(1, 1, 2, 2)).(*ebiten.Image)
 }
 
 // noteBosses tells the player when a boss they knew of has fallen.
@@ -134,7 +192,7 @@ func (g *Game) drawVictory(screen *ebiten.Image, sw, sh int) {
 		if bossID(bi) == bossMegalodon {
 			pose = bossSpecial // its idle is only a shadow under the water
 		}
-		s := g.art.bosses[bi][pose][0]
+		s := g.bossPortrait(bi, pose)
 		sw, sh := s.w(), s.h()
 		k2 := min(1.4, 180/sw, 90/sh)
 		op := &ebiten.DrawImageOptions{}

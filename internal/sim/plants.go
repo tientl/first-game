@@ -290,7 +290,7 @@ func (w *World) scatterPlants(rng *rand.Rand, seed uint32) {
 func SwallowedWhole(k CreatureKind) bool {
 	switch k {
 	case CreatureRabbit, CreatureSnake, CreatureCrab, CreatureWorm, CreatureThesc, CreatureOrnitho,
-		CreatureAchero, CreatureRaptor, CreatureAnzu, CreatureSpider, CreatureScorpion:
+		CreatureAchero, CreatureRaptor, CreatureAnzu, CreatureSpider, CreatureScorpion, CreatureToad, CreatureGlowToad:
 		return true
 	}
 	return false

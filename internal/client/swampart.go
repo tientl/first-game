@@ -505,6 +505,9 @@ func genFloater(k floaterKind, v int) sprite {
 	rng := rand.New(rand.NewPCG(uint64(k)*19+5, uint64(v)*23+1))
 	switch k {
 	case floatLily:
+		if envHD {
+			return mkUp(genLilyRaftHD(rng, v)) // see florawet.go
+		}
 		c := newCanvas(22, 12)
 		n := 2 + v
 		var flowerAt [2]float64

@@ -49,6 +49,7 @@ const (
 	overlayBag
 	overlayChest // a chest the server has opened for me; see chestui.go
 	overlayCraft // the crafting window; see craftui.go
+	overlayCook  // a cooking station the server has opened for me; see cookui.go
 )
 
 // Game implements ebiten.Game.
@@ -74,11 +75,12 @@ type Game struct {
 	curr          protocol.Snapshot
 	currAt        time.Time
 	prevPlayers   map[sim.PlayerID]protocol.PlayerView
-	swingAt       map[sim.PlayerID]int       // frame each player's latest blow began; see slash.go
-	swingWhat     map[sim.PlayerID]swingInfo // what that blow was at, and with what; see swing.go
-	hurtAt        map[sim.PlayerID]int       // frame each player was last struck; see jolt.go
-	joltBuf       *fineBuf                   // scratch for drawing a struck player
-	heldAge       int                        // see HoldBlows in punch.go
+	swingAt       map[sim.PlayerID]int        // frame each player's latest blow began; see slash.go
+	swingWhat     map[sim.PlayerID]swingInfo  // what that blow was at, and with what; see swing.go
+	hurtAt        map[sim.PlayerID]int        // frame each player was last struck; see jolt.go
+	joltBuf       *fineBuf                    // scratch for drawing a struck player
+	gaits         map[sim.PlayerID]*gaitState // each player's stride; see limbdraw.go
+	heldAge       int                         // see HoldBlows in punch.go
 	prevCreatures map[sim.CreatureID]protocol.CreatureView
 	hearts        []heartFX      // floating up from beasts being fed; see ride.go
 	riders        []int          // scratch: players drawn on their mounts this frame
@@ -92,7 +94,12 @@ type Game struct {
 	hotSel, sentSel int
 	selKnown        bool
 	selChangedAt    time.Time // for the item name shown above the hotbar
-	wheel           float64   // mouse wheel travel not yet turned into a step
+
+	showHelp  bool              // F1: the full list of keys; see hud.go
+	hudTarget targetView        // what Action works on, for the hint over the hotbar
+	statusOn  [numStatuses]bool // the status effects last drawn
+	statusAt  [numStatuses]int  // when each began, for its long line
+	wheel     float64           // mouse wheel travel not yet turned into a step
 
 	notice      string
 	noticeUntil time.Time
@@ -115,6 +122,7 @@ type Game struct {
 	bag     bagView
 	chest   chestView
 	craft   craftView
+	cook    cookView  // the cooking window; see cookui.go
 	ptr     pointer   // the mouse in play; see mouse.go
 	build   buildMode // a structure chosen to build, waiting for a tile
 	wmap    worldMap
@@ -136,7 +144,7 @@ type Game struct {
 	drawList []drawable
 	frame    int
 
-	lastScreenH int // the screen height last drawn, for mouse hit-testing
+	lastScreenH int // the UI canvas's height last drawn, for mouse hit-testing; see uiscale.go
 	lastScreenW int
 	mapZoom     int // the world map's zoom, 1 = the whole map
 	zoomNoticed int // the zoom last shown in a notice
@@ -144,6 +152,7 @@ type Game struct {
 	prevBoats   map[sim.BoatID]protocol.BoatView
 	swimBuf     *fineBuf    // scratch for drawing a swimmer cut off at the water
 	boss        bossUI      // the boss bar and the victory screen; see bossui.go
+	lair        lairFX      // the lairs' scenes and the moment a fight starts; see lairrender.go, bossintro.go
 	dev         *devConsole // the dev console, only with -dev; see devconsole.go
 }
 
@@ -207,6 +216,9 @@ func (g *Game) Update() error {
 	if inpututil.IsKeyJustPressed(ebiten.KeyF11) {
 		ebiten.SetFullscreen(!ebiten.IsFullscreen())
 	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyF1) {
+		g.showHelp = !g.showHelp // the full list of keys; see hud.go
+	}
 	if g.demo {
 		g.receive()
 		return nil
@@ -245,6 +257,9 @@ func (g *Game) Update() error {
 	if g.paused {
 		g.updatePause()
 		return nil
+	}
+	if g.ready && g.hasCurr && !g.disconnected {
+		g.lairUpdate() // see lairrender.go
 	}
 	if g.ready && g.hasCurr && !g.disconnected && !g.updateVictory() { // see bossui.go
 		g.handleInput()
@@ -299,6 +314,9 @@ func (g *Game) setOverlay(o overlay) {
 	}
 	if g.overlay == overlayChest {
 		g.closeChest()
+	}
+	if g.overlay == overlayCook {
+		g.closeCook()
 	}
 	g.overlay = o
 }
@@ -406,6 +424,7 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 		g.entAt[[2]int{int(e.TX), int(e.TY)}] = i
 	}
 	g.syncChest()
+	g.syncCook()
 	if hadOld {
 		g.snapshotSounds(old, s)
 		g.noteBosses(old, s) // see bossui.go
@@ -459,6 +478,10 @@ func (g *Game) handleInput() {
 		}
 	}
 
+	if g.introLocked() {
+		in.MoveX, in.MoveY, in.Action = 0, 0, false // a boss's entrance: see bossintro.go
+	}
+
 	// Held input is sent only when it changes; if the send fails it is
 	// retried next frame because sentInput is left untouched.
 	if in != g.sentInput {
@@ -472,6 +495,8 @@ func (g *Game) handleInput() {
 		g.updateBag() // in the bag the number keys move stacks instead
 	case overlayChest:
 		g.updateChest()
+	case overlayCook:
+		g.updateCook()
 	case overlayCraft:
 		g.updateCraft() // see craftui.go
 	default:
@@ -507,7 +532,7 @@ func (g *Game) updateKeys(dead bool) {
 			}
 		}
 		return
-	case g.overlay == overlayChest:
+	case g.overlay == overlayChest || g.overlay == overlayCook:
 		if inpututil.IsKeyJustPressed(ebiten.KeyE) {
 			g.setOverlay(overlayNone) // E closes the chest it opened
 		}
@@ -685,8 +710,12 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		return "Chậm tay rồi — cá ăn mất " + strings.ToLower(sim.ItemKind(arg).Def().Name)
 	case sim.NoticeCaught:
 		return "Câu được 1 " + sim.ItemKind(arg).Def().Name + "!"
+	case sim.NoticeFoodPoison:
+		return sim.ItemKind(arg).Def().Name + " có độc — bạn trúng độc! (nhai Thảo dược để giải)"
+	case sim.NoticeCured:
+		return sim.ItemKind(arg).Def().Name + " đã giải độc"
 	case sim.NoticeNeedSeed:
-		return "Cần " + sim.ItemKind(arg).Def().Name + " để trồng — xới đất bằng cuốc đôi khi đào được"
+		return "Cần giống để trồng: khoai lang, thóc, ngô hoặc hạt bí"
 	case sim.NoticeChestFull:
 		return "Rương đầy rồi — không cất thêm " + strings.ToLower(sim.ItemKind(arg).Def().Name) + " được"
 	case sim.NoticeChestNotEmpty:
@@ -749,6 +778,8 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 			verb = " siết!"
 		case sim.CreatureScorpion:
 			verb = " kẹp và chích!"
+		case sim.CreatureToad:
+			return "Chạm phải cóc độc — trúng độc! (nhai Thảo dược để giải)"
 		}
 		return "Bị " + strings.ToLower(sim.CreatureKind(arg).Name()) + verb
 	case sim.NoticeNeedFire:
@@ -808,7 +839,7 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 	case sim.NoticeOutOfCave:
 		return "Đã ra khỏi hang"
 	}
-	return ""
+	return cookNoticeText(kind, arg) // see cookrender.go
 }
 
 // myHeld is the item kind in the hotbar slot this player holds.

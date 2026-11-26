@@ -47,7 +47,8 @@ func aimBox(k EntityKind) (halfW, height float64) {
 		return 0.6, 2.6
 	case EntityBoulder, EntityBerryBush, EntityCactus, EntityWall, EntityStoneWall, EntityDoor,
 		EntityFurnace, EntityBed, EntityChest, EntitySpikes, EntityTrophy, EntityTorchStand,
-		EntityManEater, EntityTreasure, EntityGlowPlant, EntityReed, EntityCampfire, EntityGrave:
+		EntityManEater, EntityTreasure, EntityGlowPlant, EntityReed, EntityCampfire, EntityGrave,
+		EntityOven, EntityDryRack, EntityFlora:
 		return 0.5, 1.6
 	}
 	return 0.5, 1
@@ -408,11 +409,11 @@ func (w *World) interactKey(p *Player) {
 	usable := func(e *Entity, aimed bool) bool {
 		switch e.Kind {
 		case EntityChest, EntityGrave, EntityTreasure:
-			return e.Kind != EntityTreasure || e.Ready
+			return e.Kind != EntityTreasure || w.treasureLeft(e)
 		case EntityBed:
 			return aimed // a bed only when pointed at: E by the bed is mostly for something else
 		}
-		return false
+		return isStation(e) // see cooking.go
 	}
 	ax, ay, aim := p.Aim()
 	if aim {

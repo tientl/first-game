@@ -155,7 +155,9 @@ func genTribalArt() tribalArt {
 
 // --- creatures ----------------------------------------------------------------
 
-func genSpider(pose int) sprite {
+func genSpider(pose int) sprite { return critter("spider", 0, pose, 0) }
+
+func spiderCanvas(pose int) (*canvas, float64, float64) {
 	c := newCanvas(26, 16)
 	lift := 0.0
 	if pose == spiderSpit {
@@ -215,7 +217,7 @@ func genSpider(pose int) sprite {
 		roundShape(c, ell{2.5, 4.5, 1.6, 1.4}, ramp{hex(0xc8c8d0), hex(0xf4f4f8)}, 0.2)
 	}
 	c.outline(0.8)
-	return mk(c, 12, 14)
+	return c, 12, 14
 }
 
 // bearCoat is the colour of a cave bear's shaggy coat at brightness l:
@@ -353,7 +355,7 @@ func bearShag(c *canvas, x0, x1 int, top, under bool) {
 	}
 }
 
-func genBear(pose int) sprite { c, ax, ay := bearCanvas(pose); return mk(c, ax, ay) }
+func genBear(pose int) sprite { return critter("bear", 0, pose, 0) }
 
 // bearCanvas draws a cave bear side-on, facing right: a huge, shaggy brown
 // beast with a hump over the shoulders, a long pale muzzle and great claws.
@@ -442,7 +444,7 @@ var tribeFace = []string{
 	"...DdSS..",
 }
 
-func genTribesman(pose int) sprite { c, ax, ay := tribesmanCanvas(pose); return mk(c, ax, ay) }
+func genTribesman(pose int) sprite { return critter("tribe", 0, pose, 0) }
 
 // tribesmanCanvas draws a warrior side-on, facing right: black-skinned and
 // bare-chested, scowling under white war paint, in a hide loincloth and a
@@ -643,7 +645,9 @@ func tribesmanCanvas(pose int) (*canvas, float64, float64) {
 	return c, fx, gy
 }
 
-func genFishLook(v, frame int) sprite {
+func genFishLook(v, frame int) sprite { return critter(fishKind(v%len(fishLooks)), 0, frame, 0) }
+
+func fishLookCanvas(v, frame int) (*canvas, float64, float64) {
 	look := fishLooks[v%len(fishLooks)]
 	c := newCanvas(17, 10)
 	tail := []float64{4.5, 5, 0.5, 1.6, 0.5, 8.4}
@@ -670,7 +674,7 @@ func genFishLook(v, frame int) sprite {
 	c.set(13, 4, colWhite)
 	c.set(13, 5, colInk)
 	c.outline(0.6)
-	return mk(c, 8, 7)
+	return c, 8, 7
 }
 
 // --- plants ------------------------------------------------------------------

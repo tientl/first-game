@@ -23,6 +23,7 @@ func (a *art) addTribalArt() {
 	genTribalIcons(&a.icons)
 	genDungIcon(&a.icons)   // see dungart.go
 	genWoodsIcons(&a.icons) // see jungleart.go
+	genFloraIcons(&a.icons) // see floraicons.go
 	a.heads = make(map[sim.CreatureKind]sprite)
 	for k := sim.CreatureKind(1); k < sim.NumCreatureKinds; k++ {
 		h := sim.HeadItem(k)
@@ -176,6 +177,10 @@ func tribalLabel(c protocol.CreatureView) (string, color.RGBA, bool) {
 		return name + " — đánh (cào và cắn rất đau!)", colBad, true
 	case sim.CreatureScorpion:
 		return name + " — đánh (kẹp rồi chích độc!)", colBad, true
+	case sim.CreatureToad:
+		return name + " — đừng chạm tay không: da có độc!", colBad, true
+	case sim.CreatureGlowToad:
+		return name + " — hiền, phát sáng ban đêm", colWhite, true
 	case sim.CreatureTribesman:
 		if c.State == sim.CreatureFlee {
 			return name + " (bị thương, đang chạy về làng)", colWhite, true
@@ -625,6 +630,7 @@ func (g *Game) glowLights(dst drawTarget, cam camera, punch bool, dark float64) 
 	if dark < 0.05 {
 		return
 	}
+	g.toadGlows(dst, cam, punch, dark) // see toadart.go
 	for _, e := range g.curr.Entities {
 		if e.Kind != sim.EntityGlowPlant || !e.Ready {
 			continue
@@ -714,7 +720,7 @@ func (g *Game) tribalEntityLabel(e protocol.EntityView, label string, col color.
 		if e.Ready {
 			return label + " — mở", colGood
 		}
-		return label + " (đã mở)", colMuted
+		return label + " (đã mở) — xem", colMuted
 	case sim.EntityTrap:
 		if !e.Ready {
 			return label + " (đã sập) — đặt lại", col

@@ -102,6 +102,18 @@ const (
 
 	// Death at the harder difficulties: see grave.go.
 	EntityGrave // a fallen player's body, holding what they carried
+
+	// A boss's lair: see lair.go.
+	EntityLairProp // part of a lair's scene; Var is which (LairNest...); nothing stops at it
+
+	// Cooking: see cooking.go. (A pot, grill or pan is a campfire's Var.)
+	EntityClay    // a bed of clay by the water, dug by hand
+	EntityMortar  // built: grinds herbs and grain
+	EntityOven    // built: an earth oven that bakes while it burns
+	EntityDryRack // built: dries meat and fish, and sea water to salt
+
+	// The new plants: see flora.go.
+	EntityFlora // a wild plant picked for what it gives; Var is its FloraKind
 	NumEntityKinds
 )
 
@@ -163,7 +175,15 @@ var entityNames = [NumEntityKinds]string{
 	EntityGiantTree:  "Cây cổ thụ khổng lồ",
 	EntityGiantRoot:  "Cây cổ thụ khổng lồ",
 
-	EntityGrave: "Xác người chơi",
+	EntityGrave:    "Xác người chơi",
+	EntityLairProp: "Dấu vết của trùm",
+
+	EntityClay:    "Bãi đất sét",
+	EntityMortar:  "Cối giã",
+	EntityOven:    "Lò nướng bánh",
+	EntityDryRack: "Giàn phơi",
+
+	EntityFlora: "Cây dại",
 }
 
 // Name is the display name of k.
@@ -186,6 +206,7 @@ type Entity struct {
 	Ready    bool   // can be harvested now; false while a tree is a stump or a crop grows
 	RegrowAt uint64 // tick at which a harvested node becomes Ready again; for tilled soil, when it turns back to grass
 	Fuel     int    // ticks of burning left (campfires, furnaces, standing torches); a man-eater's bite cooldown
+	Cook     uint8  `json:",omitempty"` // a cooking station: CookFlag bits, what everyone sees of it; see cooking.go
 	Var      uint8  `json:",omitempty"` // which one of a kind: a corpse's or trophy's creature, a flower's colour, a seedling's seed; on a tree, 1 if bees nest in it; on a fruit tree, 1 while it is a stump
 	HoneyAt  uint64 `json:",omitempty"` // a beehive: the tick its honey is back
 }
@@ -195,8 +216,10 @@ type Entity struct {
 // shared by the server (to pick the target) and the client (to highlight it).
 func Interactable(kind EntityKind, ready, hasWood bool) bool {
 	switch kind {
-	case EntityCactus, EntityReed, EntityMushroom, EntityClam:
+	case EntityCactus, EntityReed, EntityMushroom, EntityClam, EntityClay:
 		return ready
+	case EntityMortar, EntityOven, EntityDryRack:
+		return true // opened like a chest; see cooking.go
 	case EntityCoal, EntityCopperOre, EntityIronOre, EntityPlatinumOre, EntityDiamondOre:
 		return true
 	case EntityTree, EntityBerryBush, EntityGrassTuft, EntityTwig, EntityPebble, EntityCrop,
@@ -211,7 +234,9 @@ func Interactable(kind EntityKind, ready, hasWood bool) bool {
 		return true
 	case EntityGrave:
 		return true // see grave.go
-	case EntityTrap, EntityFlower, EntityGlowPlant, EntityTreasure:
+	case EntityTreasure:
+		return true // opened, it opens again like a chest; see cavelife.go
+	case EntityTrap, EntityFlower, EntityGlowPlant, EntityFlora:
 		return ready || kind == EntityTrap // a sprung trap is set again
 	default:
 		return false

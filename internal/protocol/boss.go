@@ -22,6 +22,17 @@ type BossMark struct {
 	Defeated bool
 }
 
+// LairView is a boss's lair near the player (see sim/lair.go): what the
+// client needs to draw its arena, hide its sleeping boss and set the mood.
+type LairView struct {
+	Kind     sim.CreatureKind
+	X, Y     float32 // the lair, in tiles
+	Radius   float32 // of its arena; 0 if it has none
+	Closed   bool    // the arena is shut
+	Awake    bool    // its boss is in a fight
+	Defeated bool
+}
+
 // VictoryView is the game-beaten screen: every boss of the world has fallen.
 type VictoryView struct {
 	Show   bool               // this player has not closed the screen yet (sim.CmdVictorySeen closes it)

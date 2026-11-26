@@ -105,20 +105,32 @@ func (g *Game) drawSwimmer(dst drawTarget, p protocol.PlayerView, d drawable) {
 	dir := p.Dir & 3
 	tint := playerColors[int(p.ID)%len(playerColors)]
 	bob := math.Round(math.Sin(float64(g.frame)*0.12+float64(p.ID)) * 1)
-	y := d.sy + 14 + bob // sunk to the chest
+	// Sunk to the chest: sink art pixels of the figure are under the water,
+	// and its feet are at (ax, ay) of the strip it is drawn into.
+	sink, ax, ay := 14.0, 24.0, 40.0
+	if playerHD && playerJointed {
+		sink, ax, ay = 21, 32, 56
+	}
+	y := d.sy + sink + bob
 	// Only what is above the water: draw into a strip and cut it off.
 	const above = 22
 	if g.swimBuf == nil {
-		g.swimBuf = newFineBuf(48, 48) // at HD density: see hd.go
+		g.swimBuf = newFineBuf(64, 64) // at HD density: see hd.go
 	}
 	g.swimBuf.img.Clear()
-	drawBody(g.swimBuf, b, dir, 0, 24, 40, 1, 0, tint)
+	if playerHD && playerJointed { // paddling; see limbdraw.go
+		drawFig(g.swimBuf, figDraw{b: b, up: upKey{dir, upSwim, uint8(g.frame / 12 % 4)}, tint: tint}, ax, ay)
+	} else {
+		drawBody(g.swimBuf, b, dir, 0, ax, ay, 1, 0, tint)
+	}
 	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(d.sx-24, y-40)
+	op.GeoM.Translate(d.sx-ax, y-ay)
 	const k = HDDensity
-	sub := g.swimBuf.img.SubImage(imageRect(0, (40-above-14)*k, 48*k, (40-14)*k)).(*ebiten.Image)
-	op.GeoM.Translate(0, float64(40-above-14))
+	top := int(ay - above - sink)
+	sub := g.swimBuf.img.SubImage(imageRect(0, top*k, 64*k, int(ay-sink)*k)).(*ebiten.Image)
+	op.GeoM.Translate(0, float64(top))
 	drawImageD(dst, sub, op, HDDensity)
+	y -= sink - 13 // the rings lie on the water
 	for k := range 2 {
 		ph := math.Mod(float64(g.frame)/70+float64(k)*0.5, 1)
 		r, a := 5+ph*7, uint8(170*(1-ph))
@@ -134,65 +146,69 @@ func (g *Game) drawSwimmer(dst drawTarget, p protocol.PlayerView, d drawable) {
 // seaMonster reports whether k is a monster of the open sea.
 func seaMonster(k sim.CreatureKind) bool { return k == sim.CreatureMosa || k == sim.CreatureKraken }
 
-// seaSprite is creatureSprite for the sea monsters out of the water.
+// seaSprite is creatureSprite for the sea monsters out of the water: frames
+// of the runs in seahd.go.
 func (g *Game) seaSprite(c protocol.CreatureView) (sprite, float64, bool) {
-	a := &g.art.sea
-	var s sprite
+	t := g.frame + int(c.ID)*7
+	if bossAgeShot >= 0 {
+		t = bossAgeShot
+	}
 	switch c.Kind {
 	case sim.CreatureMosa:
-		s = a.mosaRise
-		if c.State == sim.CreatureStrike {
-			s = a.mosaBite
+		hdWarm(mosaRise, mosaBite, mosaBack, mosaShadow)
+		if c.State == sim.CreatureStrike { // thrown back, then the bite
+			age, _ := g.stateAge(c)
+			return mosaBite.sprite(megaFrameAt(mosaBiteAges[:], age), c.FaceLeft), 0, true
 		}
+		g.stateAge(c)
+		return mosaRise.sprite(t/6, c.FaceLeft), 0, true
 	case sim.CreatureKraken:
-		s = a.krakenHead
-	default:
-		return sprite{}, 0, false
+		hdWarm(krakenHead, krakenArm, krakenShadow)
+		return krakenHead.sprite(t/7, c.FaceLeft), 0, true
 	}
-	if c.FaceLeft {
-		s = flipped(s)
-	}
-	return s, 0, true
+	return sprite{}, 0, false
 }
 
 // drawSeaShadow draws a sea monster swimming under the surface: its dark
-// shape, and for the sea lizard now and then a ridge of its back breaking
-// the water.
+// shape, and for the sea lizard now and then its back rolling through the
+// water.
 func (g *Game) drawSeaShadow(dst drawTarget, cam camera, c protocol.CreatureView, alpha float64) {
 	x, y, moving := g.lerpCreature(c, alpha)
 	sx, sy := cam.toScreenFine(x, y)
-	a := &g.art.sea
-	s := a.mosaShadow
-	if c.Kind == sim.CreatureKraken {
-		s = a.krakenShadow
+	t := g.frame + int(c.ID)*7
+	if bossAgeShot >= 0 {
+		t = bossAgeShot
 	}
-	if c.FaceLeft {
-		s = flipped(s)
+	per := 9
+	if moving {
+		per = 5
+	}
+	s := mosaShadow.sprite(t/per, c.FaceLeft)
+	if c.Kind == sim.CreatureKraken {
+		s = krakenShadow.sprite(t/(per+2), c.FaceLeft)
 	}
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(sx-s.ax, sy-s.ay)
-	op.ColorScale.ScaleAlpha(0.42)
+	op.ColorScale.ScaleAlpha(0.5)
 	drawSprite(dst, s, op)
-	if c.Kind == sim.CreatureMosa && moving && (g.frame/50+int(c.ID))%3 == 0 {
-		r := a.mosaBack
-		if c.FaceLeft {
-			r = flipped(r)
-		}
-		drawAt(dst, r, sx, sy+1, 1, 1, 0, nil)
+	const roll = 60 // frames its back takes to roll through
+	if u := (g.frame + int(c.ID)*37) % 170; c.Kind == sim.CreatureMosa && moving && u < roll {
+		drawAt(dst, mosaBack.at(float64(u)/roll, c.FaceLeft), sx, sy+1, 1, 1, 0, nil)
 	}
 }
 
-// drawKraken draws a giant squid holding a boat: its arms rising round it.
+// drawKraken draws a giant squid holding a boat: its arms rising round it,
+// each swaying in its own time.
 func (g *Game) drawKrakenArms(dst drawTarget, c protocol.CreatureView, d drawable) {
-	a := &g.art.sea
+	t := g.frame
+	if bossAgeShot >= 0 {
+		t = bossAgeShot
+	}
 	for k := range 5 {
 		ang := float64(k)*2*math.Pi/5 + 0.4
-		ax := d.sx + math.Cos(ang)*26
-		ay := d.sy + math.Sin(ang)*10
-		arm := a.krakenArm[(g.frame/8+k)%len(a.krakenArm)]
-		if math.Cos(ang) < 0 {
-			arm = flipped(arm)
-		}
+		ax := d.sx + math.Cos(ang)*30
+		ay := d.sy + math.Sin(ang)*11
+		arm := krakenArm.sprite(t/5+k*5, math.Cos(ang) < 0)
 		drawAt(dst, arm, ax, ay, 1, 1, 0, nil)
 	}
 }

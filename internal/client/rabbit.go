@@ -59,10 +59,7 @@ func furLimb(c *canvas, vol ell, x0, y0, x1, y1, r0, r1 float64, rp ramp, bias f
 	}
 }
 
-func genRabbit(pose int) sprite {
-	c, ax, ay := rabbitCanvas(pose)
-	return mk(c, ax, ay)
-}
+func genRabbit(pose int) sprite { return critter("rabbit", 0, pose, 0) }
 
 // rabbitCanvas draws rabbit pose on a canvas and returns its anchor.
 func rabbitCanvas(pose int) (*canvas, float64, float64) {

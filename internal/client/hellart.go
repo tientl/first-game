@@ -113,8 +113,8 @@ func champsoWidth(s float64) float64 {
 
 func genToro(p int) sprite    { c, ax, ay := trikeCanvasOf(p, toroLook); return mk(c, ax, ay) }
 func genAchero(p int) sprite  { c, ax, ay := raptorCanvasOf(p, acheroLook); return mk(c, ax, ay) }
-func genBrachy(p int) sprite  { c, ax, ay := crocCanvasOf(p, brachyLook); return mk(c, ax, ay) }
-func genChampso(p int) sprite { c, ax, ay := crocCanvasOf(p, champsoLook); return mk(c, ax, ay) }
+func genBrachy(p int) sprite  { return critter("brachy", 0, p, 0) }
+func genChampso(p int) sprite { return critter("champso", 0, p, 0) }
 func genQuetzalFly(p int) sprite {
 	c, ax, ay := pteroCanvasOf(p, quetzalFlyLook)
 	return mk(c, ax, ay)

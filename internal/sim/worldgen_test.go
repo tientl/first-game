@@ -85,7 +85,7 @@ func TestGeneratedIslandsArePlayable(t *testing.T) {
 		var kinds [NumEntityKinds]int
 		for _, e := range w.entities {
 			kinds[e.Kind]++
-			if !w.TileAt(e.TX, e.TY).Walkable() {
+			if inWater := e.Kind == EntityFlora && FloraKind(e.Var).InWater(); !w.TileAt(e.TX, e.TY).Walkable() && !inWater {
 				t.Fatalf("seed %d: %s on water at (%d,%d)", seed, e.Kind.Name(), e.TX, e.TY)
 			}
 			if w.occ[e.TY*w.width+e.TX] != e.ID {

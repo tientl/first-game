@@ -309,3 +309,50 @@ func TestCaveMouthsLeadDownAndBack(t *testing.T) {
 		t.Fatalf("%d spiders, %d chests underground", spiders, treasure)
 	}
 }
+
+// A cave mouth is a doorway in the south face of an outcrop: rock stands on
+// both sides of it and behind it, and the way in is from the tile below.
+func TestCaveMouthOpensSouth(t *testing.T) {
+	w := genSeas(t, 2, SizeMedium)
+	var mouths []Entity
+	for _, e := range w.entities {
+		if e.Kind == EntityCaveMouth {
+			mouths = append(mouths, *e)
+		}
+	}
+	if len(mouths) == 0 {
+		t.Fatal("no cave mouths")
+	}
+	for _, m := range mouths {
+		for _, d := range [][2]int{{-1, 0}, {1, 0}, {-1, -1}, {0, -1}, {1, -1}} {
+			if !w.blocked(m.TX+d[0], m.TY+d[1]) {
+				t.Fatalf("mouth at (%d,%d): no rock at offset %v", m.TX, m.TY, d)
+			}
+		}
+		if !w.walkableAt(float64(m.TX)+0.5, float64(m.TY)+1.5) {
+			t.Fatalf("mouth at (%d,%d): the tile in front is not free", m.TX, m.TY)
+		}
+		if w.blocked(m.TX, m.TY) {
+			t.Fatalf("mouth at (%d,%d): the doorway itself is blocked", m.TX, m.TY)
+		}
+	}
+	// Walking at it from behind or from a side does not get in.
+	m := mouths[0]
+	id := w.AddPlayer("a")
+	p := w.players[id]
+	for _, from := range []struct {
+		dx, dy float64
+		in     Input
+	}{
+		{0.5, -1.4, Input{MoveY: 1}},
+		{-1.4, 0.5, Input{MoveX: 1}},
+		{2.4, 0.5, Input{MoveX: -1}},
+	} {
+		p.X, p.Y, p.travelCD = float64(m.TX)+from.dx, float64(m.TY)+from.dy, 0
+		w.SetInput(id, from.in)
+		stepN(w, TicksPerSecond)
+		if w.Underground(int(p.Y)) {
+			t.Fatalf("got into the mouth from offset (%.1f,%.1f)", from.dx, from.dy)
+		}
+	}
+}

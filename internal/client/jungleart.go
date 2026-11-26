@@ -233,7 +233,9 @@ func genHive(full bool) sprite {
 }
 
 // genMonkey is a monkey facing right in the given pose.
-func genMonkey(pose int) sprite {
+func genMonkey(pose int) sprite { return critter("monkey", 0, pose, 0) }
+
+func monkeyCanvas(pose int) (*canvas, float64, float64) {
 	c := newCanvas(26, 24)
 	limbCol := func(x, y int, _ float64) color.RGBA { return monkeyRamp.pick(0.35, x, y) }
 	thick := func(x0, y0, x1, y1 float64) {
@@ -290,7 +292,7 @@ func genMonkey(pose int) sprite {
 		head(19, 9)
 	}
 	c.outline(0.8)
-	return mk(c, 13, 22)
+	return c, 13, 22
 }
 
 // --- drawing ----------------------------------------------------------------------

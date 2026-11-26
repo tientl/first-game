@@ -16,6 +16,7 @@ import (
 	"math"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -81,27 +82,42 @@ func main() {
 	bodies := flag.Bool("bodies", false, "put a fallen player's body and its bag next to the player, and another's gone to bones")
 	bossesFlag := flag.Bool("bosses", false, "put the six bosses round the player on a beach (the Megalodon and a lurking Spinosaurus in the sea), the boss bar up and the lairs on the map; see -bosspose")
 	bossPose := flag.Int("bosspose", 0, "with -bosses: shift which pose each boss shows")
+	bossAge := flag.Int("bossage", -1, "how many frames into its state each boss and sea monster is shown (-1: as many as -frames)")
+	flag.BoolVar(&demoBosses, "demobosses", false, "with -bosses: only Titanoboa and the Megalodon, the bar showing Titanoboa's health")
+	encounterFlag := flag.String("encounter", "", "play a real meeting with a boss of the demo, titan or shark, and write its stills as <o>_approach.png, _lair.png, _intro.png and _arena.png; see encounter.go")
+	encGIF := flag.Bool("encgif", false, "with -encounter: also write every fourth frame of the entrance as <o>_gif_NNN.png")
+	king := flag.Bool("king", false, "put the mammoth king by the player, with a mammoth of its herd for scale; -bosspose picks its state (0 idle, 1 chase, 2 strike, 3 special, 4 roar), -bossage how far into it")
 	victory := flag.Bool("victory", false, "show the game-beaten (Phá đảo!) screen")
 	aimAt := flag.String("aim", "", "dx,dy: hold the mouse pointer this many tiles from the player (the hover brackets, a held torch's ghost)")
 	buildID := flag.Int("build", -1, "recipe id of a structure to place (0 campfire, 8 wall, 9 bed…): build mode with its ghost under -aim, the ingredients given")
 	herohd := flag.Bool("herohd", false, "draw the players as the trial hero: bigger, with a run, a sword blow and firelight (a trial; see internal/client/herohd.go)")
+	chestFlag := flag.String("chest", "", "open a chest next to the player, with things in it: chest, or treasure (an old chest from a cave with its hoard)")
+	statusFlag := flag.String("status", "", "status effects on the player, comma-separated: cold, poison, web, starving, hungry, bees")
 	running := flag.Bool("run", false, "the player is on the move (with -herohd: mid-stride)")
 	winW := flag.Int("w", 1280, "window width; run xvfb with a screen at least this big (xvfb-run -s '-screen 0 1920x1080x24')")
 	winH := flag.Int("h", 720, "window height: 720 draws the world at 2 screen pixels per art pixel, 1080 at 3")
+	floraFlag := flag.String("flora", "", "set the new plants and the toads round the player: pond (with -open -at pond), coast (with -coast) or land")
 	hdTest := flag.Bool("hdtest", false, "set down the HD trial: a mossy stone drawn as the old pixel art (left of the player) and at HD density (right); see internal/client/HD_ART.md")
 	envHD := flag.Bool("envhd", true, "the HD art of trees, plants, rocks and buildings (false: the original density-1 art, to compare)")
 	devCon := flag.Bool("devconsole", false, "open the dev console (as with -dev in cmd/game), with a few commands run on the world; see dev.go")
+	critterHD := flag.Bool("critterhd", true, "the HD art of the code-drawn animals (false: the original density-1 art, to compare)")
 	subPixel := flag.Bool("subpixel", true, "let the camera and moving things sit between art pixels, on screen pixels (false: whole art pixels, as before HD art)")
 	flag.Parse()
 	client.SetHeroHD(*herohd)
 	client.SetHDTest(*hdTest)
 	client.SetEnvHD(*envHD)
+	client.SetCritterHD(*critterHD)
 	client.SetSubPixel(*subPixel)
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
 	client.SetWarmGround(*warm)
 	if *bossesFlag {
 		*coast = true
+	}
+	client.SetBossAge(*bossAge)
+	if *encounterFlag != "" {
+		runEncounter(*encounterFlag, strings.TrimSuffix(*out, ".png"), *seed, *size, *winW, *winH, *dayFrac, *encGIF)
+		return
 	}
 
 	N := 96
@@ -362,6 +378,44 @@ func main() {
 	if *held >= 0 {
 		snap.Players[0].Held = sim.ItemKind(*held)
 	}
+	if *chestFlag != "" {
+		kind := sim.EntityChest
+		if *chestFlag == "treasure" {
+			kind = sim.EntityTreasure
+		}
+		const id = 1<<30 + 77
+		snap.Entities = append(snap.Entities, protocol.EntityView{ID: id, Kind: kind, TX: int16(sx) + 1, TY: int16(sy)})
+		snap.Self.Chest = id
+		c := &snap.Self.ChestSlots
+		c.Add(sim.ItemPotion, 2)
+		c.Add(sim.ItemTorch, 3)
+		c.Add(sim.ItemCoal, 5)
+		c.Add(sim.ItemIronOre, 3)
+		if kind == sim.EntityChest {
+			c.Add(sim.ItemWood, 64)
+			c.Add(sim.ItemStone, 22)
+			c.Add(sim.ItemCookedMeat, 6)
+		} else {
+			c.Add(sim.ItemDiamond, 1)
+			c.Add(sim.ItemGlowSeed, 2)
+		}
+	}
+	for _, st := range strings.Split(*statusFlag, ",") {
+		switch st {
+		case "cold":
+			snap.Self.Cold = true
+		case "poison":
+			snap.Self.Poisoned = true
+		case "web":
+			snap.Self.Webbed = true
+		case "starving":
+			snap.Self.Hunger = 0
+		case "hungry":
+			snap.Self.Hunger = 12
+		case "bees":
+			snap.Players[0].Bees = true
+		}
+	}
 	switch *fishing { // the float 3 tiles below: in the sea with -coast
 	case "wait", "bite":
 		me := &snap.Players[0]
@@ -483,6 +537,9 @@ func main() {
 			snap.Self.Inv.Add(sim.ItemDung, 4)
 		}
 	}
+	if *floraFlag != "" {
+		addFlora(&snap, w, sx, sy, *floraFlag) // see flora.go
+	}
 	if *woodsFlag {
 		addWoods(&snap, sx, sy)
 	}
@@ -558,6 +615,13 @@ func main() {
 		put(troodonLeaper+2, -4.2, 1.8, sim.CreatureChase, false)  // crouched, waiting its turn
 		put(troodonLeaper+3, -7.5, -2.2, sim.CreatureChase, false) // and two more out in the dark
 		put(troodonLeaper+4, 7.5, 3.4, sim.CreatureIdle, true)
+	}
+	if *king {
+		states := []sim.CreatureState{sim.CreatureIdle, sim.CreatureChase, sim.CreatureStrike, sim.CreatureSpecial, sim.CreatureRoar}
+		hp := int16(min(sim.CreatureMammothKing.MaxHP(), 32767))
+		snap.Creatures = append(snap.Creatures,
+			protocol.CreatureView{ID: 1<<25 + 1, Kind: sim.CreatureMammothKing, X: float32(sx - 7.5), Y: float32(sy + 1.2), State: states[*bossPose%len(states)], HP: hp, MaxHP: hp},
+			protocol.CreatureView{ID: 1<<25 + 2, Kind: sim.CreatureMammoth, X: float32(sx + 5), Y: float32(sy + 1.6), State: sim.CreatureIdle, FaceLeft: true})
 	}
 	if *ice {
 		id := sim.CreatureID(1 << 26)
@@ -738,6 +802,7 @@ func main() {
 		conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: before}
 		snap.Players[0].HurtSeq++
 	}
+	cookScene(&snap, sx, sy) // see cook.go
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}
 
 	if *audioSettings != "" {

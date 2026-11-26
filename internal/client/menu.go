@@ -189,31 +189,36 @@ func (m *Menu) Update() MenuChoice {
 }
 
 // Draw renders the title screen.
-func (m *Menu) Draw(screen *ebiten.Image) {
-	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
+func (m *Menu) Draw(real *ebiten.Image) {
 	if m.bg != nil {
-		m.bg.Draw(screen)
+		m.bg.Draw(real)
 	}
+	screen, sw, sh := beginUI(real) // see uiscale.go
+	defer endUI(real, screen)
 	if m.creating {
 		m.create.draw(screen)
+		defer m.create.drawPreview(real, uiScaleNow) // after the interface: at the screen's own resolution
 		return
 	}
 	// Darken towards the middle column so the text reads over the island.
 	vector.FillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{6, 8, 16, 90}, false)
 	cx := float64(sw) / 2
 
-	ty := float64(sh)*0.2 - 30
+	ty, listY := float64(sh)*0.2-30, float64(sh)*0.2+124
+	if sh < 640 { // Full HD at UI scale 2: everything a little higher, so the list clears the hint
+		ty, listY = ty-12, listY-20
+	}
 	drawTitle(screen, "Dino Isles", cx, ty, 6, color.RGBA{250, 214, 110, 255}, color.RGBA{60, 30, 10, 255})
 	drawText(screen, "Survival", cx+3, ty+81, color.RGBA{60, 30, 10, 255}, text.AlignCenter, 3)
 	drawText(screen, "Survival", cx, ty+78, color.RGBA{214, 120, 72, 255}, text.AlignCenter, 3)
 	drawText(screen, "Một thế giới tiền sử đang chờ bạn", cx, ty+128, color.RGBA{236, 226, 200, 255}, text.AlignCenter, 1)
 
-	m.list.draw(screen, cx, float64(sh)*0.2+124, 420)
+	m.list.draw(screen, cx, listY, 420)
 
 	if m.status != "" {
 		drawText(screen, m.status, cx, float64(sh)-80, color.RGBA{255, 140, 130, 255}, text.AlignCenter, 1)
 	}
-	drawText(screen, "W/S hoặc chuột để chọn · Enter để xác nhận · A/D chỉnh âm lượng · F11 toàn màn hình", cx, float64(sh)-30, colMuted, text.AlignCenter, 1)
+	drawText(screen, "W/S hoặc chuột để chọn · Enter để xác nhận · A/D chỉnh âm lượng · F11 toàn màn hình", cx, float64(sh)-24, colMuted, text.AlignCenter, 1)
 
 	if m.confirm {
 		vector.FillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, 150}, false)

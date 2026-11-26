@@ -35,12 +35,35 @@ func (a *art) armor(tier sim.Tier, female bool) *armorArt {
 		return s
 	}
 	s := &armorArt{}
+	jointed := playerHD && playerJointed // the armour sits on the body: one frame does; see tallarmor.go
+	if jointed {
+		for d := sim.DirDown; d <= sim.DirRight; d++ {
+			b, h := armorTall(k.tier, female, d)
+			for f := range walkFrames {
+				s.body[d][f], s.helmet[d][f], s.whole[d][f] = b, h, b
+			}
+		}
+		if a.armors == nil {
+			a.armors = make(map[armorKey]*armorArt)
+		}
+		a.armors[k] = s
+		return s
+	}
 	for d := sim.DirDown; d <= sim.DirRight; d++ {
 		for f := range walkFrames {
+			if jointed && f > 0 {
+				s.body[d][f], s.helmet[d][f] = s.body[d][0], s.helmet[d][0]
+				continue
+			}
 			s.body[d][f], s.helmet[d][f] = genArmor(k.tier, female, d, f)
 		}
 	}
 	for f := range walkFrames {
+		if jointed && f > 0 {
+			s.whole[sim.DirRight][f], s.whole[sim.DirLeft][f] = s.whole[sim.DirRight][0], s.whole[sim.DirLeft][0]
+			s.whole[sim.DirDown][f], s.whole[sim.DirUp][f] = s.body[sim.DirDown][0], s.body[sim.DirUp][0]
+			continue
+		}
 		if playerHD {
 			B, _ := armorLayersHD(k.tier, female, sim.DirRight, f, true)
 			s.whole[sim.DirRight][f] = figSprite(B)

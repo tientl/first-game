@@ -80,12 +80,12 @@ func (g *Game) drawHeldAt(dst drawTarget, k sim.ItemKind, dir sim.Dir, hx, hy fl
 		if class == sim.ToolPickaxe {
 			s = g.art.ore.picks[tier]
 		}
-		drawAt(dst, s, math.Round(hx), math.Round(hy)+1, side, 1, tilt*side, nil)
+		drawAt(dst, s, math.Round(hx), math.Round(hy)+1, side, 1, (tilt+heldTurn)*side, nil)
 		return
 	case sim.ToolHoe:
 		// Carried nearly upright, so the blade hangs from the top like a "7"
 		// and does not read as an axe.
-		drawAt(dst, g.art.ore.hoes[tier], math.Round(hx), math.Round(hy)+1, side, 1, 0.15*side, nil)
+		drawAt(dst, g.art.ore.hoes[tier], math.Round(hx), math.Round(hy)+1, side, 1, (0.15+heldTurn)*side, nil)
 		return
 	}
 
@@ -95,7 +95,7 @@ func (g *Game) drawHeldAt(dst drawTarget, k sim.ItemKind, dir sim.Dir, hx, hy fl
 		if dir == sim.DirLeft || dir == sim.DirRight {
 			tilt = 1.0
 		}
-		drawAt(dst, g.art.gear.swords[t], math.Round(hx), math.Round(hy)+1, side, 1, tilt*side, nil)
+		drawAt(dst, g.art.gear.swords[t], math.Round(hx), math.Round(hy)+1, side, 1, (tilt+heldTurn)*side, nil)
 		return
 	}
 
@@ -112,18 +112,18 @@ func (g *Game) drawHeldAt(dst drawTarget, k sim.ItemKind, dir sim.Dir, hx, hy fl
 		if k == sim.ItemIvorySpear {
 			s = g.art.heldIvorySpear
 		}
-		drawAt(dst, s, math.Round(hx), math.Round(hy)+1, side, 1, tilt*side, nil)
+		drawAt(dst, s, math.Round(hx), math.Round(hy)+1, side, 1, (tilt+heldTurn)*side, nil)
 	case sim.ItemRod:
 		tilt := 0.5
 		if dir == sim.DirLeft || dir == sim.DirRight {
 			tilt = 0.9
 		}
-		drawAt(dst, g.art.heldRod, math.Round(hx), math.Round(hy)+1, side, 1, tilt*side, nil)
+		drawAt(dst, g.art.heldRod, math.Round(hx), math.Round(hy)+1, side, 1, (tilt+heldTurn)*side, nil)
 	case sim.ItemTorch:
 		// Held out in front, so the flame burns beside the face, not on it.
-		tilt := 0.3 * side
+		tilt := (0.3 + heldTurn) * side
 		if dir == sim.DirLeft || dir == sim.DirRight {
-			tilt = 0.85 * side
+			tilt = (0.85 + heldTurn) * side
 		}
 		x, y := math.Round(hx), math.Round(hy)+1
 		drawAt(dst, g.art.heldTorch, x, y, side, 1, tilt, nil)

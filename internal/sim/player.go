@@ -59,6 +59,7 @@ type Player struct {
 	boat      BoatID     // the boat p is aboard, 0 if none; see boats.go
 	swim      int        // ticks spent swimming without rest
 	travelCD  int        // ticks before a cave mouth takes p again
+	cook      cookPlayer // the cooking station open, and the buffs of dishes; see cooking.go
 	dev       devPlayer  // dev mode: god mode and speed, never saved; see dev.go
 }
 
@@ -96,6 +97,7 @@ func (p *Player) reset(x, y float64) {
 	p.line = line{}
 	p.poison, p.webbed = 0, 0
 	p.boat, p.swim = 0, 0
+	p.cook = cookPlayer{}
 	// input and Selected are kept: they mirror what the client is holding
 	// right now, and the client only resends them when they change.
 }
@@ -226,6 +228,10 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 		if !p.Dead {
 			w.chestCommand(p, cmd)
 		}
+	case CmdCookPut, CmdCookTake, CmdCookClose, CmdCookTakeDown, CmdCookStoke:
+		if !p.Dead {
+			w.cookCommand(p, cmd) // see cooking.go
+		}
 	case CmdRespawn:
 		if p.Dead {
 			// At the basic difficulty everything comes back with you; at the
@@ -260,6 +266,7 @@ func (w *World) stepPlayer(p *Player) {
 	pressed := p.pressed
 	p.pressed = false
 	w.keepChest(p)
+	w.keepCook(p)
 	if p.mount != 0 && (p.Dead || p.Asleep) {
 		w.dismount(p)
 	}
@@ -279,7 +286,7 @@ func (w *World) stepPlayer(p *Player) {
 		// riding: the mount carries p; see tame.go
 	} else if mx, my := float64(p.input.MoveX), float64(p.input.MoveY); moving {
 		l := math.Hypot(mx, my)
-		sp := PlayerSpeed * w.speedAt(p.X, p.Y) * p.dev.speedFactor()
+		sp := PlayerSpeed * w.speedAt(p.X, p.Y) * p.dev.speedFactor() * p.buffSpeed()
 		if p.webbed > 0 {
 			sp *= WebSlow
 		}
@@ -321,13 +328,15 @@ func (w *World) stepPlayer(p *Player) {
 	}
 
 	w.burnTorch(p)
-	p.Hunger = max(0, p.Hunger-HungerPerTick*w.difficulty.tune().hunger)
+	p.Hunger = max(0, p.Hunger-HungerPerTick*w.difficulty.tune().hunger*p.buffHunger())
 	w.stepPoison(p) // see cavelife.go
 	w.stepBees(p)   // see jungle.go
 	w.stepSwim(p)   // see boats.go
 	w.manEaterBites(p)
 	p.Cold = (w.winterNight() || w.freezing(p) || w.wintry(p)) && !w.warm(p.X, p.Y) && !NeverCold(&p.Inv) // a winter night, the snow, winter weather: see iceage.go, weather.go, legendary.go
 	p.devNeeds()                                                                                          // god mode: see dev.go
+	// What a dish gave: its buffs run down, and a hot soup keeps the cold out. See cooking.go.
+	p.stepBuffs()
 	damage := 0.0
 	if p.Hunger == 0 {
 		damage += StarveDamagePerTick
@@ -365,6 +374,9 @@ type TargetCandidate struct {
 func (c TargetCandidate) targetable(hasWood bool) bool {
 	if IsFruitTree(c.Kind) {
 		return !IsFruitStump(c.Kind, c.Var)
+	}
+	if StationOf(c.Kind, c.Var) != StationNone {
+		return true // a fire with a pot on it is opened, wood in the bag or not; see cooking.go
 	}
 	return Interactable(c.Kind, c.Ready, hasWood)
 }
@@ -534,12 +546,27 @@ func (w *World) interact(p *Player, e *Entity) bool {
 	case EntityFarmland:
 		return w.plant(p, e)
 	case EntityCrop:
-		return w.harvest(p, e, ItemPotato, CropYield, HitPower, func() {
-			e.Kind, e.Ready = EntityFarmland, true // dug up: the bed is free again
-			e.RegrowAt = w.tick + FarmlandDecayTicks
-		})
+		return w.reap(p, e) // see flora.go
+	case EntityFlora:
+		dmg := HitPower
+		if FloraKind(e.Var).def().axe {
+			if dmg = withTool(ToolAxe); dmg == 0 {
+				return false
+			}
+		}
+		return w.pickFlora(p, e, dmg) // see flora.go
 	case EntityCampfire:
+		if e.Var != 0 {
+			return w.openCook(p, e) // a pot, grill or pan on it; see cooking.go
+		}
 		return w.stoke(p, e, FireMaxFuel) // coal first: it burns longest
+	case EntityMortar, EntityOven, EntityDryRack:
+		return w.openCook(p, e)
+	case EntityClay:
+		return w.harvest(p, e, ItemClay, ClayYield, HitPower, func() {
+			e.Ready = false // the water lays down more
+			e.RegrowAt = w.tick + ClayRegrowTicks
+		})
 	case EntityFurnace:
 		return w.stoke(p, e, FurnaceMaxFuel)
 	case EntityCactus:
@@ -606,12 +633,20 @@ func (w *World) eat(p *Player, i int) {
 	default:
 		def := s.Item.Def()
 		p.Inv.TakeSlot(i, 1)
-		if s.Item == ItemBigPotion || s.Item == ItemBandage {
+		if def.Cures {
+			if p.Poisoned() {
+				p.notify(NoticeCured, uint8(s.Item))
+			}
 			p.cure() // draws the venom out
+		}
+		if def.Poison > 0 && !PoisonProof(&p.Inv) && !p.dev.god {
+			p.poison = max(p.poison, def.Poison) // the wrong mushroom, the wrong berry
+			p.notify(NoticeFoodPoison, uint8(s.Item))
 		}
 		p.Hunger = min(MaxHunger, p.Hunger+def.Hunger)
 		// Raw food hurts a little, but a meal never kills.
 		p.Health = min(MaxHealth, max(p.Health+def.Health, min(p.Health, 1)))
+		w.ate(p, s.Item) // a dish's buffs, and its bowl back; see cooking.go
 	}
 }
 

@@ -28,8 +28,7 @@ func genDesertArt() desertArt {
 	c, ax, ay := pyramidCanvas()
 	a.pyramid = mkUp(c, ax, ay)
 	for p := range scorpionPoses {
-		c, ax, ay := scorpionCanvas(p)
-		a.scorpion[p] = mk(c, ax, ay)
+		a.scorpion[p] = critter("scorpion", 0, p, 0)
 	}
 	return a
 }

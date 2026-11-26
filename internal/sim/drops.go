@@ -195,8 +195,8 @@ func (w *World) pickNearest(p *Player) (acted, found bool) {
 // when killed; the rest drop what they give at once.
 func leavesBody(k CreatureKind) bool {
 	switch k {
-	case CreatureWorm, CreatureFish, CreatureNone:
-		return false
+	case CreatureWorm, CreatureFish, CreatureNone, CreatureToad, CreatureGlowToad:
+		return false // too small to butcher: what it gives falls where it died
 	}
 	return k < NumCreatureKinds
 }
@@ -290,7 +290,7 @@ func (w *World) butcher(p *Player, e *Entity) bool {
 // none (worms, fish and people do not).
 func HeadItem(k CreatureKind) ItemKind {
 	switch k {
-	case CreatureNone, CreatureWorm, CreatureFish, CreatureTribesman:
+	case CreatureNone, CreatureWorm, CreatureFish, CreatureTribesman, CreatureToad, CreatureGlowToad:
 		return ItemNone
 	}
 	if k >= NumCreatureKinds {
@@ -338,6 +338,9 @@ func (w *World) placeHeld(p *Player) { w.placeHeldAt(p, false, 0, 0) }
 // a boat is still launched in front. See aim.go.
 func (w *World) placeHeldAt(p *Player, at bool, atX, atY int) {
 	held := p.Held()
+	if w.useCookItem(p, held, at, atX, atY) { // a pot onto the fire, a bowl into the sea; see cooking.go
+		return
+	}
 	if at {
 		if k, soft, ok := PlacedBy(held); ok && !w.buildSpot(p, atX, atY, k, soft) {
 			return

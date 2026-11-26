@@ -29,10 +29,7 @@ const (
 	crocPoses
 )
 
-func genCroc(pose int) sprite {
-	c, ax, ay := crocCanvas(pose)
-	return mk(c, ax, ay)
-}
+func genCroc(pose int) sprite { return critter("croc", 0, pose, 0) }
 
 // The marsh crocodile's outline, side-on: its back and its belly from the
 // tip of the tail (x = 1) to the end of the snout, as (x, y) points joined

@@ -86,6 +86,8 @@ type drawable struct {
 	idx      int     // index into curr.Players, curr.Creatures, curr.Drops or curr.Entities
 	sx, sy   float64
 	moving   bool
+	wx, wy   float64 // a player's place in tiles, for its stride; see limbdraw.go
+	extra    bool    // part of a boss's lair that is not an entity: idx is into lair.extras; see lairrender.go
 }
 
 // layer orders things standing on the same row: entities, then animals,
@@ -108,7 +110,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		return
 	}
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
-	g.lastScreenH, g.lastScreenW = sh, sw
+	uiScaleNow = uiScaleFor(sh) // world labels' text grows with the interface
 	if !g.ready || !g.hasCurr {
 		msg := "Đang tải…"
 		if g.disconnected {
@@ -153,7 +155,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 	}
 	if !g.demo {
-		sx, sy := shake(g.frame) // a tyrant roaring close by; see rexroar.go
+		cx, cy = g.introCamera(cx, cy) // a boss waking: see bossintro.go
+		sx, sy := shake(g.frame)       // a tyrant roaring close by; see rexroar.go
 		cx, cy = cx+sx, cy+sy
 	}
 	sub := 1
@@ -166,23 +169,28 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	g.updateCave() // before anything hides under, or shows from, a cave roof
 	target, far := g.target()
+	g.hudTarget = target
 
 	w := g.world
 	w.begin(canvas, scale, cw, ch, cam)
 	for _, stage := range []func(){
 		func() { g.ground.draw(w, cam.ox, cam.oy, g.frame) },
+		func() { g.drawLairWater(w, cam, alpha) }, // the shark's deep: see lairrender.go
 		func() { g.drawFish(w, cam, alpha) },
 		func() { g.drawUndergrowth(w, cam) },
 		func() { g.drawHDTest(w, cam) }, // the HD trial stones; see hdtest.go
 		func() { g.drawSprites(w, cam, alpha, target) },
 		func() { g.drawLines(w, cam, alpha) },
+		func() { g.drawCookFX(w, cam) },         // steam and smoke; see cookrender.go
 		func() { g.drawSky(w, cam, alpha) },     // flying reptiles overhead
+		func() { g.drawLairSky(w, cam) },        // birds startled near a lair
 		func() { g.drawHearts(w, cam) },         // beasts being fed; see ride.go
 		func() { g.drawSnowfall(w, cam) },       // over the frozen north; see iceart.go
 		func() { g.drawWeather(w, cam, alpha) }, // rain, snow, wind, tornadoes, webs; see tribalrender.go
 		func() { g.drawClouds(w, cam) },
 		func() { g.drawLighting(w, cam) },
 		func() { g.drawGlowMasks(w, cam, g.darknessNow()) },
+		func() { g.drawToadGlow(w, cam, g.darknessNow()) },        // see toadart.go
 		func() { g.drawEyeshine(w, cam, alpha, g.darknessNow()) }, // the night hunters' eyes; see troodon.go
 		func() { g.drawLightning(w, cam) },
 		func() { g.drawEmbers(w, cam) },
@@ -215,31 +223,42 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawWorldLabels(screen, cam, float64(scale), target)
 	g.drawAimCues(screen, cam, float64(scale), target, far) // see mouse.go
 	g.drawDigLabel(screen, cam, float64(scale))
-	g.drawFishingLabels(screen, cam, float64(scale), sw, sh)
-	g.drawHUD(screen, sw, sh)
-	g.drawBossBar(screen, sw) // see bossui.go
+	g.drawFishingLabels(screen, cam, float64(scale))
+	g.drawBossIntro(screen, sw, sh) // letterbox and title card; see bossintro.go
+
+	// The interface, on its own canvas scaled to the screen; see uiscale.go.
+	ui, uw, uh := beginUI(screen)
+	g.lastScreenH, g.lastScreenW = uh, uw
+	g.drawFishingMessage(ui, uw, uh)
+	if _, intro := g.introT(); !intro {
+		g.drawHUD(ui, uw, uh) // hidden while a boss's title card is up
+	}
+	g.drawBossBar(ui, uw) // see bossui.go
 	switch g.overlay {
 	case overlayMap:
-		g.drawMap(screen, sw, sh)
+		g.drawMap(ui, uw, uh)
 	case overlayBag:
-		g.drawBag(screen, sw, sh)
+		g.drawBag(ui, uw, uh)
 	case overlayChest:
-		g.drawChest(screen, sw, sh)
+		g.drawChest(ui, uw, uh)
+	case overlayCook:
+		g.drawCook(ui, uw, uh) // see cookui.go
 	case overlayCraft:
-		g.drawCraft(screen, sw, sh) // see craftui.go
+		g.drawCraft(ui, uw, uh) // see craftui.go
 	}
-	g.drawNotice(screen, sw)      // above the bag, so a failed craft or meal says why
-	g.drawVictory(screen, sw, sh) // every boss has fallen; see bossui.go
-	g.drawDev(screen, sw, sh)     // see devconsole.go
+	g.drawNotice(ui, uw)      // above the bag, so a failed craft or meal says why
+	g.drawVictory(ui, uw, uh) // every boss has fallen; see bossui.go
+	g.drawDev(ui, uw, uh)     // see devconsole.go
 
 	if g.disconnected && !g.paused {
-		g.dim(screen, sw, sh, 0.6)
-		g.text(screen, "Mất kết nối tới máy chủ", float64(sw/2), float64(sh/2-16), colWhite, text.AlignCenter, 2)
-		g.text(screen, "Nhấn Esc để về menu", float64(sw/2), float64(sh/2+20), colMuted, text.AlignCenter, 1)
+		g.dim(ui, uw, uh, 0.6)
+		g.text(ui, "Mất kết nối tới máy chủ", float64(uw/2), float64(uh/2-16), colWhite, text.AlignCenter, 2)
+		g.text(ui, "Nhấn Esc để về menu", float64(uw/2), float64(uh/2+20), colMuted, text.AlignCenter, 1)
 	}
 	if g.paused {
-		g.drawPause(screen, sw, sh)
+		g.drawPause(ui, uw, uh)
 	}
+	endUI(screen, ui)
 }
 
 func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target targetView) {
@@ -290,8 +309,9 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 			continue
 		}
 		sx, sy := cam.toScreenFine(wx, wy)
-		list = append(list, drawable{y: wy, id: uint32(p.ID), isPlayer: true, idx: i, sx: sx, sy: sy, moving: moving})
+		list = append(list, drawable{y: wy, id: uint32(p.ID), isPlayer: true, idx: i, sx: sx, sy: sy, moving: moving, wx: wx, wy: wy})
 	}
+	list = g.lairDrawables(list, cam, float64(dst.Bounds().Dx()), float64(dst.Bounds().Dy())) // see lairrender.go
 	slices.SortFunc(list, func(a, b drawable) int {
 		if c := cmp.Compare(a.y, b.y); c != 0 {
 			return c
@@ -308,6 +328,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 	}
 	g.drawSoil(dst, list)
 	g.drawFloors(dst, cam) // see tribalrender.go
+	g.drawLairGround(dst, cam)
 	g.drawDigSpot(dst, cam)
 	// Each thing is drawn on the art-pixel grid through its own ground
 	// point, so a moving one keeps its pixel art whole between art pixels;
@@ -318,7 +339,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		switch {
 		case d.drop:
 			w = 7
-		case d.boat:
+		case d.boat, d.extra:
 			w = 0
 		case d.isPlayer && g.curr.Players[d.idx].Swimming:
 			w = 0
@@ -327,7 +348,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		case d.creature:
 			w = creatureShadow(g.curr.Creatures[d.idx].Kind)
 		default:
-			w = shadowWidth(g.curr.Entities[d.idx])
+			w = g.shadowWidth(g.curr.Entities[d.idx])
 		}
 		if heroHD && d.isPlayer && w > 0 && g.heroStands(g.curr.Players[d.idx]) {
 			g.drawHeroShadow(dst, d.sx, d.sy)
@@ -355,6 +376,10 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		}
 		if d.boat {
 			g.drawBoat(dst, g.curr.Boats[d.idx], d.sx, d.sy)
+			continue
+		}
+		if d.extra {
+			g.drawLairExtra(dst, d)
 			continue
 		}
 		if d.isPlayer {
@@ -386,17 +411,23 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 	alignCamera(dst)
 }
 
-func shadowWidth(e protocol.EntityView) float64 {
+func (g *Game) shadowWidth(e protocol.EntityView) float64 {
 	if sim.IsFruitStump(e.Kind, e.Var) {
 		return 14 * stumpScale[fruitStumpSize(e.Kind)]
 	}
 	if w, ok := woodsShadow(e); ok {
 		return w
 	}
+	if w, ok := lairShadow(e); ok {
+		return w
+	}
 	if w, ok := tribalShadow(e); ok {
 		return w
 	}
 	if w, ok := graveShadow(e); ok {
+		return w
+	}
+	if w, ok := cookShadow(e); ok { // see cookrender.go
 		return w
 	}
 	size := sizeIdx(e.Big)
@@ -432,6 +463,8 @@ func shadowWidth(e protocol.EntityView) float64 {
 		return 0
 	case sim.EntityCrop:
 		return 8 + 4*float64(e.Stage)
+	case sim.EntityFlora:
+		return g.floraShadow(e)
 	case sim.EntityDen:
 		return 28
 	case sim.EntityCactus:
@@ -574,7 +607,12 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 	case sim.EntityFarmland:
 		return a.farm.farmland, 0
 	case sim.EntityCrop:
+		if s, ok := newCropSprite(e); ok {
+			return s, 0.05 // rice, corn, squash: see floracrop.go
+		}
 		return g.cropSprite(e), 0.05
+	case sim.EntityFlora:
+		return floraEntitySprite(e) // see florarender.go
 	case sim.EntityBurrow:
 		return a.beasts.burrow, 0
 	case sim.EntityDen:
@@ -600,6 +638,8 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		return a.open.clams, 0
 	case sim.EntityFurnace:
 		return g.furnaceSprite(e), 0
+	case sim.EntityClay, sim.EntityMortar, sim.EntityOven, sim.EntityDryRack:
+		return g.cookSprite(e), 0 // see cookrender.go
 	default:
 		if tier, ok := sim.OreTier(e.Kind); ok {
 			return g.oreRock(e, tier), 0
@@ -616,8 +656,14 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		return // flat: drawn with the soil, under everything
 	case e.Kind == sim.EntityGiantRoot:
 		return // part of the giant, drawn whole from its front
+	case e.Kind == sim.EntityLairProp:
+		g.drawLairProp(dst, e, d) // see lairrender.go
+		return
+	case g.floraHidden(e):
+		return // under the ice
 	}
-	if g.drawTribalEntity(dst, e, d) {
+	g.drawFloraUnder(dst, e, d)                                       // see florarender.go
+	if g.drawTribalEntity(dst, e, d) || g.drawCookEntity(dst, e, d) { // a pot on the fire; see cookrender.go
 		return
 	}
 	s, sway := g.entitySprite(e)
@@ -652,6 +698,7 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 	if hasHive(e) {
 		g.drawHive(dst, e, s, d.sx, d.sy) // see jungleart.go
 	}
+	g.drawOvenFire(dst, e, d) // see cookrender.go
 }
 
 func (g *Game) drawPlayer(dst drawTarget, p protocol.PlayerView, d drawable) {
@@ -693,6 +740,13 @@ func (g *Game) drawStanding(dst drawTarget, p protocol.PlayerView, d drawable) {
 	}
 	if heroHD {
 		g.drawHeroHD(dst, p, d) // the trial hero; see herohddraw.go
+		return
+	}
+	if playerHD && playerJointed { // see limbdraw.go
+		dir := p.Dir & 3
+		lo, up := g.stride(p, dir, d.wx, d.wy, d.moving)
+		g.drawFigureJ(dst, p, dir, lo, up, d.sx, d.sy, p.Armor)
+		g.drawAilments(dst, p, d)
 		return
 	}
 	frame, bob := 0, 0.0
@@ -748,6 +802,12 @@ func (g *Game) drawStanding(dst drawTarget, p protocol.PlayerView, d drawable) {
 	if !heldBehind(dir) && !inFist {
 		hand()
 	}
+	g.drawAilments(dst, p, d)
+}
+
+// drawAilments draws what clings to my own player: a web, the bubbles of
+// poison.
+func (g *Game) drawAilments(dst drawTarget, p protocol.PlayerView, d drawable) {
 	if p.ID == g.myID {
 		if g.curr.Self.Webbed {
 			drawAt(dst, g.art.tribal.webbed, d.sx, d.sy, 1, 1, 0, nil)
@@ -755,7 +815,7 @@ func (g *Game) drawStanding(dst drawTarget, p protocol.PlayerView, d drawable) {
 		if g.curr.Self.Poisoned && (g.frame/8)%3 == 0 {
 			for k := range 3 {
 				ph := math.Mod(float64(g.frame)/40+float64(k)*0.33, 1)
-				fillRect(dst, float32(math.Round(d.sx-5+float64(k)*5)), float32(math.Round(d.sy-30-ph*10)), 2, 2, color.RGBA{120, 220, 80, uint8(220 * (1 - ph))}, false)
+				fillRect(dst, float32(math.Round(d.sx-5+float64(k)*5)), float32(math.Round(d.sy-playerTop-ph*10)), 2, 2, color.RGBA{120, 220, 80, uint8(220 * (1 - ph))}, false)
 			}
 		}
 	}
@@ -769,10 +829,18 @@ func (g *Game) drawSleeper(dst drawTarget, p protocol.PlayerView, d drawable) {
 	// the head to the pillow. Breathing lifts the blanket a pixel.
 	fx, fy := d.sx+10, d.sy-6
 	b := g.art.body(p.Look)
-	drawAt(dst, b.back[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
-	drawAt(dst, b.legs[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
-	drawAt(dst, b.shirt[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, tint)
-	drawAt(dst, b.asleep, fx, fy, 1, 1, -math.Pi/2, nil)
+	if playerHD && playerJointed { // see limbdraw.go
+		// The tall figure is longer than the bed: its legs are under the
+		// blanket, and only the rest of it is drawn.
+		drawFig(dst, figDraw{b: b, up: upKey{dir: sim.DirDown, anim: upAsleep}, tint: tint, rot: -math.Pi / 2, abed: true}, fx+9, fy)
+		b = nil
+	}
+	if b != nil {
+		drawAt(dst, b.back[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
+		drawAt(dst, b.legs[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, nil)
+		drawAt(dst, b.shirt[sim.DirDown][0], fx, fy, 1, 1, -math.Pi/2, tint)
+		drawAt(dst, b.asleep, fx, fy, 1, 1, -math.Pi/2, nil)
+	}
 	breath := 0.0
 	if (g.frame/50)%2 == 0 {
 		breath = 1
@@ -919,7 +987,7 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			sx, sy = cam.toScreen(float64(e.TX)+0.5, float64(e.TY)+0.5)
 			s, _ := g.entitySprite(e)
 			top = sy - s.ay
-			label = e.Kind.Name()
+			label = sim.EntityLabel(e.Kind, e.Var)
 			if e.Kind.Sized() {
 				label += [2]string{" nhỏ", " lớn"}[sizeIdx(e.Big)]
 			}
@@ -929,6 +997,8 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				if g.myHeld() != sim.ItemTorch {
 					col = colBad
 				}
+			case g.cookLabel(e) != "": // see cookrender.go
+				label = g.cookLabel(e)
 			case e.Kind == sim.EntityGiantTree && !g.has(sim.ToolAxe):
 				label, col = label+" — cần rìu, chặt rất lâu", colBad
 			case e.Kind == sim.EntityGiantTree:
@@ -974,17 +1044,10 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			case !g.canMine(e.Kind):
 				need, _ := orePick(e.Kind)
 				label, col = label+" — cần "+sim.ToolItem(sim.ToolPickaxe, need).Def().Name, colBad
-			case e.Kind == sim.EntityFarmland:
-				if e.Big {
-					label += " (đã bón phân)"
-				}
-				if g.curr.Self.Inv.Count(sim.ItemPotato) > 0 {
-					label += " — trồng khoai"
-				} else {
-					label, col = label+" — cần khoai lang để trồng", colBad
-				}
-			case e.Kind == sim.EntityCrop:
-				label += " — đào khoai"
+			case e.Kind == sim.EntityFarmland, e.Kind == sim.EntityCrop:
+				label, col = g.farmLabel(e, label, col) // see florarender.go
+			case e.Kind == sim.EntityFlora:
+				label, col = g.floraLabel(e, label, col)
 			case sim.IsFruitTree(e.Kind) && e.Ready:
 				label += " — hái quả"
 			case sim.IsFruitTree(e.Kind) && !g.has(sim.ToolAxe):
@@ -1004,7 +1067,7 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			op.GeoM.Translate(sx*scale, topArt*scale)
 			screen.DrawImage(g.art.marker, op)
 		}
-		g.text(screen, label, sx*scale, topArt*scale-18, col, text.AlignCenter, 1)
+		g.text(screen, label, sx*scale, topArt*scale-18*uiK(), col, text.AlignCenter, uiK())
 	}
 	for _, p := range g.curr.Players {
 		wx, wy, _ := g.lerpPlayer(p, alpha)
@@ -1017,12 +1080,12 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			for i := range 2 {
 				ph := math.Mod(float64(g.frame)/90+float64(i)*0.5, 1)
 				zx, zy := (sx-4+ph*6)*scale, (sy-14-ph*12)*scale
-				g.text(screen, "z", zx, zy, color.RGBA{220, 226, 255, uint8(255 * (1 - ph))}, text.AlignCenter, 1+float64(i))
+				g.text(screen, "z", zx, zy, color.RGBA{220, 226, 255, uint8(255 * (1 - ph))}, text.AlignCenter, (1+float64(i))*uiK())
 			}
 		}
 		if p.ID == g.myID {
 			continue
 		}
-		g.text(screen, p.Name, sx*scale, (sy-30)*scale-14, colWhite, text.AlignCenter, 1)
+		g.text(screen, p.Name, sx*scale, (sy-playerTop)*scale-14*uiK(), colWhite, text.AlignCenter, uiK())
 	}
 }

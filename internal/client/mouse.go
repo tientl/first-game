@@ -195,6 +195,9 @@ func (g *Game) ghost() ghostView {
 		gv.kind, gv.recipe = r.Places, true
 	} else {
 		k, s, ok := sim.PlacedBy(me.Held)
+		if me.Held == sim.ItemTorch {
+			return ghostView{} // the torch in the hand lights the way; the right button plants it in front
+		}
 		if !ok || math.Hypot(ax-float64(me.X), ay-float64(me.Y)) > ghostRange || me.Cast != sim.CastNone {
 			return ghostView{}
 		}
@@ -234,11 +237,11 @@ func (g *Game) leftButton() bool {
 		g.ptr.block = false
 		return false
 	}
-	mx, my := ebiten.CursorPosition()
+	mx, my := uiCursor()
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		g.ptr.block = g.leftClick(mx, my)
 	}
-	return !g.ptr.block && my < g.lastScreenH-slotPx-32 // not on the hotbar
+	return !g.ptr.block && my < hotbarY(g.lastScreenH)-10 // not on the hotbar
 }
 
 // leftClick is a fresh left press at (mx, my) in play; it reports whether
@@ -281,14 +284,12 @@ func buildRefusal(why sim.NoticeKind) string {
 // drawHotbar lays it out on a sw by sh screen.
 func hotbarSlotAt(mx, my, sw, sh int) (int, bool) {
 	const n = sim.HotbarSlots
-	total := n*slotPx + (n-1)*slotGap
-	x0 := (sw - total) / 2
-	y := sh - slotPx - 20
-	if sw <= 0 || my < y || my >= y+slotPx || mx < x0 {
+	x0, y := hotbarX0(sw), hotbarY(sh)
+	if sw <= 0 || my < y || my >= y+hotPx || mx < x0 {
 		return 0, false
 	}
-	i := (mx - x0) / (slotPx + slotGap)
-	if i >= n || (mx-x0)%(slotPx+slotGap) >= slotPx {
+	i := (mx - x0) / (hotPx + hotGap)
+	if i >= n || (mx-x0)%(hotPx+hotGap) >= hotPx {
 		return 0, false
 	}
 	return i, true
@@ -321,7 +322,7 @@ func isBoat(k sim.ItemKind) bool { return k == sim.ItemRaft || k == sim.ItemSail
 // slot: feed the beast pointed at its food; cook raw food by a fire; eat
 // food or medicine; launch a boat; set down a torch, a head or a seed on the
 // tile pointed at (in front, towards the pointer, when that tile will not
-// do); spread dung on what is pointed at. Anything else does nothing, and
+// do; a torch always in front); spread dung on what is pointed at. Anything else does nothing, and
 // hint says so.
 func rightClickUse(held sim.ItemKind, slot int, ctx useContext) (cmd sim.Command, hint string) {
 	switch {
@@ -345,9 +346,16 @@ func rightClickUse(held sim.ItemKind, slot int, ctx useContext) (cmd sim.Command
 		}
 		return c, ""
 	}
+	if cookPlaced(held) { // a pot onto the fire, a bowl into the sea; see cookrender.go
+		c := sim.Command{Kind: sim.CmdPlace}
+		if ctx.aim {
+			c.At, c.TX, c.TY = true, int16(ctx.aimTX), int16(ctx.aimTY)
+		}
+		return c, ""
+	}
 	if _, _, ok := sim.PlacedBy(held); ok {
 		c := sim.Command{Kind: sim.CmdPlace}
-		if ctx.spot.ok && ctx.spot.valid {
+		if ctx.spot.ok && ctx.spot.valid && held != sim.ItemTorch {
 			c.At, c.TX, c.TY = true, int16(ctx.spot.tx), int16(ctx.spot.ty)
 		}
 		return c, ""
@@ -374,7 +382,7 @@ func (g *Game) useContextNow() useContext {
 		c := u.c
 		ctx.feed = c.Kind.TameFood() == me.Held && me.Held.Valid() && !(c.Tamed && c.HP >= c.MaxHP)
 	}
-	if k, s, ok := sim.PlacedBy(me.Held); ok {
+	if k, s, ok := sim.PlacedBy(me.Held); ok && me.Held != sim.ItemTorch { // a torch goes in front
 		gv := ghostView{ok: true, kind: k, tx: ctx.aimTX, ty: ctx.aimTY}
 		gv.valid, gv.why = sim.BuildSpot(float64(me.X), float64(me.Y), gv.tx, gv.ty, k, s, g.tileAt, g.taken, g.standers())
 		ctx.spot = gv
@@ -415,9 +423,11 @@ func useLabel(cmd sim.Command, held sim.ItemKind) string {
 		case held == sim.ItemDung:
 			return "bón phân cho cây non, luống đất dưới con trỏ"
 		case held == sim.ItemTorch:
-			return "cắm đuốc xuống chỗ con trỏ"
+			return "cắm đuốc xuống trước mặt"
 		case sim.IsSeed(held):
 			return "gieo hạt ở chỗ con trỏ"
+		case cookPlaced(held):
+			return cookUseLabel(held)
 		}
 		return "dựng đầu thú lên cọc ở chỗ con trỏ"
 	}
@@ -518,7 +528,7 @@ func (g *Game) drawAimCues(screen *ebiten.Image, cam camera, scale float64, tg, 
 	if far.ok {
 		if x, y, w, h, ok := g.targetBox(far, cam); ok {
 			drawBrackets(screen, x*scale, y*scale, w*scale, h*scale, colGhostBad)
-			g.text(screen, "Xa quá — lại gần hơn", (x+w/2)*scale, y*scale-22, colGhostBad, text.AlignCenter, 1)
+			g.text(screen, "Xa quá — lại gần hơn", (x+w/2)*scale, y*scale-22*uiK(), colGhostBad, text.AlignCenter, uiK())
 		}
 	}
 	if gv := g.ghost(); gv.ok {
@@ -538,7 +548,7 @@ func (g *Game) drawAimCues(screen *ebiten.Image, cam camera, scale float64, tg, 
 		case !gv.valid:
 			label, col = name+" — không đặt được ở đây", colGhostBad
 		}
-		g.text(screen, label, x*scale, (y-18)*scale-18, col, text.AlignCenter, 1)
+		g.text(screen, label, x*scale, (y-18)*scale-18*uiK(), col, text.AlignCenter, uiK())
 	}
 }
 

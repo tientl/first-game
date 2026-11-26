@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 38
+const Version = 42
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -110,6 +110,7 @@ type Snapshot struct {
 	Boss      BossView    // the boss this player is fighting, for the big bar; see boss.go
 	BossMarks []BossMark  // the boss lairs this player has seen, for the map
 	Victory   VictoryView // every boss has fallen: the game-beaten screen
+	Lairs     []LairView  // the boss lairs near by: their arenas, and whether their bosses sleep
 }
 
 // BoatView is a boat on the water.
@@ -167,10 +168,26 @@ type SelfState struct {
 	TorchFuel      int32         // ticks left on the torch burning in the hand; 0 if none
 	Chest          sim.EntityID  // the chest open, 0 when none
 	ChestSlots     sim.Inventory // what that chest holds
+	Cook           CookView      // the cooking station open, and the buffs of dishes; see sim/cooking.go
 
 	Notice    sim.NoticeKind
 	NoticeArg uint8
 	NoticeSeq uint32
+}
+
+// CookView is a player's cooking: the buffs dishes gave them, and the
+// station they have open, with what is in it and how far along it is.
+type CookView struct {
+	Buffs [sim.NumBuffs]int32 // ticks left of each buff, by sim.BuffKind
+
+	ID       sim.EntityID // 0 when none is open
+	Kind     sim.StationKind
+	Slots    [sim.CookSlots]sim.Slot // ingredients first, then what came out
+	Dish     sim.CookID              // what it is making
+	State    sim.CookState
+	Progress int32 // ticks of work done on the dish, of Total
+	Total    int32
+	Fuel     int32 // ticks its fire has left
 }
 
 // PlayerView is what everyone can see of a player.
@@ -212,7 +229,8 @@ type EntityView struct {
 	Big    bool  // trees and boulders: the big size
 	Stage  uint8 // growing crops: 0 just planted to sim.CropStages-1
 	Fuel   int32 // campfires, furnaces and standing torches; a man-eater's ticks till it may snap again
-	Var    uint8 // a body's or trophy's creature kind, a flower's colour, a seedling's seed, a glowing plant's look
+	Var    uint8 // a body's or trophy's creature kind, a flower's colour, a seedling's seed, a glowing plant's look; on a campfire, the sim.CookGear on it
+	Cook   uint8 // a cooking station: sim.CookFlag bits
 }
 
 // CreatureView is what clients see of an animal.

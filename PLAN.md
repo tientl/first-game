@@ -16,10 +16,17 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Nếu thiếu lượt dùng: **bớt số loài thú trong demo chứ không hạ chất lượng** (ưu tiên các loài ở đảo đầu tiên, rừng rậm, biển).
 - [ ] **Cảm giác đánh nhau** (mục 7): khựng lúc trúng đòn, thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh (hiệu ứng chém, va chạm lấy từ pixelfx); **giơ khiên đỡ**; thú **báo trước đòn** (lấy đà rõ ràng trước khi cắn, quất đuôi, lao).
 - [x] **Chế độ dev** (mục 1) — để test nhanh trước khi phát hành.
-- [ ] **Giao diện** (mục 3): HUD gọn, bỏ ô hướng dẫn (F1), túi 30 ô, rương có ô đồ, chuột phải cắm đuốc.
+- [x] **Giao diện** (mục 3): HUD gọn, bỏ ô hướng dẫn (F1), túi 30 ô, rương có ô đồ, chuột phải cắm đuốc.
 - [x] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
-- [ ] **Thời gian** (mục 4): ✅ ngày 16 phút, mùa 12 ngày, ngày và đêm theo mùa; còn **cửa hang** (chờ làm rõ "lối vào nằm ở phía dưới").
+- [x] **Thời gian** (mục 4): ✅ ngày 16 phút, mùa 12 ngày, ngày và đêm theo mùa; ✅ **cửa hang** (miệng hang quay xuống phía dưới màn hình, xem mục 4).
 - [x] **Chỉ 2 trùm** trong demo: các trùm khác tắt (không sinh ra, không hiện trên bản đồ); màn hình "Phá đảo!" tính theo 2 trùm. Hai trùm có thanh máu và nhạc chiến đấu (mục 8; nhạc ✅ `bossmusic.go`). Trùm được chọn: **Titanoboa** (rừng rậm) và **Megalodon** (biển sâu).
+- [x] **Gặp trùm phải ấn tượng** (trước đây trùm đứng trơ trọi ngoài trời, gặp thì nhạt):
+  - **Hang ổ thật**: Titanoboa nằm cuộn trong một hố rễ cây khổng lồ / phế tích đá giữa rừng rậm, quanh có xương thú, da rắn lột, cây đổ; Megalodon ở một vùng biển sâu tối màu có xác tàu, xương cá voi, đàn cá tản ra.
+  - **Dấu hiệu khi lại gần**: xương, vết trườn, cây gãy, chim bay tán loạn, thú nhỏ bỏ chạy; với Megalodon là vây thấp thoáng, mặt nước gợn, cá nhảy.
+  - **Trùm ẩn mình** cho tới khi tới gần: Titanoboa nằm im lẫn trong lá, chỉ thấy mắt; Megalodon chỉ là bóng tối dưới nước.
+  - **Màn ra mắt**: camera khựng và kéo về phía trùm, màn hình tối viền, chữ to "TITANOBOA — Chúa rừng rậm", trùm gầm / phóng lên, nhạc chiến đấu bắt đầu.
+  - **Đấu trường**: khi trận bắt đầu, lối ra bị chắn (rễ, dây leo; với Megalodon là vùng nước xoáy) cho tới khi hạ trùm hoặc người chơi chạy thật xa.
+  - Lúc không đánh, trùm có hoạt động: Titanoboa săn thú quanh hang, cuộn ngủ; Megalodon lượn vòng, đớp cá.
 - [ ] **Hướng dẫn chơi** vài phút đầu.
 - [ ] **Menu cài đặt**: âm lượng nhạc / tiếng, và phần **Hiển thị**:
   - Chế độ màn hình: Toàn màn hình / Toàn màn hình không viền / Cửa sổ (hiện chỉ có F11).
@@ -29,12 +36,6 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Giới hạn khung hình: 30 / 60 / 120 / không giới hạn, kèm VSync.
   - Thu phóng camera (đã có phím = / −) đưa vào menu.
   - Mặc định tự động: độ phân giải màn hình, toàn màn hình, chất lượng Cao, cỡ giao diện Tự động. Cài đặt được lưu lại.
-- [ ] **Chạy thử dài (soak test)** — làm ngay sau Full HD: để game chạy 1–2 giờ tự động (nhân vật đi lang thang, nhiều ngày trong game), ghi bộ nhớ và thời gian khung hình; bộ nhớ không được tăng dần, khung hình không chậm dần.
-- [ ] **Chạy lại một ván cố định sau mỗi tính năng** — làm ngay sau Full HD: cùng seed, cùng chuỗi thao tác, chụp ảnh ở các mốc bằng `cmd/shot`, so với lần trước để phát hiện thay đổi ngoài ý muốn.
-- [ ] **Kiểm tra cân bằng tiến trình**: test tự động cho thời gian lên từng bậc công cụ, tài nguyên đủ cho từng bậc (như phát hiện đá lửa hiếm hơn hắc diện thạch); cùng bảng đấu tay đôi đã có.
-- [ ] **Phiếu góp ý cho người chơi thử**: chỗ bị kẹt, chỗ chán, chỗ khó hiểu, chơi bao lâu thì bỏ, thích nhất gì.
-- [ ] **Checklist phát hành**: build sạch Windows và Linux, test qua hết; chế độ dev tắt hẳn, không còn giá trị test hay log gỡ lỗi; lưu/tải được ở mọi tình huống (bơi, cưỡi, đánh trùm, trong hang); hướng dẫn chơi đã thử với người mới; chữ đã soát; màn hình ghi công kèm giấy phép (Ebitengine, pixelfx…); lỗi văng thì ghi file log; đánh số phiên bản và gắn tag Git.
-- [ ] **Chơi thử, sửa lỗi**, build `.exe` cho Windows và bản Linux.
 
 ## 1. Công cụ dev (làm đầu tiên)
 
@@ -51,27 +52,28 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 - [x] Giai đoạn 0: nền tảng vẽ ở độ phân giải màn hình (`internal/client/hd.go`, `HD_ART.md`).
 - [x] Giai đoạn 1: nhân vật (8 khung đi, giáp, đấm, bơi, ngủ, màn hình tạo nhân vật) và mặt đất (cả hai kiểu: cỏ xanh và đất ấm; `SetGroundStyle`, lưu trong cài đặt).
-- [x] Giai đoạn 2: cây, cỏ, hoa, đá, công trình (vẽ lại ở HD). Còn tinh chỉnh tự động, cần vẽ tay sau: quặng, lò nung, lều, cây ăn thịt, chông, kim tự tháp, cửa hang. Lửa, thuyền, icon vẫn hình cũ.
+- [x] Giai đoạn 2: cây, cỏ, hoa, đá, công trình (vẽ lại ở HD). Còn tinh chỉnh tự động, cần vẽ tay sau: quặng, lò nung, lều, cây ăn thịt, chông, kim tự tháp. Lửa, thuyền, icon vẫn hình cũ.
 - [ ] Giai đoạn 3: khủng long và các sinh vật. **Xong phần khủng long** (16 loài vẽ từ PNG, 8 khung đi/chạy, 8 khung vỗ cánh, lấy đà trước đòn — hình HD tạo tự động từ hình cũ, chưa vẽ tay). Còn: thú vẽ bằng code (thỏ, rắn, cua, cá sấu, voi ma mút, hổ răng kiếm, gấu, nhện, thổ dân, khỉ, bọ cạp, cá, giun), quái biển, 6 trùm; và sim phải trì hoãn đòn đánh để lấy đà là báo trước thật (hiện trúng đòn ngay khi bắt đầu lấy đà).
 - [ ] Giai đoạn 4: icon, giao diện, hiệu ứng (có thể lấy hiệu ứng từ pixelfx, giấy phép MIT).
 
 ### Tỉ lệ và hoạt ảnh
 
+- [x] **Nhân vật có khớp tay chân** (giữ cách vẽ bằng code, như khủng long `dinolegs.go`): vai–khuỷu–cổ tay, hông–gối–cổ chân xoay quanh khớp; đi, chạy 8–12 khung, bàn chân không trượt, tay vung ngược chân; chém, đâm, bổ, đấm có lấy đà – ra đòn – thu về; áo choàng, tóc, râu đung đưa trễ nhịp; đủ 4 hướng, mọi kiểu ngoại hình, giáp, đồ cầm tay khớp với bàn tay.
 - [ ] **Tỉ lệ**: dựa vào độ cao nhân vật hiện tại, tăng độ cao của các thứ khác (cây, thú, công trình…) cho cân.
 - [ ] **Hoạt ảnh sinh vật**: mỗi sinh vật có đi, chạy, lấy đà, cắn, quất đuôi để tấn công; 8 hoặc 16 khung cho mượt.
 
 ## 3. Giao diện và điều khiển
 
-- [ ] **Chỉnh lại HUD cho hợp lý** (hiện ở 1080p mọi thứ quá nhỏ, bảng phím tắt chiếm nhiều chỗ):
+- [x] **Chỉnh lại HUD cho hợp lý** (hiện ở 1080p mọi thứ quá nhỏ, bảng phím tắt chiếm nhiều chỗ):
   - **Phóng giao diện theo độ phân giải**: ở 1080p giao diện to gấp đôi (vẽ trên khung 960×540 rồi phóng lên), 720p giữ nguyên; chuột trong túi đồ, rương, chế tạo phải khớp theo.
   - **Bỏ ô hướng dẫn (bảng phím tắt) bên trái màn hình.** Nếu cần xem phím thì bấm **F1** để mở; gợi ý theo ngữ cảnh (ví dụ "Chuột phải: cắm đuốc") hiện 1 dòng nhỏ trên thanh công cụ.
   - **Máu / No bụng / (Khát)**: thanh to hơn, có icon, số dạng "72/100" nằm gọn trong thanh, không tràn chữ.
   - **Trạng thái** (lạnh, trúng độc, dính tơ, đói, khát…): thành các ô icon nhỏ dưới thanh máu, kèm chữ ngắn; câu dài chỉ hiện lúc mới bị.
   - **Đồng hồ ngày / mùa / thời tiết** và **bản đồ nhỏ** góc trên phải gộp thành một khối gọn, có icon thời tiết.
   - **Thanh công cụ**: ô to hơn, số phím rõ hơn, tên món đang cầm hiện rõ.
-- [ ] **Túi đồ**: tăng lên 30 ô; thiết kế lại viền túi đồ cho đẹp hơn.
-- [ ] **Rương**: mở rương thì hiện ô chứa đồ trong rương (như túi đồ), không tự rơi đồ ra đất.
-- [ ] **Đuốc**: khi cầm đuốc không hiện ô báo chỗ cắm đuốc nữa, vì đuốc cầm tay đã phát sáng; bấm **chuột phải** để cắm đuốc xuống.
+- [x] **Túi đồ**: tăng lên 30 ô; thiết kế lại viền túi đồ cho đẹp hơn.
+- [x] **Rương**: mở rương thì hiện ô chứa đồ trong rương (như túi đồ), không tự rơi đồ ra đất.
+- [x] **Đuốc**: khi cầm đuốc không hiện ô báo chỗ cắm đuốc nữa, vì đuốc cầm tay đã phát sáng; bấm **chuột phải** để cắm đuốc xuống.
 
 ## 4. Thế giới và môi trường
 
@@ -88,7 +90,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Biển: giông bão mạnh hơn, sóng lớn ảnh hưởng thuyền.
   - Đồng cỏ: theo mùa như hiện nay.
   - Khi đi từ vùng này sang vùng khác thì thời tiết chuyển dần, không đổi đột ngột.
-- [ ] **Cửa hang**: sửa lại cửa vào hang, lối vào nằm ở phía dưới.
+- [x] **Cửa hang**: miệng hang **quay xuống phía dưới màn hình** (về phía người nhìn): một ụ đá / vách đá có mặt đứng hướng xuống dưới, ở chân vách là vòm cửa tối có lối đất dẫn ra; chỉ đi vào được từ phía dưới (hai bên và phía sau là đá chặn). ✅ Vẽ lại ở HD (`caveart.go`): ụ đá phủ rêu, vòm cửa có đá lanh tô, dây leo, lối đất; lối ra trong hang là vòm sáng ở phía trên màn hình trên một dãy bậc. Đá chặn hai bên và phía sau đã có test (`TestCaveMouthOpensSouth`).
 - [ ] **Sửa phân bố quặng** (hiện mỗi ô của vùng có cùng một tỉ lệ ra quặng, nên quặng rải lẻ tẻ đều khắp vùng, không thành mạch):
   - Quặng mọc thành **mạch / cụm** 3–8 khối liền nhau, giữa các cụm là khoảng trống lớn.
   - Gắn với địa hình: sát vách đá, chân núi, trong hang; càng sâu trong hang càng nhiều và càng hiếm.
@@ -101,7 +103,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - **Quặng hồi lại** (hiện đào hết là mất vĩnh viễn, kể cả tảng đá lớn):
     - Đá, than, đá lửa: **hồi ở chỗ cũ** sau vài ngày trong game (ví dụ 5–10 ngày), chỉ khi không có người đứng gần.
     - Ngọc bích, mã não, hắc diện thạch, kim cương: game giữ tổng số mạch mỗi loại; mạch bị đào thì **mọc mạch mới ở chỗ khác** trong đúng vùng của nó, xa người chơi (như thú vật hồi lại). Càng quý càng hồi chậm.
-- [ ] **Thực vật mới** (ưu tiên: tre, bầu, nắp ấm, lanh, thảo dược):
+- [x] **Thực vật mới** (ưu tiên: tre, bầu, nắp ấm, lanh, thảo dược). ✅ 18 loài vẽ HD (`floraart.go`, `florawet.go`, `floracrop.go`; sim `flora.go`): tre, bầu, nắp ấm, lanh, dây leo, nấm độc, cà độc, lô hội, thảo dược, rêu, đước, rong biển, hoa súng, sen, cỏ đuôi ngựa, lúa / ngô / bí (mọc hoang và trồng được). Đã dùng được: ăn, hồi máu, giải độc, bện dây thừng, băng rêu, tường / sàn / bè tre, bình máu thảo dược, nướng ngô / bí / cốm. Còn chờ hệ thống khác: khát nước (ống tre, bình bầu, nước nắp ấm), cung tên (dây cung, tên độc). **Chưa làm**: mộc lan, bụi gai sa mạc, việt quất tuyết.
   - Cho khát nước: **tre** (ống đựng nước, vật liệu xây, thân tên); **cây bầu** (quả khô thành bình nước); **cây nắp ấm** (tự hứng nước mưa, uống được ngay; ở đầm lầy, rừng rậm).
   - Cho cung tên: **lanh / gai** (sợi bện dây cung, dây thừng); **dây leo rừng** (dây thừng thô, bẫy); **nấm độc, quả độc** như cà dược (tẩm tên độc; ăn nhầm thì ngộ độc).
   - Chữa bệnh: **lô hội** (chữa bỏng); **thảo dược** (giải độc cóc, nhện, bọ cạp; làm bình máu); **rêu** (đắp vết thương thay băng).
@@ -118,7 +120,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
     - Uống nước ao chưa nấu: đỡ khát nhưng có thể bị **đau bụng / ngộ độc** (mất máu một lúc).
     - Nước biển: không uống được.
   - Có thể thêm: dừa, dưa, xương rồng cho một ít nước; bình chứa có dung tích (số ngụm).
-- [ ] **Dụng cụ nấu ăn và món mới** (hiện chỉ nướng từng miếng cạnh lửa trại). Làm trước: nồi đất, giàn phơi, 3–4 món canh/súp có hiệu ứng:
+- [x] **Dụng cụ nấu ăn và món mới** (hiện chỉ nướng từng miếng cạnh lửa trại). Làm trước: nồi đất, giàn phơi, 3–4 món canh/súp có hiệu ứng:
   - Dụng cụ:
     - **Nồi đất** (đất sét, nung ở lò): đun sôi nước ao cho sạch (gắn với khát nước); nấu canh, súp, hầm từ nhiều nguyên liệu.
     - **Xiên nướng / giàn nướng** (gỗ, cành): đặt trên lửa trại, nướng 3–4 miếng cùng lúc.
@@ -144,7 +146,8 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Lấy trộm trứng trong tổ là bị cả đàn đuổi. Mang về ấp cạnh lửa, nở ra khủng long con đi theo bạn và lớn dần thành thú cưỡi.
   - Nuôi từ bé gắn bó hơn thuần thú bằng cho ăn, và cho người chơi lý do quay về căn cứ.
   - **Chỉ thuần hoá được bằng cách ấp trứng** (bỏ cách thuần bằng cho ăn như hiện nay).
-- [ ] **Sinh vật mới**: cóc xanh có độc; cóc phát sáng vào ban đêm.
+- [x] **Sinh vật mới**: cóc xanh có độc; cóc phát sáng vào ban đêm. ✅ `sim/toad.go`, `client/toadart.go`: sống ở đầm lầy và ven ao, nhảy 8 khung, ngồi trên lá súng / lá sen; chạm vào cóc xanh (hoặc đấm tay không) là trúng độc, rơi da cóc và tuyến độc; cóc phát sáng toả sáng ban đêm, rơi tuyến phát sáng.
+- [ ] **Thú non**: mọi loài có con non (voi ma mút con, hổ răng kiếm con, khủng long con, thỏ con, gấu con…), nhỏ hơn, đầu to, chân ngắn, chạy lon ton theo mẹ trong đàn. Đánh con non thì thú mẹ nổi giận lao vào. Con non lớn dần thành con trưởng thành sau vài ngày. Khủng long con nở từ trứng (mục trên) dùng chung hình con non.
 
 ## 7. Chiến đấu và sự kiện
 

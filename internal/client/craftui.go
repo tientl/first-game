@@ -35,6 +35,8 @@ const craftCols = 4 // recipe cards to a row
 // recipeTab is the tab recipe r is listed under, besides "all".
 func recipeTab(r sim.Recipe) craftTab {
 	switch {
+	case isCookRecipe(r): // pots, grills, ovens, racks; see cookrender.go
+		return tabCook
 	case !r.Gives.Valid() || isBoat(r.Gives):
 		return tabBuild
 	case r.NearFire || r.NearFurnace:
@@ -116,7 +118,7 @@ func (g *Game) updateCraft() {
 	if !c.drawn {
 		return
 	}
-	mx, my := ebiten.CursorPosition()
+	mx, my := uiCursor()
 	g.craftMouse(float64(mx), float64(my), inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft))
 }
 

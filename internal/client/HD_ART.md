@@ -73,6 +73,17 @@ it and pick one with a flag, or make both from the same code with
 - The player is HD (`lookhd.go`, `lookhd_head.go`, `armorhd.go`, drawn with
   the shapes and shaders of `hdfig.go`); `playerHD = false` brings back the
   density-1 figure of `look.go`.
+- The player has joints (`limbs.go`, `limbdraw.go`): arms and legs are
+  segments about a shoulder, an elbow, a hip, a knee and an ankle, posed in
+  the figure's own space and projected for each facing. A frame is two
+  halves put together when drawn: the legs (`loKey`: a walk or a run of 16
+  frames, matched to the ground covered so a foot that is down stays put)
+  and everything above them (`upKey`: the arms through a stride, or the six
+  frames of a blow, the tool gripped at the hand). Each half is drawn the
+  first time it is shown. `playerJointed = false` brings back the stiff
+  eight-frame figure. `LIMB_ANIM=dir go test ./internal/client -run
+  DumpLimbAnim -v` writes sheets and GIFs of the strides and blows and what
+  they cost.
 - The dinosaurs drawn from PNGs are HD: `dinos/hd/*.png` are the drawings
   of `dinos/` redrawn 3x as fine by `dinos/hd/gen.py` (rerun it after
   changing a drawing or its settings there). The rig (`dinorig.go`) is still
@@ -82,6 +93,17 @@ it and pick one with a flag, or make both from the same code with
   are extra rig poses drawn the first time they are shown (`dinoanim.go`);
   `DINO_ANIM=dir go test ./internal/client -run DumpDinoAnim -v` writes
   their frames and what they cost.
+- The animals drawn in code are HD (`critterhd.go` holds the tools and the
+  frames; `critsmall.go`, `critcroc.go`, `critbeast.go`, `critcave.go` the
+  drawings): bodies of blended signed-distance shapes in art pixels, legs of
+  two bones that reach for where the gait puts each foot, so a walk is
+  `cycFrames` frames and a blow is wound up over `blowFrames` before it
+  lands. `critter(kind, side, pose, f)` draws a frame the first time it is
+  shown; frame 0 of a pose is the pose the density-1 art had. `critterHD =
+  false` (`shot -critterhd=false`) brings the old drawings back.
+  `CRITTER_DUMP=dir go test ./internal/client -run DumpCritters -v` writes a
+  sheet (old above new, then the moving frames) and GIFs of each animal, and
+  what drawing them costs.
 - Not density-aware yet: the sprite export in `export.go`, the fallen body
   (`bodyart.go`) and the map's head marker, which still use the density-1
   figure.
@@ -128,3 +150,17 @@ resolution. `go test ./internal/client -bench BakeChunk` times a bake.
 
 `cmd/shot -envhd=false` (`SetEnvHD`) gives the original density-1 art back,
 to compare.
+
+## The bosses and sea monsters
+
+Titanoboa, the Megalodon, the Mosasaurus and the giant squid are drawn at
+`HDDensity` as runs of frames (`bhAnim`, `bosshd.go`), each frame drawn the
+first time it is shown and all of a beast's frames drawn ahead on other
+threads once it is first seen (`hdWarm`). Bodies are tubes along a curve
+(`hdTube`) or chains of knobs in a scaled frame (`hdFrameAt` + `bossPaint`);
+the water they break is `hdOut` (foam, rings, spray, what is under seen
+dimly). `bossHDSprite` (`bosses.go`) and `seaSprite` (`searender.go`) pick the
+frame from the state and how long the beast has been in it (`stateAge`).
+`BOSS_ANIM=dir go test ./internal/client -run DumpHDAnim -v` writes every
+frame and what they cost; `shot -bosses -demobosses -bosspose N -bossage F`
+shows them in the game.

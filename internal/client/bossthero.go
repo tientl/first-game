@@ -162,8 +162,8 @@ func theroCanvas(lk *theroLook, p theroPose) (*canvas, float64, float64) {
 	// The head: the skull and the jaw turn apart about the hinge.
 	ha := lk.headA + p.head + a*0.3
 	hgx, hgy := bx+math.Cos(ha)*lk.rNeck*0.2, by+math.Sin(ha)*lk.rNeck*0.2+lk.rNeck*0.25
-	fr := bossFrame{hgx, hgy, ha - p.gape*0.32}
-	fj := bossFrame{hgx, hgy, ha + p.gape*0.62}
+	fr := bossFrame{ox: hgx, oy: hgy, a: ha - p.gape*0.32}
+	fj := bossFrame{ox: hgx, oy: hgy, a: ha + p.gape*0.62}
 	tipU, tipJ := lk.skull[len(lk.skull)-1][0], lk.jaw[len(lk.jaw)-1][0]
 	if p.gape > 0 {
 		ux, uy := fr.at(tipU, 0.4)

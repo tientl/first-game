@@ -234,7 +234,7 @@ func (c *charCreator) mouse() createResult {
 	if c.rows[0].w == 0 {
 		return createNone // not drawn yet
 	}
-	mx, my := ebiten.CursorPosition()
+	mx, my := uiCursor()
 	moved := mx != c.lastMX || my != c.lastMY
 	c.lastMX, c.lastMY = mx, my
 	x, y := float64(mx), float64(my)
@@ -281,13 +281,13 @@ func (c *charCreator) mouse() createResult {
 	return createNone
 }
 
-// Layout of the character screen, in screen pixels.
+// Layout of the character screen, in UI pixels. Rows are a little tighter
+// on a short canvas (Full HD at UI scale 2 is 540 tall); see draw.
+var ccRowH, ccGap, ccSwatchH = 44.0, 10.0, 40.0 // a row, between rows, the extra height of a colour row
+
 const (
-	ccColW    = 420.0 // the column of choices and buttons
-	ccRowH    = 44.0
-	ccGap     = 10.0
-	ccSwatchH = 40.0 // extra height of a colour row
-	valueAt   = 0.66 // where a choice's value is centred, across its row
+	ccColW  = 420.0 // the column of choices and buttons
+	valueAt = 0.66  // where a choice's value is centred, across its row
 )
 
 // previewDirs is the order the preview turns through.
@@ -295,16 +295,21 @@ var previewDirs = [4]sim.Dir{sim.DirDown, sim.DirLeft, sim.DirUp, sim.DirRight}
 
 func (c *charCreator) draw(dst *ebiten.Image) {
 	sw, sh := float64(dst.Bounds().Dx()), float64(dst.Bounds().Dy())
+	ccRowH, ccGap, ccSwatchH = 44, 10, 40
+	titleY, below := max(12, sh*0.08-24), 56.0
+	if sh < 640 {
+		ccRowH, ccGap, ccSwatchH = 38, 6, 34
+		titleY, below = 10, 48
+	}
 	vector.FillRect(dst, 0, 0, float32(sw), float32(sh), color.RGBA{6, 8, 16, 150}, false)
 	cx := sw / 2
-	titleY := max(12, sh*0.08-24)
 	drawText(dst, "Tạo nhân vật", cx, titleY, color.RGBA{250, 214, 110, 255}, text.AlignCenter, 3)
 
 	// The rows, top to bottom, with a little space after the name and
 	// between the choices and the buttons.
 	spaceAfter := func(i int) float64 {
 		if i == ccName || i == ccSkin {
-			return 16
+			return 2 * ccGap
 		}
 		return 0
 	}
@@ -324,11 +329,11 @@ func (c *charCreator) draw(dst *ebiten.Image) {
 		pw, gap = 0, 0 // too narrow for the preview
 	}
 	left := cx - (pw+gap+ccColW)/2
-	top := titleY + 56
+	top := titleY + below
 
+	c.preview = box{}
 	if pw > 0 {
-		c.preview = box{left, top, pw, colH}
-		c.drawPreview(dst, c.preview)
+		c.preview = box{left, top, pw, colH} // drawn by drawPreview, on the screen itself
 	}
 	x, y := left+pw+gap, top
 	for i := range c.rows {
@@ -343,15 +348,22 @@ func (c *charCreator) draw(dst *ebiten.Image) {
 	drawText(dst, hint, cx, sh-26, colMuted, text.AlignCenter, 1)
 }
 
-func (c *charCreator) drawPreview(dst *ebiten.Image, b box) {
+// drawPreview draws the character in its box from the last draw, on the
+// screen itself (k screen pixels to a UI pixel) so the art keeps its detail.
+func (c *charCreator) drawPreview(dst *ebiten.Image, k int) {
+	if c.preview.w <= 0 {
+		return
+	}
+	f := float64(k)
+	b := box{c.preview.x * f, c.preview.y * f, c.preview.w * f, c.preview.h * f}
 	fillRoundRect(dst, float32(b.x-2), float32(b.y-2), float32(b.w+4), float32(b.h+4), 12, colPanelEdge)
 	fillRoundRect(dst, float32(b.x), float32(b.y), float32(b.w), float32(b.h), 10, color.RGBA{14, 16, 26, 210})
 	a := getArt()
-	s := float64(int(min((b.w-40)/18, (b.h-80)/30)))
+	s := float64(int(min((b.w-40*f)/18, (b.h-80*f)/38)))
 	if playerHD {
 		s = max(HDDensity, math.Floor(s/HDDensity)*HDDensity) // a whole number of screen pixels to each of the HD art's
 	}
-	fx, fy := b.x+b.w/2, b.y+b.h-36
+	fx, fy := b.x+b.w/2, b.y+b.h-36*f
 
 	op := &ebiten.DrawImageOptions{} // the shadow
 	op.GeoM.Translate(-shadowSize/2, -shadowSize/2)
@@ -369,7 +381,7 @@ func (c *charCreator) drawPreview(dst *ebiten.Image, b box) {
 
 	// The name above the head, as other players will see it.
 	if name := c.nameText(); name != "" {
-		drawText(dst, name, fx, fy-31*s-24, colWhite, text.AlignCenter, 2)
+		drawText(dst, name, fx, fy-34*s-24*f, colWhite, text.AlignCenter, 2*f)
 	}
 }
 

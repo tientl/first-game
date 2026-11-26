@@ -74,8 +74,6 @@ var (
 
 func bossDraw(b bossID, p bossPose) (*canvas, float64, float64) {
 	switch b {
-	case bossTitanoboa:
-		return titanoboaCanvas(p)
 	case bossSpino:
 		if p == bossLurk {
 			return spinoLurkCanvas()
@@ -88,7 +86,7 @@ func bossDraw(b bossID, p bossPose) (*canvas, float64, float64) {
 	case bossGiganoto:
 		return theroCanvas(&gigaLook, theroPoses(b, p))
 	}
-	return megalodonCanvas(p)
+	return newCanvas(1, 1), 0, 0 // Titanoboa and the Megalodon are drawn at HDDensity: see bosses.go
 }
 
 // bossItemCanvas is the bag icon of the legendary item boss b drops: 16 by

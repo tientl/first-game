@@ -24,7 +24,15 @@ import (
 //   - 11: a beast's health counts in HealthScale units (weapons do damage, not hits).
 //   - 12: the bosses: which have fallen, who has seen their lairs, the victory.
 //   - 13: a day lasts 16 minutes and a season 12 days; older ticks are doubled.
-const SaveVersion = 13
+//   - 14: the bag has 30 slots (it had 20), and so do chests; older inventories
+//     load as they were, with the new slots empty. An old chest in a cave
+//     opened like a chest; one opened before spilled its hoard already.
+//   - 15: the bosses' lairs are dressed (see lair.go); older worlds get theirs on loading.
+//   - 16: cooking: clay beds by the water, pots on fires (a campfire's Var),
+//     what stations hold, and the buffs of dishes.
+//   - 17: the wild plants of flora.go (some stand in the water) and crops of
+//     four kinds; an older world keeps the plants a fresh one would grow.
+const SaveVersion = 17
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -50,6 +58,7 @@ type SaveData struct {
 	Boats         []BoatSave   `json:",omitempty"` // boats on the water
 	Difficulty    Difficulty   `json:",omitempty"` // absent: normal; see difficulty.go
 	Bosses        *BossSave    `json:",omitempty"` // the bosses fallen, and the victory; see bosses.go
+	Stations      []CookSave   `json:",omitempty"` // what cooking stations hold; see cooking.go
 }
 
 // PlayerSave is the persistent part of a player.
@@ -65,6 +74,7 @@ type PlayerSave struct {
 	Dead           bool
 	TorchFuel      int      `json:",omitempty"` // ticks left on the torch being burnt
 	Home           EntityID `json:",omitempty"` // the last bed slept in
+	Buffs          []int    `json:",omitempty"` // ticks left of each buff, by BuffKind; see cooking.go
 
 	// Inv is how saves before version 4 kept the inventory: a count per item
 	// kind, indexed by ItemKind. Load turns it into Slots.
@@ -75,7 +85,7 @@ func savePlayer(p *Player) PlayerSave {
 	return PlayerSave{
 		Name: p.Name, Look: p.Look, X: p.X, Y: p.Y, Dir: p.Dir,
 		Health: p.Health, Hunger: p.Hunger, Slots: p.Inv, Selected: p.Selected, Explored: p.explored.Bytes(), Dead: p.Dead,
-		TorchFuel: p.torchFuel, Home: p.home,
+		TorchFuel: p.torchFuel, Home: p.home, Buffs: saveBuffs(p),
 	}
 }
 
@@ -115,6 +125,7 @@ func (w *World) restorePlayer(p *Player, ps PlayerSave) {
 	p.Inv.sanitize()
 	p.explored = ExploredFrom(w.width, w.height, ps.Explored)
 	p.torchFuel = min(TorchBurnTicks, max(0, ps.TorchFuel))
+	loadBuffs(p, ps.Buffs)
 	if b := w.entities[ps.Home]; b != nil && b.Kind == EntityBed {
 		p.home = ps.Home
 	}
@@ -150,6 +161,7 @@ func (w *World) Save() SaveData {
 	d.Pets = w.savePets() // see tame.go
 	d.Boats = w.saveBoats()
 	d.Bosses = w.saveBosses()
+	d.Stations = w.saveStations()
 	for _, dr := range w.drops {
 		if !dr.gone {
 			d.Drops = append(d.Drops, *dr)
@@ -214,7 +226,7 @@ func Load(d SaveData) (*World, error) {
 	var fresh []Entity
 	for _, e := range w.entities {
 		if e.Kind == EntityTwig && d.Version < 2 || e.Kind == EntityPebble && d.Version < 5 ||
-			IsFruitTree(e.Kind) && d.Version < 9 {
+			IsFruitTree(e.Kind) && d.Version < 9 || e.Kind == EntityClay && d.Version < 16 || e.Kind == EntityFlora && d.Version < 17 {
 			fresh = append(fresh, *e)
 		}
 	}
@@ -236,7 +248,7 @@ func Load(d SaveData) (*World, error) {
 	w.nextEnt = d.NextEntity
 	for _, e := range d.Entities {
 		if e.ID == 0 || e.Kind == EntityNone || e.Kind >= NumEntityKinds ||
-			!w.canPlace(e.TX, e.TY) || w.entities[e.ID] != nil {
+			!w.canHold(e.Kind, e.Var, e.TX, e.TY) || w.entities[e.ID] != nil {
 			continue
 		}
 		if d.Version < 3 {
@@ -255,13 +267,27 @@ func Load(d SaveData) (*World, error) {
 			e.HP = maxHP(e.Kind, false) // a few blows at it are not kept: older saves hold the one hit of picking
 		}
 		switch e.Kind {
-		case EntityCampfire:
-			if e.Fuel <= 0 {
+		case EntityFlora:
+			if e.Var >= uint8(NumFlora) {
 				continue
 			}
-			e.Fuel = min(e.Fuel, FireMaxFuel)
+			e.HP = FloraKind(e.Var).def().hp() // a blow or two at a bamboo is not kept
+		case EntityCrop:
+			if e.Var >= uint8(NumCrops) {
+				e.Var = 0
+			}
+		case EntityCampfire:
+			if e.Var >= uint8(numGears) {
+				e.Var = 0
+			}
+			if e.Fuel <= 0 && e.Var == 0 {
+				continue // only a hearth with a pot on it stays, cold
+			}
+			e.Fuel = min(max(e.Fuel, 0), FireMaxFuel)
 		case EntityFurnace:
 			e.Fuel = min(max(e.Fuel, 0), FurnaceMaxFuel)
+		case EntityOven:
+			e.Fuel = min(max(e.Fuel, 0), OvenMaxFuel)
 		}
 		ent := e
 		w.entities[e.ID] = &ent
@@ -269,8 +295,12 @@ func Load(d SaveData) (*World, error) {
 		w.nextEnt = max(w.nextEnt, e.ID)
 	}
 	w.loadChests(d.Chests)
+	w.loadStations(d.Stations)
+	if d.Version < 15 {
+		w.dressLairs() // the bones, the nest and the ruin of each lair: see lair.go
+	}
 	for _, e := range fresh {
-		if w.canPlace(e.TX, e.TY) {
+		if w.canHold(e.Kind, e.Var, e.TX, e.TY) {
 			w.nextEnt++
 			e.ID = w.nextEnt
 			ent := e
