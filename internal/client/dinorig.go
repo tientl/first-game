@@ -129,6 +129,7 @@ type rigPose struct {
 	squash float64 // crouch to this share of the height; 0 = standing
 	tilt   float64 // the whole body, radians, + = nose down
 	lift   float64 // pixels off the ground
+	sweep  float64 // the tail swung sideways about its root, radians, + = towards the viewer (ankylorig.go)
 }
 
 var (
@@ -233,6 +234,9 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 	if p.tail != 0 && r.tail.maxY != 0 {
 		turn(w, shift(r.tail), p.tail, 4*kf) // + lifts a tail that points back
 		despeck(w, 0, 0, w.w, w.h, 2) // a strand of its fuzz or a feather tip turned off it
+	}
+	if p.sweep != 0 && r.tail.maxY != 0 {
+		sweep(w, shift(r.tail), p.sweep, kf) // see ankylorig.go
 	}
 	if p.wings != 0 {
 		for i, wg := range r.wings {

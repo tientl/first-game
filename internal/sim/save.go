@@ -48,7 +48,10 @@ import (
 //   - 21: worlds of StyleBeaches, with beaches five to twelve tiles deep, dunes
 //     and driftwood (beaches.go). Nothing older changes, but an older game
 //     would make the wrong world of such a save, so it must refuse it.
-const SaveVersion = 21
+//   - 22: the Ankylosaurus (ankylo.go): a save may hold a tamed one, and its
+//     bony plates in a bag or a chest, which an older game would lose.
+//     Nothing older changes.
+const SaveVersion = 22
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.

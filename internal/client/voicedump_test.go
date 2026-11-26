@@ -85,6 +85,10 @@ var dumpDinos = []dumpSpecies{
 	{"trike", sim.CreatureTrike, []dumpUse{{"alarm", "rống khi lao tới / bỏ chạy", dp("bellow", 0.8, 1)}}},
 	{"toro", sim.CreatureToro, []dumpUse{{"alarm", "rống khi lao tới", dp("bellow", 0.9, 1)}}},
 	{"stego", sim.CreatureStego, []dumpUse{{"alarm", "rống khi lao tới / bỏ chạy", dp("bellow", 0.8, 1)}}},
+	{"ankylo", sim.CreatureAnkylo, []dumpUse{
+		{"alarm", "gầm gừ khi quay chùy đuôi về phía người lại gần", dp("ankylo_grunt", 0.75, 1)},
+		{"strike", "gầm khi khuỵu xuống lấy đà quật chùy", dp("ankylo_grunt", 0.6, 1.18)},
+	}},
 	{"brachio", sim.CreatureBrachio, []dumpUse{{"alarm", "rống khi lao tới / bỏ chạy", dp("bellow", 0.8, 1)}}},
 	{"thesc", sim.CreatureThesc, []dumpUse{{"alarm", "rống khi bỏ chạy", dp("bellow", 0.5, 1)}}},
 	{"ornitho", sim.CreatureOrnitho, []dumpUse{{"alarm", "kêu chít khi bỏ chạy", dp("squeak", 0.4, 1)}}},

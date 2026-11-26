@@ -183,6 +183,7 @@ func newArt() *art {
 	bossItemIcons(&a.icons)   // the legendary items; see bosses.go
 	genCookIcons(&a.icons)    // see cookicons.go
 	clothesIcons(&a.icons)    // see clothesart.go
+	ankyloIcons(&a.icons)     // see ankylo.go
 	a.cook = genCookArt()
 	return a
 }

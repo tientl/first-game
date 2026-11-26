@@ -253,6 +253,8 @@ func callOf(k sim.CreatureKind) (callVoice, bool) {
 		return callVoice{"bellow", 0.65, 0.85, 22, 22 * s, 4 * s, 1100 * time.Millisecond}, true
 	case sim.CreatureStego:
 		return callVoice{"bellow", 0.5, 0.92, 20, 30 * s, 4 * s, 0}, true
+	case sim.CreatureAnkylo: // a low, nasal honk; see ankylo.go
+		return callVoice{"ankylo_honk", 0.55, 1, 20, 28 * s, 5 * s, 900 * time.Millisecond}, true
 	case sim.CreatureThesc:
 		return callVoice{"honk", 0.4, 1, 16, 30 * s, 4 * s, 0}, true // see creaturevoice.go
 	case sim.CreatureMammoth:

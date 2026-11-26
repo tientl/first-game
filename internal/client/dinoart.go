@@ -460,6 +460,8 @@ func beastScale(k sim.CreatureKind) float64 {
 		return brachyScale
 	case sim.CreatureChampso:
 		return champsoScale
+	case sim.CreatureAnkylo:
+		return ankyloScale
 	}
 	return 1
 }

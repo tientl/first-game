@@ -203,6 +203,7 @@ func genVoiceSFX(add func(name string, peak float64, x []float64)) {
 		}
 		add("kraken_groan", 0.9, echo(saturate(x, 1.5), pt{0.2, 0.3}, pt{0.45, 0.15}))
 	}
+	genAnkyloSFX(add) // with a random source of its own: see ankylo.go
 }
 
 // --- who says what ----------------------------------------------------------------
@@ -239,6 +240,8 @@ func voicesOf(k sim.CreatureKind) kindVoices {
 		return kindVoices{hurt: say("bellow_hurt", 0.9, 0.88), herd: say("bellow", 0.75, 0.85), death: say("beast_death", 0.9, 0.92)}
 	case sim.CreatureStego:
 		return kindVoices{hurt: say("bellow_hurt", 0.8, 0.94), herd: say("bellow", 0.6, 0.92), death: say("beast_death", 0.85, 0.96)}
+	case sim.CreatureAnkylo: // see ankylo.go
+		return kindVoices{hurt: say("ankylo_hurt", 0.85, 1), herd: say("ankylo_honk", 0.6, 1.05), death: say("ankylo_death", 0.9, 1)}
 	case sim.CreatureBrachio:
 		return kindVoices{hurt: say("bellow_hurt", 0.9, 0.7), herd: say("hoot", 0.75, 1.12), death: say("beast_death", 0.95, 0.72)}
 	case sim.CreatureThesc:

@@ -27,6 +27,8 @@ func seat(k sim.CreatureKind) (back, height float64) {
 		return 2 * s, 18 * s
 	case sim.CreatureOrnitho:
 		return 0, 19 * s
+	case sim.CreatureAnkylo:
+		return 3 * s, 24 * s // astride its armoured back
 	}
 	return 0, 16 * s
 }
@@ -248,6 +250,8 @@ func markInset(k sim.CreatureKind) float64 {
 		return 3
 	case sim.CreatureMammoth:
 		return 9
+	case sim.CreatureAnkylo:
+		return 4
 	case sim.CreatureSabre:
 		return 4
 	}
