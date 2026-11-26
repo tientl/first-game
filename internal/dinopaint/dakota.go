@@ -92,6 +92,9 @@ func dakota() *Species {
 				Over: true, Only: []string{"rufous", "tipDark"}},
 		},
 		Recolor: []Recolor{
+			// No rufous on the legs: the drawing's marks behind the knees would
+			// flicker dark red as they stride.
+			{Region: Inter(Union(farLeg, nearLeg), func(x, y float64) float64 { return 22.2 - y }), From: []string{"rufous", "tipDark"}, To: "thigh"},
 			// The end of the tail is rufous between its bands, the drawing's
 			// bands stretched with it painted again.
 			{Region: Poly(-3, 5, 27, 5, 27, 16, -3, 16), From: []string{"tipDark"}, To: "rufous"},
