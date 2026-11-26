@@ -27,8 +27,15 @@ var (
 
 func init() {
 	Register(ankylo())
-	// Its legs, in the rig's order, cut as painted.
-	RegisterLegs("ankylo", LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}})
+	// Its legs, in the rig's order, cut as painted and swung whole from the
+	// hip and the shoulder under the armour's edge, which stays in front of
+	// them, the legs' tops painted on under it (thigh.go).
+	RegisterThighs("ankylo", &Thighs{
+		Legs:  LegMask{{"nearHind"}, {"farHind"}, {"farFore"}, {"nearFore"}},
+		Front: func(x, y float64) float64 { return y - ankyloSkirt(x) - 1.5 },
+		Thigh: []SDF{Cone(44, 29, 7.4, 45, 39, 5.4), Cone(53, 30, 6.4, 53.5, 39.5, 4.8),
+			Cone(65.5, 32, 5.6, 65, 40, 4.4), Cone(74, 31, 6.4, 73.5, 40, 5)},
+	})
 }
 
 // ankyloSkirt is the lower edge of the armour down the flank: the legs come

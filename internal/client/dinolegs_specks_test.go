@@ -9,8 +9,8 @@ import "testing"
 // the wrong way would hang. The claws' and feathers' own tips are a few
 // each frame; the fuzzy one's tufts, more.
 func TestStridesLeaveNoSpecks(t *testing.T) {
-	limit := map[string]float64{"rex": 14, "trike": 14, "toro": 14, "stego": 14, "brachio": 14, "thesc": 40}
-	for _, sp := range []string{"dakota", "achero", "troodon", "ornitho", "anzu", "rex", "thesc", "trike", "toro", "stego", "brachio"} {
+	limit := map[string]float64{"rex": 14, "trike": 14, "toro": 14, "stego": 14, "brachio": 14, "ankylo": 14, "thesc": 40}
+	for _, sp := range []string{"dakota", "achero", "troodon", "ornitho", "anzu", "rex", "thesc", "trike", "toro", "stego", "brachio", "ankylo"} {
 		r := dinoRigs[sp]
 		hair, frames := 0, 0
 		for _, amp := range []float64{1, 1.25, 1.4} {
