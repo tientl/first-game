@@ -26,7 +26,7 @@ func dungOf(k CreatureKind) int {
 	switch k {
 	case CreatureBrachio:
 		return 3
-	case CreatureTrike, CreatureToro, CreatureStego, CreatureMammoth, CreatureRex:
+	case CreatureTrike, CreatureToro, CreatureStego, CreatureMammoth, CreatureRex, CreatureAnkylo:
 		return 2
 	case CreatureThesc, CreatureOrnitho:
 		return 1

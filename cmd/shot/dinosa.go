@@ -7,7 +7,7 @@ import (
 	"survivalgame/internal/sim"
 )
 
-var dinosA = flag.Bool("dinosa", false, "put the bull-frill, the stegosaur, the brachiosaur, the little runner, the rex and a three-horn round the player (with -coast: a plesiosaur striking and one lurking under the water)")
+var dinosA = flag.Bool("dinosa", false, "put the bull-frill, the stegosaur, the brachiosaur, the little runner, the rex, an ankylosaur and a three-horn round the player (with -coast: a plesiosaur striking and one lurking under the water)")
 
 // putDinosA adds -dinosa's beasts round (sx, sy) to snap.
 func putDinosA(snap *protocol.Snapshot, sx, sy float64, coast bool) {
@@ -27,6 +27,7 @@ func putDinosA(snap *protocol.Snapshot, sx, sy float64, coast bool) {
 	put(sim.CreatureThesc, -1.4, -1.4, sim.CreatureIdle, true)
 	put(sim.CreatureTrike, -5.8, -0.8, sim.CreatureIdle, false)
 	put(sim.CreatureRex, 3.2, -4.6, sim.CreatureIdle, true)
+	put(sim.CreatureAnkylo, 6.5, -1.2, sim.CreatureIdle, true)
 	if coast {
 		put(sim.CreaturePlesio, -2.4, 3.6, sim.CreatureIdle, true)
 		put(sim.CreaturePlesio, -6, 5.4, sim.CreatureLurk, false)

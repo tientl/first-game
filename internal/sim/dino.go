@@ -209,7 +209,7 @@ func (w *World) coastDistance(most int) []uint8 {
 func (w *World) provoke(c *Creature, p *Player) {
 	switch c.Kind {
 	case CreatureTrike, CreatureStego, CreatureBrachio, CreatureRaptor, CreatureMammoth, CreatureSabre,
-		CreatureToro, CreatureThesc, CreatureAchero, CreatureAnzu, CreatureOrnitho:
+		CreatureToro, CreatureThesc, CreatureAchero, CreatureAnzu, CreatureOrnitho, CreatureAnkylo:
 		// The whole herd or pack turns on p.
 		for _, o := range w.fauna.creatures {
 			if o.Kind == c.Kind && !o.gone && math.Hypot(o.X-c.X, o.Y-c.Y) <= HerdAlarmDist {
@@ -224,6 +224,9 @@ func (w *World) provoke(c *Creature, p *Player) {
 		}
 		if c.Kind == CreatureBrachio || c.Kind == CreatureThesc {
 			c.after = CreatureFlee
+		}
+		if c.Kind == CreatureAnkylo && c.after != CreatureStrike {
+			c.after = CreatureRoar // its back to p, the club ready: see ankylo.go
 		}
 	case CreatureQuetzal:
 		c.foe, c.rage = p.ID, RexChaseTicks

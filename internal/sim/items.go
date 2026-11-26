@@ -153,6 +153,8 @@ const (
 	ItemLegWraps // trousers and cross-bound leg wraps
 	ItemBoots    // fur-cuffed hide boots
 
+	ItemOsteoderm // a bony plate from an Ankylosaurus's armour: see ankylo.go
+
 	itemsEnd // new items go above this line
 
 	// The head of each kind of beast, a trophy: HeadItem(k). They sit at a

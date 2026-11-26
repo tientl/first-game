@@ -57,6 +57,22 @@ var dinoRigs = map[string]dinoRig{
 		tail: rigPart{pivot: rigPt{17.5, 30}, dir: math.Pi, maxY: 44}, // the bare end of it, with the spikes
 		gait: walkGait, far: 0b0110,
 	},
+	// The armoured one (ankylo.go): pillar legs out from under the armour,
+	// the head low on a short neck, the tail and its club swung sideways
+	// about its root (rigPose.sweep).
+	"ankylo": {
+		file: "ankylo", stride: 2,
+		legs: []rigLimb{
+			hind(39, 51, 39, rigPt{44, 30}, rigPt{45, 39.5}, rigPt{44.6, 45.5}, rigPt{46.8, 49}),
+			hind(49, 58, 39, rigPt{53, 31}, rigPt{53.5, 40}, rigPt{53.2, 45}, rigPt{55.6, 47.6}),
+			fore(61, 71, 39, rigPt{65.5, 33}, rigPt{65, 40}, rigPt{65.4, 44.6}, rigPt{67.6, 47.6}),
+			fore(69, 80, 39, rigPt{74, 32}, rigPt{73.5, 40}, rigPt{74, 45.4}, rigPt{76.4, 49}),
+		},
+		head: rigPart{pivot: rigPt{81, 30}, dir: headUp(0.2), maxY: 46},
+		jaw:  [2]rigPt{{92.5, 39.6}, {102.8, 39.4}},
+		tail: rigPart{pivot: rigPt{29, 24}, dir: math.Pi, maxY: 40},
+		gait: walkGait, far: 0b0110,
+	},
 	"brachio": {
 		file: "brachio", stride: 3,
 		legs: []rigLimb{
@@ -215,6 +231,14 @@ var dinoPoses = map[string]map[int]rigPose{
 		stegoSwipe: {tail: 0.55},
 		stegoEatA:  {head: 0.5},
 		stegoEatB:  {head: 0.5, open: 0.2},
+	},
+	"ankylo": {
+		ankyloWalkB: {step: 1},
+		ankyloGuard: {tail: 0.1, head: 0.12, squash: 0.98},                // its back to the threat, the club raised
+		ankyloSwing: {tail: 0.02, sweep: 0.75, squash: 0.96, head: 0.06},  // the club swung round towards the viewer
+		ankyloHurt:  {head: -0.22, open: 0.28, squash: 0.96, tail: -0.06}, // also its call: head up, honking
+		ankyloEatA:  {head: 0.42},
+		ankyloEatB:  {head: 0.42, open: 0.24},
 	},
 	"brachio": {
 		brachWalkB: {step: 1},

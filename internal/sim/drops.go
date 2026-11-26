@@ -258,7 +258,7 @@ func (w *World) bodyLoot(k CreatureKind) []Ingredient {
 // dinoHides is how much dinosaur hide a body of kind k gives.
 func dinoHides(k CreatureKind) int {
 	switch k {
-	case CreatureTrike, CreatureStego, CreatureBrachio, CreatureRex, CreatureToro, CreatureQuetzal, CreaturePlesio:
+	case CreatureTrike, CreatureStego, CreatureBrachio, CreatureRex, CreatureToro, CreatureQuetzal, CreaturePlesio, CreatureAnkylo:
 		return DinoHideFromBig
 	case CreatureRaptor, CreatureAchero, CreatureThesc, CreatureOrnitho, CreatureAnzu, CreaturePtero:
 		return 1
