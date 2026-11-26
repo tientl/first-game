@@ -14,7 +14,7 @@ package dinopaint
 func init() { Register(pteroFly()) }
 
 var (
-	pteroMembrane = []uint32{0x1e0e0a, 0x2e160e, 0x44200f, 0x5c2c14, 0x76391a, 0x904a22, 0xa85e2c, 0xc07438}
+	pteroMembrane = []uint32{0x1c0e0a, 0x2a150e, 0x3c1f12, 0x512a17, 0x68361d, 0x804424, 0x96532c, 0xac6434}
 	pteroGlow     = []uint32{0x5a2410, 0x82361a, 0xa84c22, 0xc86a2e, 0xe08a40, 0xf0aa5c, 0xf8c87e, 0xfde0a8}
 	pteroBone     = []uint32{0x4a3a26, 0x6e5838, 0x947a50, 0xb49a6a, 0xcab284, 0xdccaa0, 0xece0c0, 0xf8f0dc}
 	pteroCream    = []uint32{0x4e4234, 0x706048, 0x92805e, 0xb4a07a, 0xd0be98, 0xe6d8b8, 0xf4ecd6, 0xfffaee}
@@ -74,20 +74,20 @@ func pteroFly() *Species {
 
 func pteroFlyDetails(farBone, nearBone []float64, farWing, nearWing, crest SDF) func(p *Painter) {
 	return func(p *Painter) {
-		p.Plumage(&Plumage{Seed: 23, Edge: 0.35, Tracts: []Tract{
+		p.Plumage(&Plumage{Seed: 23, Edge: 0.35, Tone: 0.7, Tracts: []Tract{
 			// The furred body: fine pycnofibres from the nape back.
 			{Name: "fur", Region: Poly(3, 24.5, 24.6, 24.6, 24.8, 30.2, 3, 30.6), Parts: []string{"body"},
 				Flow: Along(26, 27.2, 18, 27.3, 9, 27.5, 2, 27.5), Len: 1.2, Wid: 0.55, Hair: true, Relief: 0.8, Fluff: 0.3, Snap: true},
 		}})
 		wing := func(region SDF, bone []float64, fan Coords, free SDF) {
 			p.Membrane(MembraneSpec{Region: region, Mat: []string{"membrane"},
-				Fibres: fan, Gap: 1.1, Fibre: 0.13, Flat: 0.55, Distal: 0.16, DistalFrom: 11, DistalTo: 21,
+				Fibres: fan, Gap: 1.1, Fibre: 0.13, Flat: 0.55, Tone: 0.8, Distal: 0.16, DistalFrom: 11, DistalTo: 21,
 				Camber: Path(pts3(bone, 0)...), Glow: 0.6, GlowW: 1.7, GlowRamp: pteroGlow, Free: free,
 				Bones: []Bone{{Pts: bone, R: 0.95, R1: 0.5, Ramp: pteroBone}}, Seed: 7})
 		}
 		wing(farWing, farBone, Fan(21.5, 23, 10, -1.78), Poly(-1, -1, 13, -1, 21, 12, 21, 21, -1, 22))
 		wing(nearWing, nearBone, Fan(21.5, 33, 10, 1.78), Poly(-1, 59, 13, 59, 21, 44, 21, 34, -1, 33))
-		p.Plane(PlaneSpec{Region: crest, Mat: []string{"crest"}, Tilt: 1.1, Angle: 0.08, Gap: 0.9, Lines: 0.06,
+		p.Plane(PlaneSpec{Region: crest, Mat: []string{"crest"}, Tilt: 1.6, Angle: 0.08, Gap: 0.9, Lines: 0.06,
 			FromX: 26.5, FromY: 23.5, Fall: 0.03, Seed: 9})
 		p.Beak(BeakSpec{Mat: "beak", Ridge: []float64{28.8, 26.7, 34, 26.8, 40.6, 28.0}, Mouth: []float64{29, 28.05, 34.5, 28.15, 40.4, 28.5},
 			Gloss: 0.2, LowerShadow: 0.05, Lower: "beakLow", GrainSeed: 7})
@@ -168,13 +168,13 @@ func quetzalFly() *Species {
 		},
 		Skin: Skin{Flank: 1.0, Back: 1.2, Belly: 0.9, BackDepth: 1, BellyDepth: 1, Relief: 0.5, Seed: 59},
 		Details: func(p *Painter) {
-			p.Plumage(&Plumage{Seed: 29, Edge: 0.35, Tracts: []Tract{
+			p.Plumage(&Plumage{Seed: 29, Edge: 0.35, Tone: 0.7, Tracts: []Tract{
 				{Name: "fur", Region: Poly(8, 40.4, 49.6, 41, 50, 48.6, 8, 49.6), Parts: []string{"body"},
 					Flow: Along(50, 44.6, 40, 44.6, 30, 44.8, 20, 45, 9, 45.5), Len: 1.4, Wid: 0.6, Hair: true, Relief: 0.8, Fluff: 0.3, Snap: true},
 			}})
 			wing := func(region SDF, bone []float64, fan Coords, free SDF) {
 				p.Membrane(MembraneSpec{Region: region, Mat: []string{"wing"},
-					Fibres: fan, Gap: 1.25, Fibre: 0.12, Flat: 0.55, Distal: 0.12, DistalFrom: 18, DistalTo: 36,
+					Fibres: fan, Gap: 1.25, Fibre: 0.12, Flat: 0.55, Tone: 0.8, Distal: 0.12, DistalFrom: 18, DistalTo: 36,
 					Camber: Path(pts3(bone, 0)...), Glow: 0.5, GlowW: 2.2, GlowRamp: quetzalGlow, Free: free,
 					Bones: []Bone{{Pts: bone, R: 1.35, R1: 0.5, Ramp: pteroBone}}, Seed: 9})
 			}
@@ -248,19 +248,19 @@ func pteroPerch() *Species {
 			{Pts: []float64{15, 19, 18, 25, 21.5, 30.5}, N: 2, DX: 1.1, DY: -0.6, Depth: 0.8},
 		},
 		Details: func(p *Painter) {
-			p.Plumage(&Plumage{Seed: 31, Edge: 0.35, Tracts: []Tract{
+			p.Plumage(&Plumage{Seed: 31, Edge: 0.35, Tone: 0.8, Tracts: []Tract{
 				{Name: "fur", Region: Poly(26, 13, 37.5, 9.5, 39, 14, 37.5, 26, 34, 31, 26, 31), Parts: []string{"body"},
 					Flow: Along(37.5, 10.5, 34.5, 16, 31.5, 21, 29.5, 26, 28.5, 31), Len: 1.3, Wid: 0.6, Hair: true, Relief: 0.8, Fluff: 0.3, Snap: true},
 			}})
 			p.Membrane(MembraneSpec{Region: wing, Mat: []string{"membrane", "dark"},
-				Fibres: Along(finger...), Gap: 0.9, Fibre: 0.05, Flat: 0.15,
+				Fibres: Along(finger...), Gap: 0.9, Fibre: 0.05, Flat: 0.15, Tone: 0.6,
 				Camber: Path(pts3(finger, 0)...), Glow: 0.5, GlowW: 1.4, GlowRamp: pteroGlow,
 				Free: Poly(10, 8, 18, 9, 22, 30, 12, 34),
 				Bones: []Bone{
 					{Pts: finger, R: 0.8, R1: 0.45, Ramp: pteroBone},
 					{Pts: arm, R: 1.2, R1: 0.95, Ramp: pteroBone, Shade: -0.05},
 				}, Seed: 13})
-			p.Plane(PlaneSpec{Region: crest, Mat: []string{"crest"}, Tilt: 0.9, Angle: -0.72, Gap: 1.0, Lines: 0.06,
+			p.Plane(PlaneSpec{Region: crest, Mat: []string{"crest"}, Tilt: 1.6, Angle: -0.72, Gap: 1.0, Lines: 0.06,
 				FromX: 37.5, FromY: 8.5, Fall: 0.05, Seed: 15})
 			p.Beak(BeakSpec{Mat: "beak", Ridge: []float64{41.8, 8.8, 46, 10.3, 51, 11.9, 55.4, 14.2}, Mouth: []float64{41.6, 13.4, 47, 14.2, 54.4, 14.6},
 				Gloss: 0.22, LowerShadow: 0.05, Lower: "beakLow", GrainSeed: 11})
@@ -315,7 +315,7 @@ func quetzal() *Species {
 			{Name: "cream", Seeds: []uint32{0xfbf3df, 0xe9dabb, 0xd8caa8, 0xcdb594, 0xb8a888, 0xb0aa9c, 0xa39e91}, Ramp: pteroCream},
 			{Name: "taupe", Seeds: []uint32{0xa6896a, 0x978d76, 0x978e7a, 0x94846a, 0x907f68, 0x8c8370, 0x857660, 0x81765f, 0x7b6d59, 0x6e604c, 0x685c4a,
 				0x605645, 0x5d5243, 0x564c3e, 0x4d4335, 0x4a4034, 0xa39983, 0x7a6044, 0x4e3c2a, 0x4f3e2c, 0x493a29}, Ramp: quetzalTaupe},
-			{Name: "orange", Seeds: []uint32{0xcf873c, 0xae6228, 0x915e2a, 0x875827, 0x86451e}, Ramp: quetzalOrng},
+			{Name: "orange", Seeds: []uint32{0xcf873c, 0xae6228, 0x915e2a, 0x875827, 0x86451e}, Ramp: quetzalOrng, Bias: 0.12},
 			{Name: "red", Seeds: []uint32{0xe85236, 0xf88a5c, 0xc22a22, 0xc3452d, 0xa3231d, 0x90181a, 0x791416, 0x5e0e12, 0x4f0c0f, 0xd0744d}, Ramp: quetzalRed},
 			{Name: "crown", Seeds: []uint32{0x34323c, 0x4c4a56}, Ramp: quetzalSlate},
 			{Name: "beak", Seeds: []uint32{0xfbe694, 0xfff0a0, 0xeecb5a, 0xd2a436, 0xa87a22, 0x7a5216}, Ramp: pteroBeak, Relief: 0.3, Region: beak, Over: true,
@@ -350,12 +350,12 @@ func quetzal() *Species {
 			{Pts: []float64{50.5, 88, 55.5, 88}, N: 4, DY: 3, Depth: 0.6},
 		},
 		Details: func(p *Painter) {
-			p.Plumage(&Plumage{Seed: 37, Edge: 0.35, Tracts: []Tract{
+			p.Plumage(&Plumage{Seed: 37, Edge: 0.35, Tone: 0.8, Tracts: []Tract{
 				{Name: "fur", Region: Poly(36, 55, 46, 50, 52, 30, 58.5, 17, 63, 19, 60, 34, 58, 52, 61, 62, 56, 70, 36, 70), Parts: []string{"body"},
 					Flow: Along(61.5, 17, 56, 30, 51.5, 42, 47.5, 55, 42, 64, 36, 68), Len: 1.5, Wid: 0.65, Hair: true, Relief: 0.8, Fluff: 0.3, Snap: true},
 			}})
 			p.Membrane(MembraneSpec{Region: wing, Mat: []string{"wing"},
-				Fibres: Along(48, 95, 41, 76, 34, 59, 30.4, 46), Gap: 1.0, Fibre: 0.05, Flat: 0.2,
+				Fibres: Along(48, 95, 41, 76, 34, 59, 30.4, 46), Gap: 1.0, Fibre: 0.05, Flat: 0.2, Tone: 0.6,
 				Glow: 0.45, GlowW: 1.6, GlowRamp: quetzalGlow, Free: Poly(20, 40, 33, 40, 46, 96, 20, 96),
 				Seed: 17})
 			p.Plane(PlaneSpec{Region: crest, Mat: []string{"red", "crown"}, Tilt: 0.7, Angle: -0.5, Gap: 1.2, Lines: 0.06,

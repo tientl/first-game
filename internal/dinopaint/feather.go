@@ -56,6 +56,7 @@ type Plumage struct {
 	Seed   uint32
 	Shadow float64 // how dark a tract shades what lies under it (0: 0.13)
 	Edge   float64 // how dark the soft outline of the feathers is (0: 0.3)
+	Tone   float64 // how much of the drawing's own light and dark is kept, broadly: a dark belly, a pale back (0: none)
 }
 
 // feather is one feather of a tract, made the first time a pixel asks.
@@ -487,6 +488,9 @@ func (p *Painter) Plumage(pl *Plumage) {
 		}
 		p.Val[i] += q.light(&o)
 	}
+	if pl.Tone != 0 {
+		q.guideTone(pl.Tone)
+	}
 	// Each tract shades what lies under it, down and away from the light.
 	shadow := pl.Shadow
 	if shadow == 0 {
@@ -629,4 +633,57 @@ func (q *plumage) tipMarked(f *feather, tr *Tract) bool {
 		}
 	}
 	return f.tip == 1
+}
+
+// guideTone lightens and darkens the painting as the drawing is, broadly:
+// each pixel by how much lighter or darker the drawing is there than its
+// material's colours are on average, so the drawing's dark undersides and
+// pale backs, and the strength of its darks, are kept.
+func (q *plumage) guideTone(k float64) {
+	p := q.p
+	for i, d := range p.toneField() {
+		p.Val[i] += k * d
+	}
+}
+
+// toneField is, for each pixel, how much lighter (+) or darker (-) the
+// drawing is there, broadly, than its material's colours on average, in
+// steps of light; the lighter half counts half.
+func (p *Painter) toneField() []float64 {
+	out := make([]float64, p.W*p.H)
+	l, w := NewField(p.GW, p.GH), NewField(p.GW, p.GH)
+	for i, c := range p.Guide {
+		if p.GSolid[i] && lum(c) >= p.Sp.Ink {
+			l.V[i], w.V[i] = lum(c), 1
+		}
+	}
+	lb, wb := l.Blur(0.8), w.Blur(0.8)
+	at := func(i int) (float64, bool) {
+		x, y := G(i%p.W, i/p.W)
+		if s := wb.Sample(x, y); s > 0.05 {
+			return lb.Sample(x, y) / s, true
+		}
+		return 0, false
+	}
+	nm := len(p.Sp.Materials)
+	sum, cnt := make([]float64, nm), make([]float64, nm)
+	for i, in := range p.In {
+		if v, ok := at(i); in && ok {
+			sum[p.Mat[i]] += v
+			cnt[p.Mat[i]]++
+		}
+	}
+	for i, in := range p.In {
+		v, ok := at(i)
+		if !in || !ok || cnt[p.Mat[i]] == 0 {
+			continue
+		}
+		m := p.Mat[i]
+		d := clamp((v-sum[m]/cnt[m])/90, -0.4, 0.4)
+		if d > 0 {
+			d *= 0.5 // the drawing's darks matter most; the form already lights the rest
+		}
+		out[i] = d
+	}
+	return out
 }

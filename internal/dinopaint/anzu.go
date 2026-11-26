@@ -47,8 +47,11 @@ func anzu() *Species {
 		GuideDetail: 0.35,
 		Ink:         24,
 		Materials: []Material{
-			{Name: "teal", Seeds: []uint32{0x4c8c96, 0x2f6074, 0x21425a, 0x182c44, 0x111c30, 0x1a3540, 0x2a4d52, 0x426e81, 0x5c969f, 0x355369, 0x1d2e3a, 0x243d47},
+			{Name: "teal", Seeds: []uint32{0x4c8c96, 0x2f6074, 0x21425a, 0x1a3540, 0x2a4d52, 0x426e81, 0x5c969f, 0x355369, 0x243d47},
 				Ramp: []uint32{0x0c121c, 0x14202e, 0x1c3040, 0x244256, 0x2e566c, 0x3a6c80, 0x4c8694, 0x66a2aa}},
+			// The navy of the underside and the thighs, as dark as the drawing has it.
+			{Name: "navy", Seeds: []uint32{0x182c44, 0x111c30, 0x1d2e3a, 0x0b0f1c},
+				Ramp: []uint32{0x080c14, 0x0c121e, 0x101a2a, 0x162236, 0x1c2c44, 0x243852, 0x2e4662, 0x3a5672}},
 			{Name: "cyan", Seeds: []uint32{0x8cdce0, 0x4cb2c8, 0x2c86a4, 0x1c5a7a, 0x7cb8b4},
 				Ramp: []uint32{0x0e2a3a, 0x164058, 0x1e5a76, 0x2a7a96, 0x3c9ab2, 0x58b6c8, 0x7ccedc, 0xa6e4ec}},
 			{Name: "purple", Seeds: []uint32{0x7a6ad8, 0x5644ba, 0x3c82e2, 0x2658c2, 0x1a3a92, 0x12245e, 0x231d31},
@@ -111,7 +114,7 @@ func anzu() *Species {
 }
 
 func anzuPlumage() *Plumage {
-	return &Plumage{Seed: 17, Edge: 0.4, Tracts: []Tract{
+	return &Plumage{Seed: 17, Edge: 0.4, Tone: 0.85, Tracts: []Tract{
 		{Name: "farThigh", Region: Poly(11, 30, 23, 30, 23, 41, 11, 41), Parts: []string{"farLeg"},
 			Flow: Along(18, 31, 17.5, 40, 16, 45), Len: 2.4, Wid: 1.7, Fluff: 0.5, Snap: true},
 		{Name: "body", Region: Poly(11, 19.5, 34, 19.5, 36.5, 24, 36, 31, 30, 35, 13, 34), Parts: []string{"body", "wing"},

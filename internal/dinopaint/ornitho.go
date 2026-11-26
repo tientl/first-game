@@ -103,7 +103,7 @@ func ornitho() *Species {
 }
 
 func ornithoPlumage() *Plumage {
-	return &Plumage{Seed: 13, Edge: 0.4, Tracts: []Tract{
+	return &Plumage{Seed: 13, Edge: 0.4, Tone: 0.7, Tracts: []Tract{
 		{Name: "farThigh", Region: Poly(11, 23, 23, 23, 23, 31.4, 11, 31.4), Parts: []string{"farLeg"},
 			Flow: Along(18, 26, 19.5, 32.5, 16, 37.5), Len: 2.2, Wid: 1.6, Fluff: 0.45, Snap: true},
 		{Name: "body", Region: Poly(8, 12, 31.5, 12.5, 33.5, 17, 31, 25, 10, 27, 7, 20), Parts: []string{"body", "wing"},
@@ -117,7 +117,7 @@ func ornithoPlumage() *Plumage {
 			Flow: Along(27, 26, 28.5, 32.5, 25, 37.5), Len: 2.2, Wid: 1.6, Fluff: 0.45, Snap: true},
 		{Name: "wing", Region: Poly(30.4, 19, 31.4, 22.6, 25, 25.2, 13.4, 27.2, 14, 24, 21, 21.2, 27, 19.4), Parts: []string{"wing"},
 			Flow: Along(31, 20.6, 26, 22.2, 20, 24.2, 14, 25.6), Len: 4.6, Wid: 1.4, Rows: 0.34, Tip: 0.55, Shaft: 0.1, Fluff: 0.35,
-			TipMat: "white", TipLen: 0.25, TipGuide: true},
+			Mat: "brown", TipMat: "white", TipLen: 0.25, TipGuide: true},
 		{Name: "arm", Region: Poly(28.8, 17.2, 33.4, 19.4, 34.2, 25, 31.6, 25.2, 29.4, 21), Parts: []string{"wing"},
 			Flow: Along(29.6, 17.6, 31.4, 21.4, 33, 24.8), Len: 2.0, Wid: 1.4, Fluff: 0.3, Snap: true},
 	}}

@@ -49,7 +49,7 @@ func dakota() *Species {
 		Ink:         37,
 		Materials: []Material{
 			{Name: "orange", Seeds: []uint32{0xe6aa5e, 0xcb843c, 0xad6229, 0x88461d, 0x602e15, 0x7a5a3c},
-				Ramp: []uint32{0x2c1512, 0x48210f, 0x6c3214, 0x904a1c, 0xb06226, 0xcb7e34, 0xe29c4c, 0xf3bd70}},
+				Ramp: []uint32{0x2c1512, 0x48210f, 0x6c3214, 0x904a1c, 0xac5e24, 0xc4742e, 0xd88a3c, 0xe8a454}},
 			{Name: "bar", Seeds: []uint32{0x5e483a},
 				Ramp: []uint32{0x181010, 0x241814, 0x32211a, 0x412b20, 0x513628, 0x634332, 0x77523c, 0x8b6248}, Smooth: 0.6, Bias: 0.1},
 			{Name: "dark", Seeds: []uint32{0x433228, 0x2a1f1a},
@@ -109,7 +109,7 @@ func dakota() *Species {
 }
 
 func dakotaPlumage() *Plumage {
-	return &Plumage{Seed: 5, Edge: 0.45, Tracts: []Tract{
+	return &Plumage{Seed: 5, Edge: 0.45, Tone: 0.7, Tracts: []Tract{
 		// The far thigh.
 		{Name: "farThigh", Region: Poly(10, 18, 22, 18, 22, 28.2, 10, 28.2), Parts: []string{"farLeg"},
 			Flow: Along(15, 19, 17.5, 24, 15.5, 28.5), Len: 2.5, Wid: 1.7, Fluff: 0.5, Snap: true},

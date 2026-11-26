@@ -102,7 +102,7 @@ func achero() *Species {
 }
 
 func acheroPlumage() *Plumage {
-	return &Plumage{Seed: 7, Edge: 0.45, Tracts: []Tract{
+	return &Plumage{Seed: 7, Edge: 0.45, Tone: 0.7, Tracts: []Tract{
 		{Name: "farThigh", Region: Poly(8, 13, 16.5, 13, 16.5, 20.4, 8, 20.4), Parts: []string{"farLeg"},
 			Flow: Along(12.5, 14, 13.5, 18, 11.5, 21), Len: 1.9, Wid: 1.35, Fluff: 0.4, Snap: true},
 		{Name: "body", Region: Union(Poly(6, 3.5, 23, 3.5, 27, 6.5, 27, 10, 24, 16, 6, 17), Ellipse(25, 3.6, 1.8, 2.2, 0)),

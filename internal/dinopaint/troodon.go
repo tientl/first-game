@@ -66,6 +66,9 @@ func troodon() *Species {
 				Ramp: []uint32{0x4e4440, 0x6e6458, 0x948a7a, 0xb4aa96, 0xcec6b0, 0xe2dcc8, 0xf0ecdc, 0xfffcf0}},
 			{Name: "eye", Seeds: []uint32{0xffb71e, 0xffdd62},
 				Ramp: []uint32{0x5a2a04, 0x8e4a08, 0xc87a12, 0xeea226, 0xf2c64c, 0xf6dc86, 0xf8e6a4, 0xfaf0c4}},
+			// The black cap of the head, as the drawing has it.
+			{Name: "cap", Ramp: []uint32{0x09080a, 0x0f0d0f, 0x161314, 0x1e1a1a, 0x272221, 0x312b29, 0x3c3532, 0x48403c},
+				Region: Poly(30.4, 1.6, 36.6, 1.6, 38.6, 2.6, 37.4, 3.9, 36.6, 7.4, 34.6, 9.4, 31.4, 9.4, 30.6, 6)},
 			{Name: "gum", Seeds: []uint32{0x2a1012},
 				Ramp: []uint32{0x14070a, 0x1e0a0d, 0x2a1012, 0x381618, 0x461c1e, 0x542226, 0x62282c, 0x703034}},
 		},
@@ -112,7 +115,7 @@ func troodon() *Species {
 }
 
 func troodonPlumage() *Plumage {
-	return &Plumage{Seed: 11, Edge: 0.4, Tracts: []Tract{
+	return &Plumage{Seed: 11, Edge: 0.4, Tone: 0.7, Tracts: []Tract{
 		{Name: "farThigh", Region: Poly(15, 17, 23, 17, 23, 26.4, 15, 26.4), Parts: []string{"farLeg"},
 			Flow: Along(20, 19, 20, 23.5, 15.5, 27.5), Len: 1.9, Wid: 1.35, Fluff: 0.4, Snap: true},
 		{Name: "body", Region: Union(Poly(12, 9, 31, 9, 35.5, 9.5, 35.5, 16, 31, 21, 15, 19), Ellipse(32.8, 6, 2.2, 3.6, 0.3)),

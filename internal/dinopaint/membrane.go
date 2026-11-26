@@ -37,7 +37,8 @@ type MembraneSpec struct {
 	// DistalTo along the fibres (s).
 	Distal, DistalFrom, DistalTo float64
 
-	Bones []Bone // what reads through it, painted over it
+	Tone  float64 // how much of the drawing's broad light and dark is kept (0: none)
+	Bones []Bone  // what reads through it, painted over it
 	Seed  uint32
 }
 
@@ -81,6 +82,10 @@ func (p *Painter) Membrane(m MembraneSpec) {
 	}
 	flatV := LightOn(norm3(0, 0, 1))
 	detail := p.guideDetail()
+	var tone []float64
+	if m.Tone != 0 {
+		tone = p.toneField()
+	}
 	out := append([]color.NRGBA(nil), p.Out...)
 	for py := 0; py < p.H; py++ {
 		for px := 0; px < p.W; px++ {
@@ -101,6 +106,9 @@ func (p *Painter) Membrane(m MembraneSpec) {
 			v := lerp(p.Val[i], flatV, flat)
 			if detail != nil {
 				v += flat * p.Sp.GuideDetail * detail.Sample(x, y) // the drawing's mottling, kept
+			}
+			if tone != nil {
+				v += m.Tone * tone[i]
 			}
 			if m.Camber != nil {
 				// Bellied out behind the leading edge, then falling to the trailing one.
