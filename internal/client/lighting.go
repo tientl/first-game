@@ -114,7 +114,11 @@ func (g *Game) torches(cam camera) []torchLight {
 		}
 		x, y, _ := g.lerpPlayer(p, alpha)
 		sx, sy := cam.toScreenFine(x, y)
-		out = append(out, torchLight{sx, sy - 12, uint32(p.ID) * 7919})
+		sy -= 12
+		if m := g.heldMarkOf(p.ID); m != nil && m.flame { // the flame as drawn; see heldhd.go
+			sx, sy = m.fx, m.fy-2
+		}
+		out = append(out, torchLight{sx, sy, uint32(p.ID) * 7919})
 	}
 	return out
 }
