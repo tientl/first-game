@@ -511,10 +511,12 @@ func (g *Game) drawWeatherIcon(dst drawTarget, w sim.Weather, night bool, x, y f
 
 // --- the hotbar and the hint over it --------------------------------------------------------
 
-// The hotbar's slots are a little bigger than the bag's.
+// The hotbar's slots: small enough that the bar takes about half the
+// screen's width (60 made it two thirds, too heavy over the world), big
+// enough for the HD icons and their counts to read.
 const (
-	hotPx  = 60
-	hotGap = 6
+	hotPx  = 44
+	hotGap = 4
 )
 
 // hotbarY is the top of the hotbar's slots on a canvas sh tall.
