@@ -124,7 +124,9 @@ var (
 func icHeart(p *icv) {
 	heart := iBlend(1.6, sEll(5.3, 6.3, 3.6, 3.5), sEll(10.7, 6.3, 3.6, 3.5), sPoly(2.0, 7.6, 14.0, 7.6, 8.0, 14.6))
 	p.fill(heart, func(f *ifrag) color.RGBA {
-		l := bulge(f, 2.6) + (0.5-f.y/16)*0.25
+		// Shaded as one round body, like a berry, so the tones run smoothly
+		// across it rather than ringing its outline.
+		l := litOf((f.x-8)/7.4*0.94, (f.y-7.8)/7.4*0.94) + 0.06
 		if gx, gy := f.x-4.6, f.y-4.8; gx*gx*0.9+gy*gy < 1.1 {
 			return icGlint
 		}
