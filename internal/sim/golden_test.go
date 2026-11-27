@@ -53,7 +53,8 @@ func worldHash(w *World) uint64 {
 // when StyleIsles was added (StyleIsles itself: when StyleWoods was;
 // StyleWoods: when StyleBeaches was; StyleBeaches, with its Ankylosaurus:
 // when StyleWilds was; StyleWilds: when StyleGround was; StyleGround: when
-// StyleCaves was; StyleCaves: when StyleFlint was). A
+// StyleCaves was; StyleCaves: when StyleFlint was; StyleFlint: when
+// StyleCaveWays was; StyleCaveWays: as it was first made). A
 // change to generation must never change them: saves keep only the seed and
 // style, and regenerate the terrain from it; an older save's woods are
 // thinned by telling the trees of the world as it was made (thinwoods.go).
@@ -84,6 +85,10 @@ var goldenWorlds = []struct {
 	{StyleGround, 11, SizeLarge, 0xeabe536b436997b5},
 	{StyleCaves, 7, SizeMedium, 0x90dfc48f8abdfc},
 	{StyleCaves, 11, SizeLarge, 0xc25722e8f8ef80e9},
+	{StyleFlint, 7, SizeMedium, 0xaacdec4c7280d233},
+	{StyleFlint, 11, SizeLarge, 0xe76033c8d98a16f4},
+	{StyleCaveWays, 7, SizeMedium, 0xa67847e7fcafa14e},
+	{StyleCaveWays, 11, SizeLarge, 0xad3913752b98dfb7},
 }
 
 func TestOlderStylesGenerateAsBefore(t *testing.T) {
@@ -102,7 +107,7 @@ func TestOlderStylesGenerateAsBefore(t *testing.T) {
 // of the older styles that have one, as each made when StyleBeaches was
 // added (StyleBeaches: when StyleWilds was; StyleWilds: when StyleGround
 // was; StyleGround: when StyleCaves was; StyleCaves: when StyleFlint
-// was): the client draws the ground
+// was; StyleFlint: when StyleCaveWays was): the client draws the ground
 // from it, so it must not change either.
 var goldenRelief = []struct {
 	style WorldStyle
@@ -122,6 +127,10 @@ var goldenRelief = []struct {
 	{StyleGround, 11, SizeLarge, 0x5277314ef9ec7b17},
 	{StyleCaves, 7, SizeMedium, 0x7ae4dc778bae24e7},
 	{StyleCaves, 11, SizeLarge, 0xd962710a969efb17},
+	{StyleFlint, 7, SizeMedium, 0x7ae4dc778bae24e7},
+	{StyleFlint, 11, SizeLarge, 0xd962710a969efb17},
+	{StyleCaveWays, 7, SizeMedium, 0x7ae4dc778bae24e7},
+	{StyleCaveWays, 11, SizeLarge, 0xd962710a969efb17},
 }
 
 func TestOlderReliefIsAsBefore(t *testing.T) {
