@@ -153,7 +153,8 @@ func TestStepOutOfReachOrRoundToItsHeadAndTheClubMisses(t *testing.T) {
 		t.Fatalf("health %.0f: the club swings behind it, not before its head", p.Health)
 	}
 	// Its swing done, it is slow to turn round: a moment at its head.
-	stepN(w, AttackTicks)
+	club := Skill(SkillAnkyloClub)
+	stepN(w, club.Active+club.Recover)
 	if c.FaceLeft {
 		t.Fatal("it turned round at once after its swing")
 	}

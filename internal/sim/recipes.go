@@ -481,6 +481,8 @@ const (
 	NoticeArmoured // Arg: CreatureKind whose armour took half the blow; see ankylo.go
 
 	NoticeHardGround // Arg: EntityKind whose stakes do not go into rock or a ford; see tent.go
+
+	NoticeStolen // Arg: ItemKind a flying reptile snatched; see skills.go
 )
 
 // CommandKind is a discrete player request, as opposed to held input.

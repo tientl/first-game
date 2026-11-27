@@ -64,6 +64,7 @@ type Player struct {
 	travelCD  int        // ticks before a cave mouth takes p again
 	cook      cookPlayer // the cooking station open, and the buffs of dishes; see cooking.go
 	dev       devPlayer  // dev mode: god mode and speed, never saved, and free build, kept in a dev save; see dev.go, devbuild.go
+	status    playerStatus // stunned, bleeding, slowed, pinned down by a beast's move; see status.go
 }
 
 // Acting reports whether the player did an action recently enough to show
@@ -99,6 +100,7 @@ func (p *Player) reset(x, y float64) {
 	p.actedAt = 0
 	p.line = line{}
 	p.poison, p.webbed = 0, 0
+	p.clearStatus()
 	p.boat, p.swim = 0, 0
 	p.cook = cookPlayer{}
 	// input and Selected are kept: they mirror what the client is holding
@@ -289,7 +291,8 @@ func (w *World) stepPlayer(p *Player) {
 		return
 	}
 
-	moving := p.input.MoveX != 0 || p.input.MoveY != 0
+	held := w.stepStatus(p, pressed) // stunned or pinned down: see status.go
+	moving := !held && (p.input.MoveX != 0 || p.input.MoveY != 0)
 	swims := w.style >= StyleSeas // in an archipelago anyone can swim
 	if p.boat != 0 && w.sailStep(p) {
 		// aboard: the boat carries p; see boats.go
@@ -301,6 +304,7 @@ func (w *World) stepPlayer(p *Player) {
 		if p.webbed > 0 {
 			sp *= WebSlow
 		}
+		sp *= p.statusSpeed() // a Troodon's venom
 		if swims && w.inWater(p.X, p.Y) {
 			sp = PlayerSpeed * SwimSpeed * swimBoost(&p.Inv) * p.dev.speedFactor() // see legendary.go
 		}
@@ -328,7 +332,7 @@ func (w *World) stepPlayer(p *Player) {
 	}
 	if p.line.state != CastNone {
 		w.stepLine(p, pressed, moving) // fishing: Action strikes instead
-	} else if (p.input.Action || pressed) && p.actionCD == 0 && !w.Swimming(p) { // a swimmer's hands are busy
+	} else if !held && (p.input.Action || pressed) && p.actionCD == 0 && !w.Swimming(p) { // a swimmer's hands are busy
 		acted, found, cd := w.act(p) // see aim.go
 		if found {
 			if acted {

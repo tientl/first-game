@@ -129,8 +129,8 @@ func TestKillingABigBeastGivesHidesAndBones(t *testing.T) {
 			t.Errorf("%s: %d, want %d", in.Item.Def().Name, got, in.Count)
 		}
 	}
-	if p.Health != MaxHealth {
-		t.Errorf("health %.0f: a long-neck never fights back", p.Health)
+	if p.Health == MaxHealth {
+		t.Error("a long-neck speared at close quarters should stamp or lash back (skills.go)")
 	}
 }
 
@@ -163,7 +163,7 @@ func TestOutrunningARaptorPack(t *testing.T) {
 	}
 	id := w.AddPlayer("a")
 	stepN(w, TicksPerSecond/2)
-	if s := creatureByKind(w, CreatureRaptor)[0].State; s != CreatureChase {
+	if s := creatureByKind(w, CreatureRaptor)[0].State; s != CreatureChase && s != CreatureStrike {
 		t.Fatalf("state %d: raptors did not go for a player six tiles off", s)
 	}
 	// Run west; the pack falls behind.
@@ -227,7 +227,8 @@ func TestFlyingReptilesDiveThenClimbOutOfReach(t *testing.T) {
 	if !hurtBy {
 		t.Fatal("the flying reptile never dove at the player below")
 	}
-	stepN(w, AttackTicks+PteroClimbTicks+1)
+	dive := Skill(SkillPteroDive)
+	stepN(w, dive.Active+dive.Recover+PteroClimbTicks+1)
 	if pt.State != CreatureSoar {
 		t.Fatalf("state %d: it should be back up in the air", pt.State)
 	}

@@ -88,5 +88,6 @@ func (w *World) stepBlow(c *Creature) {
 	}
 }
 
-// windingUp reports whether c is still drawing back its blow.
-func (c *Creature) windingUp() bool { return c.blow.ticks > 0 }
+// windingUp reports whether c is still drawing back its blow, or making one
+// of its moves (skills.go): either way it does not flinch from a blow.
+func (c *Creature) windingUp() bool { return c.blow.ticks > 0 || c.inSkill() }

@@ -96,19 +96,6 @@ func (w *World) stepSabre(c *Creature) {
 		p, dist = w.nearestPlayer(c.X, c.Y)
 	}
 	switch c.State {
-	case CreatureStrike: // the spring
-		c.timer--
-		w.moveCreature(c, c.hx*SabreSpringSpeed, c.hy*SabreSpringSpeed)
-		if p != nil && dist <= SabreBiteRange && c.biteCD == 0 {
-			struck(p, SabreBiteDamage)
-			p.notify(NoticeBitten, uint8(c.Kind))
-			c.biteCD = SabreBiteCD
-			c.State, c.timer = CreatureFlee, SabreBackOff // draws back to spring again
-			c.hx, c.hy = 0, 0
-		} else if c.timer <= 0 {
-			c.State = CreatureChase
-		}
-		return
 	case CreatureFlee:
 		if c.timer--; c.timer <= 0 {
 			c.State, c.timer = CreatureIdle, 0
@@ -144,14 +131,12 @@ func (w *World) stepSabre(c *Creature) {
 	// Stalking: it creeps closer, then springs.
 	c.State = CreatureChase
 	c.faceToward(p.X)
-	if dist <= SabreSpringDist && c.biteCD == 0 {
-		c.State, c.timer = CreatureStrike, SabreSpringTicks
-		c.hx, c.hy = (p.X-c.X)/dist, (p.Y-c.Y)/dist
-		return
+	if w.trySkill(c, p, dist) {
+		return // low and twitching, then the pounce; or its jaws wide: see skills.go
 	}
 	speed := d.walk * 1.6 // creeping
 	if dist < 6 || c.rage > 0 {
 		speed = d.run
 	}
-	w.runAt(c, p.X, p.Y, speed, SabreSpringDist*0.8)
+	w.runAt(c, p.X, p.Y, speed, SabreBiteRange)
 }

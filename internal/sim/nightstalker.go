@@ -138,12 +138,6 @@ func (w *World) stepTroodon(c *Creature) {
 		return
 	}
 	switch c.State {
-	case CreatureStrike:
-		if c.timer--; c.timer <= 0 {
-			c.State, c.timer = CreatureFlee, TroodonBackOff
-			c.hx, c.hy = 0, 0
-		}
-		return
 	case CreatureFlee: // falling back after a bite
 		if c.timer--; c.timer <= 0 {
 			c.State, c.timer = CreatureChase, 0
@@ -162,9 +156,8 @@ func (w *World) stepTroodon(c *Creature) {
 	}
 	c.State = CreatureChase
 	c.faceToward(p.X)
-	if dist <= TroodonBiteRange && c.biteCD == 0 {
-		strike(c, p, TroodonBite, TroodonBiteCD)
-		return
+	if w.packFight(c, p, dist, func(dx, dy float64) { w.troodonMove(c, dx, dy) }) {
+		return // a cry, a lunge out of the dark, a venomous bite, or circling its turn: see skillai.go
 	}
 	// Close in, each from its own side so the pack surrounds its prey, but
 	// never into the light: at its edge they wait, watching.

@@ -28,7 +28,7 @@ const (
 	AnkyloClubDamage   = 30.0 // the heaviest blow of any grazer
 	AnkyloClubKnock    = 1.6  // tiles the club throws a player
 	AnkyloClubCD       = 3 * TicksPerSecond
-	AnkyloWindup       = 12                     // crouched, the club drawn back: a clear warning
+	AnkyloWindup       = 18                     // crouched, the club drawn back: a clear warning (0.9 s; see skills.go)
 	AnkyloTurnTicks    = 3 * TicksPerSecond / 4 // turning round takes it this long
 	AnkyloGuardTicks   = 2 * TicksPerSecond     // its guard stays up this long after the threat has gone
 	AnkyloBackUp       = 7.0                    // hit, it backs towards whoever did it while they are this close
@@ -93,6 +93,10 @@ func headOn(c *Creature, x, y float64) bool {
 // taken its share: an Ankylosaurus's plates stop half of a blow on its back,
 // flanks or tail, and none of one at its head.
 func armoured(p *Player, c *Creature, dmg int) int {
+	if c.turtled() { // its head in: see skills.go
+		p.notify(NoticeArmoured, uint8(c.Kind))
+		return max(1, int(float64(dmg)*TurtleShare+0.5))
+	}
 	if c.Kind != CreatureAnkylo || headOn(c, p.X, p.Y) {
 		return dmg
 	}
@@ -164,9 +168,8 @@ func (w *World) stepAnkylo(c *Creature) {
 	}
 	back := c.turnBack(p.X)
 	switch {
-	case dist <= AnkyloClubRange && back && !headOn(c, p.X, p.Y) && c.biteCD == 0:
-		strike(c, p, AnkyloClubDamage, AnkyloClubCD) // crouched, the club drawn back: see telegraph.go
-		c.blow.knock = AnkyloClubKnock
+	case w.trySkill(c, p, dist):
+		// Crouched, the club drawn back; the club raised high; or its head in: see skills.go.
 	case c.rage > 0 && back && dist > AnkyloClubRange*0.9 && dist <= AnkyloBackUp:
 		// Hit from further off: it backs towards them, club first.
 		c.State = CreatureChase
@@ -220,6 +223,7 @@ func (w *World) clubBeast(c, o *Creature) {
 	if o.State != CreatureHurt {
 		o.after, o.afterT = o.State, o.timer
 	}
+	w.cancelSkill(o) // knocked out of whatever move it was making
 	o.State, o.timer = CreatureHurt, AnkyloStaggerTicks
 	o.blow = pendingBlow{}
 	dx, dy := o.X-c.X, o.Y-c.Y

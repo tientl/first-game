@@ -176,6 +176,9 @@ func (w *World) stepRunner(c *Creature) {
 	if c.cool > 0 {
 		c.cool--
 	}
+	if c.rage > 0 && w.runnerKick(c) {
+		return // hit close by: a kick before it runs; see skillai.go
+	}
 	if c.rage > 0 { // hit: off it goes, whoever is near
 		c.rage = 0
 		if c.State != CreatureFlee {
@@ -252,18 +255,17 @@ func (w *World) stepAnzu(c *Creature) {
 			return
 		}
 		c.faceToward(p.X)
-		if dist <= AnzuKickRange {
-			if c.biteCD == 0 {
-				strike(c, p, AnzuKickDamage, AnzuKickCD)
-			}
-			return
+		if w.trySkill(c, p, dist) || dist <= AnzuKickRange {
+			return // a kick, or its crest up and two pecks: see skills.go
 		}
 		w.runAt(c, p.X, p.Y, d.run, AnzuKickRange*0.8)
 		return
 	}
-	if p != nil && dist < AnzuNotice {
-		c.State, c.timer = CreatureRoar, AnzuDisplayTicks
+	if p != nil && dist < AnzuNotice && !p.Asleep {
+		// Someone too close: wings spread, crest up, a hiss, then two pecks.
+		c.State, c.timer = CreatureChase, 0
 		c.faceToward(p.X)
+		w.trySkill(c, p, dist)
 		return
 	}
 	if !w.forage(c) {
@@ -327,11 +329,8 @@ func (w *World) stepQuetzal(c *Creature) {
 	}
 	c.State = CreatureChase
 	c.faceToward(p.X)
-	if dist <= QuetzalStabRange {
-		if c.biteCD == 0 {
-			strike(c, p, QuetzalStabDamage, QuetzalStabCD)
-		}
-		return
+	if w.trySkill(c, p, dist) || dist <= QuetzalStabRange {
+		return // a stab, or a buffet of its wings: see skills.go
 	}
 	w.runAt(c, p.X, p.Y, d.run, QuetzalStabRange*0.8)
 }

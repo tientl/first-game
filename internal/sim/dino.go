@@ -207,6 +207,7 @@ func (w *World) coastDistance(most int) []uint8 {
 
 // provoke is what a creature does about being hit by p.
 func (w *World) provoke(c *Creature, p *Player) {
+	w.skillProvoked(c, p) // a herd call, a kick: see skills.go
 	switch c.Kind {
 	case CreatureTrike, CreatureStego, CreatureBrachio, CreatureRaptor, CreatureMammoth, CreatureSabre,
 		CreatureToro, CreatureThesc, CreatureAchero, CreatureAnzu, CreatureOrnitho, CreatureAnkylo:
@@ -275,7 +276,6 @@ func (w *World) runAt(c *Creature, x, y, step, keep float64) bool {
 }
 
 func (w *World) stepGrazer(c *Creature) {
-	d := c.Kind.def()
 	if c.biteCD > 0 {
 		c.biteCD--
 	}
@@ -291,45 +291,20 @@ func (w *World) stepGrazer(c *Creature) {
 		if c.State == CreatureChase || c.State == CreatureFlee {
 			c.State, c.timer = CreatureIdle, 0
 		}
+		if w.grazerWarn(c) { // a Torosaurus's frill at someone too close: see skillai.go
+			return
+		}
 		if !w.forage(c) { // see needs.go
 			w.wander(c)
 		}
 		return
 	}
-	switch c.Kind {
-	case CreatureBrachio, CreatureThesc: // no fighter: it makes off
-		c.State = CreatureFlee
-		c.steerAway(p.X, p.Y, 0.3)
-		if !w.moveCreature(c, c.hx*d.run, c.hy*d.run) {
-			c.dodge(w, p.X, p.Y)
-		}
-	case CreatureTrike, CreatureMammoth, CreatureToro: // head down, it charges and gores
-		c.State = CreatureChase
-		reach, dmg, cd := goreTune(c.Kind) // see hellcreek.go
-		if dist <= reach {
-			c.faceToward(p.X)
-			if c.biteCD == 0 {
-				strike(c, p, dmg, cd)
-			}
-			return
-		}
-		w.runAt(c, p.X, p.Y, d.run, reach*0.8)
-	case CreatureStego: // slow, but its tail reaches anyone who comes close
-		c.State = CreatureChase
-		if dist <= StegoTailRange {
-			if c.biteCD == 0 {
-				c.FaceLeft = p.X > c.X // the tail swings at them
-				strike(c, p, StegoTailDamage, StegoTailCD)
-			}
-			return
-		}
-		w.runAt(c, p.X, p.Y, d.run, StegoTailRange*0.8)
-	}
+	w.grazerFight(c, p, dist) // charges, tosses, tail swings, stomps: see skillai.go
 }
 
 func (w *World) stepRaptor(c *Creature) {
 	d := c.Kind.def()
-	bite, pounce, sightDay, sightNight, cowerAt := raptorTune(c.Kind) // see hellcreek.go
+	_, _, sightDay, sightNight, cowerAt := raptorTune(c.Kind) // see hellcreek.go
 	if c.biteCD > 0 {
 		c.biteCD--
 	}
@@ -344,22 +319,6 @@ func (w *World) stepRaptor(c *Creature) {
 		p, dist = w.nearestPlayer(c.X, c.Y)
 	}
 	switch c.State {
-	case CreatureStrike: // the pounce: a burst along its heading
-		if c.windingUp() { // crouched, about to spring: see telegraph.go
-			return
-		}
-		c.timer--
-		w.moveCreature(c, c.hx*RaptorPounceSpeed, c.hy*RaptorPounceSpeed)
-		if p != nil && dist <= RaptorBiteRange && c.biteCD == 0 {
-			struck(p, bite)
-			p.notify(NoticeBitten, uint8(c.Kind))
-			c.biteCD = RaptorBiteCD
-			c.State, c.timer = CreatureFlee, RaptorBackOffTicks // dart back out of reach
-			c.hx, c.hy = 0, 0
-		} else if c.timer <= 0 {
-			c.State = CreatureChase
-		}
-		return
 	case CreatureFlee:
 		if c.timer--; c.timer <= 0 {
 			c.State, c.timer = CreatureIdle, 0
@@ -400,17 +359,13 @@ func (w *World) stepRaptor(c *Creature) {
 	}
 	c.State = CreatureChase
 	c.faceToward(p.X)
-	if dist <= pounce && c.biteCD == 0 {
-		c.State, c.timer = CreatureStrike, RaptorPounceTicks
-		c.blow = pendingBlow{ticks: WindupTicks(c.Kind)} // a crouch first; the pounce itself bites
-		c.hx, c.hy = (p.X-c.X)/dist, (p.Y-c.Y)/dist
-		return
+	if w.packFight(c, p, dist, func(dx, dy float64) { w.moveCreature(c, dx, dy) }) {
+		return // a pounce, a slash, a screech, or circling while the pack takes turns: see skillai.go
 	}
 	w.runAt(c, p.X, p.Y, d.run, RaptorKeepOff)
 }
 
 func (w *World) stepRex(c *Creature) {
-	d := c.Kind.def()
 	if c.biteCD > 0 {
 		c.biteCD--
 	}
@@ -445,19 +400,13 @@ func (w *World) stepRex(c *Creature) {
 			w.wander(c)
 			return
 		}
-		if dist <= RexBiteRange {
-			c.faceToward(p.X)
-			if c.biteCD == 0 {
-				strike(c, p, RexBiteDamage, RexBiteCD)
-			}
-			return
-		}
-		w.runAt(c, p.X, p.Y, d.run, RexBiteRange*0.8)
+		w.rexFight(c, p, dist) // a bite, a roar, a tail sweep, a charge: see skillai.go
 		return
 	}
 	if p != nil && c.cool == 0 && dist <= RexSight {
-		c.State, c.timer = CreatureRoar, RexRoarTicks
-		c.faceToward(p.X)
+		// It has seen someone: it roars (a stun, close by), then charges.
+		c.State, c.timer = CreatureChase, RexChaseTicks
+		w.startSkill(c, SkillRexRoar, p)
 		return
 	}
 	if !w.forage(c) {
@@ -476,24 +425,6 @@ func (w *World) stepPtero(c *Creature) {
 		p, dist = w.nearestPlayer(c.X, c.Y)
 	}
 	switch c.State {
-	case CreatureChase: // diving at p
-		if c.timer--; p == nil || c.timer <= 0 {
-			c.State, c.timer = CreatureFlee, PteroClimbTicks
-			return
-		}
-		if dist <= PteroStrikeRange {
-			c.faceToward(p.X)
-			strike(c, p, PteroDamage, PteroDiveCD)
-			return
-		}
-		w.runAt(c, p.X, p.Y, PteroDiveSpeed, 0)
-		return
-	case CreatureStrike:
-		if c.timer--; c.timer <= 0 {
-			c.State, c.timer = CreatureFlee, PteroClimbTicks
-			c.hx, c.hy = 0, 0
-		}
-		return
 	case CreatureFlee: // climbing away
 		if p != nil {
 			c.steerAway(p.X, p.Y, 0.3)
@@ -511,10 +442,14 @@ func (w *World) stepPtero(c *Creature) {
 		}
 		return
 	}
-	// Soaring: round and round its home, high up.
+	// Soaring: round and round its home, high up; or gliding in high over a
+	// foe, to hold still over them and dive (skills.go).
 	c.State = CreatureSoar
-	if p != nil && c.biteCD == 0 && (dist <= PteroSight || c.rage > 0) {
-		c.State, c.timer = CreatureChase, PteroDiveTicks
+	if p != nil && !p.Asleep && (dist <= PteroSight || c.rage > 0) && w.pteroWants(c, p) {
+		if dist <= 0.8 && w.trySkill(c, p, dist) {
+			return
+		}
+		w.runAt(c, p.X, p.Y, PteroDiveSpeed, 0)
 		return
 	}
 	c.ang += d.walk / PteroCircle
@@ -552,17 +487,17 @@ func (w *World) stepPlesio(c *Creature) {
 		}
 		c.State = CreatureChase
 		c.faceToward(p.X)
-		if dist <= PlesioBiteRange {
-			if c.biteCD == 0 {
-				strike(c, p, PlesioBiteDamage, PlesioBiteCD)
-			}
-			return
+		if w.trySkill(c, p, dist) || dist <= PlesioBiteRange {
+			return // its neck reared, then the bite: see skills.go
 		}
 		w.runAt(c, p.X, p.Y, d.run, PlesioBiteRange*0.7)
 		return
 	}
 	// Under water.
 	c.State = CreatureLurk
+	if p != nil && dist <= Skill(SkillPlesioAmbush).MaxD && w.trySkill(c, p, dist) {
+		return // a swimmer or a boat: a ripple closes in, then it comes up under them
+	}
 	if c.cool == 0 && ((p != nil && dist <= PlesioNotice) || r.Float64() < PlesioBreathe) {
 		c.State, c.timer = CreatureIdle, PlesioSurfaceTicks
 		return

@@ -335,6 +335,7 @@ type Creature struct {
 	grabHP   int         // a giant squid's health when it seized its boat
 	flinchCD int         // ticks before a blow can make it flinch again; see combat.go
 	blow     pendingBlow // a blow drawn back, waiting to land; see telegraph.go
+	sk       skillState  // its moves: the one it is making, and their cooldowns; see skills.go
 
 	homeX, homeY float64
 	hx, hy       float64 // heading while walking or fleeing, a unit vector
@@ -648,6 +649,9 @@ func (w *World) stepCreature(c *Creature) {
 	}
 	w.stepBlow(c) // see telegraph.go
 	if c.Kind.Boss() {
+		if w.stepSkills(c) {
+			return // a boss's own moves, when it is given some: see skills.go
+		}
 		w.stepBoss(c) // no snare holds it, and it eats nobody's food: see bossfight.go
 		return
 	}
@@ -670,6 +674,9 @@ func (w *World) stepCreature(c *Creature) {
 		if c.gone || c.State == CreatureTrapped {
 			return
 		}
+	}
+	if w.stepSkills(c) {
+		return // in the middle of one of its moves: see skills.go
 	}
 	if c.State == CreatureHurt {
 		if c.timer--; c.timer <= 0 {
