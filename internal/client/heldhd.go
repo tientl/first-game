@@ -46,9 +46,28 @@ func SetHeldHD(on bool) { heldHD = on }
 // heldDef is an item as held, in its own frame (see above).
 type heldDef struct {
 	paint          func(h *hpv)
-	x0, y0, x1, y1 float64 // what it covers in its frame, art pixels
+	x0, y0, x1, y1 float64 // what it covers in its frame, design units
 	grip           float64 // the radius of the gap the fist fills, art pixels; 0 for none
+	// scale is art pixels to a design unit (0 is 1): a painter drawn at
+	// one size is set to the item's real size beside the figure by it.
+	scale float64
+	// head and reach are how far from the grip the middle of the head and
+	// its far end are, design units: where a swing's trail goes.
+	head, reach float64
+	carry       carryKind // how it is carried walking, running or standing
 }
+
+// k is d's scale.
+func (d *heldDef) k() float64 {
+	if d.scale == 0 {
+		return 1
+	}
+	return d.scale
+}
+
+// headAt and reachAt are head and reach in art pixels.
+func (d *heldDef) headAt() float64  { return d.head * d.k() }
+func (d *heldDef) reachAt() float64 { return d.reach * d.k() }
 
 // heldDefs holds the held painter of every item that has one.
 var heldDefs [sim.NumItems]*heldDef
@@ -85,17 +104,19 @@ type hpv struct {
 	*icv
 	cs, sn float64 // the turn
 	ox, oy float64 // the grip on the canvas, art pixels
+	su, sv float64 // art pixels to a design unit across and along: the size, and along it foreshortened
 }
 
 // at is item point (u, v) on the canvas.
 func (h *hpv) at(u, v float64) (float64, float64) {
+	u, v = u*h.su, v*h.sv
 	return h.ox + u*h.cs - v*h.sn, h.oy + u*h.sn + v*h.cs
 }
 
 // loc is canvas point (x, y) in the item's frame.
 func (h *hpv) loc(x, y float64) (u, v float64) {
 	dx, dy := x-h.ox, y-h.oy
-	return dx*h.cs + dy*h.sn, -dx*h.sn + dy*h.cs
+	return (dx*h.cs + dy*h.sn) / h.su, (-dx*h.sn + dy*h.cs) / h.sv
 }
 
 // dir turns a direction of the item's frame onto the canvas.
@@ -118,9 +139,10 @@ func (h *hpv) xf(s shape) shape {
 		x, y := h.at(c[0], c[1])
 		x0, y0, x1, y1 = min(x0, x), min(y0, y), max(x1, x), max(y1, y)
 	}
+	k := min(h.su, h.sv) // design units to art pixels, near enough
 	return shape{x0, y0, x1, y1, func(x, y float64) float64 {
 		u, v := h.loc(x, y)
-		return s.d(u, v)
+		return s.d(u, v) * k
 	}}
 }
 
@@ -158,13 +180,16 @@ func turnIndex(th float64) int {
 	return i
 }
 
-// bakeHeld paints d at turn i. It touches nothing shared, so it may run on
-// any goroutine.
-func bakeHeld(d *heldDef, i int) *heldPix {
+// bakeHeld paints d at turn i, foreshortened along its length to q of it
+// (1: seen side on). It touches nothing shared, so it may run on any
+// goroutine.
+func bakeHeld(d *heldDef, i int, q float64) *heldPix {
 	th := turnAngle(i)
 	cs, sn := math.Cos(th), math.Sin(th)
+	su, sv := d.k(), d.k()*q
 	bx0, by0, bx1, by1 := math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)
 	for _, c := range [4][2]float64{{d.x0, d.y0}, {d.x1, d.y0}, {d.x0, d.y1}, {d.x1, d.y1}} {
+		c[0], c[1] = c[0]*su, c[1]*sv
 		x, y := c[0]*cs-c[1]*sn, c[0]*sn+c[1]*cs
 		bx0, by0, bx1, by1 = min(bx0, x), min(by0, y), max(bx1, x), max(by1, y)
 	}
@@ -175,7 +200,7 @@ func bakeHeld(d *heldDef, i int) *heldPix {
 	n := max(gx+int(math.Ceil(bx1*K))+heldEdge, gy+int(math.Ceil(by1*K))+heldEdge)
 	const m = heldSS
 	p := &icv{n: n * m, k: K * m, px: make([]color.RGBA, n*m*n*m), part: make([]uint8, n*m*n*m)}
-	h := &hpv{icv: p, cs: cs, sn: sn, ox: float64(gx) / K, oy: float64(gy) / K}
+	h := &hpv{icv: p, cs: cs, sn: sn, ox: float64(gx) / K, oy: float64(gy) / K, su: su, sv: sv}
 	d.paint(h)
 	p.contact(m)
 	px := shrink(p.px, n*m, m)
@@ -229,6 +254,7 @@ type heldFrame struct {
 type heldSet struct {
 	def   *heldDef
 	frame [heldTurns]*heldFrame // game thread only
+	low   [heldTurns]*heldFrame // foreshortened to heldLowQ, painted when first wanted; game thread only
 
 	mu    sync.Mutex
 	ready [heldTurns]*heldPix // painted ahead, waiting to be made images
@@ -264,7 +290,7 @@ func (s *heldSet) warm() {
 		if skip {
 			continue
 		}
-		px := bakeHeld(s.def, i)
+		px := bakeHeld(s.def, i, 1)
 		s.mu.Lock()
 		if !s.made[i] {
 			s.ready[i] = px
@@ -284,14 +310,34 @@ func (s *heldSet) at(i int) *heldFrame {
 	s.made[i] = true
 	s.mu.Unlock()
 	if px == nil {
-		px = bakeHeld(s.def, i)
+		px = bakeHeld(s.def, i, 1)
 	}
+	f := px.frame()
+	s.frame[i] = f
+	return f
+}
+
+// lowAt is turn i of s foreshortened to heldLowQ: carried pointing towards
+// or away from the viewer.
+func (s *heldSet) lowAt(i int) *heldFrame {
+	if f := s.low[i]; f != nil {
+		return f
+	}
+	f := bakeHeld(s.def, i, heldLowQ).frame()
+	s.low[i] = f
+	return f
+}
+
+// heldLowQ is how foreshortened a held item pointing towards or away from
+// the viewer is drawn.
+const heldLowQ = 0.5
+
+// frame makes px an image.
+func (px *heldPix) frame() *heldFrame {
 	img := ebiten.NewImage(px.w, px.h)
 	img.WritePixels(straightBytes(px.px))
 	artBytes.Add(int64(4 * px.w * px.h))
-	f := &heldFrame{img: img, gx: px.gx, gy: px.gy}
-	s.frame[i] = f
-	return f
+	return &heldFrame{img: img, gx: px.gx, gy: px.gy}
 }
 
 // straightBytes is px premultiplied, as WritePixels takes it.
@@ -308,7 +354,15 @@ func straightBytes(px []color.RGBA) []byte {
 // radians from upright towards the facing, mirrored for side -1, at
 // opacity alpha.
 func drawHeldDef(dst drawTarget, d *heldDef, x, y, th, side float64, alpha float32) {
-	f := heldSetOf(d).at(turnIndex(th))
+	drawHeldFrame(dst, heldSetOf(d).at(turnIndex(th)), x, y, side, alpha)
+}
+
+// drawHeldLow is drawHeldDef foreshortened (heldLowQ).
+func drawHeldLow(dst drawTarget, d *heldDef, x, y, th, side float64) {
+	drawHeldFrame(dst, heldSetOf(d).lowAt(turnIndex(th)), x, y, side, 1)
+}
+
+func drawHeldFrame(dst drawTarget, f *heldFrame, x, y, side float64, alpha float32) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(-f.gx/HDDensity, -f.gy/HDDensity) // drawImageD takes the image to art pixels first
 	op.GeoM.Scale(side, 1)
@@ -330,10 +384,11 @@ func drawHeldHD(dst drawTarget, k sim.ItemKind, x, y, th, side float64, alpha fl
 	return true
 }
 
-// heldPoint is where item point (u, v) of an item gripped at (x, y),
-// turned th towards side, is: the flame on a torch, the tip of a rod.
-func heldPoint(x, y, th, side, u, v float64) (float64, float64) {
+// heldPoint is where point (u, v) of d, gripped at (x, y), turned th
+// towards side, is: the flame on a torch, the tip of a rod.
+func heldPoint(d *heldDef, x, y, th, side, u, v float64) (float64, float64) {
 	th = turnAngle(turnIndex(th)) // as drawn
+	u, v = u*d.k(), v*d.k()
 	cs, sn := math.Cos(th), math.Sin(th)
 	return x + side*(u*cs-v*sn), y + u*sn + v*cs
 }
@@ -414,7 +469,7 @@ func paintTorchFlame(p *icv, x, y, ph float64) {
 // drawTorchFlame draws flame frame i rooted at (x, y), art pixels.
 func drawTorchFlame(dst drawTarget, i int, x, y float64) {
 	if fireHD { // the fire of the torch on its stand; see fireart.go
-		drawFire(dst, fireTorch, i, x, y+0.5)
+		drawFire(dst, fireHand, i, x, y+0.5)
 		return
 	}
 	i %= torchFlameN

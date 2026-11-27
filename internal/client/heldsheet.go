@@ -194,7 +194,7 @@ func (g *Game) heldCost() {
 			continue
 		}
 		for i := range heldTurns {
-			p := bakeHeld(d, i)
+			p := bakeHeld(d, i, 1)
 			n++
 			px += p.w * p.h
 		}

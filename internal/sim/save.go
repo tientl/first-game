@@ -71,12 +71,19 @@ import (
 //     the ores where the flint no longer lies. Nothing older changes, but an
 //     older game would make the wrong world of such a save, so it must
 //     refuse it.
-//   - 28: built things face a way (Entity.Face; facing.go): doors, beds,
+//   - 28: worlds of StyleCaveWays: caves of more, smaller chambers, with
+//     forks and loops round the main route, passages branching off
+//     passages, side pockets and a second way down under the big islands
+//     (caveways.go), and fewer, leaner old chests by how far the island lies
+//     from home (an old chest's Var is what kind of chest it is and its
+//     island's ring, not its depth). Nothing older changes, but an older
+//     game would make the wrong world of such a save, so it must refuse it.
+//   - 29: built things face a way (Entity.Face; facing.go): doors, beds,
 //     tents, chests, furnaces, ovens, mortars, drying racks, walls and
 //     fences, a grill on a fire, a head on a post. What an older save
 //     holds faces south, as everything was drawn; an older game would
 //     lose the facings.
-const SaveVersion = 28
+const SaveVersion = 29
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.

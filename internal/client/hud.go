@@ -15,10 +15,13 @@ import (
 )
 
 // The HUD, drawn at the screen's resolution in UI pixels (see uiscale.go)
-// in the look of uitheme.go: the vitals and status chips top left on hide,
-// the clock with the minimap top right, the hotbar along the bottom in its
-// wooden frame with the held item's name and one line of what to do here
-// above it. F1 shows the full list of keys.
+// in the look of uitheme.go, small so the world is what is seen (the
+// layout is in hudlayout.go): thin vital bars and round status chips top
+// left on a little see-through hide; the round minimap in the ring of the
+// day top right, with the day, season and weather under it; the hotbar
+// along the bottom in its wooden frame, with one line over it, the held
+// item's name for a moment or else the one hint that matters. F1 shows the
+// full list of keys.
 
 var (
 	colPanel     = color.RGBA{36, 28, 22, 215}
@@ -98,74 +101,106 @@ func drawIcon(dst drawTarget, img *ebiten.Image, x, y, scale float64, alpha floa
 
 // --- the vitals --------------------------------------------------------------------
 
-// vital is one bar top left: health, hunger, and later thirst.
+// vital is one bar top left: health, hunger, later thirst, and at sea a
+// swimmer's strength and the boat's.
 type vital struct {
+	id       int          // which: vitalHealth…, for its trail
 	icon     uiIcon       // its picture, when item is none
 	item     sim.ItemKind // or an item's icon
 	cur, max float64
 	fill     color.RGBA
 }
 
-// HUD layout, in UI pixels.
+// The vitals, for their trails.
 const (
-	vitalX, vitalY = 12, 12 // the vitals panel's corner
-	vitalBarW      = 176
-	vitalBarH      = 22
-	vitalRow       = 30
-	vitalPanelW    = 12 + 30 + vitalBarW + 12
-	chipH          = 22
+	vitalHealth = iota
+	vitalHunger
+	vitalBreath // a swimmer's strength: see searender.go
+	vitalBoat
 )
 
+// The layout is in hudlayout.go. vitalValueScale is the size of the
+// numbers inside a bar.
+const vitalValueScale = 0.6
+
 // hudFX is what the HUD remembers from frame to frame to animate: each
-// vital's trail, and the world labels' fades (uilabels.go).
+// vital's trail, the world labels' fades (uilabels.go), the statuses seen,
+// the notices (hudtoasts.go), the line over the hotbar and the tip under
+// the pointer.
 type hudFX struct {
-	vitals [3]barTrail
-	labels labelFX
+	vitals     [maxVitals]barTrail
+	labels     labelFX
+	statusSeen [numStatuses]bool // ever on
+	statusLast [numStatuses]int  // the frame each was last on
+	buffFull   [sim.NumBuffs]int32
+	notes      noteFX
+	held       heldFX
+	hint       hintFX
+	tip        hudTip
 }
 
 // vitals are the bars shown, top to bottom. Thirst goes here once the sim
-// has it: {uiThirst, 0, self.Thirst, sim.MaxThirst, colThirst}.
+// has it: {vitalThirst, uiThirst, 0, self.Thirst, sim.MaxThirst, colThirst}.
 func (g *Game) vitals() []vital {
 	self := g.curr.Self
-	return []vital{
-		{uiHeart, sim.ItemNone, float64(self.Health), sim.MaxHealth, colHealth},
-		{uiHungry, sim.ItemNone, float64(self.Hunger), sim.MaxHunger, colHunger},
+	vs := []vital{
+		{vitalHealth, uiHeart, sim.ItemNone, float64(self.Health), sim.MaxHealth, colHealth},
+		{vitalHunger, uiHungry, sim.ItemNone, float64(self.Hunger), sim.MaxHunger, colHunger},
 	}
+	return append(vs, g.seaVitals()...) // see searender.go
 }
 
-// vitalsBottom is the y just under the vitals panel.
-func vitalsBottom(n int) float32 { return vitalY + 10 + float32(n)*vitalRow }
-
-// drawVital draws vital i, v, with its icon at (x, y), its value as
-// "72/100" inside it: a sunken track, the fill lit like something round,
-// what was just lost draining away pale, a flash at a blow, and a glow
-// round it when it runs low.
-func (g *Game) drawVital(dst *uiDst, i int, v vital, x, y float32) {
+// drawVital draws v with its picture at (x, y) and its thin bar beside it,
+// its value small inside ("72/100"): a sunken track, the fill lit like
+// something round, what was just lost draining away pale, a flash at a
+// blow, and a glow round it when it runs low.
+func (g *Game) drawVital(dst *uiDst, v vital, x, y float64) {
 	frac := 0.0
 	if v.max > 0 {
 		frac = max(0, min(1, v.cur/v.max))
 	}
-	fx := g.hudFX.vitals[i%len(g.hudFX.vitals)].step(frac, g.frame)
-	ix, iy := float64(x)+13, float64(y)+vitalBarH/2
-	if v.item.Valid() {
-		g.drawItem(dst, v.item, ix-12, iy-12, 24, 1)
-	} else {
+	fx := g.hudFX.vitals[v.id%maxVitals].step(frac, g.frame)
+	ix, iy := x+vitalIcon/2, y+vitalBarH/2
+	switch {
+	case v.item.Valid():
+		g.drawItem(dst, v.item, ix-vitalIcon/2-1, iy-vitalIcon/2-1, vitalIcon+2, 1)
+	case v.id == vitalBreath:
+		drawDrop(dst, float32(ix), float32(iy), 12, v.fill)
+	default:
 		beat := 1.0
 		if v.icon == uiHeart && frac < 0.35 {
-			beat += 0.08 * math.Max(0, math.Sin(float64(g.frame)*0.25)) // a heart that pounds
+			beat += 0.1 * math.Max(0, math.Sin(float64(g.frame)*0.25)) // a heart that pounds
 		}
-		drawUIIcon(dst, v.icon, ix, iy, 24*beat, 1)
+		drawUIIcon(dst, v.icon, ix, iy, (vitalIcon+1)*beat, 1)
 	}
-	bx, by := float64(x)+30, float64(y)
+	bx, by := x+vitalIcon+4, y
 	if frac < 0.25 {
 		pulse := 0.5 + 0.5*math.Sin(float64(g.frame)*0.12)
-		glow(dst, bx, by, vitalBarW, vitalBarH, vitalBarH/2, v.fill, 0.35+0.4*pulse)
+		glow(dst, bx, by, vitalBarW, vitalBarH, vitalBarH/2, v.fill, 0.3+0.35*pulse)
 	}
 	well(dst, bx, by, vitalBarW, vitalBarH, vitalBarH/2)
 	noteBox(dst, bx, by, vitalBarW, vitalBarH)
-	drawBarFill(dst, bx+2.5, by+2.5, vitalBarW-5, vitalBarH-5, frac, v.fill, fx, g.frame)
+	drawBarFill(dst, bx+1.5, by+1.5, vitalBarW-3, vitalBarH-3, frac, v.fill, fx, g.frame)
 	value := fmt.Sprintf("%d/%d", int(math.Ceil(v.cur)), int(v.max))
-	uiTextW(dst, value, bx+vitalBarW/2, by+vitalBarH/2-lineUI*0.95/2, colWhite, text.AlignCenter, 0.95, wHeavy, fxOutline)
+	if v.id == vitalBreath {
+		value = fmt.Sprintf("%d%%", int(math.Ceil(frac*100)))
+	}
+	uiTextW(dst, value, bx+vitalBarW/2, by+vitalBarH/2-lineUI*vitalValueScale/2, colWhite, text.AlignCenter, vitalValueScale, 880, fxOutline)
+}
+
+// hudHide is the look of the HUD's panels: dark hide, see-through enough
+// to keep the world in view, a thin rim, faint stitches.
+var hudHide = panelLook{
+	body:   color.RGBA{32, 25, 20, 200},
+	rim:    color.RGBA{88, 64, 44, 235},
+	rimW:   1.5,
+	stitch: color.RGBA{196, 156, 102, 55},
+}
+
+// hudPanel draws a panel of the HUD in hudHide.
+func hudPanel(dst *uiDst, x, y, w, h, r float64) {
+	drawPanelLook(dst, psHide, hudHide, x, y, w, h, r, 0.35)
+	noteBox(dst, x, y, w, h)
 }
 
 // drawDrop is a water drop centred on (x, y), r across.
@@ -197,12 +232,15 @@ const (
 	statusBleed
 	statusSlow
 	statusPinned
+	statusHeld  // the boat in a giant squid's arms: see searender.go
+	statusWind  // the wind, while sailing: an arrow, not a picture
 	statusBuff  // the first of the buffs of dishes, one for each sim.BuffKind; see cookrender.go
 	numStatuses = statusBuff + statusKind(sim.NumBuffs)
 )
 
-// status is one effect on the player: a chip under the bars, and the long
-// line said for a moment when it starts.
+// status is one effect on the player: a chip under the bars (its label
+// shows under the pointer), and the long line said for a moment when it
+// starts.
 type status struct {
 	kind  statusKind
 	label string
@@ -211,8 +249,13 @@ type status struct {
 }
 
 // statusShout is how long, in frames, the long line shows after a status
-// starts.
-const statusShout = 4 * 60
+// starts; statusQuiet, how long a status must have been gone for it to be
+// said again (a cold that comes and goes at the edge of a fire's warmth is
+// said once).
+const (
+	statusShout = 4 * 60
+	statusQuiet = 45 * 60
+)
 
 // statuses are the effects on the player now.
 func (g *Game) statuses() []status {
@@ -247,75 +290,139 @@ func (g *Game) statuses() []status {
 		out = append(out, status{statusBees, "Ong đốt", "Bầy ong đang đuổi! Chạy thật xa tổ", colKey})
 	}
 	out = append(out, skillStatuses(self)...) // see skillhud.go
+	out = append(out, g.seaStatuses()...)     // see searender.go
 	return append(out, g.buffStatuses()...)
 }
 
-// noteStatuses remembers when each status started.
+// noteStatuses remembers when each status started: one back after only a
+// moment away starts quietly, its long line not said again.
 func (g *Game) noteStatuses(now []status) {
 	var on [numStatuses]bool
+	fx := &g.hudFX
 	for _, s := range now {
 		on[s.kind] = true
 		if !g.statusOn[s.kind] {
-			g.statusAt[s.kind] = g.frame
+			if !fx.statusSeen[s.kind] || g.frame-fx.statusLast[s.kind] > statusQuiet {
+				g.statusAt[s.kind] = g.frame
+			} else {
+				g.statusAt[s.kind] = g.frame - statusShout
+			}
 		}
+		fx.statusSeen[s.kind], fx.statusLast[s.kind] = true, g.frame
 	}
 	g.statusOn = on
+	// The buffs' rings run from the time each had when it began (or was
+	// topped up by another dish).
+	for b, t := range g.curr.Self.Cook.Buffs {
+		switch {
+		case t <= 0:
+			fx.buffFull[b] = 0
+		case t > fx.buffFull[b]:
+			fx.buffFull[b] = t
+		}
+	}
 }
 
-// drawStatuses draws the chips from (x, y) rightwards (a leather tab rimmed
-// in the status's colour, its HD picture and a short word), then, for a
-// moment after one starts, its long line.
-func (g *Game) drawStatuses(dst *uiDst, list []status, x, y float32) {
+// statusTimer is how much of status k's time is left, 1 to 0, for a status
+// that runs out (a dish's buff); ok is false for the rest.
+func (g *Game) statusTimer(k statusKind) (left float64, ok bool) {
+	if k < statusBuff || k >= numStatuses {
+		return 0, false
+	}
+	b := int(k - statusBuff)
+	full := g.hudFX.buffFull[b]
+	if full <= 0 {
+		return 0, false
+	}
+	return max(0, min(1, float64(g.curr.Self.Cook.Buffs[b])/float64(full))), true
+}
+
+// drawStatuses draws the chips from (x, y) in rows as wide as the vitals:
+// each a small round leather tab, its picture, its rim in the status's
+// colour (for a buff, running down like a clock as it wears off). For a
+// moment after one starts it glows and its long line shows under the
+// chips. Under the pointer a chip says its name.
+func (g *Game) drawStatuses(dst *uiDst, list []status, x, y float64) {
 	var shout *status
-	X, Y := float64(x), float64(y)
+	per := chipsPerRow()
 	for i := range list {
 		s := &list[i]
 		since := g.frame - g.statusAt[s.kind]
 		if s.long != "" && since < statusShout && (shout == nil || g.statusAt[s.kind] > g.statusAt[shout.kind]) {
 			shout = s
 		}
-		w := g.textWidth(s.label) + 36
-		if since < statusShout {
-			pulse := 0.5 + 0.5*math.Cos(float64(since)*0.16)
-			glow(dst, X, Y, w, chipH, chipH/2, s.col, 0.45*pulse*(1-float64(since)/statusShout))
+		cx := x + float64(i%per*(chipD+chipGap)) + chipD/2
+		cy := y + float64(i/per*(chipD+chipGap)) + chipD/2
+		g.drawChip(dst, *s, cx, cy, since)
+		if g.hovered(cx-chipD/2, cy-chipD/2, chipD, chipD) {
+			g.hudFX.tip = hudTip{s: s.label, x: cx, y: cy + chipD/2 + 3, ok: true}
 		}
-		l := panelLooks[psLeather]
-		l.body = color.RGBA{38, 29, 23, 236}
-		l.rim = mix(s.col, colHideDark, 0.35)
-		l.stitch = color.RGBA{}
-		l.rimW = 1.25
-		drawPanelLook(dst, psLeather, l, X, Y, w, chipH, chipH/2, 0.45)
-		noteBox(dst, X, Y, w, chipH)
-		drawUIIcon(dst, statusIcon(s.kind), X+13, Y+chipH/2, 19, 1)
-		g.text(dst, s.label, X+26, Y+3, s.col, text.AlignStart, 1)
-		X += w + 6
 	}
 	if shout != nil {
-		a := min(1, float64(statusShout-(g.frame-g.statusAt[shout.kind]))/40)
-		w := g.textWidth(shout.long) + 24
-		plateA(dst, X, Y, w, chipH, chipH/2, a)
-		c := fade(shout.col, uint8(255*a))
-		g.text(dst, shout.long, X+12, Y+3, c, text.AlignStart, 1)
+		g.drawStatusToast(dst, *shout, x, y+float64((len(list)+per-1)/per*(chipD+chipGap)), g.frame-g.statusAt[shout.kind]) // see hudtoasts.go
 	}
+}
+
+// drawChip draws status s's chip centred on (cx, cy), since frames after
+// it began.
+func (g *Game) drawChip(dst *uiDst, s status, cx, cy float64, since int) {
+	const r = chipD / 2
+	fresh := since < statusShout && s.kind != statusWind
+	if fresh {
+		pulse := 0.5 + 0.5*math.Cos(float64(since)*0.16)
+		glow(dst, cx-r, cy-r, chipD, chipD, r, s.col, 0.5*pulse*(1-float64(since)/statusShout))
+	}
+	l := panelLooks[psLeather]
+	l.body = color.RGBA{30, 24, 19, 228}
+	l.rim = mix(s.col, colHideDark, 0.3)
+	l.stitch = color.RGBA{}
+	l.rimW = 1.4
+	left, timed := g.statusTimer(s.kind)
+	if timed {
+		l.rim = color.RGBA{56, 44, 34, 240} // the clock's face: the rim is drawn round it
+	}
+	drawPanelLook(dst, psLeather, l, cx-r, cy-r, chipD, chipD, r, 0.4)
+	if s.kind == statusWind {
+		g.drawWindArrow(dst, cx, cy, 7) // see searender.go
+	} else {
+		drawUIIcon(dst, statusIcon(s.kind), cx, cy, 14, 1)
+	}
+	if timed && left > 0 {
+		strokeArc(dst, cx, cy, r-0.8, -math.Pi/2, -math.Pi/2+2*math.Pi*left, 1.7, s.col)
+	}
+}
+
+// strokeArc strokes the arc of radius r round (cx, cy) from angle a0 to a1
+// (clockwise on the screen), sw wide, in c.
+func strokeArc(dst *uiDst, cx, cy, r, a0, a1, sw float64, c color.RGBA) {
+	if a1 <= a0 {
+		return
+	}
+	var p vector.Path
+	p.Arc(float32(dst.X(cx)), float32(dst.Y(cy)), float32(r*dst.k), float32(a0), float32(a1), vector.Clockwise)
+	op := &vector.DrawPathOptions{AntiAlias: true}
+	op.ColorScale.ScaleWithColor(c)
+	vector.StrokePath(dst.img, &p, &vector.StrokeOptions{Width: float32(sw * dst.k)}, op)
 }
 
 // --- the HUD ----------------------------------------------------------------------------
 
 func (g *Game) drawHUD(screen *uiDst, sw, sh int) {
 	self := g.curr.Self
+	g.hudFX.tip = hudTip{}
 
 	vs := g.vitals()
-	panel(screen, vitalX, vitalY, vitalPanelW, vitalsBottom(len(vs))-vitalY)
+	hudPanel(screen, vitalX, vitalY, vitalPanelW, vitalsBottom(len(vs))-vitalY, 8)
 	for i, v := range vs {
-		g.drawVital(screen, i, v, vitalX+10, vitalY+8+float32(i*vitalRow))
+		g.drawVital(screen, v, vitalX+vitalPad, vitalY+vitalPad+float64(i*vitalRow))
 	}
 	st := g.statuses()
 	g.noteStatuses(st)
-	g.drawStatuses(screen, st, vitalX, vitalsBottom(len(vs))+6)
+	g.drawStatuses(screen, st, vitalX, chipsTop(len(vs)))
 
-	g.drawSeaHUD(screen) // see searender.go
-	g.drawCorner(screen, sw, g.overlay == overlayNone)
-	if g.overlay == overlayNone { // the map and bag cover the bottom of the screen
+	withMap := g.overlay == overlayNone
+	g.drawCorner(screen, sw, withMap)
+	if withMap { // the map and bag cover the bottom of the screen
 		g.drawHotbar(screen, sw, sh)
 		if g.showHelp {
 			g.drawHelp(screen, sw, sh)
@@ -327,13 +434,16 @@ func (g *Game) drawHUD(screen *uiDst, sw, sh int) {
 		if since > 1500*time.Millisecond {
 			a = float64(2500*time.Millisecond-since) / float64(time.Second)
 		}
+		const s = 0.8
 		msg := "Đã tự động lưu"
-		w := g.textWidth(msg) + 24
-		x := float64(sw) - w - 12
-		y := cornerBottom(g.overlay == overlayNone) + 8
-		plateA(screen, x, y, w, 24, 12, a)
-		g.text(screen, msg, x+12, y+4, fade(colGood, uint8(255*a)), text.AlignStart, 1)
+		w := textWidth(msg, s) + 16
+		_, cave := g.caveLevel()
+		x := float64(sw) - hudM - w
+		y := cornerBottom(withMap, cave) + 5
+		plateA(screen, x, y, w, infoH, infoH/2, 0.9*a)
+		uiText(screen, msg, x+8, y+(infoH-lineUI*s)/2, fade(colGood, uint8(255*a)), text.AlignStart, s, fxShadow)
 	}
+	g.drawTip(screen, sw, sh) // see hudtoasts.go
 
 	if self.Dead {
 		g.dim(screen, sw, sh, 0.6)
@@ -350,85 +460,104 @@ func (g *Game) drawHUD(screen *uiDst, sw, sh int) {
 	}
 }
 
-// drawNotice says the notice on a slip of parchment.
-func (g *Game) drawNotice(screen *uiDst, sw int) {
-	if g.notice == "" || !time.Now().Before(g.noticeUntil) {
-		return
-	}
-	left := time.Until(g.noticeUntil).Seconds()
-	a := min(1, left/0.35)
-	w := g.textWidth(g.notice) + 32
-	x := float64(sw)/2 - w/2
-	if a < 1 {
-		plateA(screen, x, noticeY, w, 28, 8, a)
-		g.text(screen, g.notice, float64(sw)/2, noticeY+6, fade(colWhite, uint8(255*a)), text.AlignCenter, 1)
-		return
-	}
-	parchment(screen, x, noticeY, w, 28)
-	ink(screen, g.notice, float64(sw)/2, noticeY+6, colWhite, text.AlignCenter, 1)
-}
-
-// noticeY is the top of the notice: under the vitals' status line, which can
-// run on to the middle of the screen.
-const noticeY = float64(vitalY+10+2*vitalRow) + 6 + chipH + 10
-
 // --- the clock and minimap, top right -------------------------------------------------
 
-// cornerW is the clock block's width: the minimap's frame.
-const cornerW = miniW + 2*miniPad
-
-// cornerBottom is the y just below the clock block, with or without the
-// minimap in it.
-func cornerBottom(withMap bool) float64 {
-	if withMap {
-		return miniBottom()
-	}
-	return miniTop - 4
-}
-
-// drawCorner draws the clock (day, phase, season, weather with its icon,
-// and the day's bar) with the minimap under it, in one panel.
+// drawCorner draws the top right corner: the round minimap in the ring of
+// the day (day, dusk and night round it, a sun or a moon riding on it at
+// the hour), and under it one line of the day, the season and the weather;
+// underground, the level. With a window open there is no minimap, and the
+// line goes up into the corner.
 func (g *Game) drawCorner(screen *uiDst, sw int, withMap bool) {
 	tick := g.curr.Tick
-	x0 := float32(sw) - 12 - cornerW
-	panel(screen, x0, 12, cornerW, float32(cornerBottom(withMap))-12)
-	x, w := x0+miniPad+2, float32(cornerW-2*miniPad-4)
-
 	night := sim.PhaseOf(tick) == sim.PhaseNight
-	if g.curr.Weather == sim.WeatherTornado || g.curr.Weather == sim.WeatherClear && !night {
-		g.drawWeatherIcon(screen, g.curr.Weather, night, x+8, 27) // it moves
+	cx, _ := miniCentre(sw)
+	if withMap {
+		g.drawDayRing(screen, sw, tick, night)
+		g.drawMinimap(screen, sw) // see uimap.go
+	}
+	y := infoTop(withMap)
+	g.drawDayLine(screen, cx, y, tick, night)
+	g.drawMiniLevel(screen, cx, y+infoH+3) // see uimap.go
+}
+
+// The ring of the day: the angle of the hour f (a share of the day) on the
+// ring, with the middle of the light (between dawn and nightfall) at the
+// top, so the sun climbs up the left and goes down the right, and the
+// night runs along the bottom.
+func dayAngle(f, nightAt float64) float64 {
+	return -math.Pi/2 + 2*math.Pi*(f-nightAt/2)
+}
+
+// colNightRing is the night on the ring: lighter than the night's colour,
+// to show on the dark hide.
+var colNightRing = color.RGBA{92, 108, 190, 255}
+
+// drawDayRing draws the dark disc the minimap sits in, the ring of the day
+// round it, and the sun or moon on it at the hour.
+func (g *Game) drawDayRing(screen *uiDst, sw int, tick uint64, night bool) {
+	cx, cy := miniCentre(sw)
+	const R = cornerW / 2           // the disc
+	const rr = miniD/2 + miniRing/2 // the ring's middle
+	nightAt, duskAt := sim.NightAt(tick), sim.DuskAt(tick)
+	drawBaked(screen, fmt.Sprintf("dayring %.3f %.3f", nightAt, duskAt), cx-R, cy-R, 2*R, 2*R, 6, func(b *uiDst) {
+		c := float32(R)
+		fillCircle(b, c+0.6, c+1.6, R, color.RGBA{0, 0, 0, 70}, true) // its shadow
+		fillCircle(b, c, c, R, color.RGBA{30, 24, 19, 222}, true)
+		strokeCircle(b, c, c, R-float32(b.hair())/2, float32(b.hair()), color.RGBA{12, 9, 7, 200}, true)
+		strokeCircle(b, c, c, R-1.4, float32(b.hair()), color.RGBA{120, 92, 62, 110}, true)
+		const gap = 0.035 // between the parts
+		a := func(f float64) float64 { return dayAngle(f, nightAt) }
+		track := color.RGBA{14, 11, 9, 200}
+		strokeArc(b, R, R, rr, 0, 2*math.Pi, 4.6, track)
+		strokeArc(b, R, R, rr, a(0)+gap, a(duskAt)-gap, 3, colDay)
+		strokeArc(b, R, R, rr, a(duskAt)+gap, a(nightAt)-gap, 3, colDusk)
+		strokeArc(b, R, R, rr, a(nightAt)+gap, a(1)-gap, 3, colNightRing)
+	})
+	ang := dayAngle(sim.DayFraction(tick), nightAt)
+	mx, my := cx+rr*math.Cos(ang), cy+rr*math.Sin(ang)
+	if !night {
+		glow(screen, mx-5, my-5, 10, 10, 5, color.RGBA{255, 214, 110, 255}, 0.75)
+	}
+	fillCircle(screen, float32(mx), float32(my), 6.2, colHideDark, true)
+	drawSunMoon(screen, float32(mx), float32(my), 4.6, night)
+}
+
+// seasonShort are the seasons' names on the corner's line.
+var seasonShort = [sim.NumSeasons]string{"Xuân", "Hạ", "Thu", "Đông"}
+
+// dayLineScale is the size of the corner's line.
+const dayLineScale = 0.8
+
+// drawDayLine draws the line under the minimap, centred on cx with its top
+// at y: the weather's picture, the day, and the season with its day. Under
+// the pointer it says the weather and the hour in words.
+func (g *Game) drawDayLine(screen *uiDst, cx, y float64, tick uint64, night bool) {
+	const s = dayLineScale
+	day := fmt.Sprintf("Ngày %d", sim.DayOf(tick))
+	season := fmt.Sprintf("%s %d/%d", seasonShort[g.curr.Season%sim.NumSeasons], sim.SeasonDay(tick), sim.SeasonDays)
+	const dot = " · "
+	wd, wdot, ws := textWidthW(day, s, wHeavy), textWidth(dot, s), textWidth(season, s)
+	const icon = 15
+	w := 6 + icon + 3 + wd + wdot + ws + 8
+	x := math.Round(min(cx-w/2, cx+cornerW/2-w)) // a long one keeps to the margin
+	plateA(screen, x, y, w, infoH, infoH/2, 0.92)
+	ix, iy := x+6+icon/2, y+infoH/2
+	weather := g.curr.Weather
+	if weather == sim.WeatherTornado || weather == sim.WeatherClear && !night {
+		g.drawWeatherIcon(screen.view(ix, iy, 0.62), weather, night, 0, 0) // it moves
 	} else {
-		drawBaked(screen, fmt.Sprintf("weather %d %v", g.curr.Weather, night), float64(x)-4, 15, 24, 24, 2, func(b *uiDst) {
-			g.drawWeatherIcon(b, g.curr.Weather, night, 12, 12)
+		drawBaked(screen, fmt.Sprintf("weather small %d %v", weather, night), ix-8, iy-8, 16, 16, 2, func(b *uiDst) {
+			g.drawWeatherIcon(b.view(8, 8, 0.62), weather, night, 0, 0)
 		})
 	}
-	phase := map[sim.Phase]string{sim.PhaseDay: "Ban ngày", sim.PhaseDusk: "Chạng vạng", sim.PhaseNight: "Ban đêm"}[sim.PhaseOf(tick)]
-	uiTextW(screen, fmt.Sprintf("Ngày %d", sim.DayOf(tick)), float64(x)+22, 19, colWhite, text.AlignStart, 1.05, 860, fxShadow)
-	g.text(screen, phase, float64(x+w), 19, colMuted, text.AlignEnd, 1)
-	season := fmt.Sprintf("%s %d/%d", g.curr.Season.Name(), sim.SeasonDay(tick), sim.SeasonDays)
-	g.text(screen, season, float64(x), 38, seasonColors[g.curr.Season%sim.NumSeasons], text.AlignStart, 1)
-	g.text(screen, g.curr.Weather.Name(), float64(x+w), 38, colMuted, text.AlignEnd, 1)
-
-	// The day's bar, sunk in the hide: day, dusk and night, with a sun by
-	// day and a moon by night riding along it.
-	by, bh := float32(59), float32(8)
-	nightAt, duskAt := float32(sim.NightAt(tick)), float32(sim.DuskAt(tick))
-	drawBaked(screen, fmt.Sprintf("daybar %.0f %.3f %.3f", w, nightAt, duskAt), float64(x)-1, float64(by)-1, float64(w)+2, float64(bh)+2, 1, func(b *uiDst) {
-		well(b, 0, 0, float64(w)+2, float64(bh)+2, float64(bh)/2+1)
-		fillRoundRect(b, 1, 1, w, bh, bh/2, mix(colNight, colHideDark, 0.2))
-		fillRoundRect(b, 1, 1, w*nightAt, bh, bh/2, colDusk)
-		fillRoundRect(b, 1, 1, w*duskAt, bh, bh/2, colDay)
-		fillRect(b, 1+bh/2, 2, w-bh, float32(b.hair()), color.RGBA{255, 255, 255, 70}, true)
-	})
-	mx, my := x+float32(sim.DayFraction(tick))*w, by+bh/2
-	if !night {
-		glow(screen, float64(mx)-5, float64(my)-5, 10, 10, 5, color.RGBA{255, 214, 110, 255}, 0.7)
-	}
-	fillCircle(screen, mx, my, 7.5, colHideDark, true)
-	drawSunMoon(screen, mx, my, 5.5, night)
-
-	if withMap {
-		g.drawMinimap(screen, float64(x0))
+	ty := y + (infoH-lineUI*s)/2
+	tx := x + 6 + icon + 3
+	tx += uiTextW(screen, day, tx, ty, colWhite, text.AlignStart, s, wHeavy, fxShadow)
+	tx += uiText(screen, dot, tx, ty, colMuted, text.AlignStart, s, fxShadow)
+	uiText(screen, season, tx, ty, seasonColors[g.curr.Season%sim.NumSeasons], text.AlignStart, s, fxShadow)
+	if g.hovered(x, y, w, infoH) {
+		phase := map[sim.Phase]string{sim.PhaseDay: "ban ngày", sim.PhaseDusk: "chạng vạng", sim.PhaseNight: "ban đêm"}[sim.PhaseOf(tick)]
+		g.hudFX.tip = hudTip{s: g.curr.Weather.Name() + " · " + phase + " · " + g.curr.Season.Name(), x: cx, y: y + infoH + 3, ok: true}
 	}
 }
 
@@ -511,10 +640,12 @@ func (g *Game) drawWeatherIcon(dst drawTarget, w sim.Weather, night bool, x, y f
 
 // --- the hotbar and the hint over it --------------------------------------------------------
 
-// The hotbar's slots are a little bigger than the bag's.
+// The hotbar's slots: small enough that the bar takes about half the
+// screen's width (60 made it two thirds, too heavy over the world), big
+// enough for the HD icons and their counts to read.
 const (
-	hotPx  = 60
-	hotGap = 6
+	hotPx  = 44
+	hotGap = 4
 )
 
 // hotbarY is the top of the hotbar's slots on a canvas sh tall.
@@ -526,8 +657,7 @@ func hotbarX0(sw int) int {
 }
 
 // drawHotbar draws the ten hotbar slots along the bottom in a wooden frame,
-// the held one lit warm with its name over it, and one line of what to do
-// above that.
+// the held one lit warm, and the one line over them (drawHotbarLine).
 func (g *Game) drawHotbar(screen *uiDst, sw, sh int) {
 	const n = sim.HotbarSlots
 	total := n*hotPx + (n-1)*hotGap
@@ -550,49 +680,131 @@ func (g *Game) drawHotbar(screen *uiDst, sw, sh int) {
 		}
 	}
 
-	// The held item's name, always, brighter for a moment after it changes.
-	ny := y - 40
-	if s := inv[g.hotSel]; !s.Empty() {
-		name := s.Item.Def().Name
-		if s.Count > 1 {
-			name += fmt.Sprintf(" ×%d", s.Count)
+	g.drawHotbarLine(screen, sw, sh, inv[g.hotSel])
+}
+
+// heldFX remembers what was held, to show its name for a moment after it
+// changes.
+type heldFX struct {
+	slot int
+	item sim.ItemKind
+	at   time.Time
+}
+
+// heldShow is how long the held item's name shows after it changes, and
+// heldFade how long it then takes to go.
+const (
+	heldShow = 2200 * time.Millisecond
+	heldFade = 600 * time.Millisecond
+)
+
+// hintFX is the hint over the hotbar as it fades in and out: the line
+// shown, how much it shows, and when it came.
+type hintFX struct {
+	key, s string
+	c      color.Color
+	a      float64
+	at     int // the frame it came
+	frame  int // the frame last stepped
+}
+
+// hintIdle is how long, in frames, the hint with nothing better to say
+// (F1: the keys) stays before it fades.
+const hintIdle = 8 * 60
+
+// step moves the hint on to (key, s, c) at frame now and gives how much to
+// show it: it fades in when it comes and out when it goes, quickly across
+// to another.
+func (h *hintFX) step(key, s string, c color.Color, now int) float64 {
+	dt := max(0, min(10, now-h.frame))
+	h.frame = now
+	if s != "" && (key != h.key || s != h.s) {
+		if h.s != "" {
+			h.a = min(h.a, 0.3)
+		}
+		h.key, h.s, h.c, h.at = key, s, c, now
+	}
+	want := 0.0
+	if s != "" && !(key == "F1:" && now-h.at > hintIdle) {
+		want = 1
+	}
+	if uiProbe != nil {
+		h.a = want // the interface's tests see it as it settles
+	}
+	step := float64(dt) / 9
+	if h.a < want {
+		h.a = min(want, h.a+step)
+	} else {
+		h.a = max(want, h.a-step)
+	}
+	return smooth(h.a)
+}
+
+// drawHotbarLine draws the one line over the hotbar: the held item's name
+// for a moment after it changes, then the hint, never both at once.
+func (g *Game) drawHotbarLine(screen *uiDst, sw, sh int, held sim.Slot) {
+	y := lineTop(sh)
+	cx := float64(sw) / 2
+
+	f := &g.hudFX.held
+	if held.Item != f.item || g.hotSel != f.slot {
+		f.slot, f.item, f.at = g.hotSel, held.Item, time.Now()
+	}
+	if g.selChangedAt.After(f.at) {
+		f.at = g.selChangedAt
+	}
+	nameA := 0.0
+	if age := time.Since(f.at); !held.Empty() && age < heldShow+heldFade {
+		nameA = 1 - smooth(max(0, float64(age-heldShow))/float64(heldFade))
+		const s = 0.88
+		name := held.Item.Def().Name
+		if held.Count > 1 {
+			name += fmt.Sprintf(" ×%d", held.Count)
 		}
 		c := colWhite
-		fresh := time.Since(g.selChangedAt) < 1500*time.Millisecond
-		if fresh {
+		if age < 1200*time.Millisecond {
 			c = colKey
 		}
-		w := g.textWidth(name) + 28
-		if fresh {
-			glow(screen, float64(sw)/2-w/2, ny, w, 24, 12, colAmberGlow, 0.25)
+		w := textWidth(name, s) + 22
+		if age < 900*time.Millisecond {
+			glow(screen, cx-w/2, y, w, lineH, lineH/2, colAmberGlow, 0.22*nameA)
 		}
-		plate(screen, float64(sw)/2-w/2, ny, w, 24, 12)
-		g.text(screen, name, float64(sw)/2, ny+4, c, text.AlignCenter, 1)
-	} else {
-		ny += 26 // no name: the hint comes down
+		plateA(screen, cx-w/2, y, w, lineH, lineH/2, 0.85*nameA)
+		uiText(screen, name, cx, y+(lineH-lineUI*s)/2, fade(c, uint8(255*nameA)), text.AlignCenter, s, fxShadow)
 	}
 
-	if key, s, c := g.contextHint(); s != "" {
-		hy := ny - 24
-		kw := g.textWidth(key)
-		tw := kw + 8 + g.textWidth(s)
-		// Something that turns being placed: R and the wheel, after a dot.
-		tkey, ts, turns := g.turnHint() // see facing.go
-		tkw, gap := 0.0, 18.0
-		if turns {
-			tkw = g.textWidth(tkey)
-			tw += gap + tkw + 8 + g.textWidth(ts)
-		}
-		hx := float64(sw)/2 - tw/2
-		plateA(screen, hx-12, hy-2.5, tw+24, 21, 10.5, 0.62)
-		g.text(screen, key, hx, hy, colKey, text.AlignStart, 1)
-		g.text(screen, s, hx+kw+8, hy, c, text.AlignStart, 1)
-		if turns {
-			tx := hx + kw + 8 + g.textWidth(s) + gap
-			fillCircle(screen, float32(tx-gap/2), float32(hy+8), 1.6, colMuted, true)
-			g.text(screen, tkey, tx, hy, colKey, text.AlignStart, 1)
-			g.text(screen, ts, tx+tkw+8, hy, colGood, text.AlignStart, 1)
-		}
+	key, s, c := g.contextHint()
+	a := g.hudFX.hint.step(key, s, c, g.frame) * (1 - nameA)
+	h := &g.hudFX.hint
+	if a <= 0.02 || h.s == "" {
+		return
+	}
+	const ts = 0.85
+	kw := textWidthW(h.key, ts, wHeavy)
+	sw2 := textWidth(h.s, ts)
+	tw := kw + 6 + sw2
+	// Something that turns being placed: R and the wheel, after a dot; see facing.go.
+	tkey, tverb, turns := g.turnHint()
+	const gap = 15.0
+	tkw := 0.0
+	if turns {
+		tkw = textWidthW(tkey, ts, wHeavy)
+		tw += gap + tkw + 6 + textWidth(tverb, ts)
+	}
+	hx := math.Round(cx - tw/2)
+	ty := y + (lineH-lineUI*ts)/2
+	plateA(screen, hx-11, y, tw+22, lineH, lineH/2, 0.82*a)
+	uiTextW(screen, h.key, hx, ty, fade(colKey, uint8(255*a)), text.AlignStart, ts, wHeavy, fxShadow)
+	hc := colWhite
+	if rc, ok := h.c.(color.RGBA); ok {
+		hc = rc
+	}
+	uiText(screen, h.s, hx+kw+6, ty, fade(hc, uint8(255*a)), text.AlignStart, ts, fxShadow)
+	if turns {
+		tx := hx + kw + 6 + sw2 + gap
+		fillCircle(screen, float32(tx-gap/2), float32(y+lineH/2), 1.5, fade(colMuted, uint8(255*a)), true)
+		uiTextW(screen, tkey, tx, ty, fade(colKey, uint8(255*a)), text.AlignStart, ts, wHeavy, fxShadow)
+		uiText(screen, tverb, tx+tkw+6, ty, fade(colGood, uint8(255*a)), text.AlignStart, ts, fxShadow)
 	}
 }
 
@@ -782,7 +994,7 @@ func (g *Game) drawHelp(screen *uiDst, sw, sh int) {
 	x, y := 12.0, float64(sh)-h-12
 	pw := w + keyW + 30
 	if hotX := float64(hotbarX0(sw)); x+pw > hotX-12 {
-		y = float64(hotbarY(sh)) - 72 - h // too wide to sit beside the hotbar: above it and its lines
+		y = lineTop(sh) - 6 - h // too wide to sit beside the hotbar: above it and its line
 	}
 	parchment(screen, x, y, pw, h)
 	for i, l := range lines {

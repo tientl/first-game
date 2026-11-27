@@ -17,6 +17,11 @@ var colCaveDark = color.RGBA{4, 6, 12, 255} // the dark underground
 // in the darkness. The light radius is sim.FireRadius, the same radius the
 // server uses for warmth, so "inside the light" means "safe from the cold".
 func (g *Game) drawLighting(screen drawTarget, cam camera) {
+	g.caveDark.on = false
+	if g.caveDarkOn() {
+		g.drawCaveDark(screen, cam) // the natural caves have a light of their own: see cavedark.go
+		return
+	}
 	amb := sim.Ambient(g.curr.Tick)
 	night := (1 - amb) * maxDarkness
 	cave := g.caveDarkness() // inside a cave it is dark at any hour
@@ -30,22 +35,21 @@ func (g *Game) drawLighting(screen drawTarget, cam camera) {
 	lx0, ly0, lava := g.tileMask(&g.lavaMask, cam, sw, sh, isLava)
 
 	if dark > 0.01 {
-		if g.darkness == nil || g.darkness.Bounds().Dx() != sw || g.darkness.Bounds().Dy() != sh {
-			if g.darkness != nil {
-				g.darkness.Deallocate()
-			}
-			g.darkness = ebiten.NewImage(sw, sh)
-		}
-		g.darkness.Clear()
+		// The dark is drawn a pixel bigger than the view all round, so it
+		// covers the screen's edges wherever the camera's grid falls: see
+		// overlay.go.
+		img := sizedImage(&g.darkness, sw+2*overlayMargin, sh+2*overlayMargin)
+		img.Clear()
 		nc := nightColor(amb)
 		if cave > night { // underground the dark is blue-black, whatever the hour
 			nc = mix(nc, colCaveDark, cave/caveInsideDark)
 		}
 		f := dark
-		g.darkness.Fill(color.RGBA{uint8(float64(nc.R) * f), uint8(float64(nc.G) * f), uint8(float64(nc.B) * f), uint8(255 * f)})
-		g.crystalLights(g.darkness, cam, true)
+		img.Fill(color.RGBA{uint8(float64(nc.R) * f), uint8(float64(nc.G) * f), uint8(float64(nc.B) * f), uint8(255 * f)})
+		darkness := overlayTarget{img}
+		g.crystalLights(darkness, cam, true)
 		if lava {
-			g.lavaLight(g.darkness, cam, lx0, ly0, true, 0)
+			g.lavaLight(darkness, cam, lx0, ly0, true, 0)
 		}
 		for _, e := range g.curr.Entities {
 			r, ok := sim.FireReach(e.Kind, int(e.Fuel)) // campfires and lit furnaces
@@ -54,16 +58,16 @@ func (g *Game) drawLighting(screen drawTarget, cam camera) {
 			}
 			op := g.lightOp(cam, e.TX, e.TY, r*g.flicker(uint32(e.ID)))
 			op.Blend = ebiten.BlendDestinationOut
-			g.darkness.DrawImage(g.art.light, op)
+			darkness.DrawImage(g.art.light, op)
 		}
 		for _, t := range g.torches(cam) {
 			op := g.lightOpAt(t.sx, t.sy, sim.TorchRadius*g.flicker(t.id))
 			op.Blend = ebiten.BlendDestinationOut
-			g.darkness.DrawImage(g.art.light, op)
+			darkness.DrawImage(g.art.light, op)
 		}
-		g.glowLights(g.darkness, cam, true, dark) // see tribalrender.go
-		g.ownLight(g.darkness, cam)
-		screen.DrawImage(g.darkness, nil)
+		g.glowLights(darkness, cam, true, dark) // see tribalrender.go
+		g.ownLight(darkness, cam)
+		drawOverlay(screen, img)
 	}
 	if lava {
 		g.lavaLight(screen, cam, lx0, ly0, false, float32((0.12+0.3*dark)*g.caveLavaGlow())) // see cavelights.go
@@ -162,7 +166,7 @@ func nightColor(amb float64) color.RGBA {
 // ownLight lets this player see a little way round themselves in the deep
 // caves: a faint ring of sight, so the passages can be felt out without a
 // torch. A torch lights far more.
-func (g *Game) ownLight(dark *ebiten.Image, cam camera) {
+func (g *Game) ownLight(dark drawTarget, cam camera) {
 	if !g.underground() {
 		return
 	}
