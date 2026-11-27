@@ -223,12 +223,12 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 	layer(upBody)
 	layer(upShirt)
 	if f.armor != nil {
-		put(f.armor.whole[dir][0], nil, true)
+		put(f.armor.plate(dir, f.up), nil, true)
 	}
 	layer(upArms)
 	layer(upTop)
 	if f.armor != nil {
-		put(f.armor.helmet[dir][0], nil, true)
+		put(f.armor.helm(dir, f.up), nil, true)
 	}
 	if !h.over && !heldBehind(dir) {
 		item()
@@ -352,6 +352,14 @@ func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, l
 		l.Hair = sim.HairShort // under the skull cap; see drawArmored
 	}
 	f := figDraw{b: g.art.bodyIn(l, p.Wear), up: up, lo: lo, tint: playerColors[int(p.ID)%len(playerColors)]}
+	if lo.anim != loStand && p.Held.Valid() { // striding with something in hand: that arm holds it
+		switch up.anim {
+		case upWalk:
+			f.up.anim = upWalkHold
+		case upRun:
+			f.up.anim = upRunHold
+		}
+	}
 	if armor > sim.TierStone {
 		f.armor = g.art.armor(armor, l.Female)
 	}

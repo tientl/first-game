@@ -124,7 +124,7 @@ func TestLimbFramesDiffer(t *testing.T) {
 		t.Errorf("the knee hardly bends through a run: %.1f to %.1f", lo, hi)
 	}
 	a := upperPoseOf(upKey{sim.DirRight, upRun, 0}).arm
-	if (a[0].sh-0.15)*(a[1].sh-0.15) >= 0 {
+	if (a[0].sh-runArmMid)*(a[1].sh-runArmMid) >= 0 {
 		t.Errorf("the arms swing together: %.2f and %.2f", a[0].sh, a[1].sh)
 	}
 	for _, an := range []upAnim{upPunch, upChop, upThrust} {

@@ -19,6 +19,10 @@ import (
 type armorArt struct {
 	body, helmet [4][walkFrames]sprite
 	whole        [4][walkFrames]sprite // body with no gap for the near arm, sideways only; see punch.go
+
+	tier   sim.Tier
+	female bool
+	bent   map[armorBend][2]sprite // drawn on a trunk that leans or turns: see plate
 }
 
 type armorKey struct {
@@ -34,7 +38,7 @@ func (a *art) armor(tier sim.Tier, female bool) *armorArt {
 	if s, ok := a.armors[k]; ok {
 		return s
 	}
-	s := &armorArt{}
+	s := &armorArt{tier: k.tier, female: female}
 	jointed := playerHD && playerJointed // the armour sits on the body: one frame does; see tallarmor.go
 	if jointed {
 		for d := sim.DirDown; d <= sim.DirRight; d++ {
@@ -295,3 +299,55 @@ var (
 	darkHideRamp = mkRamp(0x2a1c14, 0x45301f, 0x624530, 0x7f5c40, 0x9c7652)
 	furTrim      = mkRamp(0x6b5236, 0x947552, 0xbb9d74, 0xdcc49c)
 )
+
+// armorBend names armour drawn on a bent figure: its facing and the bend.
+type armorBend struct {
+	dir  sim.Dir
+	bend bendKey
+}
+
+// plate is the armour over the trunk of a jointed figure facing dir in
+// upper half up: drawn again, bent with the trunk, when the trunk leans,
+// sways or turns (motion.go), the first time.
+func (a *armorArt) plate(dir sim.Dir, up upKey) sprite {
+	if s, ok := a.bentPair(dir, up); ok {
+		return s[0]
+	}
+	return a.whole[dir][0]
+}
+
+// helm is the headgear of the same, bent with the head.
+func (a *armorArt) helm(dir sim.Dir, up upKey) sprite {
+	if s, ok := a.bentPair(dir, up); ok {
+		return s[1]
+	}
+	return a.helmet[dir][0]
+}
+
+func (a *armorArt) bentPair(dir sim.Dir, up upKey) ([2]sprite, bool) {
+	if !(playerHD && playerJointed) {
+		return [2]sprite{}, false
+	}
+	k := armorBend{dir, bendOf(upperPoseOf(up))}
+	b := k.bend
+	if b.tilt == 0 && b.roll == 0 && b.breath == 0 && b.spin == 0 && b.nod == 0 {
+		return [2]sprite{}, false
+	}
+	if s, ok := a.bent[k]; ok {
+		return s, true
+	}
+	var s [2]sprite
+	if dir == sim.DirLeft {
+		r, _ := a.bentPair(sim.DirRight, upKey{sim.DirRight, up.anim, up.frame})
+		s = [2]sprite{mirrorSprite(r[0]), mirrorSprite(r[1])}
+	} else {
+		B, _ := armorLayersBent(a.tier, a.female, dir, b.trunk(dir))
+		_, H := armorLayersBent(a.tier, a.female, dir, b.head(dir, a.female))
+		s = [2]sprite{limbSprite(B), limbSprite(H)}
+	}
+	if a.bent == nil {
+		a.bent = make(map[armorBend][2]sprite)
+	}
+	a.bent[k] = s
+	return s, true
+}
