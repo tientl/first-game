@@ -268,7 +268,7 @@ func runSkills(which, dir string, seed uint64, size, winW, winH int) {
 	}
 	e := &skillFilm{setup: map[int][]string{}, frames: map[string][]*image.RGBA{}, delays: map[string][]int{}, dir: dir}
 	at := 30
-	e.setup[20] = []string{"weather clear", "time 0.3"}
+	e.setup[20] = []string{"weather clear", "time 0.3", "god off"} // hit for real: the stun, the pin, the chips
 	for _, k := range order {
 		name := names[k]
 		if !want["all"] && !want[name] {

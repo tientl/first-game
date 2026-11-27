@@ -838,8 +838,11 @@ func (g *Game) drawSky(dst drawTarget, cam camera, alpha float64) {
 		sh.GeoM.Translate(-sx, -sy)
 		sh.GeoM.Scale(k, k)
 		sh.GeoM.Translate(sx, sy)
-		sh.ColorScale.ScaleAlpha(float32(sa))
-		drawSprite(dst, g.art.beasts.pteroShadow, sh)
+		for ; sa > 0; sa-- { // more than once over for a darker shadow
+			o := *sh
+			o.ColorScale.ScaleAlpha(float32(min(1, sa)))
+			drawSprite(dst, g.art.beasts.pteroShadow, &o)
+		}
 		alt += math.Round(math.Sin(float64(g.frame)*0.05+float64(c.ID)) * 1.5)
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(sx-s.ax, sy-alt-s.ay)

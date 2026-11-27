@@ -804,8 +804,10 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 			verb = " kẹp!"
 		case sim.CreatureTrike, sim.CreatureToro, sim.CreatureMammoth:
 			verb = " húc!"
-		case sim.CreatureAnzu:
+		case sim.CreatureAnzu, sim.CreatureThesc, sim.CreatureOrnitho:
 			verb = " đá!"
+		case sim.CreatureBrachio:
+			verb = " quật ngã!" // a stomp or a lash of its tail: see sim/skills.go
 		case sim.CreatureQuetzal:
 			verb = " mổ!"
 		case sim.CreatureStego:

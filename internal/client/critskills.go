@@ -12,6 +12,10 @@ import (
 // poses of their drawings, and the flying reptile, whose dive is told by its
 // shadow.
 
+// pteroDiveHold is how high, in art pixels, a diver holds over its foe: high
+// enough that its shadow lies clear on the ground under it.
+const pteroDiveHold = 58.0
+
 // More poses of the mammoth and the sabre-tooth, past the ones the art
 // holds; critter draws them the first time they are shown.
 const (
@@ -107,13 +111,14 @@ func (g *Game) pteroSkill(c protocol.CreatureView, side int, ts, n float64, f in
 	u := clamp01(ts / max(1, n))
 	a := &g.art.beasts
 	switch c.Phase {
-	case sim.PhaseWindup: // high up, wings half folded, dropping a little
+	case sim.PhaseWindup: // high over its foe, wings beating to hold still, its shadow on them
+		alt := pteroDiveHold - 6*easeInOut(u)
 		if (f/6)%2 == 0 {
-			return rigSprite("pteroFly", side, rigPose{squash: 0.8, wings: 0.12}), pteroSoarAlt * (1 - 0.25*u), true
+			return rigSprite("pteroFly", side, rigPose{squash: 0.8, wings: 0.12}), alt, true
 		}
-		return a.ptero[side][pteroGlide], pteroSoarAlt * (1 - 0.25*u), true
+		return rigSprite("pteroFly", side, rigPose{squash: 0.9, wings: -0.15}), alt, true
 	case sim.PhaseActive: // the drop: on its foe in a blink
-		return a.ptero[side][pteroDive], pteroDiveAlt * (1 - u), true
+		return a.ptero[side][pteroDive], (pteroDiveHold - 6) * (1 - u) * (1 - u), true
 	}
 	return rigSprite("pteroFly", side, flapPose(f/2)), 2 + pteroDiveAlt*u, true
 }
@@ -125,5 +130,5 @@ func skyShadow(c protocol.CreatureView, ts float64) (scale, alpha float64) {
 		return 1, 0.6
 	}
 	u := clamp01(ts / max(1, float64(c.PhaseLen)))
-	return 1.7 - 0.9*easeInOut(min(1, u*1.4)), 0.7 + 0.3*u // wide and faint as it gathers, then small, dark and still
+	return 2.8 - 1.3*easeInOut(min(1, u*1.4)), 1 + 2*u // wide and faint as it gathers, then small, dark and still
 }
