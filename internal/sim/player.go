@@ -526,8 +526,8 @@ func (w *World) interact(p *Player, e *Entity) bool {
 	case EntityStoneWall:
 		dmg := withTool(ToolPickaxe)
 		return dmg > 0 && w.harvest(p, e, ItemStone, StoneWallRefund, dmg, func() { w.removeEntity(e) })
-	case EntityBed:
-		return w.sleep(p, e)
+	case EntityBed, EntityLeafTent:
+		return w.useBed(p, e) // slept in, or taken down by day with an axe: see tent.go
 	case EntityChest:
 		return w.openChest(p, e)
 	case EntityBerryBush:

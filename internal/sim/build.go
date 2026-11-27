@@ -151,10 +151,10 @@ func (w *World) dismantle(p *Player, e *Entity, tool ToolClass, refund []Ingredi
 	return true
 }
 
-// homeBed is where p comes back after dying: beside the last bed slept in,
-// while it stands, else the world's spawn.
+// homeBed is where p comes back after dying: beside the last bed (or tent)
+// slept in, while it stands, else the world's spawn.
 func (w *World) homeBed(p *Player) (x, y float64) {
-	if b := w.entities[p.home]; b != nil && b.Kind == EntityBed {
+	if b := w.entities[p.home]; b != nil && IsBedLike(b.Kind) {
 		cx, cy := float64(b.TX)+0.5, float64(b.TY)+0.5
 		for _, d := range [][2]float64{{0, 0}, {0, 1}, {1, 0}, {-1, 0}, {0, -1}, {1, 1}, {-1, 1}, {1, -1}, {-1, -1}} {
 			if w.standable(cx+d[0], cy+d[1]) {

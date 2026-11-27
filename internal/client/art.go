@@ -184,6 +184,7 @@ func newArt() *art {
 	genCookIcons(&a.icons)    // see cookicons.go
 	clothesIcons(&a.icons)    // see clothesart.go
 	ankyloIcons(&a.icons)     // see ankylo.go
+	tentIcons(&a.icons)       // see tenticon.go
 	a.cook = genCookArt()
 	return a
 }

@@ -361,7 +361,7 @@ func (g *Game) drawHUD(screen *ebiten.Image, sw, sh int) {
 		g.text(screen, "Bạn đã gục ngã", float64(sw/2), float64(sh/2-40), color.RGBA{236, 110, 110, 255}, text.AlignCenter, 3)
 		where := "ở chỗ xuất phát"
 		if self.HomeBed {
-			where = "cạnh giường ngủ lần cuối"
+			where = "cạnh chỗ ngủ lần cuối (giường hoặc lều)"
 		}
 		cost := " (giữ nguyên đồ)"
 		if !g.difficulty.KeepsItems() {

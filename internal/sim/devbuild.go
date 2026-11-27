@@ -61,6 +61,7 @@ var devPieces = sync.OnceValue(func() []DevPiece {
 		{Name: "Hàng rào chông", Group: DevGroupHome, Kind: EntitySpikes},
 		{Name: "Bẫy thú", Group: DevGroupHome, Kind: EntityTrap},
 		{Name: "Giường cỏ", Group: DevGroupHome, Kind: EntityBed},
+		{Name: "Lều lá", Group: DevGroupHome, Kind: EntityLeafTent, Item: ItemLeafTent},
 		{Name: "Rương", Group: DevGroupHome, Kind: EntityChest},
 		{Name: "Lều", Group: DevGroupHome, Kind: EntityHut},
 

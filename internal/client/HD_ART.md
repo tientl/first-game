@@ -310,6 +310,22 @@ go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
   player. `ROCK_DUMP=dir go test ./internal/client -run DumpRocks` writes a
   sheet of all of them and the steps one vein is drawn in.
 
+- The leaf tent (`tentart.go`) is built in its own space and seen from the
+  game's angle: an A-frame two tiles wide, its ridge running back (straight
+  up the screen), each slope a plane (`slopeXY`, `slopeAB`) on which leaves
+  are laid row by row from the foot up, tips down the slope, each a shape of
+  that plane that casts a short shadow on what it lies over. Pixels keep a
+  material and a light until the end (`tentPaint`), so folds and shadows add
+  up before the tones are picked; leaves, bark and snow take clean bands,
+  the bed of grass and the dark inside are dithered. Four thatches by the
+  ground (`tentLeafOf`): fern, broad leaves, palm fronds, fir boughs under
+  snow. It is two drawings, the inside and the shell: a sleeper is drawn
+  between them (`drawSleeper`, `tentSleepDX`), so the poles and the thatch
+  of the front come over their head and feet. `TENT_DUMP=dir go test
+  ./internal/client -run DumpTent` writes every thatch three times as big,
+  and with someone asleep in it; `shot -tentsheet dir` the sheet with the
+  bag icon and a GIF of going to bed in it; `shot -tent -tentsleep` a camp.
+
 ## The bosses and sea monsters
 
 Titanoboa, the Megalodon, the Mosasaurus and the giant squid are drawn at

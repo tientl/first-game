@@ -474,6 +474,8 @@ func useLabel(cmd sim.Command, held sim.ItemKind) string {
 			return "bón phân cho cây non, luống đất dưới con trỏ"
 		case held == sim.ItemTorch:
 			return "cắm đuốc xuống trước mặt"
+		case held == sim.ItemLeafTent:
+			return "dựng lều lá ở chỗ con trỏ"
 		case sim.IsSeed(held):
 			return "gieo hạt ở chỗ con trỏ"
 		case cookPlaced(held):

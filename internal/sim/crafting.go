@@ -14,8 +14,8 @@ const (
 	WallHits   = 3 // axe hits to take a wall down
 	WallRefund = 1 // wood back from a wall taken down
 
-	SleepSpeedup      = 8 // world ticks per server tick while every player sleeps
-	SleepRegenFactor  = 4 // health comes back this much faster in bed
+	SleepSpeedup      = 8    // world ticks per server tick while every player sleeps
+	SleepRegenFactor  = 4    // health comes back this much faster in bed
 	SleepHungerFactor = 0.35 // a night is twice as long as it was: a night in bed costs what it did
 )
 
@@ -66,16 +66,17 @@ func (w *World) blocked(tx, ty int) bool {
 	return e != nil && blocksPlayers(e.Kind)
 }
 
-// sleep puts p to bed in e. Beds are for the evening and the night.
+// sleep puts p to bed in e, a bed or a tent (see tent.go). Beds are for
+// the evening and the night.
 func (w *World) sleep(p *Player, e *Entity) bool {
 	if PhaseOf(w.tick) == PhaseDay {
-		p.notify(NoticeNotTired, 0)
+		p.notify(NoticeNotTired, uint8(e.Kind))
 		return false
 	}
 	p.Asleep, p.bed = true, e.ID
 	if p.home != e.ID {
 		p.home = e.ID // this is where p comes back after dying now
-		p.notify(NoticeHomeSet, 0)
+		p.notify(NoticeHomeSet, uint8(e.Kind))
 	}
 	if x, y := float64(e.TX)+0.5, float64(e.TY)+0.5; w.standable(x, y) {
 		p.X, p.Y = x, y
@@ -91,7 +92,7 @@ func (p *Player) wake() { p.Asleep, p.bed = false, 0 }
 // much faster. Morning, a walk key, the bed going away or getting hurt
 // (see hurt) wake the sleeper.
 func (w *World) stepAsleep(p *Player) {
-	if b := w.entities[p.bed]; b == nil || b.Kind != EntityBed ||
+	if b := w.entities[p.bed]; b == nil || !IsBedLike(b.Kind) ||
 		(PhaseOf(w.tick) == PhaseDay && Ambient(w.tick) >= 1) ||
 		p.input.MoveX != 0 || p.input.MoveY != 0 {
 		p.wake()

@@ -387,6 +387,12 @@ func (w *World) placeHeldAt(p *Player, at bool, atX, atY int) {
 		if p.Held() != ItemTorch {
 			p.torchFuel = 0 // the one burning in the hand went into the ground
 		}
+	case ItemLeafTent: // see tent.go
+		if ok && !TentGround(w.TileAt(tx, ty)) {
+			p.notify(NoticeHardGround, uint8(EntityLeafTent))
+			return
+		}
+		place(EntityLeafTent)
 	case ItemFlowerSeed, ItemBerrySeed, ItemTreeSeed, ItemGlowSeed, ItemManEaterSeed:
 		if !ok || !w.TileAt(tx, ty).Soft() {
 			p.notify(NoticeNoSpace, 0)
