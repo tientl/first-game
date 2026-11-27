@@ -47,8 +47,22 @@ type seaArt struct {
 	sail                [3]sprite // the sail on its mast: 0 slack, 1 half full, 2 full of wind
 }
 
-func genSeaArt() seaArt {
+func genSeaArt() seaArt { return seaBoats(envHD) }
+
+// seaBoats is the boats' art: redrawn at HD (boathd.go), or the old.
+func seaBoats(hd bool) seaArt {
 	var a seaArt
+	if hd {
+		const K = HDDensity
+		rb, rf := raftCanvasesHD()
+		a.raftBack, a.raftFront = mkUp(rb, raftAX*K, raftWY*K), mkUp(rf, raftAX*K, raftWY*K)
+		sb, sf := sailboatCanvasesHD()
+		a.sailBack, a.sailFront = mkUp(sb, boatAX*K, boatWY*K), mkUp(sf, boatAX*K, boatWY*K)
+		for i := range a.sail {
+			a.sail[i] = mkUp(sailCanvasHD(i), sailMastX*K, sailFootY*K)
+		}
+		return a
+	}
 	rb, rf := raftCanvases()
 	a.raftBack, a.raftFront = mk(rb, raftAX, raftWY), mk(rf, raftAX, raftWY)
 	sb, sf := sailboatCanvases()

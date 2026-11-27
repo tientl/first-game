@@ -90,16 +90,9 @@ func (g *Game) drawJolted(dst drawTarget, age int, dir sim.Dir, x, y float64, dr
 	op.GeoM.Translate(ox, oy)
 	drawImageD(dst, g.joltBuf.img, op, HDDensity)
 
-	// The flash: the figure's shape in one colour over it.
-	r, gr, b, a := 1.0, 1.0, 1.0, 0.0
-	switch {
-	case age < 2:
-		a = 0.85
-	case age < 4:
-		r, gr, b, a = 1, 0.2, 0.15, 0.6
-	case age < 7:
-		r, gr, b, a = 1, 0.2, 0.15, 0.3
-	}
+	// The flash: the figure's shape in one colour over it, white and then
+	// red, as a struck beast flashes (feel.go).
+	r, gr, b, a := hitFlash(age)
 	if a == 0 {
 		return
 	}

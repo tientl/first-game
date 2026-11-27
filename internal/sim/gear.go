@@ -69,9 +69,14 @@ func struck(p *Player, dmg float64) {
 	if p.harm > 0 {
 		dmg *= p.harm // the difficulty; see difficulty.go
 	}
+	dmg, blocked := p.shieldTakes(dmg) // a raised shield; see shield.go
 	dmg *= 1 - ArmorShare(&p.Inv)
-	hurt(p, dmg)
-	p.flinch()
+	if dmg > 0 {
+		hurt(p, dmg)
+	}
+	if !blocked {
+		p.flinch() // on a shield the blow jars, but does not throw them
+	}
 }
 
 // flinch counts a blow that makes p jolt: an animal's attack, a sting,

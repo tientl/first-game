@@ -413,6 +413,11 @@ func paintTorchFlame(p *icv, x, y, ph float64) {
 
 // drawTorchFlame draws flame frame i rooted at (x, y), art pixels.
 func drawTorchFlame(dst drawTarget, i int, x, y float64) {
+	if fireHD { // the fire of the torch on its stand; see fireart.go
+		drawFire(dst, fireTorch, i, x, y+0.5)
+		return
+	}
+	i %= torchFlameN
 	f := torchFlame(i % torchFlameN)
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(-f.gx/HDDensity, -f.gy/HDDensity)
@@ -558,48 +563,47 @@ func drawTrianglesFine(dst drawTarget, vs []ebiten.Vertex, is []uint16) {
 
 // swingArc draws the trail an edge leaves as it swings about the grip
 // (gx, gy): the stretch swept from angle a back tail radians (going way,
-// +1 or -1, and never past from), between radius r0 and r1, brightest just
-// behind the edge and towards r1, fading along; fade scales it all. Angles
-// are from upright towards the facing (side), as the held items turn.
+// +1 or -1, and never past from), between radius r0 and r1, fading along;
+// fade scales it all. Angles are from upright towards the facing (side), as
+// the held items turn. It is drawn as pixelfx's melee/sword-slash (see
+// fx.go): a crescent thickest just behind the edge and thinning to its
+// tail, in flat bands, the tool's tone inside, a pale band, a white edge.
 func swingArc(dst drawTarget, gx, gy, side, a, from, way, tail, r0, r1 float64, c color.RGBA, fade float64) {
 	if fade <= 0 || tail <= 0 {
 		return
 	}
-	const steps = 28
-	rings := [...]struct{ r, a float64 }{{0, 0}, {0.55, 0.4}, {0.86, 1}, {1, 0}}
-	var vs []ebiten.Vertex
-	var is []uint16
-	for i := 0; i <= steps; i++ {
-		s := float64(i) / steps
-		b := a - way*tail*s
-		last := false
-		if way*(b-from) < 0 {
-			b, last = from, true
-		}
-		al := math.Pow(1-s, 1.3) * fade
-		sn, cs := math.Sin(b), math.Cos(b)
-		for _, rg := range rings {
-			r := lerpf(r0, r1, rg.r)
-			k := float32(al * rg.a)
-			vs = append(vs, ebiten.Vertex{
-				DstX: float32(gx + sn*r*side), DstY: float32(gy - cs*r),
-				ColorR: float32(c.R) / 255 * k, ColorG: float32(c.G) / 255 * k, ColorB: float32(c.B) / 255 * k, ColorA: k,
-			})
-		}
-		if i > 0 {
-			n := uint16(len(rings))
-			p, q := uint16(len(vs))-2*n, uint16(len(vs))-n
-			for j := uint16(0); j+1 < n; j++ {
-				is = append(is, p+j, p+j+1, q+j, p+j+1, q+j+1, q+j)
+	const steps = 30
+	type bnd struct {
+		u0, u1, a float64
+		c         color.RGBA
+	}
+	bands := [...]bnd{{0, 0.5, 0.42, c}, {0.5, 0.84, 0.78, mix(c, colWhite, 0.55)}, {0.84, 1, 0.95, colWhite}}
+	var b fxBatch
+	for _, bd := range bands {
+		var p uint16
+		for i := 0; i <= steps; i++ {
+			s := float64(i) / steps
+			ang := a - way*tail*s
+			last := false
+			if way*(ang-from) < 0 {
+				ang, last = from, true
+			}
+			inner := r0 + (r1-r0)*(0.05+0.85*math.Pow(s, 0.8)) // thinning to the tail
+			ru0, ru1 := lerpf(inner, r1, bd.u0), lerpf(inner, r1, bd.u1)
+			al := bd.a * math.Pow(1-s, 1.2) * fade
+			sn, cs := math.Sin(ang), math.Cos(ang)
+			q := b.vert(gx+sn*ru0*side, gy-cs*ru0, bd.c, al, 0.2)
+			b.vert(gx+sn*ru1*side, gy-cs*ru1, bd.c, al, 0.2)
+			if i > 0 {
+				b.is = append(b.is, p, p+1, q, p+1, q+1, q)
+			}
+			p = q
+			if last {
+				break
 			}
 		}
-		if last {
-			break
-		}
 	}
-	if len(is) > 0 {
-		drawTrianglesFine(dst, vs, is)
-	}
+	b.flush(dst)
 }
 
 // dropPx is the size, image pixels, of the HD icon a pile on the ground is

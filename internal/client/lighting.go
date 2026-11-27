@@ -134,6 +134,9 @@ func (g *Game) lightOpAt(sx, sy, radius float64) *ebiten.DrawImageOptions {
 }
 
 func (g *Game) flicker(id uint32) float64 {
+	if fireHD { // the light leaps with the flames; see fireart.go
+		return 1 + (g.fireBright(id)-1)*0.14
+	}
 	return 1 + 0.03*math.Sin(float64(g.frame)*0.31+float64(id))
 }
 

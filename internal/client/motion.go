@@ -59,6 +59,7 @@ const (
 	moLieBack             // from sitting on the bed's edge to lying on the back, turned down onto it (spun)
 	moSleepTurn           // the in-betweens of turning over: on the back rolling (0), on the side not yet curled (1)
 	moTopple              // going over in a fall: the body as it will lie, turned part way down (spun, drawn mirrored)
+	moGuard               // behind a raised shield: the off arm holds it up before the chest, knees bent, weapon ready; see shieldart.go
 	numMotions
 )
 
@@ -113,6 +114,7 @@ var motions = [numMotions]motionDef{
 	moLieBack:    {"lie back", []int{150, 150, 150, 150}, false, "sit"},
 	moSleepTurn:  {"turn over", []int{300, 300}, false, "sit"},
 	moTopple:     {"topple", []int{42, 42, 41}, false, "hurt"},
+	moGuard:      {"guard", []int{420, 380}, true, "combat_idle"},
 }
 
 // frames is how many key poses m has.
@@ -222,6 +224,26 @@ func motionKey(m motionID, f int, side, back bool) kp {
 		b := [4]float64{0, 1, 1.5, 0.6}[f]
 		a := armJ{el: armBend + 0.04*b, ab: armOut + 0.02*b}
 		return kp{a0: a, a1: a, breath: b, lagY: -0.3 * b}
+
+	case moGuard:
+		// LPC's combat idle with a shield: the arm that bears it raised so
+		// the forearm lies across the chest, the shield's grip in the fist
+		// before the breastbone; the weapon held back and ready; the knees
+		// bent and a breath on the off beat.
+		dip := [2]float64{0, 1.2}[f]
+		k := kp{
+			a0: armJ{sh: 0.7, el: 1.25, ab: 0.15, out: 0.5},
+			a1: armJ{sh: 1.25, el: 0.95, ab: 0.1, out: 1.5},
+			l0: legJ{f: 6}, l1: legJ{f: -8},
+			drop: 4 + dip, tilt: 0.08, nod: 0.08, spread: 3.5,
+			lagY: 0.5 * dip,
+		}
+		if !side {
+			k.a0 = armJ{sh: 0.6, el: 1.3, ab: 0.3}
+			k.a1 = armJ{sh: 0.95, el: 1.25, ab: 0.05}
+			k.l0, k.l1 = legJ{f: 3}, legJ{f: -3}
+		}
+		return k
 
 	case moReady:
 		// LPC's combat idle: knees bent, weight forward, the weapon up in

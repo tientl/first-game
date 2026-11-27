@@ -913,6 +913,9 @@ func (g *Game) drawCreature(dst drawTarget, c protocol.CreatureView, d drawable)
 	}
 	op.GeoM.Translate(x-s.ax, d.sy-bob-s.ay)
 	drawSprite(dst, s, op)
+	if r, gg, b, a := g.beastFlash(c.ID); a > 0 {
+		drawFlash(dst, s, op, r, gg, b, a) // struck: white, then red; see feel.go
+	}
 	if c.State == sim.CreatureSleep {
 		g.drawZzz(dst, d.sx+2, d.sy-10, float64(c.ID))
 	}
