@@ -101,6 +101,7 @@ func main() {
 	aimAt := flag.String("aim", "", "dx,dy: hold the mouse pointer this many tiles from the player (the hover brackets, a held torch's ghost)")
 	buildID := flag.Int("build", -1, "recipe id of a structure to place (0 campfire, 8 wall, 9 bed…): build mode with its ghost under -aim, the ingredients given")
 	herohd := flag.Bool("herohd", false, "draw the players as the trial hero: bigger, with a run, a sword blow and firelight (a trial; see internal/client/herohd.go)")
+	charStyle := flag.String("charstyle", "current", "the player figure's style, a pilot to choose between: current, A (refined), B (heroic) or C (painterly); see internal/client/charpilot.go")
 	chestFlag := flag.String("chest", "", "open a chest next to the player, with things in it: chest, or treasure (an old chest from a cave with its hoard)")
 	statusFlag := flag.String("status", "", "status effects on the player, comma-separated: cold, poison, web, starving, hungry, bees")
 	running := flag.Bool("run", false, "the player is on the move (with -herohd: mid-stride)")
@@ -146,20 +147,19 @@ func main() {
 	combatSheet := flag.String("combatsheet", "", "write the combat sheets into this folder instead of a frame: the shield on the figure in every facing, and every effect frame by frame (see internal/client/combatsheet.go)")
 	combatLive := flag.String("combat", "", "play a real fight and write it as <o>.gif: feel (blows with hit-stop, flash, knockback, shake) or shield (raise, block, parry); see combat.go")
 	heldSheet := flag.String("heldsheet", "", "write the held-item sheets into this folder instead of a frame: every held item in the hand old and new, and a GIF of the swings (see internal/client/heldsheet.go)")
-	charStyle := flag.String("charstyle", "current", "the player figure's style, a pilot to choose between: current, A (refined), B (heroic) or C (painterly); see internal/client/charpilot.go")
-	heldHD := flag.Bool("heldhd", true,"the HD held items, painted at the figure's density and turned cleanly (false: the old density-1 sprites; see internal/client/heldhd.go)")
+	heldHD := flag.Bool("heldhd", true, "the HD held items, painted at the figure's density and turned cleanly (false: the old density-1 sprites; see internal/client/heldhd.go)")
 	flag.Parse()
 	client.SetMeasureCanopy(*canopyFlag)
 	client.SetHeroHD(*herohd)
+	if err := client.SetCharStyle(*charStyle); err != nil {
+		log.Fatal(err)
+	}
 	client.SetScaleOnly(*scaleOnly, *scaleTitle)
 	client.SetHDTest(*hdTest)
 	client.SetEnvHD(*envHD)
 	client.SetCritterHD(*critterHD)
 	client.SetIconHD(*iconHD)
 	client.SetHeldHD(*heldHD)
-	if err := client.SetCharStyle(*charStyle); err != nil {
-		log.Fatal(err)
-	}
 	client.SetSubPixel(*subPixel)
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
