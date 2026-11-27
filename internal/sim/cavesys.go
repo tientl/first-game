@@ -143,6 +143,7 @@ type caveWorld struct {
 	cells   []CaveCell // per tile from row surfaceH down
 	systems []*caveSystem
 	secrets []caveSecret // the passages joining two systems
+	rings   []int        // since StyleCaveWays: each island's ring (see islandRings), by which its chests are stocked
 }
 
 // caveCell is the cave cell of tile (tx, ty); zero outside the caves.
