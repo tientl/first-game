@@ -984,7 +984,9 @@ func (w *World) mountGear(p *Player, g CookGear, at bool, atX, atY int) {
 		p.notify(NoticeNeedHearth, uint8(GearItem(g)))
 		return
 	}
-	p.Inv.TakeSlot(p.Selected, 1)
+	if !w.freeBuild(p) { // free build uses nothing up: see devbuild.go
+		p.Inv.TakeSlot(p.Selected, 1)
+	}
 	fire.Var = uint8(g)
 	w.station(fire.ID)
 	p.Dir = dirToward(float64(fire.TX)+0.5-p.X, float64(fire.TY)+0.5-p.Y)

@@ -83,11 +83,11 @@ func plantChances(tx, ty int, t sim.Tile, shade float64, s sim.Season) (ch [numP
 		ch[plantBlades] = 0.02 + 0.3*sun*drift + 0.25*bare
 		ch[plantFlowers] = (0.002 + 0.2*patch*(sun+bare)) * bloom
 	case sim.TileMarsh: // open mud between the cypresses: a few clumps and tufts, in patches
-		ch[plantClump] = 0.04 + 0.12*clumps
-		ch[plantBlades] = 0.05 + 0.2*drift
-	case sim.TileRocky: // in the cracks
+		ch[plantClump] = 0.015 + 0.05*clumps
 		ch[plantBlades] = 0.02 + 0.08*drift
-		ch[plantClump] = 0.01 + 0.06*clumps
+	case sim.TileRocky: // in the cracks
+		ch[plantBlades] = 0.008 + 0.04*drift
+		ch[plantClump] = 0.004 + 0.03*clumps
 	}
 	if s == sim.Winter { // most of it under the snow
 		for k := range ch {

@@ -63,7 +63,7 @@ type Player struct {
 	swim      int        // ticks spent swimming without rest
 	travelCD  int        // ticks before a cave mouth takes p again
 	cook      cookPlayer // the cooking station open, and the buffs of dishes; see cooking.go
-	dev       devPlayer  // dev mode: god mode and speed, never saved; see dev.go
+	dev       devPlayer  // dev mode: god mode and speed, never saved, and free build, kept in a dev save; see dev.go, devbuild.go
 }
 
 // Acting reports whether the player did an action recently enough to show
@@ -262,6 +262,14 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 		w.victorySeen(p) // see bosses.go
 	case CmdToss:
 		w.toss(p, int(cmd.Slot), int(cmd.Count)) // see toss.go
+	case CmdDevBuild:
+		if !p.Dead && !p.Asleep {
+			w.devBuild(p, int(cmd.Slot), cmd.At, int(cmd.TX), int(cmd.TY)) // free build only; see devbuild.go
+		}
+	case CmdDevRemove:
+		if !p.Dead && !p.Asleep {
+			w.devRemove(p, cmd.At, int(cmd.TX), int(cmd.TY))
+		}
 	}
 }
 
@@ -433,12 +441,16 @@ func nearestEntityWeighed(x, y float64, hasWood bool, at func(tx, ty int) (Targe
 // interact performs one hit of work by p on e and reports whether any work
 // was done (false: refused, the player does not swing).
 func (w *World) interact(p *Player, e *Entity) bool {
+	free := w.freeBuild(p) // one blow fells, breaks or takes down anything, tool or not: see devbuild.go
 	if o, ok := oreOf(e.Kind); ok {
-		return w.mine(p, e, o)
+		return w.mine(p, e, o, free)
 	}
 	// withTool is the damage of p's best tool of class c, or 0 (refused,
 	// with a notice) when p has none.
 	withTool := func(c ToolClass) int {
+		if free {
+			return max(e.HP, 1)
+		}
 		if c == ToolAxe && legendaryChop(&p.Inv) > 0 {
 			return legendaryChop(&p.Inv) // the fang axe: see legendary.go
 		}
@@ -487,12 +499,12 @@ func (w *World) interact(p *Player, e *Entity) bool {
 		w.removeEntity(e)
 		return true
 	case EntityDoor, EntityFloor:
-		return w.dismantle(p, e, ToolAxe, []Ingredient{{Item: ItemWood, Count: 1}})
+		return w.dismantle(p, e, ToolAxe, []Ingredient{{Item: ItemWood, Count: 1}}, free)
 	case EntitySpikes:
-		return w.dismantle(p, e, ToolAxe, []Ingredient{{Item: ItemStick, Count: 1}})
+		return w.dismantle(p, e, ToolAxe, []Ingredient{{Item: ItemStick, Count: 1}}, free)
 	case EntityTrap:
 		if e.Ready {
-			return w.dismantle(p, e, ToolAxe, []Ingredient{{Item: ItemStick, Count: 1}})
+			return w.dismantle(p, e, ToolAxe, []Ingredient{{Item: ItemStick, Count: 1}}, free)
 		}
 		e.Ready = true // set again
 		return true
@@ -514,8 +526,8 @@ func (w *World) interact(p *Player, e *Entity) bool {
 	case EntityStoneWall:
 		dmg := withTool(ToolPickaxe)
 		return dmg > 0 && w.harvest(p, e, ItemStone, StoneWallRefund, dmg, func() { w.removeEntity(e) })
-	case EntityBed:
-		return w.sleep(p, e)
+	case EntityBed, EntityLeafTent:
+		return w.useBed(p, e) // slept in, or taken down by day with an axe: see tent.go
 	case EntityChest:
 		return w.openChest(p, e)
 	case EntityBerryBush:
@@ -657,11 +669,16 @@ func (w *World) eat(p *Player, i int) {
 func (w *World) craft(p *Player, id RecipeID) { w.craftAt(p, id, false, 0, 0) }
 
 // craftAt is craft; a structure goes on tile (tx, ty) when at is set, if
-// that tile passes BuildSpot, else in front of p.
+// that tile passes BuildSpot, else in front of p. In free build nothing is
+// needed, no fire or furnace either, and nothing is used up (devbuild.go).
 func (w *World) craftAt(p *Player, id RecipeID, at bool, tx, ty int) {
 	r, ok := RecipeByID(id)
 	if !ok {
 		return
+	}
+	free := w.freeBuild(p)
+	if free {
+		r.Inputs = nil
 	}
 	if r.Gives.Valid() && r.Gives.Def().Tool && p.Inv.Count(r.Gives) > 0 {
 		p.notify(NoticeHaveOne, uint8(r.Gives))
@@ -671,11 +688,11 @@ func (w *World) craftAt(p *Player, id RecipeID, at bool, tx, ty int) {
 		p.notify(NoticeNotEnough, uint8(id))
 		return
 	}
-	if r.NearFire && !w.nearFire(p.X, p.Y) {
+	if r.NearFire && !free && !w.nearFire(p.X, p.Y) {
 		p.notify(NoticeNeedFire, uint8(id))
 		return
 	}
-	if r.NearFurnace && !w.nearFurnace(p.X, p.Y) {
+	if r.NearFurnace && !free && !w.nearFurnace(p.X, p.Y) {
 		p.notify(NoticeNeedFurnace, uint8(id))
 		return
 	}

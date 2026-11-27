@@ -58,6 +58,10 @@ func (g *Game) deedItems(dst drawTarget, f *figDraw, p protocol.PlayerView, m mo
 	sideways := dir == sim.DirLeft || dir == sim.DirRight
 	age := float64(g.frame - st.deedAt)
 	switch m {
+	case moEatBite, moEatHand, moEatBowl, moDrink, moScoop, moThrow:
+		f.tool = false // what the deed holds instead
+	}
+	switch m {
 	case moEatBite, moEatHand:
 		bites := 0
 		for _, b := range [2]int{1, 4} {
@@ -193,10 +197,22 @@ func scaleBack(op *ebiten.DrawImageOptions) *ebiten.DrawImageOptions {
 	return op
 }
 
-// drawIconAny is drawIcon, falling back on the old 16 x 16 icon drawn
-// smooth at that scale.
+// drawIconAny is drawIcon, falling back on the old 16 x 16 icon redrawn
+// three times as fine (iconFine), or, with the HD held items off, the old
+// icon itself drawn smooth at that scale.
 func (g *Game) drawIconAny(dst drawTarget, k sim.ItemKind, x, y, scale, side, turn float64) {
 	if g.drawIcon(dst, k, x, y, scale, side, turn) || !k.Valid() {
+		return
+	}
+	if fine := g.iconFine(k); fine != nil && heldHD {
+		w := float64(fine.Bounds().Dx()) / HDDensity // in art pixels: 16
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(-w/2, -w/2)
+		op.GeoM.Scale(scale*side, scale)
+		op.GeoM.Rotate(turn)
+		op.GeoM.Translate(x, y)
+		op.Filter = ebiten.FilterLinear
+		drawImageD(dst, fine, op, HDDensity)
 		return
 	}
 	icon := g.art.icons[k]
@@ -219,8 +235,12 @@ func (g *Game) drawIconAny(dst drawTarget, k sim.ItemKind, x, y, scale, side, tu
 func (g *Game) drawFood(dst drawTarget, k sim.ItemKind, dir sim.Dir, x, y, scale, eaten float64) {
 	img, hd := heldIcon(k, 16*scale)
 	dens := HDDensity
+	sc := 1.0 // what is left to scale it by
 	if !hd {
-		img, dens = g.art.icons[k], 1
+		img, dens, sc = g.art.icons[k], 1, scale
+		if fine := g.iconFine(k); fine != nil && heldHD {
+			img, dens, hd = fine, HDDensity, true
+		}
 		if img == nil {
 			return
 		}
@@ -241,9 +261,12 @@ func (g *Game) drawFood(dst drawTarget, k sim.ItemKind, dir sim.Dir, x, y, scale
 	op := &ebiten.DrawImageOptions{}
 	if hd { // drawImageD takes the image to art pixels first
 		op.GeoM.Translate((float64(r.Min.X)-float64(w)/2)/HDDensity, (float64(r.Min.Y)-float64(h)/2)/HDDensity)
-		op.GeoM.Scale(side, 1)
+		op.GeoM.Scale(sc*side, sc)
 		op.GeoM.Translate(x, y)
 		op.Filter = ebiten.FilterNearest
+		if sc != 1 {
+			op.Filter = ebiten.FilterLinear
+		}
 		drawImageD(dst, sub, op, dens)
 		return
 	}

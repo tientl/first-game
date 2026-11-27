@@ -47,9 +47,10 @@ const (
 	overlayNone overlay = iota
 	overlayMap
 	overlayBag
-	overlayChest // a chest the server has opened for me; see chestui.go
-	overlayCraft // the crafting window; see craftui.go
-	overlayCook  // a cooking station the server has opened for me; see cookui.go
+	overlayChest   // a chest the server has opened for me; see chestui.go
+	overlayCraft   // the crafting window; see craftui.go
+	overlayCook    // a cooking station the server has opened for me; see cookui.go
+	overlayPalette // the build palette, in free build (dev mode); see buildpalette.go
 )
 
 // Game implements ebiten.Game.
@@ -129,9 +130,10 @@ type Game struct {
 	bag     bagView
 	chest   chestView
 	craft   craftView
-	cook    cookView  // the cooking window; see cookui.go
-	ptr     pointer   // the mouse in play; see mouse.go
-	build   buildMode // a structure chosen to build, waiting for a tile
+	cook    cookView    // the cooking window; see cookui.go
+	palette paletteView // the build palette, in free build; see buildpalette.go
+	ptr     pointer     // the mouse in play; see mouse.go
+	build   buildMode   // a structure chosen to build, waiting for a tile
 	wmap    worldMap
 	fires   map[sim.EntityID]knownFire
 
@@ -201,6 +203,9 @@ func (g *Game) ShowOverlay(name string) {
 		g.overlay = overlayBag
 	case "craft":
 		g.overlay = overlayCraft
+	case "palette":
+		g.overlay = overlayPalette // the build palette of free build; see buildpalette.go
+		g.palette.hover = -1
 	case "recipes":
 		g.overlay = overlayBag
 		g.bag.setFocus(sim.ItemStick)
@@ -466,6 +471,12 @@ func (g *Game) handleInput() {
 		g.setOverlay(overlayNone) // the death screen needs to be seen
 	case inpututil.IsKeyJustPressed(ebiten.KeyM):
 		g.toggleOverlay(overlayMap)
+	case g.freeBuild() && inpututil.IsKeyJustPressed(ebiten.KeyB): // B is the build palette in free build; see buildpalette.go
+		if g.overlay == overlayPalette {
+			g.setOverlay(overlayNone)
+		} else {
+			g.openPalette()
+		}
 	case justPressed(ebiten.KeyTab, ebiten.KeyI, ebiten.KeyB):
 		g.toggleOverlay(overlayBag)
 	case inpututil.IsKeyJustPressed(ebiten.KeyC):
@@ -517,6 +528,8 @@ func (g *Game) handleInput() {
 		g.updateCook()
 	case overlayCraft:
 		g.updateCraft() // see craftui.go
+	case overlayPalette:
+		g.updatePalette() // see buildpalette.go
 	default:
 		g.updateHotbar()
 	}
@@ -721,7 +734,12 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		}
 		return "Cần " + k.Def().Name
 	case sim.NoticeNotTired:
-		return "Chưa buồn ngủ — giường chỉ dùng được lúc chạng vạng và ban đêm"
+		if sim.EntityKind(arg) == sim.EntityLeafTent {
+			return "Chưa buồn ngủ — lều chỉ ngủ được lúc chạng vạng và ban đêm · cầm rìu trên tay để dỡ"
+		}
+		return "Chưa buồn ngủ — giường chỉ dùng được lúc chạng vạng và ban đêm · cầm rìu trên tay để dỡ"
+	case sim.NoticeHardGround:
+		return "Đất cứng quá — cọc lều không cắm vào đá hay chỗ lội được (cần đất, cát hoặc tuyết)"
 	case sim.NoticeTooEarly:
 		return "Giật sớm quá — cá sợ bỏ đi (đợi phao chìm rồi mới nhấp chuột)"
 	case sim.NoticeBaitStolen:
@@ -841,6 +859,9 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 	case sim.NoticeNothingToFeed:
 		return "Trỏ vào cây non, luống đất hoặc cây đang mọc lại ở gần rồi nhấp chuột phải để bón phân"
 	case sim.NoticeHomeSet:
+		if sim.EntityKind(arg) == sim.EntityLeafTent {
+			return "Đây là nơi bạn sẽ hồi sinh: cạnh lều lá này"
+		}
 		return "Đây là nơi bạn sẽ hồi sinh"
 	case sim.NoticeLaunched:
 		return "Đã thả " + sim.BoatKind(arg).Name() + " xuống nước — E để lên thuyền"

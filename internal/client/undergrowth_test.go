@@ -7,13 +7,18 @@ import (
 	"survivalgame/internal/sim"
 )
 
-// plantsPerTile is the average number of plants on a 64x64 field of t.
+// plantsPerTile is the average number of plants on a 64x64 field of t, in
+// summer; the woods under their trees.
 func plantsPerTile(t sim.Tile) float64 {
 	var ps []plant
 	n := 0
+	shade := 0.0
+	if t == sim.TileForest {
+		shade = 0.8
+	}
 	for ty := 0; ty < 64; ty++ {
 		for tx := 0; tx < 64; tx++ {
-			ps = plantsOn(tx, ty, t, ps[:0])
+			ps = plantsAt(tx, ty, t, shade, sim.Summer, ps[:0])
 			n += len(ps)
 		}
 	}

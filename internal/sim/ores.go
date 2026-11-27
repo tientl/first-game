@@ -159,7 +159,10 @@ func (w *World) scatterOres(rng *rand.Rand) {
 }
 
 // mine lands one pickaxe hit on the ore e.
-func (w *World) mine(p *Player, e *Entity, o oreDef) bool {
+func (w *World) mine(p *Player, e *Entity, o oreDef, free bool) bool {
+	if free { // one blow, no pickaxe: see devbuild.go
+		return w.harvest(p, e, o.item, o.yield, max(e.HP, 1), func() { w.removeEntity(e) })
+	}
 	need := o.tier - 1
 	tier, ok := p.Inv.BestTool(ToolPickaxe)
 	if !ok || tier < need {

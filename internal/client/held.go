@@ -3,14 +3,47 @@ package client
 import (
 	"math"
 
-	"github.com/hajimehoshi/ebiten/v2"
-
 	"survivalgame/internal/sim"
 )
 
 // What a player holds (the selected hotbar slot, PlayerView.Held) is drawn
-// in their hand. Tools have their own sprite; anything else is its bag icon
-// shrunk to half size, which reads at the player's scale.
+// in their hand. Tools and weapons are painted at HD and turned with the
+// hand (heldhd.go; the old density-1 sprites below are kept for
+// SetHeldHD(false)); anything else is its bag icon shrunk to half size,
+// which reads at the player's scale.
+
+// heldCarry is how far item k is tipped from upright towards the facing
+// as it is carried: beside the body a tool stands nearly upright; sideways
+// the hand is in front of the face, so the head tips forward, clear of it.
+func heldCarry(k sim.ItemKind, dir sim.Dir) float64 {
+	sideways := dir == sim.DirLeft || dir == sim.DirRight
+	pick := func(beside, ahead float64) float64 {
+		if sideways {
+			return ahead
+		}
+		return beside
+	}
+	switch class, _ := k.ToolKind(); class {
+	case sim.ToolAxe, sim.ToolPickaxe:
+		return pick(0.35, 1.1)
+	case sim.ToolHoe:
+		return 0.15 // nearly upright, so the blade hangs from the top like a 7
+	}
+	if isSword(k) {
+		return pick(0.2, 1.0)
+	}
+	switch k {
+	case sim.ItemBattleAxe:
+		return cleaveCarry
+	case sim.ItemSpear, sim.ItemIvorySpear:
+		return pick(0.15, 1.25)
+	case sim.ItemRod:
+		return pick(0.5, 0.9)
+	case sim.ItemTorch: // held out in front, so the flame burns beside the face
+		return pick(0.3, 0.85)
+	}
+	return 0
+}
 
 // handAt is where the hand that holds things is, in art pixels from the
 // player sprite's anchor (between the feet), for the facing and the walk
@@ -58,6 +91,10 @@ func (g *Game) drawHeld(dst drawTarget, k sim.ItemKind, dir sim.Dir, sx, sy, bob
 	g.drawHeldAt(dst, k, dir, sx+hx, sy+hy-bob)
 }
 
+// heldFlip mirrors what drawHeldAt draws: -1 for the hand on the left of
+// the screen of a figure seen from the front or the back.
+var heldFlip = 1.0
+
 // drawHeldAt draws item k in a hand at (hx, hy) in art pixels, of a player
 // facing dir.
 func (g *Game) drawHeldAt(dst drawTarget, k sim.ItemKind, dir sim.Dir, hx, hy float64) {
@@ -65,6 +102,21 @@ func (g *Game) drawHeldAt(dst drawTarget, k sim.ItemKind, dir sim.Dir, hx, hy fl
 		return
 	}
 	side := facingSide(dir)
+	side *= heldFlip
+	if d := heldDefOf(k); d != nil { // painted at HD and turned cleanly; see heldhd.go
+		th := heldCarry(k, dir) + heldTurn
+		drawHeldDef(dst, d, hx, hy, th, side, 1)
+		switch k {
+		case sim.ItemTorch:
+			fx, fy := heldPoint(hx, hy, th, side, 0, torchFlameV)
+			drawTorchFlame(dst, (g.frame/5)%torchFlameN, fx, fy)
+			g.markHeld(func(m *heldMark) { m.flame, m.fx, m.fy = true, fx, fy })
+		case sim.ItemRod:
+			tx, ty := heldPoint(hx, hy, th, side, rodTipU, rodTipV)
+			g.markHeld(func(m *heldMark) { m.tip, m.tipX, m.tipY = true, tx, ty })
+		}
+		return
+	}
 
 	// Tools of every tier: the head is drawn in the tier's material.
 	switch class, tier := k.ToolKind(); class {
@@ -133,23 +185,8 @@ func (g *Game) drawHeldAt(dst drawTarget, k sim.ItemKind, dir sim.Dir, hx, hy fl
 		drawAt(dst, f, math.Round(x+math.Sin(tilt)*up), math.Round(y-math.Cos(tilt)*up)+1, 0.4, 0.45, 0, nil)
 	default:
 		// Held a little out from the hand, at half its bag size: an HD icon
-		// baked at that size (iconhd.go), else a half-size linear draw of
-		// the old one, which averages each 2x2 block of it, a clean pixel-art
-		// shrink, as long as it lands on whole pixels.
-		cx, cy := math.Round(hx+side*2), math.Round(hy+2)
-		if g.drawIcon(dst, k, cx, cy, 0.5, side, 0) {
-			return
-		}
-		icon := g.art.icons[k]
-		if icon == nil {
-			return
-		}
-		b := icon.Bounds()
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(-float64(b.Dx())/2, -float64(b.Dy())/2)
-		op.GeoM.Scale(0.5*side, 0.5)
-		op.GeoM.Translate(cx, cy)
-		op.Filter = ebiten.FilterLinear
-		dst.DrawImage(icon, op)
+		// baked at that size (iconhd.go), else the old one redrawn three
+		// times as fine (iconFine), or as it was (drawIconAny).
+		g.drawIconAny(dst, k, math.Round(hx+side*2), math.Round(hy+2), 0.5, side, 0)
 	}
 }

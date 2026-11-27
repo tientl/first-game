@@ -566,9 +566,12 @@ func (g *Game) drawRecipeCard(screen *ebiten.Image, r sim.Recipe, x, y, w float6
 	tx := x + 52
 	g.text(screen, r.Name, tx, y+7, colWhite, text.AlignStart, 1)
 	rx, ry := x+w-12, y+7
+	free := g.freeBuild() // nothing needed and nothing used: see buildpalette.go
 	switch {
 	case g.haveTool(r):
 		g.text(screen, "đã có", rx, ry, colMuted, text.AlignEnd, 1)
+	case free:
+		g.drawDevBadge(screen, rx+2, ry-1)
 	case r.NearFire && inv.HasAll(r.Inputs) && !g.byFire():
 		g.text(screen, "ra gần lửa trại", rx, ry, colHunger, text.AlignEnd, 1)
 	case r.NearFurnace && inv.HasAll(r.Inputs) && !g.byFurnace():
@@ -587,6 +590,9 @@ func (g *Game) drawRecipeCard(screen *ebiten.Image, r sim.Recipe, x, y, w float6
 	// names would not fit on the card.
 	label := func(in sim.Ingredient, named bool) string {
 		s := fmt.Sprintf("%d/%d", min(inv.Count(in.Item), in.Count), in.Count)
+		if free {
+			s = fmt.Sprintf("×%d", in.Count) // what it takes in a normal game
+		}
 		if named {
 			s += " " + in.Item.Def().Name
 		}
@@ -603,7 +609,10 @@ func (g *Game) drawRecipeCard(screen *ebiten.Image, r sim.Recipe, x, y, w float6
 	for _, in := range r.Inputs {
 		g.drawItem(screen, in.Item, cx, y+27, 16, 1)
 		c := colGood
-		if inv.Count(in.Item) < in.Count {
+		switch {
+		case free:
+			c = colMuted // not needed
+		case inv.Count(in.Item) < in.Count:
 			c = colBad
 		}
 		l := label(in, named)

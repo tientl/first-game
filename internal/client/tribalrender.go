@@ -405,6 +405,9 @@ func (g *Game) drawDrop(dst drawTarget, d protocol.DropView, sx, sy, lift float6
 	} else if lift == 0 {
 		bob = math.Round(math.Sin(float64(g.frame)*0.07+float64(d.ID)) * 1)
 	}
+	if g.drawDropHD(dst, d, math.Round(sx), math.Round(sy-lift-bob)) { // see heldhd.go
+		return
+	}
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(-8, -14)
 	op.GeoM.Scale(0.8, 0.8)

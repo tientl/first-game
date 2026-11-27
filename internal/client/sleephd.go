@@ -74,6 +74,15 @@ func laidSprite(k laidKey) sprite {
 	if s, ok := laidCache[k]; ok {
 		return s
 	}
+	c, ax, ay := laidCanvas(k)
+	s := cropSprite(c, ax, ay)
+	laidCache[k] = s
+	return s
+}
+
+// laidCanvas is drawing k on a canvas of its own, and its anchor there in
+// art pixels (see laidSprite).
+func laidCanvas(k laidKey) (*canvas, float64, float64) {
 	lo, up := k.m.keys(k.dir, int(k.f))
 	c, drop := standingCanvas(k.look, k.wear, k.tint, up, lo, k.mirror)
 	p := upperPoseOf(up)
@@ -89,19 +98,15 @@ func laidSprite(k laidKey) sprite {
 	if k.mirror {
 		hx, ix = float64(c.w-1)-hx, float64(c.w-1)-ix
 	}
-	var s sprite
 	if k.lay {
 		lay := layFlat(c)
 		if k.cover > 0 {
 			blanket(lay, shoulderY-2+drop, float64(k.cover)/2, k.thin, uint32(k.look.Hair)*13+uint32(k.f)+uint32(k.m)*7)
 		}
 		// Laid down, (x, y) went to (y, w-1-x).
-		s = cropSprite(lay, hy/HDDensity-pillowX, (float64(c.w-1)-hx)/HDDensity-pillowY)
-	} else {
-		s = cropSprite(c, ix/HDDensity, iy/HDDensity)
+		return lay, hy/HDDensity - pillowX, (float64(c.w-1)-hx)/HDDensity - pillowY
 	}
-	laidCache[k] = s
-	return s
+	return c, ix / HDDensity, iy / HDDensity
 }
 
 // laidHips is where the hips of a sleeper laid on its back are from its
@@ -400,6 +405,14 @@ func (g *Game) drawSleeperHD(dst drawTarget, p protocol.PlayerView, d drawable) 
 	look := p.Look.Sanitized()
 	tint := playerColors[int(p.ID)%len(playerColors)]
 	x, y := math.Round(d.sx), math.Round(d.sy)
+	// In a leaf tent they lie further in, and its shell goes over them before
+	// anything floats up from them: see tentart.go.
+	shell := func() {}
+	if e, ok := g.tentUnder(p); ok {
+		tx, ty := x, y
+		shell = func() { g.drawTentShell(dst, e, tx, ty) }
+		x, y = x+tentSleepDX, y+tentSleepDY
+	}
 	hx, hy := laidHips()
 	b := g.art.bodyIn(p.Look, p.Wear)
 	// The standing figure's feet, for its hips on the bed at (hx, hy).
@@ -411,14 +424,17 @@ func (g *Game) drawSleeperHD(dst drawTarget, p protocol.PlayerView, d drawable) 
 	case age < bedSquat: // down onto the bed
 		lo, up, fy := feet(moSitDown, 1)
 		drawFig(dst, figDraw{b: b, up: up, lo: lo, tint: tint}, x+hx, fy)
+		shell()
 		return
 	case age < bedSit: // sat on its edge
 		lo, up, fy := feet(moSit, 0)
 		drawFig(dst, figDraw{b: b, up: up, lo: lo, tint: tint}, x+hx, fy)
+		shell()
 		return
 	case age < bedLie: // lying back onto it, in four steps
 		f := min(3, int((age-bedSit)/((bedLie-bedSit)/4)))
 		putSprite(dst, laidSprite(laidKey{look: look, wear: p.Wear, tint: tint, m: moLieBack, f: uint8(f), dir: sim.DirDown}), x+hx, y+hy)
+		shell()
 		return
 	}
 	k := laidKey{look: look, wear: p.Wear, tint: tint, m: moSleep, lay: true, cover: 2}
@@ -449,6 +465,7 @@ func (g *Game) drawSleeperHD(dst drawTarget, p protocol.PlayerView, d drawable) 
 	k.f, k.dir, k.mirror = uint8(f), dir, mirror
 	g.drawPillowHair(dst, p.Look, pose, turning, x+pillowX, y+pillowY)
 	putSprite(dst, laidSprite(k), x, y)
+	shell()
 	if k.cover == 2 {
 		g.drawZzz(dst, x+pillowX+2, y+pillowY-8, float64(p.ID))
 	}
