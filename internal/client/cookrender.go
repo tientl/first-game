@@ -5,7 +5,6 @@ import (
 	"image/color"
 	"math"
 
-	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
@@ -258,12 +257,12 @@ func (g *Game) buffStatuses() []status {
 }
 
 // drawBuffIcon draws buff b's little picture centred on (x, y).
-func drawBuffIcon(dst *ebiten.Image, b sim.BuffKind, x, y float32, c color.RGBA) {
-	line := func(x0, y0, x1, y1, w float32) { vector.StrokeLine(dst, x+x0, y+y0, x+x1, y+y1, w, c, true) }
+func drawBuffIcon(dst drawTarget, b sim.BuffKind, x, y float32, c color.RGBA) {
+	line := func(x0, y0, x1, y1, w float32) { strokeLine(dst, x+x0, y+y0, x+x1, y+y1, w, c, true) }
 	switch b {
 	case sim.BuffRegen: // a heart with a plus
-		vector.FillCircle(dst, x-2.6, y-1.6, 3.2, c, true)
-		vector.FillCircle(dst, x+2.6, y-1.6, 3.2, c, true)
+		fillCircle(dst, x-2.6, y-1.6, 3.2, c, true)
+		fillCircle(dst, x+2.6, y-1.6, 3.2, c, true)
 		var p vector.Path
 		p.MoveTo(x-5.6, y-0.4)
 		p.LineTo(x+5.6, y-0.4)
@@ -271,9 +270,9 @@ func drawBuffIcon(dst *ebiten.Image, b sim.BuffKind, x, y float32, c color.RGBA)
 		p.Close()
 		op := &vector.DrawPathOptions{AntiAlias: true}
 		op.ColorScale.ScaleWithColor(c)
-		vector.FillPath(dst, &p, nil, op)
-		vector.StrokeLine(dst, x-2.4, y, x+2.4, y, 1.5, colWhite, true)
-		vector.StrokeLine(dst, x, y-2.4, x, y+2.4, 1.5, colWhite, true)
+		fillPath(dst, &p, op)
+		strokeLine(dst, x-2.4, y, x+2.4, y, 1.5, colWhite, true)
+		strokeLine(dst, x, y-2.4, x, y+2.4, 1.5, colWhite, true)
 	case sim.BuffWarm: // a flame
 		drawDrop(dst, x, y, 13, c)
 		drawDrop(dst, x, y+2, 7, color.RGBA{255, 236, 170, 255})
@@ -287,7 +286,7 @@ func drawBuffIcon(dst *ebiten.Image, b sim.BuffKind, x, y float32, c color.RGBA)
 		line(-5, 5, 5, -5, 2.2)
 		line(2, -6, 6, -2, 1.6)
 		line(-6, 2, -2, 6, 2.6)
-		vector.FillCircle(dst, x+5, y-5, 1.4, colWhite, true)
+		fillCircle(dst, x+5, y-5, 1.4, colWhite, true)
 	case sim.BuffSated: // a full bowl
 		var p vector.Path
 		p.MoveTo(x-6.5, y-1)
@@ -297,9 +296,9 @@ func drawBuffIcon(dst *ebiten.Image, b sim.BuffKind, x, y float32, c color.RGBA)
 		p.Close()
 		op := &vector.DrawPathOptions{AntiAlias: true}
 		op.ColorScale.ScaleWithColor(c)
-		vector.FillPath(dst, &p, nil, op)
-		vector.FillCircle(dst, x-2.5, y-2.5, 2.4, c, true)
-		vector.FillCircle(dst, x+2, y-3, 2.8, c, true)
+		fillPath(dst, &p, op)
+		fillCircle(dst, x-2.5, y-2.5, 2.4, c, true)
+		fillCircle(dst, x+2, y-3, 2.8, c, true)
 	}
 }
 

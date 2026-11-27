@@ -8,7 +8,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -301,13 +300,20 @@ func (g *Game) rememberFires(s protocol.Snapshot) {
 // maxMapZoom is how far the world map zooms in.
 const maxMapZoom = 6
 
-func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawMap(screen *uiDst, sw, sh int) {
 	full := screen
 	g.dim(screen, sw, sh, 0.65)
-	g.text(screen, "Bản đồ", float64(sw)/2, 18, colWhite, text.AlignCenter, 2)
+	title := "Bản đồ"
+	if k, ok := g.caveLevel(); ok { // the natural caves: see cavelights.go
+		title = fmt.Sprintf("Bản đồ — hang, tầng %d", k+1)
+	}
+	drawTitle(screen, title, float64(sw)/2, 16, 2, colBoneText, color.RGBA{60, 36, 20, 255})
 
 	// Fit the map between the title and the legend, keeping its shape.
-	const top, bottom, side = 60.0, 74.0, 28.0
+	// The legend's rows (more in a world with more kinds of ground) and the
+	// line of keys go under the map.
+	const top, side = 60.0, 28.0
+	bottom := 54 + 20*float64(g.drawMapLegend(nil, float64(sw)/2, 0))
 	// With caves under the islands, the map shows the layer the player is
 	// in: the islands, or the caves.
 	r0, rh := g.mapRows()
@@ -315,7 +321,7 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 	k := min((float64(sw)-2*side)/mw, (float64(sh)-top-bottom)/mh)
 	dw, dh := mw*k, mh*k
 	x0, y0 := math.Round((float64(sw)-dw)/2), math.Round(top+(float64(sh)-top-bottom-dh)/2)
-	panel(screen, float32(x0)-8, float32(y0)-8, float32(dw)+16, float32(dh)+16)
+	drawFrame(screen, float32(x0)-8, float32(y0)-8, float32(dw)+16, float32(dh)+16)
 	legendY := y0 + dh + 22
 
 	// Zoomed in (the wheel, = and -), the map is bigger than its frame and
@@ -333,7 +339,7 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 		vx0, vy0 := x0, y0
 		x0 = math.Round(min(vx0, max(vx0+fw-dw, vx0+fw/2-px/float64(g.width)*dw)))
 		y0 = math.Round(min(vy0, max(vy0+fh-dh, vy0+fh/2-py/rh*dh)))
-		screen = screen.SubImage(image.Rect(int(vx0), int(vy0), int(vx0+fw), int(vy0+fh))).(*ebiten.Image)
+		screen = screen.clip(vx0, vy0, fw, fh)
 	}
 
 	fog := g.mapLayer(g.wmap.fogImage(), r0, rh)
@@ -347,17 +353,12 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 		}
 		screen.DrawImage(img, op)
 	} else {
-		vector.FillRect(screen, float32(x0), float32(y0), float32(dw), float32(dh), colWaterBG, false)
+		fillRect(screen, float32(x0), float32(y0), float32(dw), float32(dh), colWaterBG, false)
 		g.text(screen, "Đang vẽ bản đồ…", float64(sw)/2, y0+dh/2-8, colWhite, text.AlignCenter, 1)
 	}
 	// Only what the player has seen shows; the rest is under fog.
 	if fog != nil {
-		b := fog.Bounds()
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Scale(dw/float64(b.Dx()), dh/float64(b.Dy()))
-		op.GeoM.Translate(x0, y0)
-		op.Filter = ebiten.FilterLinear // soft edges where seen land fades out
-		screen.DrawImage(fog, op)
+		drawFog(screen.img, fog, screen.X(x0), screen.Y(y0), dw*screen.k, dh*screen.k, screen.k)
 	}
 
 	at := func(x, y float64) (float32, float32) {
@@ -368,7 +369,7 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 	for _, f := range g.fires {
 		fx, fy := at(float64(f.tx)+0.5, float64(f.ty)+0.5)
 		flick := float32(math.Sin(float64(g.frame)*0.3+float64(f.tx))) * 0.8
-		vector.FillCircle(screen, fx, fy, 8+flick, withAlpha(colFire, 70), true)
+		fillCircle(screen, fx, fy, 8+flick, withAlpha(colFire, 70), true)
 		drawFireMark(screen, fx, fy)
 	}
 
@@ -391,7 +392,7 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 		}
 		wx, wy, _ := g.lerpPlayer(p, alpha)
 		x, y := at(wx, wy)
-		vector.StrokeCircle(screen, x, y, 16+pulse*14, 2, color.RGBA{255, 255, 255, uint8(200 * (1 - pulse))}, true)
+		strokeCircle(screen, x, y, 16+pulse*14, 2, color.RGBA{255, 255, 255, uint8(200 * (1 - pulse))}, true)
 		g.drawHeadMark(screen, x, y, 2, playerColors[int(p.ID)%len(playerColors)], p.Look)
 	}
 
@@ -401,10 +402,10 @@ func (g *Game) drawMap(screen *ebiten.Image, sw, sh int) {
 
 // drawHeadMark draws a player on the map: their head (with look l) on a disc
 // of their shirt colour, centred on (x, y), at scale times the art size.
-func (g *Game) drawHeadMark(dst *ebiten.Image, x, y float32, scale float64, c color.RGBA, l sim.Look) {
+func (g *Game) drawHeadMark(dst drawTarget, x, y float32, scale float64, c color.RGBA, l sim.Look) {
 	r := float32(8 * scale)
-	vector.FillCircle(dst, x, y, r+1.5, colInk, true)
-	vector.FillCircle(dst, x, y, r, c, true)
+	fillCircle(dst, x, y, r+1.5, colInk, true)
+	fillCircle(dst, x, y, r, c, true)
 	head := g.art.body(l).head
 	b := head.Bounds()
 	op := &ebiten.DrawImageOptions{}
@@ -417,14 +418,14 @@ func (g *Game) drawHeadMark(dst *ebiten.Image, x, y float32, scale float64, c co
 	dst.DrawImage(head, op)
 }
 
-func drawFireMark(dst *ebiten.Image, x, y float32) {
-	vector.FillCircle(dst, x, y, 5, colInk, true)
-	vector.FillCircle(dst, x, y, 4, colFire, true)
-	vector.FillCircle(dst, x, y+1, 2, color.RGBA{255, 240, 170, 255}, true)
+func drawFireMark(dst drawTarget, x, y float32) {
+	fillCircle(dst, x, y, 5, colInk, true)
+	fillCircle(dst, x, y, 4, colFire, true)
+	fillCircle(dst, x, y+1, 2, color.RGBA{255, 240, 170, 255}, true)
 }
 
 // drawMapLegend draws one centred row explaining the marks and colours.
-func (g *Game) drawMapLegend(screen *ebiten.Image, cx, y float64) {
+func (g *Game) drawMapLegend(screen *uiDst, cx, y float64) (rowsDrawn int) {
 	type entry struct {
 		label string
 		draw  func(x, y float32)
@@ -447,7 +448,7 @@ func (g *Game) drawMapLegend(screen *ebiten.Image, cx, y float64) {
 	}
 	entries = append(entries,
 		entry{"Nước", swatch(colWaterBG)},
-		entry{"Chưa đi tới", swatch(colFogLite)})
+		entry{"Chưa đi tới", swatch(colFogPaper)})
 	const mark, gap = 18.0, 22.0
 	width := func(e entry) float64 { return mark + g.textWidth(e.label) + gap }
 	maxW := math.Max(240, 2*cx-80)
@@ -461,6 +462,9 @@ func (g *Game) drawMapLegend(screen *ebiten.Image, cx, y float64) {
 		rows[len(rows)-1] = append(rows[len(rows)-1], e)
 		rowW += width(e)
 	}
+	if screen == nil {
+		return len(rows) // only measured
+	}
 	for r, row := range rows {
 		total := -gap
 		for _, e := range row {
@@ -473,6 +477,7 @@ func (g *Game) drawMapLegend(screen *ebiten.Image, cx, y float64) {
 			x += width(e)
 		}
 	}
+	return len(rows)
 }
 
 // mapRows is the band of map rows the map shows: the islands, or with the

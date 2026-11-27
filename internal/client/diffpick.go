@@ -9,7 +9,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/sim"
 )
@@ -70,7 +69,6 @@ type diffPicker struct {
 	col int // the card last selected, to come back to from "Quay lại"
 
 	frame  int
-	buf    *ebiten.Image
 	scenes [diffBack]diffScene
 	size   int // the world size picked: see sizepick.go
 
@@ -197,56 +195,45 @@ func diffFit(sw, sh int) (scale, ox, oy float64) {
 	return scale, ox, oy
 }
 
-func (p *diffPicker) draw(screen *ebiten.Image) {
+func (p *diffPicker) draw(screen *uiDst) {
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
-	vector.FillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, 150}, false)
-	if p.buf == nil {
-		p.buf = ebiten.NewImage(diffW, diffH)
-	}
-	b := p.buf
-	b.Clear()
-	fillRoundRect(b, 0, 0, diffW, diffH, 12, color.RGBA{0, 0, 0, 120})
-	fillRoundRect(b, 2, 2, diffW-4, diffH-4, 10, color.RGBA{18, 20, 32, 245})
-	drawText(b, "Chọn độ khó", diffW/2, 16, colWhite, text.AlignCenter, 2)
+	dimScreen(screen, color.RGBA{0, 0, 0, 150})
+	// The panel is laid out at its own size, diffW by diffH, and drawn
+	// shrunk to fit a short screen.
+	p.scale, p.ox, p.oy = diffFit(sw, sh)
+	b := screen.view(p.ox, p.oy, p.scale)
+	drawFrame(b, 4, 4, diffW-8, diffH-8)
+	drawTitle(b, "Chọn độ khó", diffW/2, 14, 2, colBoneText, color.RGBA{60, 36, 20, 255})
 	for i := range diffBack {
 		p.drawCard(b, i)
 	}
 
 	r := diffBackRect()
-	bg, edge := color.RGBA{14, 16, 26, 200}, color.RGBA{0, 0, 0, 90}
+	st := tabIdle
 	if p.sel == diffBack {
-		bg, edge = color.RGBA{58, 46, 22, 235}, colKey
+		st = tabOn
 	}
-	fillRoundRect(b, float32(r.Min.X)-2, float32(r.Min.Y)-2, diffBackW+4, diffBackH+4, 10, edge)
-	fillRoundRect(b, float32(r.Min.X), float32(r.Min.Y), diffBackW, diffBackH, 8, bg)
+	tab(b, float64(r.Min.X), float64(r.Min.Y), diffBackW, diffBackH, 12, st)
+	by := float64(r.Min.Y) + (diffBackH-lineUI*1.55)/2
 	if p.sel == diffBack {
-		drawText(b, ">", float64(r.Min.X)+16, float64(r.Min.Y)+10, colKey, text.AlignStart, 2)
+		drawPointer(b, float64(r.Min.X)+16, float64(r.Min.Y)+diffBackH/2, 1, 6, colAmber)
 	}
-	drawText(b, "Quay lại", diffW/2, float64(r.Min.Y)+10, colWhite, text.AlignCenter, 2)
+	uiText(b, "Quay lại", diffW/2, by, colBoneText, text.AlignCenter, 1.55, fxShadow)
 	p.drawSize(b)
 	drawText(b, "A/D hoặc chuột để chọn · Enter để xác nhận · Esc để quay lại", diffW/2, diffH-26, colMuted, text.AlignCenter, 1)
 
-	p.scale, p.ox, p.oy = diffFit(sw, sh)
-	op := &ebiten.DrawImageOptions{}
-	if p.scale != 1 {
-		op.Filter = ebiten.FilterLinear
-		op.GeoM.Scale(p.scale, p.scale)
-	}
-	op.GeoM.Translate(p.ox, p.oy)
-	screen.DrawImage(b, op)
 }
 
-func (p *diffPicker) drawCard(b *ebiten.Image, i int) {
+func (p *diffPicker) drawCard(b *uiDst, i int) {
 	card, d := diffCards[i], difficulties[i]
 	r := diffCardRect(i)
 	x, y := float32(r.Min.X), float32(r.Min.Y)
 	sel := p.sel == i
-	bg, edge := color.RGBA{14, 16, 26, 220}, color.RGBA{0, 0, 0, 110}
+	st := tabIdle
 	if sel {
-		bg, edge = color.RGBA{58, 46, 22, 240}, colKey
+		st = tabOn
 	}
-	fillRoundRect(b, x-2, y-2, diffCardW+4, diffCardH+4, 10, edge)
-	fillRoundRect(b, x, y, diffCardW, diffCardH, 8, bg)
+	tab(b, float64(x), float64(y), diffCardW, diffCardH, 10, st)
 
 	// The scene, in a thin frame of the level's colour.
 	const inset = (diffCardW - diffSceneW) / 2
@@ -255,25 +242,25 @@ func (p *diffPicker) drawCard(b *ebiten.Image, i int) {
 	if sel {
 		frame = card.accent
 	}
-	vector.FillRect(b, float32(sx)-1, float32(sy)-1, diffSceneW+2, diffSceneH+2, frame, false)
-	view := b.SubImage(image.Rect(sx, sy, sx+diffSceneW, sy+diffSceneH)).(*ebiten.Image)
+	fillRect(b, float32(sx)-1, float32(sy)-1, diffSceneW+2, diffSceneH+2, frame, false)
+	view := b.clip(float64(sx), float64(sy), diffSceneW, diffSceneH)
 	p.drawScene(view, i, sx, sy, sel)
 	if !sel {
-		vector.FillRect(b, float32(sx), float32(sy), diffSceneW, diffSceneH, color.RGBA{8, 10, 20, 70}, false)
+		fillRect(b, float32(sx), float32(sy), diffSceneW, diffSceneH, color.RGBA{8, 10, 20, 70}, false)
 	}
 
 	// The name, and the level as pips: one, two, three.
 	cx := float64(r.Min.X) + diffCardW/2
 	ty := float64(sy) + diffSceneH + 8
-	drawText(b, d.Name(), cx, ty, card.accent, text.AlignCenter, 2)
+	uiText(b, d.Name(), cx, ty+2, card.accent, text.AlignCenter, 1.75, fxShadow)
 	for j := range diffBack {
 		c := color.RGBA{70, 74, 90, 255}
 		if j <= i {
 			c = card.accent
 		}
 		px := float32(cx) + float32(j-1)*14 - 4
-		vector.FillRect(b, px+1, float32(ty)+37, 8, 4, color.RGBA{0, 0, 0, 160}, false)
-		vector.FillRect(b, px, float32(ty)+36, 8, 4, c, false)
+		fillRect(b, px+1, float32(ty)+37, 8, 4, color.RGBA{0, 0, 0, 160}, false)
+		fillRect(b, px, float32(ty)+36, 8, 4, c, false)
 	}
 
 	// What the level changes.
@@ -281,7 +268,7 @@ func (p *diffPicker) drawCard(b *ebiten.Image, i int) {
 	ly := ty + 50
 	for j, name := range diffStatNames {
 		if j%2 == 0 {
-			vector.FillRect(b, x+6, float32(ly)-1, diffCardW-12, 18, color.NRGBA{255, 255, 255, 14}, false)
+			fillRect(b, x+6, float32(ly)-1, diffCardW-12, 18, color.NRGBA{255, 255, 255, 14}, false)
 		}
 		drawText(b, name, float64(r.Min.X)+pad, ly, colMuted, text.AlignStart, 1)
 		drawText(b, card.stats[j], float64(r.Max.X)-pad, ly, card.accent, text.AlignEnd, 1)
@@ -525,7 +512,7 @@ func diffSkull(c *canvas, x, y float64) {
 
 // drawScene draws level i's scene with its top-left at (x, y) of the
 // buffer view is cut from. A selected card's scene moves.
-func (p *diffPicker) drawScene(view *ebiten.Image, i, x, y int, sel bool) {
+func (p *diffPicker) drawScene(view drawTarget, i, x, y int, sel bool) {
 	if p.scenes[i].back == nil {
 		p.scenes[i] = genDiffScene(i)
 	}
@@ -579,7 +566,7 @@ func (p *diffPicker) drawScene(view *ebiten.Image, i, x, y int, sel bool) {
 			ey := diffArtH - life*(30+hashf(j, 2, 61)*26)
 			c := color.NRGBA(lavaRamp[2+j%3])
 			c.A = uint8(255 * (1 - life*life))
-			vector.FillRect(view, float32(x)+float32(math.Floor(ex))*2, float32(y)+float32(math.Floor(ey))*2, 2, 2, c, false)
+			fillRect(view, float32(x)+float32(math.Floor(ex))*2, float32(y)+float32(math.Floor(ey))*2, 2, 2, c, false)
 		}
 	}
 	layer(sc.front)

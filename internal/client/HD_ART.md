@@ -63,9 +63,9 @@ it and pick one with a flag, or make both from the same code with
   art-pixel resolution. If HD water or lighting needs full resolution, add a
   `drawFine`-style path in `hd.go` (flush, then draw on `wd.canvas` scaled by
   `wd.r`).
-- UI (bag icons, the character screen) draws on the screen: `drawSprite`
-  sizes HD sprites right there too. Item icons have their own pipeline:
-  see "Item icons" below.
+- The interface draws on a `uiDst`, the screen in UI pixels: `drawSprite`
+  sizes HD sprites right there too. See "The interface" and "Item icons"
+  below.
 - A figure drawn through a scratch image (struck in `jolt.go`, cut off at
   the water in `searender.go`) uses a `fineBuf` (`hd.go`): a drawTarget in
   art pixels on an image HDDensity times finer, put on the world with
@@ -416,9 +416,8 @@ shows them in the game.
 ## Item icons
 
 The old item icons are 16 x 16 pixel maps (`itemicons.go` and the
-`gen*Icons` of each file), drawn on the interface's canvas, which is blown
-up 2 times at 1080p and 4 at 4K (`uiscale.go`): an icon pixel became a
-block of 6 screen pixels in a bag slot. HD icons (`iconhd.go`) are painted
+`gen*Icons` of each file), scaled up whole times in a slot: an icon pixel
+is a block of 6 screen pixels in a bag slot at 1080p. HD icons (`iconhd.go`) are painted
 in code at the screen's own resolution instead, one icon pixel to one
 screen pixel, like the world.
 
@@ -432,14 +431,10 @@ screen pixel, like the world.
   drawn (it was made for 16). The box sits inside a margin as wide as the
   outline, so nothing is cut off.
 - **On the screen.** `g.drawItem(dst, item, x, y, size, alpha)` (UI
-  pixels) draws an item's icon: HD if it has one, else the old one, scaled
-  as before. On the UI canvas an HD icon is not drawn there: it waits, and
-  `uiBreak` puts the canvas, then the icons, then `uiTop` on the screen.
-  What must cover an icon (a stack's count, a key badge, the torch's bar)
-  is drawn on `overIcons(dst)`. `uiBreak` is called by `dim`, the notice
-  and the dev console, and `endUI` ends with it: call it before anything new
-  that is drawn over item icons (a tooltip, a dialog), or it will end up
-  under them. In the world (a pile on the ground, food or a bowl in the
+  pixels, on the interface's `uiDst`) draws an item's icon: HD if it has
+  one, straight on the screen at its true size, else the old one, scaled
+  as before. What covers it (a count, a badge) is simply drawn after it.
+  In the world (a pile on the ground, food or a bowl in the
   hand) an item shows its HD icon at the world's density, or, without
   one, its old icon redrawn three times as fine (`iconFine`); tools and
   weapons in the hand have painters of their own (see "Held items").
@@ -499,6 +494,62 @@ screen pixel, like the world.
 
 A pilot icon took 10 to 20 minutes, most of it looking at it at 96 and x3
 and moving a few numbers; a bake costs 1 to 8 ms at 96 pixels.
+
+## The interface
+
+The interface is laid out in UI pixels, as it always was, and drawn at
+the screen's own resolution (`uiscale.go`): `beginUI` hands out a
+`uiDst`, the screen seen in UI pixels, `k` screen pixels to a UI pixel (1
+at 720p, 2 at 1080p and 1440p, 4 at 4K, or the UI-size setting). Layout,
+slot sizes and the mouse (`uiCursor`) stay in UI pixels; only the drawing
+is finer. A `uiDst` is a `drawTarget`, so `fillRect`, `strokeLine`,
+`fillCircle`, `fillPath`, `drawSprite`, `drawAt` draw on it in UI pixels;
+`d.hair()` is one screen pixel, `d.clip` cuts it to a rectangle, `d.view`
+lays out a panel at its own size and shrinks it (the difficulty picker).
+
+- **Type** (`uifont.go`). Nunito (SIL OFL 1.1, `fonts/`, see `CREDITS.md`),
+  set from its variable font: weight 720 for text, heavier for counts and
+  badges, 930 for titles; Go Bold behind it for the arrows Nunito lacks.
+  `drawText(dst, s, x, y, colour, align, scale)` keeps the bitmap font's
+  layout (a line is 16 UI pixels at scale 1, its top at `y`); `uiText`
+  and `uiTextW` take an effect: `fxShadow` (a soft edge and drop shadow,
+  the default), `fxOutline` (a fuller halo, over the world), `fxPlain`
+  (ink on parchment: `ink`, `inkOf`). Each string is baked once with its
+  effect, white, and tinted when drawn; `textWidth` measures at the size
+  drawn now. `fitText` shortens a string with "…".
+- **Panels** (`uipanel.go`). One shader paints every style into an image as
+  big as it is on the screen, with its shadow: `psHide` (dark hide, a
+  stitched leather rim: `panel`), `psWood` (a wooden frame with bone studs:
+  `drawFrame`), `psParchment` (`parchment`), `psStone` (the boss),
+  `psWell` (slots, bar tracks: `well`), `psPlate` (`plate`, `plateA`),
+  `psLeather` (`tab`: buttons, cards, chips), `psGlow` (`glow`). A look's
+  colours are straight (the alpha is how much shows). A bake is kept while
+  drawn and let go a few seconds after; what fades or pulses is baked once
+  and drawn fainter (`drawPanelAlpha`). Pieces made of shapes that do not
+  change (a key badge, the minimap's rim, the day's bar) go through
+  `drawBaked`, which keeps them the same way.
+- **Bars** (`uitheme.go`): `well` for the track, `drawBarFill` for the
+  fill (a shader: lit like something round, a slow sheen, a wavering end),
+  with `barFX`: the share it had a moment ago draining away pale, and a
+  flash; `barTrail` works them out. A vital that runs low glows.
+- **Pictures** (`uiicons.go`): the vitals' heart and the status chips'
+  icons are painters like the item icons', baked per size.
+- **Maps** (`uimap.go`): ground not yet walked is faded paper with
+  hatching (`fogSrc`) on both maps; the minimap is drawn at the screen's
+  resolution and cut round (`maskSrc`).
+- **Over the world** (`uilabels.go`): one label at a time, for what the
+  pointer is on, on a soft plate that fades in and out over 140 ms; what is
+  out of reach gets a small hint; the target is marked by thin soft
+  corners (`drawCorners`). Other players' names are `nameTag`s.
+- **Checking.** `go test ./internal/client -run TestInterfaceScreens` draws
+  every screen at 720p, 1080p and 4K (in a child process with a small
+  window: the art needs Ebitengine's loop) and checks through `uiProbe`
+  that every string is inside its box and over no other. Draw a new box
+  that holds text with one of the pieces above (they tell the probe), or
+  call `noteBox`; a full-screen dim is `dimScreen`. The screenshot tool
+  shows them: `-overlay bag|recipes|craft|map|palette`, `-chest`,
+  `-cook -cookui pot`, `-bosses -demobosses`, `-menu`, `-create`,
+  `-devconsole`, `-freebuild`, `-status`, `-aim`.
 
 ## Held items
 

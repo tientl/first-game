@@ -67,7 +67,7 @@ func (g *Game) IconSheet() image.Image {
 		}
 		y += float64(slotRows*(hotPx+hotGap+8)) + 8
 	}
-	endUI(sheet, ui)
+	endUI(ui)
 	SetUIScale(keep)
 	iconHD = keepHD
 

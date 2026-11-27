@@ -244,7 +244,7 @@ func cookLines(k sim.StationKind) []cookLine {
 	return out
 }
 
-func (g *Game) drawCook(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawCook(screen *uiDst, sw, sh int) {
 	g.dim(screen, sw, sh, 0.5)
 	c := &g.cook
 	cv := &g.curr.Self.Cook
@@ -293,10 +293,9 @@ func (g *Game) drawCook(screen *ebiten.Image, sw, sh int) {
 		frac := clamp01(float64(cv.Fuel) / float64(most))
 		g.drawFlameIcon(screen, float32(c.x0)+9, float32(fy)+13, cv.Fuel > 0)
 		bx, bw := float32(c.x0)+24, float32(170)
-		fillRoundRect(screen, bx, float32(fy)+7, bw, 12, 6, color.RGBA{0, 0, 0, 150})
+		well(screen, float64(bx), fy+7, float64(bw), 12, 6)
 		if frac > 0 {
-			fillRoundRect(screen, bx+1, float32(fy)+8, (bw-2)*float32(frac), 10, 5, color.RGBA{240, 140, 40, 255})
-			fillRoundRect(screen, bx+2, float32(fy)+9, (bw-4)*float32(frac), 3, 2, color.RGBA{255, 214, 110, 200})
+			drawBarFill(screen, float64(bx)+1.5, fy+8.5, float64(bw)-3, 9, frac, color.RGBA{240, 136, 40, 255}, barFX{}, g.frame)
 		}
 		label := "Lửa: " + clockText(int(cv.Fuel))
 		col := colMuted
@@ -319,14 +318,14 @@ func (g *Game) drawCook(screen *ebiten.Image, sw, sh int) {
 	}
 
 	// My bag and hotbar.
-	vector.FillRect(screen, float32(c.x0), float32(c.invY)-21, float32(cookGrid), 1, fade(colKey, 50), false)
+	fillRect(screen, float32(c.x0), float32(c.invY)-21, float32(cookGrid), 1, fade(colKey, 50), false)
 	g.text(screen, "Túi đồ", c.x0, c.invY-18, colKey, text.AlignStart, 1)
 	g.text(screen, "chuột trái: cả chồng · chuột phải: 1 cái", c.x0+float64(cookGrid), c.invY-18, colMuted, text.AlignEnd, 1)
 	for i := range sim.NumSlots {
 		x, y := c.invSlotXY(i)
 		g.drawSlotSized(screen, inv[i], x, y, chestPx, style(sim.CookSlots+i))
 		if !inv[i].Empty() && !sim.StationAccepts(cv.Kind, inv[i].Item) {
-			fillRoundRect(screen, float32(x), float32(y), chestPx, chestPx, 7, color.RGBA{10, 11, 17, 170}) // of no use here
+			fillRoundRect(screen, float32(x), float32(y), chestPx, chestPx, 7, color.RGBA{12, 9, 7, 170}) // of no use here
 		}
 		if sim.IsHotbar(i) {
 			g.drawKeyBadge(screen, hotbarLabel(i), x-3, y-3, i == g.hotSel)
@@ -365,7 +364,7 @@ func (g *Game) drawCook(screen *ebiten.Image, sw, sh int) {
 
 	// The dishes it knows, down the side.
 	sx := c.x0 + float64(cookGrid) + 24
-	vector.FillRect(screen, float32(sx)-12, float32(py)+14, 1, float32(ph)-28, fade(colKey, 50), false)
+	fillRect(screen, float32(sx)-12, float32(py)+14, 1, float32(ph)-28, fade(colKey, 50), false)
 	g.text(screen, "Công thức", sx, py+16, colKey, text.AlignStart, 1)
 	ly := py + 40
 	sideW := pw - (sx - px) - 18
@@ -410,23 +409,22 @@ func wrapText(s string, w float64) []string {
 	return lines
 }
 
-func (g *Game) drawCookButton(screen *ebiten.Image, b int, label string, on bool) {
+func (g *Game) drawCookButton(screen *uiDst, b int, label string, on bool) {
 	c := &g.cook
-	bg := color.RGBA{0, 0, 0, 90}
-	col := colKey
-	if !on {
-		col = colMuted
-	} else if c.btn == b {
-		bg = color.RGBA{58, 46, 22, 220}
+	st, col := tabIdle, colKey
+	switch {
+	case !on:
+		st, col = tabOff, colMuted
+	case c.btn == b:
+		st = tabHover
 	}
-	fillRoundRect(screen, float32(c.btnX[b]), float32(c.btnY[b]), float32(c.btnW[b]), float32(c.btnH[b]), 7, bg)
-	strokeRoundRect(screen, float32(c.btnX[b])+0.5, float32(c.btnY[b])+0.5, float32(c.btnW[b])-1, float32(c.btnH[b])-1, 7, fade(col, 90))
+	tab(screen, c.btnX[b], c.btnY[b], c.btnW[b], c.btnH[b], 9, st)
 	g.text(screen, label, c.btnX[b]+c.btnW[b]/2, c.btnY[b]+5, col, text.AlignCenter, 1)
 }
 
 // drawCookArrow is the arrow from the ingredients to the dish, w long with
 // its middle line at y: a groove that fills with fire as the dish cooks.
-func (g *Game) drawCookArrow(screen *ebiten.Image, x, y, w float64, on bool, frac float64) {
+func (g *Game) drawCookArrow(screen *uiDst, x, y, w float64, on bool, frac float64) {
 	const h, head = 10.0, 16.0
 	shaft := w - head
 	path := func(x1 float64) *vector.Path {
@@ -451,7 +449,7 @@ func (g *Game) drawCookArrow(screen *ebiten.Image, x, y, w float64, on bool, fra
 	fill := func(x1 float64, col color.Color) {
 		op := &vector.DrawPathOptions{AntiAlias: true}
 		op.ColorScale.ScaleWithColor(col)
-		vector.FillPath(screen, path(x1), nil, op)
+		fillPath(screen, path(x1), op)
 	}
 	fill(x+w, color.RGBA{0, 0, 0, 150})
 	if on && frac > 0 {
@@ -459,12 +457,12 @@ func (g *Game) drawCookArrow(screen *ebiten.Image, x, y, w float64, on bool, fra
 		// A bright bead running along it, so it is seen to be alive.
 		bx := x + w*clamp01(frac)
 		pulse := 0.6 + 0.4*math.Sin(float64(g.frame)*0.2)
-		vector.FillCircle(screen, float32(bx), float32(y), float32(2.5+pulse), color.RGBA{255, 232, 150, 255}, true)
+		fillCircle(screen, float32(bx), float32(y), float32(2.5+pulse), color.RGBA{255, 232, 150, 255}, true)
 	}
 }
 
 // drawFlameIcon is a little flame, lit or a cold grey.
-func (g *Game) drawFlameIcon(screen *ebiten.Image, x, y float32, lit bool) {
+func (g *Game) drawFlameIcon(screen *uiDst, x, y float32, lit bool) {
 	outer, inner := color.RGBA{232, 96, 32, 255}, color.RGBA{255, 208, 90, 255}
 	if !lit {
 		outer, inner = color.RGBA{90, 92, 104, 255}, color.RGBA{130, 132, 144, 255}

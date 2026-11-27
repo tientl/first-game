@@ -7,7 +7,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -146,7 +145,7 @@ func (c *chestView) layout(sw, sh int) (px, py, pw, ph float64) {
 	return px, py, pw, ph
 }
 
-func (g *Game) drawChest(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawChest(screen *uiDst, sw, sh int) {
 	g.dim(screen, sw, sh, 0.55)
 	c := &g.chest
 	contents, inv := &g.curr.Self.ChestSlots, &g.curr.Self.Inv
@@ -172,7 +171,7 @@ func (g *Game) drawChest(screen *ebiten.Image, sw, sh int) {
 		g.drawSlotSized(screen, contents[i], x, y, chestPx, style(i))
 	}
 
-	vector.FillRect(screen, float32(c.chestX), float32(c.invY)-21, float32(gridW), 1, fade(colKey, 50), false)
+	fillRect(screen, float32(c.chestX), float32(c.invY)-21, float32(gridW), 1, fade(colKey, 50), false)
 	g.text(screen, "Túi đồ", c.chestX, c.invY-18, colKey, text.AlignStart, 1)
 	for i := range sim.NumSlots {
 		x, y := c.invSlotXY(i)
@@ -203,11 +202,11 @@ func (g *Game) drawChest(screen *ebiten.Image, sw, sh int) {
 		label := fmt.Sprintf("Dỡ rương (lấy lại %d gỗ)", sim.ChestRefund)
 		c.btnW, c.btnH = g.textWidth(label)+24, 26
 		c.btnX, c.btnY = px+pw-24-c.btnW, fy-6
-		bg := color.RGBA{0, 0, 0, 90}
+		st := tabIdle
 		if c.btnHover {
-			bg = color.RGBA{58, 46, 22, 220}
+			st = tabHover
 		}
-		fillRoundRect(screen, float32(c.btnX), float32(c.btnY), float32(c.btnW), float32(c.btnH), 7, bg)
+		tab(screen, c.btnX, c.btnY, c.btnW, c.btnH, 9, st)
 		g.text(screen, label, c.btnX+c.btnW/2, c.btnY+5, colKey, text.AlignCenter, 1)
 	}
 	g.text(screen, "E / B / Esc: đóng  ·  đi xa rương cũng tự đóng", px+pw/2, py+ph-24, colMuted, text.AlignCenter, 1)

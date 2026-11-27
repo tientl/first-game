@@ -8,7 +8,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -111,7 +110,7 @@ func (g *Game) drawCombat(screen *ebiten.Image, cam camera, scale, alpha float64
 		w := math.Max(22, math.Min(48, s.w()*0.6)) * scale
 		h := 2.5 * scale
 		bx, by := sx*scale-w/2, (sy-bob-s.ay-5)*scale
-		vector.DrawFilledRect(screen, float32(bx-1), float32(by-1), float32(w+2), float32(h+2), barBack, false)
+		fillRect(screen, float32(bx-1), float32(by-1), float32(w+2), float32(h+2), barBack, false)
 		f := float64(c.HP) / float64(c.MaxHP)
 		col := color.RGBA{0x5c, 0xd0, 0x4a, 0xff}
 		switch {
@@ -120,7 +119,7 @@ func (g *Game) drawCombat(screen *ebiten.Image, cam camera, scale, alpha float64
 		case f < 0.6:
 			col = color.RGBA{0xe8, 0xb8, 0x30, 0xff}
 		}
-		vector.DrawFilledRect(screen, float32(bx), float32(by), float32(w*f), float32(h), col, false)
+		fillRect(screen, float32(bx), float32(by), float32(w*f), float32(h), col, false)
 	}
 	kept := pops[:0]
 	for _, p := range pops {

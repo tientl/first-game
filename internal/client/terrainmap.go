@@ -206,9 +206,10 @@ func (t *terrain) bakeMiniPiece(k miniKey) []byte {
 	return c.bytes()
 }
 
-// drawMiniPieces draws the pieces of the minimap that cover canvas c, map
-// tile (0, 0) landing at (ox, oy), and reports whether all were ready.
-func (p *miniPieces) draw(c *ebiten.Image, ox, oy float64, frame int) bool {
+// drawMiniPieces draws the pieces of the minimap that cover canvas c (in
+// minimap pixels; drawn smoothly when c is finer), map tile (0, 0) landing
+// at (ox, oy), and reports whether all were ready.
+func (p *miniPieces) draw(c drawTarget, ox, oy float64, frame int) bool {
 	p.frame = frame
 	w, h := pieceSize()
 	cw, ch := float64(c.Bounds().Dx()), float64(c.Bounds().Dy())
@@ -228,6 +229,7 @@ func (p *miniPieces) draw(c *ebiten.Image, ox, oy float64, frame int) bool {
 			ph := min(h, int(math.Ceil(float64(p.terr.h-cy*miniPiece)*miniPx*TileH/TileW)))
 			op := &ebiten.DrawImageOptions{}
 			op.GeoM.Translate(math.Round(float64(cx*w)+ox), math.Round(float64(cy*h)+oy))
+			op.Filter = ebiten.FilterLinear
 			c.DrawImage(img.SubImage(image.Rect(0, 0, pw, ph)).(*ebiten.Image), op)
 		}
 	}
