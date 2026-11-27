@@ -194,6 +194,12 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 ## 8. Trùm
 
+- [ ] **Hang ổ cho 4 trùm còn lại** (hiện chỉ Titanoboa và Megalodon có hang ổ, ẩn mình, dấu hiệu báo trước, màn mở đầu, đấu trường; 4 trùm kia đứng giữa trời nên tạm bật chế độ demo mặc định, `cmd/game -demo=false` để có đủ 6):
+  - **Spinosaurus**: khúc sông lớn hoặc châu thổ đầm lầy; nằm chìm dưới nước, chỉ lộ cánh buồm lưng; đánh trong nước nông.
+  - **Voi Ma Mút Chúa**: thung lũng băng trên đảo tuyết; nằm phủ tuyết như một ụ đất, lại gần mới rùng mình đứng dậy; bão tuyết khi đánh.
+  - **Carcharodontosaurus**: hẻm núi lửa, bãi xương rải quanh, nằm ăn xác trong khe đá; khe có lava.
+  - **Giganotosaurus**: hẻm núi cao nguyên sa mạc, bóng đổ trên vách, vết chân to dẫn tới; bão cát chặn lối ra.
+  - Mỗi trùm có màn mở đầu kèm tên, nhạc chiến đấu, hoạt động lúc không đánh; xong cả 4 thì tắt lại chế độ demo mặc định.
 - [ ] **Yêu cầu chung cho mọi trùm** (6 trùm hiện có và 2 trùm mới):
   - **To**: trùm phải to hơn hẳn thú thường; ít nhất cỡ bạo chúa, trùm mới (vượn, bọ cạp chúa) to gấp 2–3 lần. Rà lại cỡ 6 trùm hiện có cho cân.
   - **Thanh máu**: đã có thanh máu trùm ở trên cùng màn hình; thêm tên trùm, chia vạch theo giai đoạn (ví dụ dưới 50% máu thì đổi cách đánh, nổi giận), hiệu ứng khi máu tụt.
