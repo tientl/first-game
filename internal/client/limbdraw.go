@@ -136,6 +136,10 @@ type figDraw struct {
 	// offHand puts item in the other hand: the hand that holds things is
 	// busy (reaching up for fruit).
 	offHand bool
+	// shield draws the shield (shieldart.go) at each of the layers it may
+	// go in: behind the figure, over the trunk under the near arm, or over
+	// everything; it draws only at the one it belongs in.
+	shield func(dst drawTarget, at shieldLayer, ux, uy, skew float64, u *upperArt)
 }
 
 // playerTop is how far above a player's feet their name goes, in art
@@ -227,6 +231,12 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 	if !h.over && back {
 		item()
 	}
+	shieldAt := func(at shieldLayer) {
+		if f.shield != nil {
+			f.shield(dst, at, ux, uy, skew, u)
+		}
+	}
+	shieldAt(shieldBehind)
 	layer(upFar)
 	layer(upBack)
 	if f.legsOnly {
@@ -241,6 +251,7 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 	if f.armor != nil {
 		put(f.armor.plate(dir, f.up), nil, true)
 	}
+	shieldAt(shieldOnBody)
 	layer(upArms)
 	if behindHead {
 		item()
@@ -257,6 +268,7 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 		item()
 	}
 	layer(upTopOver)
+	shieldAt(shieldOver)
 	return ux, uy, skew, u
 }
 
@@ -427,6 +439,8 @@ func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, l
 	switch {
 	case jolted: // struck: LPC's hurt, a flinch; the flash and the hop are drawJolted's
 		pose(moHurt, moHurt.frameAt(float64(jolt)))
+	case p.Guard && p.Mount == 0 && !p.Swimming: // behind a raised shield; see shieldart.go
+		pose(moGuard, moGuard.frameAt(float64(g.frame)))
 	case gathering:
 		pose(gm, gf)
 		if gm == moReachUp && p.Held.Valid() { // the free hand takes it while the other reaches
@@ -503,6 +517,9 @@ func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, l
 			}
 			g.deedItems(dst, &f, p, m, fr)
 		}
+	}
+	if p.Shield {
+		f.shield = shieldDrawer(p, dir) // on the back, or raised; see shieldart.go
 	}
 	_, onWorld := dst.(*worldDst) // where a torch's flame and a rod's tip go: see heldhd.go
 	heldBy.on, heldBy.id = onWorld, p.ID

@@ -171,25 +171,29 @@ func (g *Game) drawCleave(dst drawTarget, p protocol.PlayerView, d drawable, bob
 		drawAt(dst, battleAxeSprite(), gx, gy, side, 1, a*side, nil)
 	}
 
-	// Where it lands: a flash, chips flying up and out, dust along the ground.
-	if landed >= 0 && landed < 9 {
-		u := landed / 9
+	// Where it lands: a flash along the ground, chips flung up and dust low
+	// and wide, at the canvas's resolution (see fx.go); a blow that bites a
+	// beast adds heavy-cleave's embers (feel.go).
+	if landed >= 0 && landed < 40 {
 		hx, hy := at(ps.down, battleAxeHead+1)
-		if landed < 2 {
-			for i := -3.0; i <= 3; i++ {
-				dot(hx+i*side, hy+math.Abs(i)*0.4-1, 2, 0.85, 0.9)
-			}
+		t := landed / 60
+		var b fxBatch
+		r := fxRng{uint32(p.ID)*7919 + 1}
+		if landed < 4 {
+			b.taper(hx-7, hy, hx+7, hy, 0.5, 0.5, colWhite, 1-landed/4, 0.2)
+			b.glow(hx, hy-1, 10, palEmber[4], 0.45*(1-landed/4))
 		}
 		for i := 0; i < 7; i++ {
 			th := -math.Pi/2 + (float64(i)-3)*0.42 // a fan upwards
-			reach := (2.5 + 7*hashf(i, 3, uint32(p.ID))) * (1 - (1-u)*(1-u))
-			x := hx + math.Cos(th)*reach*1.3 + side*2*u
-			y := hy + math.Sin(th)*reach + 6*u*u // flung up, falling back
-			dot(x, y, 1, 0.4+0.15*float64(i%3), 1-u)
+			v := r.in(50, 110)
+			if t < 0.45 {
+				x, y, _, _ := ballistic(hx, hy-1, math.Cos(th)*v+side*20, math.Sin(th)*v, 480, 0.8, t)
+				b.dot(x, math.Min(y, hy+1), 1, palWood[1+i%3], 1-t/0.45*0.5, 0)
+			}
 		}
-		for i := -1.0; i <= 1; i += 2 { // dust, low and wide
-			fillRect(dst, float32(math.Round(hx+i*(3+7*u))), float32(math.Round(hy+2-2*u)), 2, 2,
-				premul(iiShell[3], 0.6*(1-u)), false)
+		for _, s := range [2]float64{-1, 1} { // dust, low and wide
+			puff(&b, &r, hx+s*2, hy+1, s*r.in(25, 45), t, 0.6, 0.8, dustPals[dustEarth])
 		}
+		b.flush(dst)
 	}
 }

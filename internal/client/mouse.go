@@ -448,6 +448,9 @@ func (g *Game) rightClick() {
 		snd.ui("ui_move")
 		return
 	}
+	if g.guardPressed() {
+		return // the shield goes up while it is held; see shieldart.go
+	}
 	cmd, hint := rightClickUse(g.myHeld(), g.hotSel, g.useContextNow())
 	if cmd.Kind == sim.CmdNone {
 		g.showNotice(hint)

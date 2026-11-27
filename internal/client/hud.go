@@ -621,6 +621,9 @@ func (g *Game) contextHint() (key, s string, c color.Color) {
 	if cmd, _ := rightClickUse(held, g.hotSel, g.useContextNow()); cmd.Kind != sim.CmdNone {
 		return "Chuột phải:", useLabel(cmd, held), colGood
 	}
+	if g.curr.Self.Inv.Count(sim.ItemShield) > 0 { // see shieldart.go
+		return "Chuột phải / Q:", "giữ để giơ khiên đỡ đòn", colGood
+	}
 	return "F1:", "xem các phím", colMuted
 }
 
@@ -702,6 +705,7 @@ func (g *Game) drawHelp(screen *ebiten.Image, sw, sh int) {
 		} else {
 			lines = append(lines, line{"Chuột phải", "dùng món đang cầm: ăn, nướng, cắm đuốc, gieo hạt…", colMuted})
 		}
+		lines = append(lines, line{"Q (giữ)", "giơ khiên đỡ đòn (cần Khiên gỗ tròn); chuột phải cũng được khi tay không dùng nó", colMuted})
 	}
 	interact, ic := "nhặt đồ · mở rương · cưỡi thú · lên thuyền", color.Color(colMuted)
 	if verb, ok := g.boatHint(); ok { // see searender.go

@@ -167,6 +167,12 @@ type Game struct {
 	boss        bossUI      // the boss bar and the victory screen; see bossui.go
 	lair        lairFX      // the lairs' scenes and the moment a fight starts; see lairrender.go, bossintro.go
 	dev         *devConsole // the dev console, only with -dev; see devconsole.go
+
+	// How a fight feels: see feel.go and fx.go.
+	stop    hitStop                  // the picture held after a blow
+	flashAt map[sim.CreatureID]int   // when each beast was last struck, for its flash
+	fx      fxState                  // the effects playing
+	walked  map[sim.PlayerID]float64 // tiles walked since the last footstep's dust
 }
 
 // New returns a game that plays over conn under the given player name.
@@ -225,6 +231,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 // Update runs once per tick of the client loop (60 Hz).
 func (g *Game) Update() error {
 	g.frame++
+	g.tickStop() // see feel.go
 	if g.art == nil {
 		g.art = getArt() // images are created once the game loop is running
 		g.ground = newGroundCache()
@@ -443,6 +450,9 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 	g.classifySwings(old, s)
 	g.noteHurts(s)
 	g.noteMotions(old, s)
+	if hadOld {
+		g.noteFeel(old, s) // stops, flashes, shakes, effects; see feel.go
+	}
 	if !g.selKnown && sim.IsHotbar(int(s.Self.Selected)) {
 		g.hotSel, g.sentSel, g.selKnown = int(s.Self.Selected), int(s.Self.Selected), true
 	}
@@ -510,6 +520,7 @@ func (g *Game) handleInput() {
 		if ax, ay, ok := g.aim(); ok {
 			in.Aim, in.AimX, in.AimY = true, quantAim(ax), quantAim(ay)
 		}
+		in.Guard = g.guardHeld() // Q, or the right button with nothing else to do; see shieldart.go
 	}
 
 	if g.introLocked() {

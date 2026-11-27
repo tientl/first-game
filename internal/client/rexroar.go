@@ -1,10 +1,6 @@
 package client
 
-import (
-	"math"
-	"math/rand/v2"
-	"time"
-)
+import "math/rand/v2"
 
 // The tyrant's roar, made to chill the blood. Like the roars made for
 // films, it is several animals at once, pushed past what a throat can hold:
@@ -81,35 +77,4 @@ func tyrantRoar(r *rand.Rand, k float64) []float64 {
 	return x
 }
 
-// The ground shaking under a roar.
-var (
-	shakeUntil time.Time
-	shakeAmp   float64 // tiles, at its height
-)
-
-// shakeReach is how close, in tiles, a roar must be to shake the ground.
-const shakeReach = 14.0
-
-// roarShake shakes the view for a roar d tiles off.
-func roarShake(d float64) {
-	if d >= shakeReach {
-		return
-	}
-	a := 0.16 * (1 - d/shakeReach)
-	if time.Now().Before(shakeUntil) && a <= shakeAmp {
-		return
-	}
-	shakeAmp, shakeUntil = a, time.Now().Add(1800*time.Millisecond)
-}
-
-// shake is how far the view is thrown now, in tiles.
-func shake(frame int) (dx, dy float64) {
-	left := time.Until(shakeUntil).Seconds()
-	if left <= 0 {
-		return 0, 0
-	}
-	// It starts as the jaws open and dies away with the roar.
-	a := shakeAmp * min(1, left/1.2) * min(1, (1.8-left)/0.25)
-	t := float64(frame)
-	return a * math.Sin(t*2.1) * math.Cos(t*0.73), a * 0.7 * math.Sin(t*1.7+1)
-}
+// The ground shaking under a roar: roarShake, in feel.go.
