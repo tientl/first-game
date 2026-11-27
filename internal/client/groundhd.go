@@ -83,6 +83,7 @@ type bake struct {
 	roofed *rockField  // the same with caves roofed over; nil when no cave is near
 	wall   *wallField  // the cliffs of the newest worlds; nil when none is near (terraincliff.go)
 	river  *riverField // their rivers; nil when none is near (terrainwater.go)
+	reef   *reefField  // their coral; nil when no reef is near (terrainreef.go)
 }
 
 // rockField says where each pixel of a chunk lies on or by the rock.
@@ -136,6 +137,7 @@ func (t *terrain) newBake(k chunkKey) *bake {
 	if t.relief != nil {
 		b.wall = b.walls()
 		b.river = b.rivers()
+		b.reef = b.reefs()
 	}
 	return b
 }
@@ -329,7 +331,7 @@ func (b *bake) pixel(x, y int, u, v float64) (color.RGBA, bool) {
 		}
 	}
 	if t.relief != nil {
-		return t.reliefSea(hx, hy, u, v, s), true // see terrainsea.go
+		return b.reliefSea(x, y, hx, hy, u, v, s), true // see terrainsea.go
 	}
 	return seaWater(hx, hy, u, v, s), true
 }

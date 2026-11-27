@@ -279,13 +279,13 @@ func (t *terrain) seaDepthAt(u, v float64) float64 {
 var (
 	lagoonCol = hex(0x74dccb)
 	seaGrass  = hex(0x2f7f6a)
-	reefBed   = hex(0x2f8c8f)
 	shoalSand = hex(0xe3e6b8)
 )
 
-// reliefSea colours a pixel of the sea s (< 0) tiles out from the shore,
-// in a world with relief.
-func (t *terrain) reliefSea(hx, hy int, u, v, s float64) color.RGBA {
+// reliefSea colours chunk pixel (x, y), a pixel of the sea s (< 0) tiles out
+// from the shore, in a world with relief.
+func (b *bake) reliefSea(x, y, hx, hy int, u, v, s float64) color.RGBA {
+	t := b.t
 	if c, ok := shoreFoam(hx, hy, u, v, s); ok {
 		return c
 	}
@@ -322,14 +322,8 @@ func (t *terrain) reliefSea(hx, hy int, u, v, s float64) color.RGBA {
 			c = mix(c, withAlpha(shoalSand, c.A), 0.45*sb*smooth(k))
 		}
 	}
-	if rf := is(sim.VarReef); rf > 0.2 {
-		if cc, ok := coralHead(hx, hy, rf*clear); ok {
-			return cc
-		}
-		// The reef's bed under the heads, darker than the sand.
-		if p := fbm2(u*0.3+2, v*0.38, 1339, 3); p > 0.48 {
-			c = mix(c, withAlpha(reefBed, c.A), 0.5*rf*clear*smooth(clamp01((p-0.48)/0.12)))
-		}
+	if b.reef != nil { // the coral, and the sand, grass and rock between: see terrainreef.go
+		c = b.reefPixel(c, x, y, hx, hy, u, v, d, is(sim.VarReef)*clear)
 	}
 	return c
 }
