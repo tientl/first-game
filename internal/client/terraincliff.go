@@ -1155,9 +1155,7 @@ func (g *Game) wallDrawables(list []drawable, cam camera) []drawable {
 // drawWallFront draws the band of a cliff's foot d stands for.
 func (g *Game) drawWallFront(dst drawTarget, d drawable) {
 	s := g.ground.strips[d.idx]
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(d.sx, d.sy)
-	drawImageD(dst, s.img, op, groundDens)
+	drawChunkImage(dst, s.img, d.sx, d.sy, ebiten.ColorScale{}) // edge to edge with the next chunk's: see ground.go
 }
 
 // blockAt finds the stone at (a, d) of a wall of rock m, a pixels along it

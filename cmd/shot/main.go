@@ -146,6 +146,7 @@ func main() {
 	combatSheet := flag.String("combatsheet", "", "write the combat sheets into this folder instead of a frame: the shield on the figure in every facing, and every effect frame by frame (see internal/client/combatsheet.go)")
 	combatLive := flag.String("combat", "", "play a real fight and write it as <o>.gif: feel (blows with hit-stop, flash, knockback, shake) or shield (raise, block, parry); see combat.go")
 	heldSheet := flag.String("heldsheet", "", "write the held-item sheets into this folder instead of a frame: every held item in the hand old and new, and a GIF of the swings (see internal/client/heldsheet.go)")
+	heldFit := flag.String("heldfit", "", "write the held-fit sheets into this folder instead of a frame: every tool in hand in every facing, and GIFs of a run from behind and from the side (see internal/client/heldfitsheet.go)")
 	heldHD := flag.Bool("heldhd", true, "the HD held items, painted at the figure's density and turned cleanly (false: the old density-1 sprites; see internal/client/heldhd.go)")
 	flag.Parse()
 	client.SetMeasureCanopy(*canopyFlag)
@@ -974,6 +975,7 @@ func main() {
 		snap.Players[0].HurtSeq++
 	}
 	cookScene(&snap, sx, sy)   // see cook.go
+	hudScene(&snap)            // see hud.go
 	tentScene(&snap, sx, sy)   // see tent.go
 	thinEntities(&snap, *thin) // see terrain.go
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}
@@ -985,6 +987,7 @@ func main() {
 	ebiten.SetWindowTitle("shot")
 	game := client.New(conn, "Tien")
 	game.ShowOverlay(*overlay)
+	hudGame(game) // see hud.go
 	if *settingsTab != "" && !*menu {
 		game.ShowSettings(*settingsTab) // over the pause menu
 	}
@@ -1055,6 +1058,9 @@ func main() {
 	if *heldSheet != "" {
 		g.held, g.heldDir = game, *heldSheet
 	}
+	if *heldFit != "" {
+		g.heldFit, g.heldFitDir = game, *heldFit
+	}
 	if *tentSheetFlag != "" {
 		g.tents, g.tentDir = game, *tentSheetFlag
 	}
@@ -1087,25 +1093,27 @@ func (c *fakeConn) Messages() <-chan protocol.ServerMsg { return c.ch }
 func (c *fakeConn) Close() error                        { return nil }
 
 type shooter struct {
-	inner     ebiten.Game
-	frames    int
-	n         int
-	out       string
-	crop      string
-	done      bool
-	err       error
-	sheet     *client.Game // write its scale sheet instead of the frame
-	trunks    *client.Game // write its trunk sheet instead of the frame
-	motions   *client.Game // write its motion sheets into motionDir instead of the frame
-	motionDir string
-	held      *client.Game // write its held-item sheets into heldDir instead of the frame
-	combat    *client.Game // write its combat sheets into combatDir instead of the frame
-	combatDir string
-	heldDir   string
-	icons     *client.Game // write its icon sheet instead of the frame
-	tents     *client.Game // write the leaf tent's sheet and GIF into tentDir instead of the frame
-	tentDir   string       // the folder they go in
-	cost      bool         // print what the art has cost
+	inner      ebiten.Game
+	frames     int
+	n          int
+	out        string
+	crop       string
+	done       bool
+	err        error
+	sheet      *client.Game // write its scale sheet instead of the frame
+	trunks     *client.Game // write its trunk sheet instead of the frame
+	motions    *client.Game // write its motion sheets into motionDir instead of the frame
+	motionDir  string
+	held       *client.Game // write its held-item sheets into heldDir instead of the frame
+	combat     *client.Game // write its combat sheets into combatDir instead of the frame
+	combatDir  string
+	heldDir    string
+	heldFit    *client.Game // write its held-fit sheets into heldFitDir instead of the frame
+	heldFitDir string
+	icons      *client.Game // write its icon sheet instead of the frame
+	tents      *client.Game // write the leaf tent's sheet and GIF into tentDir instead of the frame
+	tentDir    string       // the folder they go in
+	cost       bool         // print what the art has cost
 
 	gifN, gifStep int           // -gif: frames to keep, and game frames between them
 	gifFrames     []*image.RGBA // kept so far
@@ -1168,6 +1176,13 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 		s.err, s.done = s.combat.CombatSheets(s.combatDir), true
 		if s.err == nil {
 			log.Printf("wrote the combat sheets in %s", s.combatDir)
+		}
+		return
+	}
+	if s.heldFit != nil {
+		s.err, s.done = s.heldFit.HeldFitSheets(s.heldFitDir), true
+		if s.err == nil {
+			log.Printf("wrote the held-fit sheets in %s", s.heldFitDir)
 		}
 		return
 	}

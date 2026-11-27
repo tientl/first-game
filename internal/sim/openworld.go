@@ -15,24 +15,25 @@ import (
 type WorldStyle uint8
 
 const (
-	StyleIsland  WorldStyle = iota // one island; the first worlds
-	StyleOpenV1                    // the first open worlds: caves open to the sky at any side
-	StyleOpenV2                    // caves under the mountains, entered through mouths in the south cliffs
-	StyleOpen                      // as V2, with larger deserts, swamps and beaches
-	StyleIce                       // as StyleOpen, with a frozen north; see iceage.go
-	StyleJungle                    // as StyleIce, with the woods spread over far more of the lowland
-	StyleTribal                    // as StyleJungle, with thinner woods, trails, villages, deep caves; see tribe.go
-	StyleSeas                      // as StyleTribal, but an archipelago: one land to an island; see archipelago.go
-	StyleIsles                     // as StyleSeas, with designed islands, coasts, heights and rivers; see isles.go
-	StyleWoods                     // as StyleIsles, with trees spaced by their crowns, trails and undergrowth; see woods.go
-	StyleBeaches                   // as StyleWoods, with wide beaches, dunes and driftwood; see beaches.go
-	StyleWilds                     // as StyleBeaches, with fewer, bigger islands, and animals by island and by distance from home; see wilds.go
-	StyleGround                    // as StyleWilds, with the small plants in drifts, patches and glades, and worms on damp ground; see groundcover.go
-	StyleCaves                     // as StyleGround, with a natural cave system under each island, on two levels; see cavesys.go
-	StyleFlint                     // as StyleCaves, with about half the flint on the rocky hills, in small veins with gaps; see orevein.go
+	StyleIsland   WorldStyle = iota // one island; the first worlds
+	StyleOpenV1                     // the first open worlds: caves open to the sky at any side
+	StyleOpenV2                     // caves under the mountains, entered through mouths in the south cliffs
+	StyleOpen                       // as V2, with larger deserts, swamps and beaches
+	StyleIce                        // as StyleOpen, with a frozen north; see iceage.go
+	StyleJungle                     // as StyleIce, with the woods spread over far more of the lowland
+	StyleTribal                     // as StyleJungle, with thinner woods, trails, villages, deep caves; see tribe.go
+	StyleSeas                       // as StyleTribal, but an archipelago: one land to an island; see archipelago.go
+	StyleIsles                      // as StyleSeas, with designed islands, coasts, heights and rivers; see isles.go
+	StyleWoods                      // as StyleIsles, with trees spaced by their crowns, trails and undergrowth; see woods.go
+	StyleBeaches                    // as StyleWoods, with wide beaches, dunes and driftwood; see beaches.go
+	StyleWilds                      // as StyleBeaches, with fewer, bigger islands, and animals by island and by distance from home; see wilds.go
+	StyleGround                     // as StyleWilds, with the small plants in drifts, patches and glades, and worms on damp ground; see groundcover.go
+	StyleCaves                      // as StyleGround, with a natural cave system under each island, on two levels; see cavesys.go
+	StyleFlint                      // as StyleCaves, with about half the flint on the rocky hills, in small veins with gaps; see orevein.go
+	StyleCaveWays                   // as StyleFlint, with caves of more, smaller chambers, forks, loops round the main route and side pockets, and leaner chests by distance from home; see caveways.go
 
 	// StyleLatest is what a new game is made with.
-	StyleLatest = StyleFlint
+	StyleLatest = StyleCaveWays
 )
 
 // biomeShares is how much of the lowland each biome takes, and how wide the

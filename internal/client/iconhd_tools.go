@@ -17,22 +17,23 @@ import (
 
 func init() {
 	for t := sim.TierStone; t < sim.NumTiers; t++ {
-		regIcon(sim.ToolItem(sim.ToolAxe, t), fromHeld(sim.ToolItem(sim.ToolAxe, t), 0.66))
-		regIcon(sim.ToolItem(sim.ToolPickaxe, t), fromHeld(sim.ToolItem(sim.ToolPickaxe, t), 0.7))
-		regIcon(sim.ToolItem(sim.ToolHoe, t), fromHeld(sim.ToolItem(sim.ToolHoe, t), 0.66))
+		regIcon(sim.ToolItem(sim.ToolAxe, t), fromHeld(sim.ToolItem(sim.ToolAxe, t), 0.66, 1))
+		regIcon(sim.ToolItem(sim.ToolPickaxe, t), fromHeld(sim.ToolItem(sim.ToolPickaxe, t), 0.7, 1))
+		regIcon(sim.ToolItem(sim.ToolHoe, t), fromHeld(sim.ToolItem(sim.ToolHoe, t), 0.66, 1))
 		if t > sim.TierStone {
-			regIcon(sim.SwordItem(t), fromHeld(sim.SwordItem(t), math.Pi/4))
+			regIcon(sim.SwordItem(t), fromHeld(sim.SwordItem(t), math.Pi/4, 0.8))
 		}
 	}
-	regIcon(sim.ItemSpear, fromHeld(sim.ItemSpear, math.Pi/4))
-	regIcon(sim.ItemIvorySpear, fromHeld(sim.ItemIvorySpear, math.Pi/4))
-	regIcon(sim.ItemBattleAxe, fromHeld(sim.ItemBattleAxe, 0.62))
+	regIcon(sim.ItemSpear, fromHeld(sim.ItemSpear, math.Pi/4, 1.45))
+	regIcon(sim.ItemIvorySpear, fromHeld(sim.ItemIvorySpear, math.Pi/4, 1.5))
+	regIcon(sim.ItemBattleAxe, fromHeld(sim.ItemBattleAxe, 0.62, 1))
 	regIcon(sim.ItemRod, icRod)
 	regIcon(sim.ItemTorch, icTorchHeld)
 }
 
 // heldFit is where a held item's painting reaches, in its own frame turned
-// by ang (and mirrored): x0, y0, x1, y1 in art pixels from the grip.
+// by ang (and mirrored), su times as thick: x0, y0, x1, y1 in art pixels
+// from the grip.
 type heldFit struct{ x0, y0, x1, y1 float64 }
 
 var heldFits = struct {
@@ -41,14 +42,15 @@ var heldFits = struct {
 }{m: map[heldFitKey]heldFit{}}
 
 type heldFitKey struct {
-	d   *heldDef
-	ang float64
+	d       *heldDef
+	ang, su float64
 }
 
-// fitOf measures what d paints turned by ang: it is painted once, coarsely,
-// on a scratch canvas, and the box of what it covered kept.
-func fitOf(d *heldDef, ang float64) heldFit {
-	key := heldFitKey{d, ang}
+// fitOf measures what d paints turned by ang, su times as thick: it is
+// painted once, coarsely, on a scratch canvas, and the box of what it
+// covered kept.
+func fitOf(d *heldDef, ang, su float64) heldFit {
+	key := heldFitKey{d, ang, su}
 	heldFits.Lock()
 	f, ok := heldFits.m[key]
 	heldFits.Unlock()
@@ -57,7 +59,7 @@ func fitOf(d *heldDef, ang float64) heldFit {
 	}
 	const k, n = 4.0, 200 // pixels to an art pixel; the canvas, room for 50 art pixels
 	p := &icv{n: n, k: k, px: make([]color.RGBA, n*n), part: make([]uint8, n*n)}
-	h := &hpv{icv: p, cs: math.Cos(ang), sn: math.Sin(ang), ox: n / k / 2, oy: n / k / 2, flip: true, icon: true}
+	h := &hpv{icv: p, cs: math.Cos(ang), sn: math.Sin(ang), ox: n / k / 2, oy: n / k / 2, su: su, sv: 1, flip: true, icon: true}
 	d.paint(h)
 	x0, y0, x1, y1 := n, n, -1, -1
 	for y := 0; y < n; y++ {
@@ -79,17 +81,18 @@ func fitOf(d *heldDef, ang float64) heldFit {
 const iconLo, iconHi = 0.55, 15.45
 
 // heldOn paints held item d on p turned by ang from upright (clockwise,
-// radians), mirrored, scaled to fit the box x0, y0, x1, y1 (design units)
-// and centred in it. It returns the frame it painted in with the icon still
+// radians), mirrored, su times as thick for its length (a long spear would
+// be a hair at a slot's size), scaled to fit the box x0, y0, x1, y1 (design
+// units) and centred in it. It returns the frame it painted in with the icon still
 // at the item's scale: call done when finished with it.
-func heldOn(p *icv, d *heldDef, ang, x0, y0, x1, y1 float64) *heldPlace {
-	f := fitOf(d, ang)
+func heldOn(p *icv, d *heldDef, ang, su, x0, y0, x1, y1 float64) *heldPlace {
+	f := fitOf(d, ang, su)
 	sc := min((x1-x0)/(f.x1-f.x0), (y1-y0)/(f.y1-f.y0))
 	gx := (x0+x1)/2 - (f.x0+f.x1)/2*sc
 	gy := (y0+y1)/2 - (f.y0+f.y1)/2*sc
 	k := p.k
 	p.k *= sc
-	hp := &hpv{icv: p, cs: math.Cos(ang), sn: math.Sin(ang), ox: gx / sc, oy: gy / sc, flip: true, icon: true}
+	hp := &hpv{icv: p, cs: math.Cos(ang), sn: math.Sin(ang), ox: gx / sc, oy: gy / sc, su: su, sv: 1, flip: true, icon: true}
 	d.paint(hp)
 	return &heldPlace{hpv: hp, k: k, sc: sc}
 }
@@ -110,14 +113,14 @@ func (h *heldPlace) design(u, v float64) (float64, float64) {
 }
 
 // fromHeld is the icon painter of item k from its held painter, turned by
-// ang and filling the box.
-func fromHeld(k sim.ItemKind, ang float64) iconPainter {
-	return func(p *icv) { heldOn(p, heldDefs[k], ang, iconLo, iconLo, iconHi, iconHi).done() }
+// ang, su times as thick, filling the box.
+func fromHeld(k sim.ItemKind, ang, su float64) iconPainter {
+	return func(p *icv) { heldOn(p, heldDefs[k], ang, su, iconLo, iconLo, iconHi, iconHi).done() }
 }
 
 // icTorchHeld is the held torch with its flame burning upright on it.
 func icTorchHeld(p *icv) {
-	h := heldOn(p, heldTorchDef, 0.62, iconLo, 5.4, 11.4, iconHi)
+	h := heldOn(p, heldTorchDef, 0.62, 1.1, iconLo, 5.4, 11.4, iconHi)
 	// The flame and its glow, in the torch's scale, rooted in its head.
 	x, y := h.at(0, torchFlameV-0.5)
 	paintTorchFlame(p, x, y, 0.35)
@@ -127,7 +130,7 @@ func icTorchHeld(p *icv) {
 // icRod is the fishing rod with its line hanging from the tip to a float
 // and a bone hook.
 func icRod(p *icv) {
-	h := heldOn(p, heldRodDef, 0.72, iconLo, iconLo, 12.6, iconHi)
+	h := heldOn(p, heldRodDef, 0.72, 1.3, iconLo, iconLo, 12.6, iconHi)
 	tx, ty := h.design(rodTipU, rodTipV+0.4)
 	h.done()
 	// The line from the tip, slack, down to the float.

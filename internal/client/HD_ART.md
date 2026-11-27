@@ -575,7 +575,20 @@ lays out a panel at its own size and shrinks it (the difficulty picker).
   icons are painters like the item icons', baked per size.
 - **Maps** (`uimap.go`): ground not yet walked is faded paper with
   hatching (`fogSrc`) on both maps; the minimap is drawn at the screen's
-  resolution and cut round (`maskSrc`).
+  resolution and cut round (`maskSrc`), a circle in the ring of the day.
+- **The HUD** (`hudlayout.go`, `hud.go`, `hudtoasts.go`) is kept small so
+  the world is what is seen, 12 UI pixels from the edges: thin vital bars
+  (11 px, the value small inside) on a see-through hide (`hudPanel`),
+  round status chips under them (a buff's rim runs down like a clock), the
+  long line of a status said once under the chips as it begins; top right
+  the round minimap in the ring of the day (a sun or moon rides it), one
+  line of day, season and weather under it; top middle a slim boss bar,
+  the notices under it (three at most, fading by themselves); over the
+  hotbar one line, the held item's name for a moment, else the one hint.
+  Every piece's place comes from `hudlayout.go`, and
+  `TestHUDLayoutKeepsClear` checks they keep clear of each other at every
+  screen size and UI size. A chip or the day's line names itself under the
+  pointer.
 - **Over the world** (`uilabels.go`): one label at a time, for what the
   pointer is on, on a soft plate that fades in and out over 140 ms; what is
   out of reach gets a small hint; the target is marked by thin soft
@@ -588,7 +601,8 @@ lays out a panel at its own size and shrinks it (the difficulty picker).
   call `noteBox`; a full-screen dim is `dimScreen`. The screenshot tool
   shows them: `-overlay bag|recipes|craft|map|palette`, `-chest`,
   `-cook -cookui pot`, `-bosses -demobosses`, `-menu`, `-create`,
-  `-devconsole`, `-freebuild`, `-status`, `-aim`.
+  `-devconsole`, `-freebuild`, `-status`, `-skillstatus`, `-buffs`,
+  `-notices "a|b|c"`, `-aim`.
 
 ## Held items
 
@@ -602,12 +616,19 @@ three times as fine (`iconFine`).
 
 - **Its own frame.** A held item is painted in art pixels with the grip,
   where the fist closes, at (0, 0) and the working end straight up (-y),
-  the edge forward (+x), at its size beside the 31-pixel figure (an axe
-  about 16 pixels from butt to head, a spear 27, the rod 28: the old held
-  sprites' sizes, so swings reach as far). `heldDef` gives the painter,
-  the box it paints in, and `grip`, the gap left in the haft at the grip:
+  the edge forward (+x). `heldDef` gives the painter, the box it paints
+  in, its `scale` (art pixels to the painter's design units), where its
+  head is (`head`, `reach`: a swing's trail), how it is `carry`'d, and
+  `grip`, the gap left in the haft at the grip:
   the fist, drawn before the item, shows through it, so the hand closes
   round the haft instead of the haft lying over the hand.
+- **Its real size** beside the 31-pixel figure (`TestHeldSizes`): an axe,
+  a pick or a hoe 0.4 to 0.45 of its height (forearm and hand), a knife
+  about a quarter, the spear and the ivory spear 1.2, the torch a third
+  (its flame `fireHand`, smaller than a torch's on its stand), the rod
+  1.0, the war axe a half. A painter is set to it by its `scale`, not
+  resampled, so the heads keep their detail; the knife and the spears are
+  drawn at their size.
 - **Turned before it is painted.** Swings turn tools through every angle,
   so each item is painted anew at each of `heldTurns` (64) angles: every
   shape is turned first (`hpv.xf`), so edges stay clean, the outline stays
@@ -618,13 +639,24 @@ three times as fine (`iconFine`).
   canvas (`hpv.lit`, `hpv.rod`). Facing left the image is mirrored, as
   the figure is. An item's angles are painted the first time it is shown,
   ahead on another goroutine; an angle wanted before then is painted on
-  the spot (about 5 ms). One angle is 2 to 17 KB; all 64 angles of every
-  held item would be about 11 MB, a session pays for what is held.
+  the spot (about 5 ms). One angle is 1 to 27 KB; all 64 angles of every
+  held item would be about 8 MB, a session pays for what is held.
 - **Stone by tier** (`heldMats`): stone knapped in broad matt scars, flint
   in finer scars with a waxy gloss, jade and agate ground smooth and
   polished (agate banded), obsidian in big glassy scars. `face` shades a
   face of a head from the normal it leans to, bevels it to its edge, and
   puts a glint only where an edge or a ridge mirrors the sun to the eye.
+- **Carried** (`drawCarried`), standing, idling, walking or running: the
+  arm that holds something swings with the stride, less and straighter
+  (`upWalkHold`, `upRunHold`). A tool hangs from the hand, its head down
+  and forward, the edge forward (mirrored), turning with the forearm
+  (`hangLean`, `hangFollow`); seen from the front or the back it hangs
+  outwards behind the body, foreshortened (`heldLowQ`, painted when first
+  wanted), its head beside the hip. A spear or the rod is carried along
+  the body, the point forward and 30 degrees up (`poleUp`), upright at
+  the side from the front or the back. A torch is held up and forwards,
+  the flame over the shoulder: its arm stays raised (`upTorch` in the
+  upper half's frame, `torchArm`) whatever the other does.
 - **In the hand.** `drawHeldAt` puts the grip on the hand of the jointed
   figure's frame and tips the item by `heldCarry` plus what the forearm
   turns (`heldTurn`); the chop, the slash and the war axe's cleave turn
@@ -648,7 +680,9 @@ writes `held_compare.png` (each item in the caveman's hand, old and new,
 at 1080p and three times as big about the hand), `held_swings.gif` (the
 chop, the slash, the thrust and a walk with a torch, every facing),
 `held_motions_*.png` (the motions that keep something in the hand) and
-prints what painting them costs. `HELD_DUMP=dir go test ./internal/client
+prints what painting them costs. `shot -heldfit dir` writes `held_size.png` (each
+tool in hand standing, every facing) and GIFs of a run from behind and
+from the side (`held_run_back.gif`, `held_run_side.gif`). `HELD_DUMP=dir go test ./internal/client
 -run DumpHeld` writes every item at a few angles four times as big
 (`HELD_ONLY=6,32` for some), and `go test ./internal/client -run Held`
 paints every angle of every item and checks each is whole.
