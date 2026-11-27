@@ -974,6 +974,7 @@ func main() {
 		snap.Players[0].HurtSeq++
 	}
 	cookScene(&snap, sx, sy)   // see cook.go
+	hudScene(&snap)            // see hud.go
 	tentScene(&snap, sx, sy)   // see tent.go
 	thinEntities(&snap, *thin) // see terrain.go
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}
@@ -985,6 +986,7 @@ func main() {
 	ebiten.SetWindowTitle("shot")
 	game := client.New(conn, "Tien")
 	game.ShowOverlay(*overlay)
+	hudGame(game) // see hud.go
 	if *settingsTab != "" && !*menu {
 		game.ShowSettings(*settingsTab) // over the pause menu
 	}
