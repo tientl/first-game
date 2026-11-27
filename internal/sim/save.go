@@ -66,7 +66,12 @@ import (
 //     two levels (cavesys.go), with its stalagmites, ropes and props, and
 //     torches that burn on in it. Nothing older changes, but an older game
 //     would make the wrong world of such a save, so it must refuse it.
-const SaveVersion = 26
+//   - 27: worlds of StyleFlint: about half the flint on the rocky hills, in
+//     small veins with gaps (orevein.go), and so everything laid out after
+//     the ores where the flint no longer lies. Nothing older changes, but an
+//     older game would make the wrong world of such a save, so it must
+//     refuse it.
+const SaveVersion = 27
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.

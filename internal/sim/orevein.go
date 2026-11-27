@@ -15,8 +15,9 @@ import (
 //   - agate in the deserts, obsidian on the volcano's ash, both rare;
 //   - coal in seams through the caves and the ash.
 //
-// In a world of 1024 by 1024 that is about 2,000 flint, 1,000–2,000 jade,
-// 400 agate, 400 obsidian and 3,000–4,000 coal.
+// In a world of 1024 by 1024 (StyleFlint, seed 1) that is about 2,200 flint
+// (900 of it on the rocky hills, where there were 1,600 before), 1,200
+// jade, 100 agate, 800 obsidian and 1,700 coal.
 
 // veinDef is where one kind of ore lies and how its veins grow.
 type veinDef struct {
@@ -24,20 +25,32 @@ type veinDef struct {
 	on   []Tile  // tiles it lies on
 	per  float64 // veins started per tile of those
 	size [2]int  // blocks to a vein, least and most
+	gap  int     // tiles round a vein's start that must hold none of its ore yet (0: no matter)
 }
 
 var veins = []veinDef{
-	{EntityCopperOre, []Tile{TileRocky}, 1.0 / 35, [2]int{3, 7}},
-	{EntityCopperOre, []Tile{TileGrass, TileForest}, 1.0 / 500, [2]int{2, 4}}, // outcrops
-	{EntityPlatinumOre, []Tile{TileDesert}, 1.0 / 950, [2]int{3, 6}},
-	{EntityDiamondOre, []Tile{TileAsh}, 1.0 / 220, [2]int{3, 6}},
-	{EntityCoal, []Tile{TileCave}, 1.0 / 900, [2]int{4, 8}},
-	{EntityCoal, []Tile{TileAsh}, 1.0 / 200, [2]int{3, 6}},
+	{EntityCopperOre, []Tile{TileRocky}, 1.0 / 35, [2]int{3, 7}, 0},
+	{EntityCopperOre, []Tile{TileGrass, TileForest}, 1.0 / 500, [2]int{2, 4}, 0}, // outcrops
+	{EntityPlatinumOre, []Tile{TileDesert}, 1.0 / 950, [2]int{3, 6}, 0},
+	{EntityDiamondOre, []Tile{TileAsh}, 1.0 / 220, [2]int{3, 6}, 0},
+	{EntityCoal, []Tile{TileCave}, 1.0 / 900, [2]int{4, 8}, 0},
+	{EntityCoal, []Tile{TileAsh}, 1.0 / 200, [2]int{3, 6}, 0},
 }
+
+// flintVeins are the veins of worlds made since StyleFlint. Before, the
+// flint of the rocky hills lay vein against vein, a carpet of black-dotted
+// stones; now about half as much lies there, in smaller veins with bare
+// ground between them. Flint is still the commonest ore, and the veins by
+// the spawn are as they were.
+var flintVeins = func() []veinDef {
+	v := append([]veinDef(nil), veins...)
+	v[0] = veinDef{EntityCopperOre, []Tile{TileRocky}, 1.0 / 30, [2]int{3, 5}, 3}
+	return v
+}()
 
 // Jade and the flint by the spawn.
 var (
-	jadeVein = veinDef{EntityIronOre, []Tile{TileCave}, 1.0 / 1050, [2]int{3, 6}}
+	jadeVein = veinDef{EntityIronOre, []Tile{TileCave}, 1.0 / 1050, [2]int{3, 6}, 0}
 )
 
 const (
@@ -78,12 +91,24 @@ func (w *World) scatterVeins(rng *rand.Rand, defs []veinDef, ok func(tx, ty int)
 				if !onTile(t, v.on) {
 					continue
 				}
-				if rng.Float64() < per[k] && (ok == nil || ok(tx, ty)) {
+				if rng.Float64() < per[k] && (ok == nil || ok(tx, ty)) && (v.gap == 0 || !w.oreNear(v.kind, tx, ty, v.gap)) {
 					w.growVein(rng, v, tx, ty)
 				}
 			}
 		}
 	}
+}
+
+// oreNear reports whether ore of kind k lies within r tiles of (tx, ty).
+func (w *World) oreNear(k EntityKind, tx, ty, r int) bool {
+	for y := ty - r; y <= ty+r; y++ {
+		for x := tx - r; x <= tx+r; x++ {
+			if e := w.entityAt(x, y); e != nil && e.Kind == k {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // growVein lays a vein of v from (tx, ty), wandering from block to block.
@@ -126,7 +151,7 @@ func (w *World) scatterDeepOres(rng *rand.Rand, sx, sy int) {
 		if t != TileGrass && t != TileForest && t != TileRocky || !w.canPlace(x, y) {
 			continue
 		}
-		if w.growVein(rng, veinDef{EntityCopperOre, []Tile{t}, 0, [2]int{3, 5}}, x, y) >= 2 {
+		if w.growVein(rng, veinDef{EntityCopperOre, []Tile{t}, 0, [2]int{3, 5}, 0}, x, y) >= 2 {
 			v++
 		}
 	}

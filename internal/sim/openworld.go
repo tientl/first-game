@@ -29,9 +29,10 @@ const (
 	StyleWilds                     // as StyleBeaches, with fewer, bigger islands, and animals by island and by distance from home; see wilds.go
 	StyleGround                    // as StyleWilds, with the small plants in drifts, patches and glades, and worms on damp ground; see groundcover.go
 	StyleCaves                     // as StyleGround, with a natural cave system under each island, on two levels; see cavesys.go
+	StyleFlint                     // as StyleCaves, with about half the flint on the rocky hills, in small veins with gaps; see orevein.go
 
 	// StyleLatest is what a new game is made with.
-	StyleLatest = StyleCaves
+	StyleLatest = StyleFlint
 )
 
 // biomeShares is how much of the lowland each biome takes, and how wide the
