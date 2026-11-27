@@ -46,10 +46,11 @@ const (
 )
 
 var (
-	reelGrass = color.RGBA{92, 132, 74, 255}
-	reelWater = color.RGBA{52, 112, 140, 255}
-	reelFloor = color.RGBA{122, 104, 80, 255}
-	allDirs   = []sim.Dir{sim.DirDown, sim.DirUp, sim.DirRight, sim.DirLeft}
+	reelGrass   = color.RGBA{92, 132, 74, 255}
+	reelWater   = color.RGBA{52, 112, 140, 255}
+	reelShallow = color.RGBA{96, 196, 190, 255}
+	reelFloor   = color.RGBA{122, 104, 80, 255}
+	allDirs     = []sim.Dir{sim.DirDown, sim.DirUp, sim.DirRight, sim.DirLeft}
 )
 
 // sheetID is the player the sheets show: someone other than me, so nothing
@@ -191,7 +192,7 @@ func gifOf(name string) string {
 		return "motion_eat_drink.gif"
 	case "hurt", "die":
 		return "motion_hurt_death.gif"
-	case "swim", "tread water", "wade in", "ford", "hair afloat":
+	case "swim", "swim in clear water", "tread water", "wade in", "ford", "hair afloat":
 		return "motion_swim.gif"
 	case "sleep", "sleep on the ground", "hair on the pillow":
 		return "motion_sleep.gif"

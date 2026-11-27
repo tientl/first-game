@@ -109,6 +109,8 @@ func main() {
 	scaleSheet := flag.Bool("scalesheet", false, "write the scale sheet instead of a frame: the player next to every tree, plant, rock and building, with heights (see internal/client/scalesheet.go); the heights are printed too")
 	trunkSheet := flag.Bool("trunksheet", false, "write the trunk sheet instead of a frame: the foot of every kind of tree close up, three times the size (see internal/client/trunksheet.go)")
 	costFlag := flag.Bool("cost", false, "print what the art drawn in code has cost once the frame is taken: the bytes of its images, the time to draw the start-up set and the trees drawn ahead, and the Go heap")
+	swimAt := flag.String("swimat", "", "with -swim: put the player in the water nearest the spawn: deep (open sea), mid (deep water by the shallows), shallow (the shallows), ford or river")
+	swimFlag := flag.Bool("swim", false, "the player is swimming where they stand (put them in the water with -coast -move), and the other player, a woman with long hair, swims beside them; with -run both are on the move")
 	moveBy := flag.String("move", "", "dx,dy: stand this many tiles from where the other flags put the player (to stand behind a tree, at a door)")
 	standAt := flag.String("pos", "", "x,y: stand on this tile, whatever the other flags say (to see one place in worlds of two styles)")
 	scaleOnly := flag.String("scaleonly", "", "with -scalesheet: only the groups whose name contains this (trees, conifers, swamp, low, buildings, rocks, creatures)")
@@ -297,6 +299,9 @@ func main() {
 				}
 			}
 		}
+	}
+	if *swimAt != "" {
+		sx, sy = swimSpot(w, *swimAt, sx, sy)
 	}
 	if x, y, ok := islesSpot(w, *at, sx, sy); ok { // see isles.go
 		sx, sy, *at = x, y, ""
@@ -818,6 +823,15 @@ func main() {
 			ID: 1<<27 + 1, Kind: sim.CreatureRaptor, X: float32(sx + 1.3*float64(dx)), Y: float32(sy + 1.3*float64(dy)), State: sim.CreatureIdle, FaceLeft: dx > 0,
 		})
 	}
+	if *swimFlag {
+		snap.Players[0].Swimming, snap.Self.Breath = true, 1
+		if len(snap.Players) > 1 {
+			o := &snap.Players[1]
+			o.X, o.Y, o.Dir, o.Swimming = float32(sx-2.4), float32(sy+0.4), snap.Players[0].Dir, true
+			o.Look = sim.Look{Female: true, Hair: sim.HairLong, HairColor: 3, Skin: 2}
+			o.Mount, o.Boat, o.Asleep = 0, 0, false
+		}
+	}
 	if *sea {
 		snap.Boats = []protocol.BoatView{
 			{ID: 1, Kind: sim.BoatSail, X: float32(sx), Y: float32(sy), Heading: 0.2, Speed: 0.25, HP: 110, Rider: 1},
@@ -910,6 +924,10 @@ func main() {
 		dx, dy := snap.Players[0].Dir.Delta()
 		before.Players[0].X -= 0.04 * float32(dx)
 		before.Players[0].Y -= 0.04 * float32(dy)
+		if *swimFlag && len(before.Players) > 1 {
+			before.Players[1].X -= 0.04 * float32(dx)
+			before.Players[1].Y -= 0.04 * float32(dy)
+		}
 		conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: before}
 	}
 	if *hurtFlag {
@@ -1335,4 +1353,53 @@ func addJungle(snap *protocol.Snapshot, sx, sy float64) {
 	}
 	monkey(4.2, 1.6, sim.CreatureEat, true)
 	monkey(-4.5, 4.2, sim.CreatureIdle, false)
+}
+
+// swimSpot is the middle of the water tile nearest (sx, sy) of the kind
+// asked for (see -swimat), or (sx, sy) if there is none.
+func swimSpot(w *sim.World, kind string, sx, sy float64) (float64, float64) {
+	N, H := w.Size()
+	tiles := w.Tiles()
+	at := func(x, y int) sim.Tile {
+		if x < 0 || y < 0 || x >= N || y >= H {
+			return sim.TileWater
+		}
+		return tiles[y*N+x]
+	}
+	all := func(tx, ty, r int, ok func(sim.Tile) bool) bool {
+		for y := ty - r; y <= ty+r; y++ {
+			for x := tx - r; x <= tx+r; x++ {
+				if !ok(at(x, y)) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	water := func(t sim.Tile) bool { return t == sim.TileWater }
+	want := func(tx, ty int) bool {
+		t := at(tx, ty)
+		switch kind {
+		case "deep":
+			return water(t) && all(tx, ty, 6, water)
+		case "mid":
+			return water(t) && all(tx, ty, 1, water) && !all(tx, ty, 3, water)
+		case "shallow":
+			return t == sim.TileShallow && all(tx, ty, 1, func(t sim.Tile) bool { return t == sim.TileShallow })
+		case "ford":
+			return t == sim.TileFord
+		case "river":
+			return t == sim.TileRiver && all(tx, ty, 1, func(t sim.Tile) bool { return t == sim.TileRiver })
+		}
+		return false
+	}
+	best, bx, by := math.Inf(1), sx, sy
+	for ty := 4; ty < H-4; ty++ {
+		for tx := 4; tx < N-4; tx++ {
+			if d := math.Hypot(float64(tx)-sx, float64(ty)-sy); d < best && want(tx, ty) {
+				best, bx, by = d, float64(tx)+0.5, float64(ty)+0.5
+			}
+		}
+	}
+	return bx, by
 }
