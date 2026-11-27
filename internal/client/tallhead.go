@@ -103,6 +103,10 @@ func (g *figGen) tallBraid(l *figLayer, r ramp, x, y0, y1 float64, tie color.RGB
 }
 
 func (g *figGen) tallHead(d sim.Dir, shut bool) {
+	if pilotOn() { // a style pilot's head: see charpilot_head.go
+		g.pHead(d, shut)
+		return
+	}
 	f := &g.f
 	l := g.look
 	sk, hr := g.sk, g.hr
