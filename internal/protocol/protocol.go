@@ -87,6 +87,7 @@ type Welcome struct {
 	SurfaceH      int            // rows above ground; the caves are the rows below, from SurfaceH+sim.UndergroundGap; 0: no caves below
 	Relief        []sim.Relief   // row-major like Tiles: each tile's height level and variant; nil for worlds made before sim.StyleIsles
 	Difficulty    sim.Difficulty // the world's difficulty: whether dying costs what you carry
+	Caves         []sim.CaveCell // since sim.StyleCaves: what each tile from row SurfaceH down is in the natural caves (see sim.CaveCell); nil before
 }
 
 // Snapshot is the state one client needs to draw a frame, sent every tick.

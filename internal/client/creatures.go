@@ -1054,6 +1054,12 @@ func (g *Game) drawFish(dst drawTarget, cam camera, alpha float64) {
 		op.ColorScale.Scale(0.86, 0.94, 1, 1) // seen through the water, colours and all
 		op.ColorScale.ScaleAlpha(0.9)
 		drawSprite(dst, s, op)
+		if g.naturalCaves() && int(y) >= g.surfaceH { // a blind cave fish: pale, all but white
+			op.ColorScale.Reset()
+			op.ColorScale.Scale(0.55, 0.5, 0.55, 0.55)
+			op.Blend = ebiten.BlendLighter
+			drawSprite(dst, s, op)
+		}
 
 		// Now and then a ring spreads on the surface above it.
 		ph := math.Mod(float64(g.frame)/170+float64(c.ID)*0.37, 1)

@@ -261,7 +261,7 @@ func (w *World) stepWeather() {
 
 // outdoors reports whether (x, y) is under the sky: not in a cave.
 func (w *World) outdoors(x, y float64) bool {
-	return w.TileAt(int(math.Floor(x)), int(math.Floor(y))) != TileCave
+	return w.TileAt(int(math.Floor(x)), int(math.Floor(y))) != TileCave && !w.Underground(int(math.Floor(y)))
 }
 
 // lightning strikes once, somewhere near a player who is out of doors.
@@ -412,7 +412,7 @@ func (w *World) stepTornado(t *Tornado) {
 
 // wetFire reports whether rain is falling on (x, y), so fires there burn faster.
 func (w *World) wetFire(tx, ty int) bool {
-	return w.Weather().Wet() && w.TileAt(tx, ty) != TileCave
+	return w.Weather().Wet() && w.TileAt(tx, ty) != TileCave && !w.Underground(ty)
 }
 
 // wintry reports whether p feels the winter: out in the snow or the wind in

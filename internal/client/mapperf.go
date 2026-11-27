@@ -101,10 +101,12 @@ func (g *Game) startSeasonGround(s sim.Season) {
 	ch := make(chan *terrain, 1)
 	g.seasonNext = &seasonGround{season: s, ready: ch}
 	w, h, tiles, pond, relief, under := g.width, g.height, g.tiles, g.pondMask, g.relief, g.caveRow()
+	cells, surfaceH := g.caveCells, g.surfaceH
 	go func() {
 		terr := newTerrain(w, h, seasonTiles(w, h, tiles, s, pond))
 		terr.setRelief(relief)
 		terr.under = under
+		terr.setCaves(cells, surfaceH) // see cavebake.go
 		ch <- terr
 	}()
 }

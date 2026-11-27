@@ -482,6 +482,13 @@ const (
 
 	NoticeHardGround // Arg: EntityKind whose stakes do not go into rock or a ford; see tent.go
 
+	// The natural caves: see cavesys.go and caveprops.go.
+	NoticeDeepCaves  // down the rope into the deep caves
+	NoticeUpperCaves // back up the rope out of the deep caves
+	NoticeLavaBurn   // burnt by the lava, stood against it
+	NoticePainting   // Arg: the picture on the wall (see PaintingOf)
+	NoticeFossil     // Arg: ItemKind dug out of a great skeleton in the rock
+
 	NoticeStolen // Arg: ItemKind a flying reptile snatched; see skills.go
 )
 

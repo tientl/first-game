@@ -237,6 +237,42 @@ in the settings file as `"ground": "warm"`; `shot -warm`). The shore image
 the surf shader reads stays at density 1, as shaders run at art-pixel
 resolution. `go test ./internal/client -bench BakeChunk` times a bake.
 
+## The small plants and the ground cover
+
+- **Drawings** (`coverart.go`): green grass, tall grass (the tufts that give
+  fibre) and its stubble, leafy clumps, ferns, wild flowers, broad leaves
+  and berry bushes, 4 to 6 drawings each, for each season (`coverPals`:
+  summer's tall grass a muted straw, spring's green, autumn's golden,
+  winter's bleached with snow on the tips; flowers open in spring, gone to
+  seed in autumn). `coverFinish` gives each a soft foot: no outline along
+  the bottom, the lowest pixels darker and fading into the ground round the
+  root, and a soft contact shadow under it, so nothing stands on the grass
+  like a sticker. A season's set is drawn the first time it is shown.
+- **Each plant** is drawn mirrored or not, 13% bigger or smaller and a
+  shade lighter, darker, warmer or cooler by where it grows, greener or
+  yellower with the meadow's own patches (`coverLookAt`, `drawCover`).
+- **Where they grow** (`undergrowth.go`, `plantChances`): noise fields, not
+  an even chance: grass in drifts, flowers in patches of one kind, ferns and
+  broad leaves under the trees (the shade of the trees in view, `noteShade`),
+  glades where little grows. The tall grass, bushes, twigs and flowers that
+  are things in the world are laid out the same way by the server in worlds
+  of `sim.StyleGround` (`sim/groundcover.go`).
+- **Life** (`coverlife.go`): the wind shears every plant about its foot in
+  gusts running across the land, harder in a wind or a storm (`windSkew`);
+  a plant bends away from whoever walks through it and springs back with a
+  wobble (`bender`); tall grass hides the feet of someone standing in it
+  (`drawFeetInGrass`); litter, needles or moss lie under each tree
+  (`drawLitter`). Nothing is baked again for any of it.
+- **The ground** (`coverground.go`, called from `grassGround` and
+  `forestGround`): the sward thick and dark in places and thin in others,
+  clover, moss, worn spots of earth showing through thinning grass, and in
+  the woods moss cushions, dark duff and drifts of fallen leaves. All of it
+  per pixel of the bake: the chunks cost what they did.
+- `COVER_DUMP=dir go test ./internal/client -run DumpCover` writes every
+  drawing three times as big on the ground it grows on (`cover_variants.png`)
+  and the seasons (`cover_seasons.png`). `shot -walk dx,dy -gif N` has the
+  player walk through the grass.
+
 ## The environment (trees, plants, rocks, buildings)
 
 `mkUp(c, ax, ay)` makes the sprite of a thing that stands in the world
@@ -281,7 +317,8 @@ go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
   a look at their size.
 - Trunks at HD go through `trunkHD` (`trunkhd.go`): a taper, a bow, a flared
   round foot, roots over the ground, a bark per kind (`barkKind`: furrowed,
-  smooth, plates, scales, fibre, rings, shaggy, dead) lit from the top left
+  smooth, plates, scales, fibre, rings, shaggy, dead, and the cycad's
+  diamond scars of fallen leaf bases, `cycadScar`) lit from the top left
   with a rim on the far edge, dead stubs, moss on the shaded side, and
   `dressFoot` laying grass, snow, sand or mud over the roots. Every bark
   ramp is in `barkOf`, which is how `isTrunk` tells wood from leaves.
@@ -325,6 +362,42 @@ go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
   ./internal/client -run DumpTent` writes every thatch three times as big,
   and with someone asleep in it; `shot -tentsheet dir` the sheet with the
   bag icon and a GIF of going to bed in it; `shot -tent -tentsleep` a camp.
+
+## The natural caves
+
+Worlds made since `sim.StyleCaves` have a cave system under each island
+(`sim/cavesys.go`). Their chunks are baked by `cavebake.go` instead of the
+ground bake, from the tiles and the cave cells the server sends (each tile's
+chamber, rock and whether the main route runs over it):
+
+- The rock's edge is the tiles' eased and pushed about by noise. Rock with
+  floor below it shows a face `caveFaceH` (34 art pixels) tall inside its own
+  tiles, built of facets lit from the upper left (`facePixel`): each rock
+  (`caveMats`, COMFY52 tones) has its own, limestone with flowstone, mossy
+  stone, sandstone in courses, basalt in columns, ice, mud. Above the faces
+  the rock is the void of the roof with a thin rim (`topPixel`). Rock far
+  from any cave is a cheap flat dark chunk (`deepRockChunk`).
+- The floor (`floorPixel`): slabs, grit, pebbles with their shadows, damp
+  patches and small puddles, shade by the walls and at the foot of faces,
+  the worn main route.
+- `cavezones.go` adds the themes: water, lava, ice and fords with their
+  shores (`liquidPixel`, `shore`), each chamber's floor (`zoneFloor`,
+  `tombFloor`) and the walls' accents (`faceAccent`: roots, icicles,
+  crystals, veins of fire).
+- What stands in the caves is drawn the first time it is wanted:
+  `cavethings.go` (the hole down, the rope up, stalagmites by rock) and
+  `caveprops.go` (crystals, giant mushrooms, webs, egg sacs, bones, the
+  fossil, the paintings, the tomb's coffin, jars and pillars, roots,
+  icicles, obsidian, the roost and its bats). The flat ones are drawn under
+  everything (`drawCaveGround`); crystals and mushrooms light the dark
+  (`caveGlows`, `cavelights.go`).
+- The map bakes each level as its own layer (`cavemap.go`).
+
+`go test ./internal/client -bench BakeCaveChunk` times a cave chunk. Look at
+a chamber with `go run ./cmd/shot -open -size 1024 -at cavezone:crystal`
+(or lake, mushroom, nest, den, roost, fossil, paintings, tomb, lava,
+frozen, flooded, stream), `-at caverock:limestone`, `-at caveprop:fossil`,
+`-at cavein|cavedown|caveup`; the map with `-overlay map -reveal -mapzoom 3`.
 
 ## The bosses and sea monsters
 

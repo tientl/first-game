@@ -66,7 +66,7 @@ func (g *Game) drawLighting(screen drawTarget, cam camera) {
 		screen.DrawImage(g.darkness, nil)
 	}
 	if lava {
-		g.lavaLight(screen, cam, lx0, ly0, false, float32(0.12+0.3*dark))
+		g.lavaLight(screen, cam, lx0, ly0, false, float32((0.12+0.3*dark)*g.caveLavaGlow())) // see cavelights.go
 	}
 	g.crystalLights(screen, cam, false)
 

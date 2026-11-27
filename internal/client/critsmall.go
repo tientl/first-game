@@ -123,32 +123,43 @@ func rabbitHD(pose, f int) (*canvas, float64, float64) {
 
 // --- the worm ------------------------------------------------------------------------
 
-// wormHD is an earthworm crawling: a wave runs down its ringed body.
+// wormHDRamp is an earthworm's skin: a dull, earthy pink, so it does not
+// shine out of the grass.
+var wormHDRamp = mkRamp(0x56382f, 0x784f45, 0x98695b, 0xb28274, 0xc89e8e)
+
+// wormHD is an earthworm crawling, small, its tail still in the soil: a
+// wave runs down its ringed body, out of a crumb of dark earth.
 func wormHD(pose, f int) (*canvas, float64, float64) {
-	q := newCritAt(15, 9, 1, 1)
+	q := newCritAt(12, 7, 1, 1)
 	ph := float64(pose) * math.Pi
 	if f > 0 {
 		ph = 2 * math.Pi * cycPh(f)
 	}
+	// The soil it comes out of, under its tail.
+	q.flat(aEll(2.1, 3.9, 1.6, 0.8), plain(hex(0x2a2116)))
+	q.flat(aEll(1.7, 3.6, 0.9, 0.4), plain(hex(0x3d3020)))
 	var pts []tpt
-	for i := 0; i <= 24; i++ {
-		t := float64(i) / 24
-		x := 1.4 + 9.6*t
-		pts = append(pts, tpt{x, 4 + 0.85*math.Sin((x-1.4)*0.95-ph), 0.95 * (0.55 + 0.45*smooth(clamp01(math.Min(t, 1-t)/0.14)))})
+	for i := 0; i <= 20; i++ {
+		t := float64(i) / 20
+		x := 1.6 + 6.4*t
+		pts = append(pts, tpt{x, 3.4 + 0.6*math.Sin((x-1.6)*1.2-ph), 0.62 * (0.55 + 0.45*smooth(clamp01(math.Min(t+0.3, 1-t)/0.16)))})
 	}
 	tb := newCTube(pts)
 	q.fill(tb.shape(), tb.skin(func(x, y int, s, v, l float64) color.RGBA {
-		u := s * 14
+		u := s * 12
 		if u-math.Floor(u) < 0.2 {
-			l -= 0.22 // the rings
+			l -= 0.18 // the rings
 		}
-		col := toneOf(wormRamp, l+0.05)
-		if s > 0.58 && s < 0.72 {
-			col = mix(col, hex(0xf0a070), 0.45) // the saddle
+		col := toneOf(wormHDRamp, l)
+		if s > 0.6 && s < 0.74 {
+			col = mix(col, hex(0xa88070), 0.35) // the saddle
+		}
+		if s < 0.12 {
+			col = mix(col, hex(0x2a2116), (0.12-s)*6) // muddy where it leaves the soil
 		}
 		return col
 	}))
-	return q.done(0.6, 6, 5)
+	return q.done(0.35, 5, 4.2)
 }
 
 // --- fish ----------------------------------------------------------------------------

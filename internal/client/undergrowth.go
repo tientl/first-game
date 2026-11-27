@@ -27,59 +27,112 @@ const (
 	numPlantKinds
 )
 
-// plantVariants is how many drawings there are of each kind of plant; each
-// also comes mirrored.
+// plantVariants is how many drawings there are of each kind of plant at
+// density 1 (each also mirrored); at HD there are coverVariants of them, in
+// every season (see coverart.go).
 const plantVariants = 3
+
+// plantCover is the HD drawing of each kind of plant.
+var plantCover = [numPlantKinds]coverKind{cvFern, cvBroad, cvClump, cvGrass, cvFlowers}
 
 // plant is one plant of the undergrowth.
 type plant struct {
 	kind    plantKind
-	variant int     // 0 to 2*plantVariants-1; the second half mirrored
+	variant int     // 0 to 2*plantVariants-1 at density 1, the second half mirrored; any at HD
 	x, y    float64 // where it grows, in tiles
+	spot    int     // which of the spots of its tile it grows on
+	hash    uint32  // for its look: see coverLookAt
 }
 
-// plantMix is how a kind of ground is covered: spots tried per tile and the
-// chance of each plant at a spot.
-type plantMix struct {
-	spots  int
-	chance [numPlantKinds]float64
-}
+// The undergrowth does not lie evenly. Each kind of plant follows fields
+// of noise as plants follow light, water and each other: green grass in
+// drifts, flowers in patches of one kind, ferns and broad leaves in the
+// shade of the trees, open glades and bare spots where little grows; and
+// all of it thinner in winter, the flowers thickest in spring.
+const (
+	ugSpots     = 3    // spots tried on a tile
+	ugBareFrom  = 0.64 // of the glade noise: a glade begins...
+	ugBareWidth = 0.08 // ...and is bare this much further on
+)
 
-func plantMixFor(t sim.Tile) plantMix {
+// plantChances is the chance of each kind of plant at a spot of tile
+// (tx, ty) of kind t, shade (0 to 1.5) under the trees, in season s.
+func plantChances(tx, ty int, t sim.Tile, shade float64, s sim.Season) (ch [numPlantKinds]float64) {
+	x, y := float64(tx)+0.5, float64(ty)+0.5
+	bare := smooth(clamp01((vnoise(x/11+3, y/11+7, 840) - ugBareFrom) / ugBareWidth))
+	grow := 1 - bare
+	drift := smooth(clamp01((vnoise(x/5.5+11, y/4.5+5, 841) - 0.36) / 0.32))
+	patch := smooth(clamp01((vnoise(x/6+21, y/6+2, 842) - 0.68) / 0.1))
+	lush := vnoise(x/14+1, y/14+9, 843)
+	clumps := smooth(clamp01((vnoise(x/4+41, y/4+13, 845) - 0.5) / 0.25))
+	shade = min(1, shade)
+	bloom := [sim.NumSeasons]float64{1.8, 0.8, 0.45, 0}[s%sim.NumSeasons]
 	switch t {
-	case sim.TileForest:
-		return plantMix{3, [numPlantKinds]float64{0.32, 0.22, 0.16, 0.08, 0.03}}
-	case sim.TileMarsh: // open mud between the cypresses: a few clumps and tufts
-		return plantMix{1, [numPlantKinds]float64{0.03, 0.05, 0.12, 0.16, 0}}
 	case sim.TileGrass:
-		return plantMix{2, [numPlantKinds]float64{0.05, 0.03, 0.05, 0.16, 0.1}}
-	case sim.TileRocky:
-		return plantMix{1, [numPlantKinds]float64{0.03, 0, 0.06, 0.06, 0}}
+		ch[plantBlades] = (0.02 + 0.5*drift*drift*(0.5+lush)) * grow * (1 - 0.5*shade)
+		ch[plantFlowers] = (0.002 + 0.3*patch) * grow * bloom * (1 - 0.7*shade)
+		ch[plantClump] = (0.008+0.09*clumps)*grow + 0.06*shade
+		ch[plantFern] = 0.3 * shade * shade
+		ch[plantBroadleaf] = 0.004 + 0.1*shade
+	case sim.TileForest:
+		ferny := smooth(clamp01((vnoise(x/4+31, y/4+17, 844) - 0.28) / 0.4))
+		sun := 1 - shade
+		ch[plantFern] = (0.1 + 0.36*ferny) * (0.55 + 0.45*shade) * (0.4 + 0.6*grow)
+		ch[plantBroadleaf] = (0.05 + 0.12*ferny*shade) * (0.5 + 0.5*grow)
+		ch[plantClump] = 0.05 + 0.1*clumps*(1-ferny)
+		ch[plantBlades] = 0.02 + 0.3*sun*drift + 0.25*bare
+		ch[plantFlowers] = (0.002 + 0.2*patch*(sun+bare)) * bloom
+	case sim.TileMarsh: // open mud between the cypresses: a few clumps and tufts, in patches
+		ch[plantClump] = 0.015 + 0.05*clumps
+		ch[plantBlades] = 0.02 + 0.08*drift
+	case sim.TileRocky: // in the cracks
+		ch[plantBlades] = 0.008 + 0.04*drift
+		ch[plantClump] = 0.004 + 0.03*clumps
 	}
-	return plantMix{}
+	if s == sim.Winter { // most of it under the snow
+		for k := range ch {
+			ch[k] *= 0.35
+		}
+	}
+	return ch
 }
 
-// plantsOn appends to out the plants growing on tile (tx, ty) of kind t.
+// plantsOn appends to out the plants growing on tile (tx, ty) of kind t,
+// out of the shade of the trees, in summer.
 func plantsOn(tx, ty int, t sim.Tile, out []plant) []plant {
-	mix := plantMixFor(t)
-	if mix.spots == 0 {
+	return plantsAt(tx, ty, t, 0, sim.Summer, out)
+}
+
+// plantsAt appends to out the plants growing on tile (tx, ty) of kind t,
+// shade under the trees, in season s.
+func plantsAt(tx, ty int, t sim.Tile, shade float64, s sim.Season, out []plant) []plant {
+	ch := plantChances(tx, ty, t, shade, s)
+	sum := 0.0
+	for _, c := range ch {
+		sum += c
+	}
+	if sum == 0 {
 		return out
 	}
-	// Patchy: some stretches are lush, others thin.
-	lush := 0.45 + 1.1*vnoise(float64(tx)/6+31, float64(ty)/6+17, 820)
-	for i := 0; i < mix.spots; i++ {
+	norm := 1.0
+	if sum > 0.95 {
+		norm = 0.95 / sum
+	}
+	for i := range ugSpots {
 		h := func(s uint32) float64 { return hashf(tx*4+i, ty, 810+s) }
-		r, sum := h(0), 0.0
-		for k, c := range mix.chance {
-			sum += c * lush
-			if r >= sum {
+		r, acc := h(0), 0.0
+		for k, c := range ch {
+			acc += c * norm
+			if r >= acc {
 				continue
 			}
 			out = append(out, plant{
 				kind:    plantKind(k),
-				variant: int(h(1) * 2 * plantVariants),
-				x:       float64(tx) + (float64(i)+0.15+0.7*h(2))/float64(mix.spots),
+				variant: plantVariant(plantKind(k), tx, ty, h(1)),
+				x:       float64(tx) + (float64(i)+0.15+0.7*h(2))/ugSpots,
 				y:       float64(ty) + 0.2 + 0.75*h(3),
+				spot:    i,
+				hash:    uint32(h(4) * (1 << 32)),
 			})
 			break
 		}
@@ -88,12 +141,21 @@ func plantsOn(tx, ty int, t sim.Tile, out []plant) []plant {
 }
 
 // plantSway is how far each kind of plant leans in the wind.
-var plantSway = [numPlantKinds]float64{0.05, 0.03, 0.015, 0.09, 0.06}
+var plantSway = [numPlantKinds]float64{0.05, 0.025, 0.012, 0.09, 0.07}
 
-// plantArt holds every drawing of every plant, made the first time it is needed.
+// plantBend is how far each kind of plant bends under feet.
+var plantBend = [numPlantKinds]float64{0.35, 0.25, 0.12, 0.5, 0.45}
+
+// plantArt holds every density-1 drawing of every plant, made the first
+// time it is needed.
 var plantArt [numPlantKinds][2 * plantVariants]sprite
 
+// plantSprite is the drawing of a plant of kind k: at HD drawing v of the
+// summer set, at density 1 the old drawing v.
 func plantSprite(k plantKind, v int) sprite {
+	if envHD {
+		return coverSprite(plantCover[k], v, sim.Summer)
+	}
 	if plantArt[0][0].img == nil {
 		for kind := range numPlantKinds {
 			for i := 0; i < plantVariants; i++ {
@@ -103,7 +165,7 @@ func plantSprite(k plantKind, v int) sprite {
 			}
 		}
 	}
-	return plantArt[k][v]
+	return plantArt[k][v%(2*plantVariants)]
 }
 
 var (
@@ -300,18 +362,26 @@ func genFlowers(rng *rand.Rand, petals ramp) (*canvas, float64, float64) {
 	return c, bx, by
 }
 
-// drawUndergrowth draws the canopy's shade and the plants on the ground in
-// view, before anything that stands on it.
+// drawUndergrowth draws the shade of the canopy, the litter under the trees
+// and the plants on the ground in view, before anything that stands on it.
 func (g *Game) drawUndergrowth(dst drawTarget, cam camera) {
 	if g.tiles == nil {
 		return
 	}
 	g.drawCanopy(dst, cam)
 
-	secs := float64(g.frame) / 60
 	w, h := float64(dst.Bounds().Dx()), float64(dst.Bounds().Dy())
 	tx0, ty0 := int(math.Floor(cam.ox/TileW))-1, int(math.Floor(cam.oy/TileH))-1
 	tx1, ty1 := int(math.Ceil((cam.ox+w)/TileW))+1, int(math.Ceil((cam.oy+h)/TileH))+2
+	g.noteShade(tx0, ty0, tx1, ty1)
+	g.noteMovers(g.alpha())
+	g.drawLitter(dst, cam)
+	season := g.curr.Season % sim.NumSeasons
+	var set coverSet
+	if envHD {
+		set = coverSprites(season)
+	}
+	secs := float64(g.frame) / 60
 	var plants []plant
 	for ty := ty0; ty <= ty1; ty++ {
 		for tx := tx0; tx <= tx1; tx++ {
@@ -320,7 +390,7 @@ func (g *Game) drawUndergrowth(dst drawTarget, cam camera) {
 				g.drawFloaters(dst, cam, tx, ty)
 				continue
 			}
-			plants = plantsOn(tx, ty, tile, plants[:0])
+			plants = plantsAt(tx, ty, tile, g.shade.at(tx, ty), season, plants[:0])
 			if len(plants) == 0 {
 				continue
 			}
@@ -336,8 +406,16 @@ func (g *Game) drawUndergrowth(dst drawTarget, cam camera) {
 					continue // not out of the middle of a trunk
 				}
 				sx, sy := cam.toScreen(p.x, p.y)
-				skew := plantSway[p.kind] * math.Sin(secs*1.3+p.x*0.9+p.y*0.5)
-				drawSwaying(dst, plantSprite(p.kind, p.variant), sx, sy, skew)
+				if !envHD {
+					skew := plantSway[p.kind] * math.Sin(secs*1.3+p.x*0.9+p.y*0.5)
+					drawSwaying(dst, plantSprite(p.kind, p.variant), sx, sy, skew)
+					continue
+				}
+				ss := set[plantCover[p.kind]]
+				s := ss[p.variant%len(ss)]
+				bend := g.bend.at(coverKey(tx, ty, p.spot), p.x, p.y)
+				skew := plantSway[p.kind]*g.windSkew(p.x, p.y, float64(p.hash%628)/100) - plantBend[p.kind]*bend
+				drawCover(dst, s, sx, sy, skew, math.Abs(bend)*plantBend[p.kind]*1.6, coverLookAt(p.x, p.y, p.hash))
 			}
 		}
 	}
@@ -382,4 +460,14 @@ func (g *Game) drawCanopy(dst drawTarget, cam camera) {
 			dst.DrawImage(g.art.light, op)
 		}
 	}
+}
+
+// plantVariant is which drawing of kind k grows on tile (tx, ty), r a hash
+// of the spot: any for most kinds, but one kind of flower to a patch.
+func plantVariant(k plantKind, tx, ty int, r float64) int {
+	if k == plantFlowers && envHD {
+		n := vnoise(float64(tx)/9+5, float64(ty)/9+3, 846)
+		return int(n*float64(coverVariants[cvFlowers])*1.8) % coverVariants[cvFlowers]
+	}
+	return int(r * 2 * plantVariants)
 }
