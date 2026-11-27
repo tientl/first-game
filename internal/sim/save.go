@@ -71,7 +71,14 @@ import (
 //     the ores where the flint no longer lies. Nothing older changes, but an
 //     older game would make the wrong world of such a save, so it must
 //     refuse it.
-const SaveVersion = 27
+//   - 28: worlds of StyleCaveWays: caves of more, smaller chambers, with
+//     forks and loops round the main route, passages branching off
+//     passages, side pockets and a second way down under the big islands
+//     (caveways.go), and fewer, leaner old chests by how far the island lies
+//     from home (an old chest's Var is what kind of chest it is and its
+//     island's ring, not its depth). Nothing older changes, but an older
+//     game would make the wrong world of such a save, so it must refuse it.
+const SaveVersion = 28
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.

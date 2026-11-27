@@ -25,7 +25,11 @@ func (w *World) digSystem(s *caveSystem) {
 		d := &caveDig{s: s, lv: lv, open: make([]bool, s.gw*s.gh), owner: make([]int16, s.gw*s.gh)}
 		digs[lv] = d
 		for i := range s.chambers {
-			if s.chambers[i].level == lv {
+			switch c := &s.chambers[i]; {
+			case c.level != lv:
+			case c.junction:
+				d.widen(c.x, c.y, c.r)
+			default:
 				d.chamber(i, seed)
 			}
 		}
@@ -55,9 +59,15 @@ func (w *World) digSystem(s *caveSystem) {
 	// Where the hole down and the rope up are: off the tunnels, open all
 	// round on both levels.
 	if s.levels == 2 {
-		hx, hy := s.holeSpot(digs)
+		hx, hy := s.holeSpot(digs, s.descent)
 		s.down = [2]int{hx, CaveBandTop(w.surfaceH, 0) + hy}
 		s.up = [2]int{hx, CaveBandTop(w.surfaceH, 1) + hy}
+		for i := range s.shafts {
+			sh := &s.shafts[i]
+			hx, hy := s.holeSpot(digs, sh.descent)
+			sh.down = [2]int{hx, CaveBandTop(w.surfaceH, 0) + hy}
+			sh.up = [2]int{hx, CaveBandTop(w.surfaceH, 1) + hy}
+		}
 	}
 	for lv, d := range digs {
 		d.open3()
@@ -68,6 +78,9 @@ func (w *World) digSystem(s *caveSystem) {
 			}
 		} else {
 			seeds = append(seeds, (s.up[1]-CaveBandTop(w.surfaceH, 1)-s.y0)*s.gw+s.up[0]-s.x0)
+			for _, sh := range s.shafts {
+				seeds = append(seeds, (sh.up[1]-CaveBandTop(w.surfaceH, 1)-s.y0)*s.gw+sh.up[0]-s.x0)
+			}
 		}
 		d.reach(seeds)
 		s.owner[lv], s.open[lv] = d.owner, d.open
@@ -80,25 +93,46 @@ func (w *World) digSystem(s *caveSystem) {
 func (d *caveDig) chamber(i int, seed uint32) {
 	s, c := d.s, &d.s.chambers[i]
 	R := c.r * 1.5 * max(c.aspect, 1/c.aspect)
-	cs, sn := math.Cos(c.rot), math.Sin(c.rot)
 	for ty := int(math.Floor(c.y - R)); ty <= int(math.Ceil(c.y+R)); ty++ {
 		for tx := int(math.Floor(c.x - R)); tx <= int(math.Ceil(c.x+R)); tx++ {
 			cell, ok := s.gridAt(tx, ty)
 			if !ok || d.border(cell) {
 				continue
 			}
-			x, y := float64(tx)+0.5, float64(ty)+0.5
-			dx, dy := x-c.x, y-c.y
-			u, v := (dx*cs+dy*sn)/c.aspect, (-dx*sn+dy*cs)*c.aspect
-			warp := 1 + 1.25*(fbm(x/9+c.x, y/9, seed+11, 3)-0.5) + 0.14*(fbm(x/3, y/3, seed+12, 2)-0.5)
-			if c.hall {
-				warp = 1 + 0.5*(fbm(x/4, y/4, seed+13, 2)-0.5)
-			}
-			if math.Hypot(u, v)/c.r < warp {
+			if s.inBlob(c, float64(tx)+0.5, float64(ty)+0.5, seed) {
 				d.open[cell] = true
 				if d.owner[cell] == 0 {
 					d.owner[cell] = int16(i + 1)
 				}
+			}
+		}
+	}
+}
+
+// inBlob reports whether (x, y) lies in the floor of chamber c: its blob
+// round its middle, the edge pushed in and out by noise (less for a hall
+// and a side pocket).
+func (s *caveSystem) inBlob(c *caveChamber, x, y float64, seed uint32) bool {
+	cs, sn := math.Cos(c.rot), math.Sin(c.rot)
+	dx, dy := x-c.x, y-c.y
+	u, v := (dx*cs+dy*sn)/c.aspect, (-dx*sn+dy*cs)*c.aspect
+	warp := 1 + 1.25*(fbm(x/9+c.x, y/9, seed+11, 3)-0.5) + 0.14*(fbm(x/3, y/3, seed+12, 2)-0.5)
+	if c.hall || c.pocket != 0 {
+		warp = 1 + 0.5*(fbm(x/4, y/4, seed+13, 2)-0.5)
+	}
+	return math.Hypot(u, v)/c.r < warp
+}
+
+// widen opens a round widening of radius r at (x, y), part of the tunnels:
+// where a passage forks.
+func (d *caveDig) widen(x, y, r float64) {
+	for ty := int(math.Floor(y - r)); ty <= int(math.Ceil(y+r)); ty++ {
+		for tx := int(math.Floor(x - r)); tx <= int(math.Ceil(x+r)); tx++ {
+			if math.Hypot(float64(tx)+0.5-x, float64(ty)+0.5-y) > r {
+				continue
+			}
+			if cell, ok := d.s.gridAt(tx, ty); ok && !d.border(cell) {
+				d.open[cell] = true
 			}
 		}
 	}
@@ -295,12 +329,12 @@ func (d *caveDig) reach(seeds []int) {
 	}
 }
 
-// holeSpot is where in the descent chamber the hole down is (and under it,
+// holeSpot is where in descent chamber ci the hole down is (and under it,
 // in the arrival chamber, the rope up), in tiles of the surface: open
 // round it on both levels, off every tunnel, as near a third of the way out
 // from the chamber's middle as can be.
-func (s *caveSystem) holeSpot(digs []*caveDig) (int, int) {
-	c := s.chambers[s.descent]
+func (s *caveSystem) holeSpot(digs []*caveDig, ci int) (int, int) {
+	c := s.chambers[ci]
 	R := int(math.Ceil(c.r))
 	bx, by, best := int(c.x), int(c.y), math.Inf(1)
 	for ty := int(c.y) - R; ty <= int(c.y)+R; ty++ {
@@ -377,6 +411,12 @@ func (w *World) writeSystem(s *caveSystem, digs []*caveDig) {
 		w.addEntity(EntityCaveUp, s.up[0], s.up[1])
 		w.links[s.down] = caveLink{float64(s.up[0]) + 0.5, float64(s.up[1]) + 1.5}
 		w.links[s.up] = caveLink{float64(s.down[0]) + 0.5, float64(s.down[1]) + 1.5}
+		for _, sh := range s.shafts {
+			w.addEntity(EntityCaveDown, sh.down[0], sh.down[1])
+			w.addEntity(EntityCaveUp, sh.up[0], sh.up[1])
+			w.links[sh.down] = caveLink{float64(sh.up[0]) + 0.5, float64(sh.up[1]) + 1.5}
+			w.links[sh.up] = caveLink{float64(sh.down[0]) + 0.5, float64(sh.down[1]) + 1.5}
+		}
 	}
 }
 
@@ -477,7 +517,7 @@ func (w *World) digSecretPassages(rng *rand.Rand) {
 			best := cand{d: math.Inf(1)}
 			for i, ci := range sa.chambers {
 				for j, cj := range sb.chambers {
-					if ci.level != 1 || cj.level != 1 {
+					if ci.level != 1 || cj.level != 1 || ci.junction || cj.junction || ci.pocket != 0 || cj.pocket != 0 {
 						continue
 					}
 					if dd := math.Hypot(ci.x-cj.x, ci.y-cj.y); dd < best.d {
