@@ -109,11 +109,14 @@ func skillDistance(d *SkillDef) float64 {
 	case d.Anchor == AtAhead || d.Anchor == AtBehind:
 		return d.Offset
 	}
-	return min(max(d.MinD+0.3, d.Kind.def().radius+1), d.MaxD)
+	if d.Shape == ZoneCircle {
+		return min(max(d.MinD+0.3, d.Reach*0.5), d.MaxD)
+	}
+	return min(max(d.MinD+0.3, d.Kind.def().radius+1.2, d.Reach*0.6), d.MaxD)
 }
 
 // devPlace sets a beast of kind k dist tiles from p, to the side with room
-// (east first): the nearest of its kind within 20 tiles, or a new one.
+// (west first): the nearest of its kind within 20 tiles, or a new one.
 func (w *World) devPlace(p *Player, k CreatureKind, dist float64) *Creature {
 	var c *Creature
 	best := 20.0
@@ -123,7 +126,7 @@ func (w *World) devPlace(p *Player, k CreatureKind, dist float64) *Creature {
 		}
 	}
 	for _, step := range []float64{0, 0.5, 1, 1.5, 2, 3} {
-		for _, a := range []float64{0, math.Pi, math.Pi / 2, -math.Pi / 2, math.Pi / 4, 3 * math.Pi / 4} {
+		for _, a := range []float64{math.Pi, 0, math.Pi / 2, -math.Pi / 2, 3 * math.Pi / 4, math.Pi / 4} {
 			x, y := p.X+math.Cos(a)*(dist+step), p.Y+math.Sin(a)*(dist+step)
 			if !w.creatureFits(k, x, y) {
 				continue

@@ -165,6 +165,9 @@ func (g *Game) troodonFrame(c protocol.CreatureView, moving bool) (rigFrame, flo
 	if c.State != sim.CreatureStrike {
 		delete(troodonStrikes, c.ID)
 	}
+	if f, lift, ok := g.skillFrame(c, side); ok {
+		return f, lift // one of its moves: see dinoskills.go
+	}
 	switch {
 	case c.State == sim.CreatureStrike && troodonHeld[c.ID]:
 		return held(troodonLeap), 4
@@ -259,6 +262,9 @@ func (g *Game) drawEyeshine(dst drawTarget, cam camera, alpha, dark float64) {
 		ex := float32(sx + math.Floor(eye[0])) // whole art pixels from the beast's own point; see align
 		ey := float32(sy + math.Floor(eye[1]-bob))
 		shimmer := 0.88 + 0.12*math.Sin(float64(t)*0.11)
+		if c.Skill == sim.SkillTroodonAmbush && c.Phase == sim.PhaseWindup {
+			shimmer = 1.6 + 0.4*math.Sin(float64(t)*0.5) // about to spring: its eyes catch the light
+		}
 		glint(dst, ex, ey, k*shimmer)
 		glint(dst, ex+float32(dir*4), ey, k*shimmer*0.75) // the far eye, past the snout
 	}

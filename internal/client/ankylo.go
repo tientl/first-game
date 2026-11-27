@@ -280,7 +280,7 @@ func (g *Game) ankyloSounds(old, cur protocol.Snapshot) {
 				callAt("ankylo_grunt", x, y, 0.6, 1.18, 18) // the effort of the crouch
 			}
 		}
-		if c.State == sim.CreatureStrike && !ankyloVoices.swung[c.ID] {
+		if c.State == sim.CreatureStrike && !ankyloVoices.swung[c.ID] && (c.Skill == sim.SkillNone || c.Skill == sim.SkillAnkyloClub) {
 			wind := sim.WindupTicks(sim.CreatureAnkylo) * 60 / sim.TicksPerSecond
 			if c.Tamed {
 				wind = 8

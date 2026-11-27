@@ -15,6 +15,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -89,6 +90,7 @@ func main() {
 	bossAge := flag.Int("bossage", -1, "how many frames into its state each boss and sea monster is shown (-1: as many as -frames)")
 	flag.BoolVar(&demoBosses, "demobosses", false, "with -bosses: only Titanoboa and the Megalodon, the bar showing Titanoboa's health")
 	flag.StringVar(&titanAt, "titanat", "", "with -bosses: dx,dy[,1], where to put Titanoboa, in tiles from the player (default -7,-3.5), facing left with ,1; the Megalodon is left out")
+	skillsFlag := flag.String("skills", "", "film every move of these beasts (a comma list of rex, dakota, achero, troodon, ptero, quetzal, plesio, sabre, trike, toro, stego, brachio, ankylo, anzu, thesc, ornitho, mammoth; or all) and write a GIF of each into -o's folder; see skills.go")
 	encounterFlag := flag.String("encounter", "", "play a real meeting with a boss of the demo, titan or shark, and write its stills as <o>_approach.png, _lair.png, _intro.png and _arena.png; see encounter.go")
 	encGIF := flag.Bool("encgif", false, "with -encounter: also write every fourth frame of the entrance as <o>_gif_NNN.png")
 	king := flag.Bool("king", false, "put the mammoth king by the player, with a mammoth of its herd for scale; -bosspose picks its state (0 idle, 1 chase, 2 strike, 3 special, 4 roar), -bossage how far into it")
@@ -155,6 +157,10 @@ func main() {
 		*coast = true
 	}
 	client.SetBossAge(*bossAge)
+	if *skillsFlag != "" {
+		runSkills(*skillsFlag, filepath.Dir(*out), *seed, *size, *winW, *winH)
+		return
+	}
 	if *encounterFlag != "" {
 		runEncounter(*encounterFlag, strings.TrimSuffix(*out, ".png"), *seed, *size, *winW, *winH, *dayFrac, *encGIF)
 		return

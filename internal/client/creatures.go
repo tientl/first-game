@@ -316,6 +316,9 @@ func (g *Game) creatureSounds(old, cur protocol.Snapshot) {
 	for _, c := range cur.Creatures {
 		o, seen := was[c.ID]
 		delete(was, c.ID)
+		if seen && skillSound(o, c) {
+			continue // a beast's move: see skillsound.go
+		}
 		if !seen || o.State == c.State {
 			continue
 		}
@@ -598,6 +601,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 	if s, bob, ok := g.bossSprite(c, moving); ok {
 		return s, bob // see bosses.go
 	}
+	if s, bob, ok := g.skillSprite(c, side); ok {
+		return s, bob // in the middle of one of its moves: see dinoskills.go
+	}
 	if s, bob, ok := g.seaSprite(c); ok {
 		return s, bob // see searender.go
 	}
@@ -828,7 +834,11 @@ func (g *Game) drawSky(dst drawTarget, cam camera, alpha float64) {
 			sh.GeoM.Scale(2.4, 2.4)
 			sh.GeoM.Translate(sx, sy)
 		}
-		sh.ColorScale.ScaleAlpha(0.6)
+		k, sa := skyShadow(c, g.skillTime(c)) // a diver's shadow gathering: see critskills.go
+		sh.GeoM.Translate(-sx, -sy)
+		sh.GeoM.Scale(k, k)
+		sh.GeoM.Translate(sx, sy)
+		sh.ColorScale.ScaleAlpha(float32(sa))
 		drawSprite(dst, g.art.beasts.pteroShadow, sh)
 		alt += math.Round(math.Sin(float64(g.frame)*0.05+float64(c.ID)) * 1.5)
 		op := &ebiten.DrawImageOptions{}
@@ -906,6 +916,10 @@ func (g *Game) drawCreature(dst drawTarget, c protocol.CreatureView, d drawable)
 	}
 	if c.State == sim.CreatureTrapped {
 		x += math.Round(math.Sin(float64(g.frame) * 0.9)) // struggling in the snare
+	}
+	if dx, r, gb, ok := g.skillTint(c); ok { // a frill flushing, a roar shaking it: see dinoskills.go
+		x += dx
+		op.ColorScale.Scale(r, gb, gb, 1)
 	}
 	wades := c.Kind == sim.CreatureCrab || crocLike(c.Kind)
 	if wades && g.tileAt(int(math.Floor(float64(c.X))), int(math.Floor(float64(c.Y)))).Swimmable() {

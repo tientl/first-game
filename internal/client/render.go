@@ -335,6 +335,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 	g.drawFloors(dst, cam) // see tribalrender.go
 	g.drawLairGround(dst, cam)
 	g.drawDigSpot(dst, cam)
+	g.drawZones(dst, cam, alpha) // red warnings where beasts' moves will land: see telegraphzone.go
 	// Each thing is drawn on the art-pixel grid through its own ground
 	// point, so a moving one keeps its pixel art whole between art pixels;
 	// see align in hd.go.
@@ -391,6 +392,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		if d.isPlayer {
 			g.drawPlayer(dst, g.curr.Players[d.idx], d)
 			g.drawSwarm(dst, g.curr.Players[d.idx], d.sx, d.sy) // see jungleart.go
+			g.drawDazed(dst, g.curr.Players[d.idx], d.sx, d.sy) // stunned: see telegraphzone.go
 			continue
 		}
 		if d.creature {

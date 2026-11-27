@@ -130,7 +130,7 @@ func lerpPose(a, b rigPose, t float64) rigPose {
 	}
 	l := func(x, y float64) float64 { return math.Round((x+(y-x)*t)*1000) / 1000 }
 	return rigPose{
-		step: l(a.step, b.step), head: l(a.head, b.head), neck: l(a.neck, b.neck),
+		step: l(a.step, b.step), cycle: l(a.cycle, b.cycle), head: l(a.head, b.head), neck: l(a.neck, b.neck),
 		open: l(a.open, b.open), tail: l(a.tail, b.tail), wings: l(a.wings, b.wings),
 		squash: l(sq(a.squash), sq(b.squash)), tilt: l(a.tilt, b.tilt), lift: l(a.lift, b.lift),
 		sweep: l(a.sweep, b.sweep),

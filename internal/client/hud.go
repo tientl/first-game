@@ -187,6 +187,10 @@ const (
 	statusStarving
 	statusHungry
 	statusBees
+	statusStun   // what the beasts' moves leave: see skillhud.go
+	statusBleed
+	statusSlow
+	statusPinned
 	statusBuff  // the first of the buffs of dishes, one for each sim.BuffKind; see cookrender.go
 	numStatuses = statusBuff + statusKind(sim.NumBuffs)
 )
@@ -236,6 +240,7 @@ func (g *Game) statuses() []status {
 	if me, ok := g.me(); ok && me.Bees {
 		out = append(out, status{statusBees, "Ong đốt", "Bầy ong đang đuổi! Chạy thật xa tổ", colKey})
 	}
+	out = append(out, skillStatuses(self)...) // see skillhud.go
 	return append(out, g.buffStatuses()...)
 }
 
@@ -281,6 +286,8 @@ func (g *Game) drawStatusIcon(dst *ebiten.Image, k statusKind, x, y float32, c c
 		}
 	case statusBuff, statusBuff + 1, statusBuff + 2, statusBuff + 3, statusBuff + 4:
 		drawBuffIcon(dst, sim.BuffKind(k-statusBuff), x, y, c)
+	case statusStun, statusBleed, statusSlow, statusPinned:
+		drawSkillStatusIcon(dst, k, x, y, c) // see skillhud.go
 	case statusBees: // a bee
 		vector.FillCircle(dst, x-2, y-4, 3, color.RGBA{230, 240, 255, 200}, true)
 		vector.FillCircle(dst, x+2, y-4, 3, color.RGBA{230, 240, 255, 200}, true)

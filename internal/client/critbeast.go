@@ -13,8 +13,8 @@ func init() {
 	set := func(name string, hd func(pose, f int) (*canvas, float64, float64), anim map[int]int) {
 		critKinds[name].hd, critKinds[name].anim = hd, anim
 	}
-	set("mammoth", mammothHD, map[int]int{mammothWalkA: cycFrames, mammothCharge: cycFrames, mammothGore: blowFrames})
-	set("sabre", sabreHD, map[int]int{sabreWalkA: cycFrames, sabreWalkB: cycFrames, sabreStalk: cycFrames, sabreSpring: blowFrames})
+	set("mammoth", mammothHD, map[int]int{mammothWalkA: cycFrames, mammothCharge: cycFrames, mammothGore: blowFrames, mammothSkHeadDown: 2})
+	set("sabre", sabreHD, map[int]int{sabreWalkA: cycFrames, sabreWalkB: cycFrames, sabreStalk: cycFrames, sabreSpring: blowFrames, sabreSkLow: 1})
 	set("bear", bearHD, map[int]int{bearWalkA: cycFrames, bearWalkB: cycFrames, bearClaw: blowFrames, bearBite: blowFrames})
 	set("monkey", monkeyHD, map[int]int{monkeyWalkA: cycFrames, monkeyLeap: cycFrames})
 }
@@ -165,6 +165,7 @@ func mammothHD(pose, f int) (*canvas, float64, float64) {
 	const gy = 79.6
 	g := gait{stride: 9, lift: 3, duty: 0.7, offs: walkOffs}
 	headA, swing := 0.0, 0.0
+	earK := 1.0 // how far its ears stand out: flared to charge
 	trunk := trunkHang
 	switch pose {
 	case mammothWalkA:
@@ -187,6 +188,15 @@ func mammothHD(pose, f int) (*canvas, float64, float64) {
 		for i := range trunk {
 			trunk[i] = lerpf(trunkCurl[i], trunkHigh[i], t)
 		}
+	case mammothSkHeadDown: // head down, ears flared, a forefoot scraping: see critskills.go
+		headA, trunk, earK = 0.5, trunkCurl, 1.5
+		g.on, g.ph = true, [3]float64{0.02, 0.12, 0.2}[min(f, 2)]
+	case mammothSkCurl: // the trunk curled up high, to swipe
+		headA, trunk, earK = -0.14, trunkCoil, 1.2
+	case mammothSkSwipe: // the trunk lashed out forwards
+		headA, trunk = 0.16, trunkLash
+	case mammothSkTrumpet: // the trunk raised, trumpeting
+		headA, trunk, earK = -0.42, trunkHigh, 1.35
 	case mammothEatA:
 		headA, trunk = 0.13, trunkCrop
 	case mammothEatB:
@@ -293,7 +303,7 @@ func mammothHD(pose, f int) (*canvas, float64, float64) {
 		}
 		return l
 	}
-	ear := H(aEll(85.5, 32+bob, 4.2, 6.8))
+	ear := H(aEll(85.5-1.5*(earK-1), 32+bob, 4.2*earK, 6.8*(1+0.4*(earK-1))))
 	q.edge = 0.22
 	q.fill(head, frosted(hs, locksAt(mammothFur, headLight, 6, 8, 0.3, 333, 0, bp), 3, 335))
 	q.edge = 0.34
@@ -443,6 +453,15 @@ func sabreHD(pose, f int) (*canvas, float64, float64) {
 			hdx, hdy, ha = 2, -1, -0.08
 			flex = -amt
 		}
+	case sabreSkLow: // flat to the ground, about to pounce; f twitches the haunches: see critskills.go
+		crouch, hdx, hdy, ha, pitch = 7.5, 3.5, 2.6, -0.12, 0.05
+		if f%2 == 1 {
+			pitch, hdy = 0.09, 2.2
+		}
+	case sabreSkGape: // the jaws open very wide
+		crouch, hdx, hdy, ha, jaw, earsBack = 1.5, 1.2, -1.8, -0.38, 1, true
+	case sabreSkBite: // the head thrown forward, the jaws shutting
+		crouch, hdx, hdy, ha, jaw, pitch = 1, 3.8, 0.6, 0.22, 0.3, 0.05
 	case sabreCower:
 		crouch, hdx, hdy, ha, earsBack = 8.2, 1, -2.2, 0.1, true
 	case sabreEatA, sabreEatB:
