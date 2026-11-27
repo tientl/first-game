@@ -28,7 +28,6 @@ var (
 	foamHD    = mkRamp(0x9fcfdc, 0xc3e3ea, 0xe0f1f4, 0xf7fcfd)
 	lakeHD    = mkRamp(0x173f5e, 0x1d4c6d, 0x245a7d, 0x2d6a8d, 0x3a7d9e, 0x4f93b0, 0x6aa9c1, 0x8dc0cf).sub(2)
 	lakeReeds = mkRamp(0x3d4a22, 0x56652c, 0x718236, 0x8c9a45)
-	coralHD   = []ramp{mkRamp(0x7a4a5c, 0xa8697a, 0xcf8f94, 0xeab3a8), mkRamp(0x7d5a3a, 0xa97d4c, 0xcfa063, 0xe8c38a), mkRamp(0x5a4c7c, 0x7c68a3, 0x9c88c2, 0xbfaedb), mkRamp(0x5e6e3e, 0x7f9350, 0xa1b468, 0xc6d58e)}
 )
 
 const (
@@ -515,45 +514,4 @@ func reedAt(hx, hy int) bool {
 	dx := hx - x0
 	top := cy*11 + int(h>>12&3)
 	return dx >= 0 && dx < 7 && dx%2 == 0 && hy >= top+int(hashf(x0+dx, cy, 1326)*4) && hy < cy*11+11
-}
-
-// --- the shallows of the sea: see terrainsea.go ---------------------------------
-
-// coralHead colours (hx, hy) if it is on a head of coral under the water:
-// round clumps, each its own colour, lit from the upper left, dim through
-// the water.
-func coralHead(hx, hy int, dens float64) (color.RGBA, bool) {
-	const cw, ch = 22, 17
-	// In patches, not strewn evenly.
-	dens *= smooth(clamp01((vnoise(float64(hx)/70, float64(hy)/55, 1339) - 0.45) * 4))
-	if dens <= 0 {
-		return color.RGBA{}, false
-	}
-	cx, cy := fdiv(hx, cw), fdiv(hy, ch)
-	for oy := -1; oy <= 1; oy++ {
-		for ox := -1; ox <= 1; ox++ {
-			h := hash2(int32(cx+ox), int32(cy+oy), 1336)
-			if float64(h&0xffff)/65536 >= dens*0.5 {
-				continue
-			}
-			pk := hash2(int32(fdiv(cx+ox, 4)), int32(fdiv(cy+oy, 4)), 1340)
-			rp := coralHD[(pk+h>>16%2)%uint32(len(coralHD))]
-			// A head is two or three lobes.
-			for lobe := uint32(0); lobe < 2+h>>20&1; lobe++ {
-				g := hash2(int32(cx+ox), int32(cy+oy), 1337+lobe)
-				r := 3.5 + 4*float64(g&0xff)/255
-				px := float64((cx+ox)*cw) + cw/2 + (float64(g>>8&0xff)/255-0.5)*12
-				py := float64((cy+oy)*ch) + ch/2 + (float64(g>>16&0xff)/255-0.5)*9
-				dx, dy := (float64(hx)+0.5-px)/r, (float64(hy)+0.5-py)/(r*0.8)
-				if d := dx*dx + dy*dy; d < 1 {
-					if d > 0.72 && dx+dy > 0 {
-						return withAlpha(rp.at(0), 225), true
-					}
-					l := 0.55 - 0.35*dx - 0.4*dy + (hashf(hx, hy, 1338)-0.5)*0.25
-					return withAlpha(rp.at(int(clamp01(l)*3.99)), 225), true
-				}
-			}
-		}
-	}
-	return color.RGBA{}, false
 }

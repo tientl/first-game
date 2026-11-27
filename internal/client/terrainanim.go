@@ -28,7 +28,8 @@ import (
 //     low bits which way it pours (0 south, 1 east, 2 north, 3 west);
 //   - 3, still water: blue's bit 5 set for the shallows of the sea (red is how
 //     much of the light rippling over them shows: 1 where they are
-//     shallowest, fading to 0 towards the deep), clear for a lake (red its
+//     shallowest, fading to 0 towards the deep; bit 4 set over a reef, where
+//     small fish swim: see terrainreef.go), clear for a lake (red its
 //     depth).
 
 // waterTexel is the water map's texel for chunk pixel (x, y), the middle of
@@ -86,7 +87,11 @@ func (b *bake) waterTexel(x, y int, u, v float64) (tx [4]byte, ok bool) {
 		return [4]byte{byte(clamp01(-s/2.6) * 255), 0, 3 << 6, 255}, true
 	}
 	if l := t.seaLight(u, v); l > 0.01 { // see terrainsea.go
-		return [4]byte{byte(clamp01(l) * 255), 0, 3<<6 | 32, 255}, true
+		aux := byte(32)
+		if b.reef != nil && b.reef.near(x, y) {
+			aux |= 16 // by the coral of a reef: fish dart about it
+		}
+		return [4]byte{byte(clamp01(l) * 255), 0, 3<<6 | aux, 255}, true
 	}
 	return tx, false
 }
@@ -224,14 +229,74 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 			c2 := noise(w*0.095 + vec2(-Time*0.13, Time*0.17) + 5.0)
 			c3 := noise(w*0.06 + vec2(Time*0.08, -Time*0.14) + 11.0)
 			ca := max(1.0-abs(c1-c2)*11.0, 1.0-abs(c2-c3)*11.0)
+			out := vec4(0)
 			if ca > 0.0 && l > 0.0 {
 				a = 0.13 * ca * l
 				a = floor(a*20.0+0.5) / 20.0 // finer steps than the rest: it fades
-				if a <= 0.0 {
-					return vec4(0)
-				}
-				return vec4(light*a, a)
+				out = vec4(light*a, a)
 			}
+			if aux-32.0 >= 16.0 {
+				// Over a reef: small fish darting about the coral, each
+				// circling its own home and now and then dashing off a
+				// little, their shadows on the sand below them.
+				cell := floor(w / vec2(15.0, 11.0))
+				for j := -1; j <= 1; j++ {
+					for i := -1; i <= 1; i++ {
+						c := cell + vec2(float(i), float(j))
+						h := hash(c + vec2(3.1, 7.7))
+						home := (c + vec2(0.2, 0.25) + 0.6*vec2(hash(c+1.3), hash(c+2.9))) * vec2(15.0, 11.0)
+						ht := texel(floor(home-Origin) + 0.5) // only by the coral
+						if h < 0.3 && ht.a > 0.5 && floor(ht.b*255.0+0.5)-192.0 >= 48.0 {
+							sp := 0.5 + 0.6*hash(c+4.4)
+							ph := Time*sp + h*40.0
+							ph += 2.5 * smoothstep(0.85, 1.0, fract(Time*0.13+h*5.0)) // a dash
+							rad := 2.5 + 3.0*hash(c+5.5)
+							dirn := 1.0
+							if hash(c+6.6) < 0.5 {
+								dirn = -1.0
+							}
+							pos := home + vec2(cos(ph*dirn), 0.55*sin(ph*dirn))*rad
+							vel := normalize(vec2(-sin(ph*dirn), 0.55*cos(ph*dirn))*dirn + vec2(0.0001, 0))
+							side := vec2(-vel.y, vel.x)
+							// Its shadow first, down on the sand.
+							sd := w - pos - vec2(0.8, 2.6)
+							sa := dot(sd, vel) / 1.9
+							sb := dot(sd, side) / 0.6
+							if sa*sa+sb*sb < 1.0 && out.a < 0.2 {
+								out = vec4(0.0, 0.05, 0.08, 0.16)
+							}
+							d := w - pos
+							fa := dot(d, vel)  // along it, forwards
+							fb := dot(d, side) // across
+							body := (fa/1.7)*(fa/1.7) + (fb/0.62)*(fb/0.62)
+							tail := fa < -1.2 && fa > -2.5 && abs(fb) < (-1.2-fa)*0.8+0.15
+							if body < 1.0 || tail {
+								k := floor(h / 0.3 * 4.0)
+								col := vec3(0.98, 0.84, 0.22) // yellow
+								if k == 1.0 {
+									col = vec3(0.24, 0.52, 0.96) // blue
+								} else if k == 2.0 {
+									col = vec3(1.0, 0.52, 0.18) // orange, banded white
+									if abs(fa+0.2) < 0.25 {
+										col = vec3(0.96, 0.96, 0.92)
+									}
+								} else if k == 3.0 {
+									col = vec3(0.62, 0.9, 0.86) // pale silver-green
+								}
+								if fb < -0.2 && !tail {
+									col *= 0.78 // its shaded side
+								}
+								col = mix(col, vec3(0.25, 0.62, 0.7), 0.3) // through the water
+								out = vec4(col*0.88, 0.88)
+							}
+						}
+					}
+				}
+			}
+			if out.a > 0.0 {
+				return out
+			}
+			return vec4(0)
 		} else {
 			// A lake: still, the sky's light lying on it in long faint
 			// streaks that drift, and a glint now and then.
@@ -301,7 +366,7 @@ func GroundCost() (chunks int, bytes, water int64) {
 	for _, img := range gc.chunks {
 		bytes += size(img)
 	}
-	for _, m := range []map[chunkKey]*ebiten.Image{gc.shores, gc.roofs} {
+	for _, m := range []map[chunkKey]*ebiten.Image{gc.shores, gc.roofs, gc.fronts} {
 		for _, img := range m {
 			bytes += size(img)
 		}

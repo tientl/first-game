@@ -308,9 +308,14 @@ func (t *terrain) reliefShade(c color.RGBA, hx, hy int, u, v float64) color.RGBA
 }
 
 // rampPixel lays a ramp over ground c at (u, v), a (0 to 1) how much of
-// the point is ramp: a path of packed earth cut down through the cliff,
-// steps of flat stones across it, each lit along its front edge with a
-// dark riser under it, and stones lining its sides.
+// the point is ramp: a way cut down through the cliff, a flight of steps
+// of the cliff's own stone (sandstone in the desert, ice-grey under snow),
+// each tread a few flags with its front edge lit and its riser in shade,
+// the tread below in the riser's shadow, worn earth at its sides. A flight
+// running down the screen shows its treads; one running across it shows
+// them end on, so they are drawn wider, their risers as short faces, lit
+// when they face the sun and dark when they turn from it, each throwing
+// its shadow down the next.
 func (t *terrain) rampPixel(c color.RGBA, hx, hy int, u, v, a float64) color.RGBA {
 	// Which way is down it.
 	gx := t.levelAt(u+0.5, v) - t.levelAt(u-0.5, v)
@@ -319,49 +324,65 @@ func (t *terrain) rampPixel(c color.RGBA, hx, hy int, u, v, a float64) color.RGB
 	if n := math.Hypot(gx, gy); n > 0.05 {
 		dx, dy = -gx/n, -gy/n
 	}
-	k := smooth(clamp01((a - 0.2) / 0.45))
+	k := smooth(clamp01((a - 0.3) / 0.4))
 	if k <= 0 {
 		return c
 	}
+	tx, ty := int(math.Floor(u)), int(math.Floor(v))
+	rp := fineRock(rockMats[t.cliffRock(tx, ty)].ramp)
 	// Packed earth, or packed snow, worn into the ground it crosses.
-	earth := mix(c, pathHD.g(0.42+0.25*vnoise(float64(hx)/9, float64(hy)/7, 1401), hx, hy), 0.6)
-	switch t.tile(int(math.Floor(u)), int(math.Floor(v))) {
+	earth := mix(c, pathHD.g(0.42+0.25*vnoise(float64(hx)/9, float64(hy)/7, 1401), hx, hy), 0.55)
+	switch t.tile(tx, ty) {
 	case sim.TileSnow, sim.TileIce:
-		earth = mix(scaleCol(c, 0.9), hex(0x9fb0c2), 0.25)
+		earth = mix(scaleCol(c, 0.92), hex(0x9fb0c2), 0.25)
 	case sim.TileDesert, sim.TileSand:
-		earth = scaleCol(c, 0.88)
+		earth = scaleCol(c, 0.9)
 	}
-	if k < 0.7 {
-		// Its sides: the ground worn, a few stones lining it.
-		if p, l := pebble(hx, hy, 13, 11, 1402, 0.3*k, 1.8, 3.6); p == pebStone {
-			return stepStone.at(1 + int(l*4.4))
-		} else if p == pebShadow {
-			return scaleCol(mix(c, earth, k), 0.8)
+	if k < 0.75 {
+		return mix(c, earth, k/0.75) // its worn sides
+	}
+	across := math.Abs(dx) > math.Abs(dy) // the flight runs across the screen
+	per, rh := 17.0, 4.5                  // a step, and its riser, in pixels down the flight
+	along := float64(hy) * dy
+	side := float64(hx)
+	riser := 0.42 // a riser facing the viewer, in half shade
+	fw := 36.0    // a flag of a tread, across the flight
+	if across {
+		per, rh, fw = 26, 3, 20
+		along = float64(hx) * dx
+		side = float64(hy)
+		riser = 0.2 // facing east, out of the light
+		if dx < 0 {
+			riser = 0.74 // facing west, into it
 		}
-		return mix(c, earth, k/0.7)
+	} else if dy < 0 {
+		rh, riser = 1.5, 0.1 // facing away: only the dark line of the drop shows
 	}
-	// The steps: across the slope, a stone tread every so often.
-	along := float64(hx)*dx + float64(hy)*dy*1.3 + 4*vnoise(float64(hx)*dy/14+float64(hy)*dx/14, 0, 1403)
-	const per = 15.0
-	m := along - per*math.Floor(along/per)
+	along += 3 * vnoise(side/17, 0, 1403)
 	row := int(math.Floor(along / per))
-	across := float64(hx)*dy - float64(hy)*dx
-	// Each tread is a few stones side by side.
-	seg := math.Floor((across + 9*hashf(row, 0, 1404)) / 13)
+	m := along - per*float64(row) // pixels down the tread, from the riser above
+	sh := hashf(row, 0, 1404) * fw
+	seg := math.Floor((side + sh) / fw)
+	segEdge := side + sh - seg*fw
 	tone := hashf(row, int(seg), 1405)
-	segEdge := across + 9*hashf(row, 0, 1404) - seg*13
+	wear := vnoise(float64(hx)/6, float64(hy)/5, 1406)
+	var l float64
 	switch {
-	case m < 2.2:
-		return mix(stepStone.at(1), earth, 0.35) // the riser's shadow
-	case m < 3.6:
-		return stepStone.at(4 + int(tone*1.9)) // the front edge of the tread, lit
-	case m < 8:
-		if segEdge < 1 {
-			return stepStone.at(1)
+	case m >= per-rh:
+		l = riser + 0.06*tone
+	case m >= per-rh-2:
+		l = 0.9 + 0.06*tone // the nosing, catching the light
+	default:
+		l = 0.58 + 0.16*tone + 0.12*(wear-0.5) - 0.08*(m/per)
+		if m < 3.5 {
+			l -= 0.16 * (1 - m/3.5) // tucked under the riser above
 		}
-		return stepStone.at(2 + int(tone*2.5+0.3*hashf(hx, hy, 1406)))
-	case m < 9.5:
-		return scaleCol(earth, 0.8)
+		if across && dx > 0 && m < 8 {
+			l -= 0.16 * (1 - m/8) // in the riser's shadow
+		}
+		if segEdge < 1 {
+			l -= 0.14 // the joint between two flags
+		}
 	}
-	return earth
+	return mix(earth, rp.at(int(clamp01(l)*float64(len(rp)-1))), smooth(clamp01((k-0.75)/0.12)))
 }

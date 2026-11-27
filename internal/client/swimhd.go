@@ -216,17 +216,18 @@ func (g *Game) drawInWater(dst drawTarget, p protocol.PlayerView, d drawable, si
 }
 
 // ring draws a ring of foam of radii rx, ry about (x, y), brightest in
-// front, broken here and there.
+// front, broken here and there, in dots a third of an art pixel (fineDot,
+// seasurface.go), as fine as the sea under it.
 func ring(dst drawTarget, x, y, rx, ry, t, alpha float64) {
-	for s := 0; s < 28; s++ {
-		ang := 2 * math.Pi * float64(s) / 28
+	n := int(math.Max(24, 9*(rx+ry)))
+	for s := 0; s < n; s++ {
+		ang := 2 * math.Pi * float64(s) / float64(n)
 		if math.Sin(ang*3+t*0.05) > 0.75 {
 			continue // a break in the foam
 		}
 		front := 0.5 + 0.5*math.Sin(ang) // 1 at the front, 0 behind
-		a := alpha * (0.35 + 0.65*front)
-		fillRect(dst, float32(math.Round(x+rx*math.Cos(ang))), float32(math.Round(y+ry*math.Sin(ang))), 1, 1,
-			premul(color.RGBA{236, 246, 250, 255}, a), false)
+		a := alpha * (0.3 + 0.7*front)
+		fineDot(dst, x+rx*math.Cos(ang)-1.0/3, y+ry*math.Sin(ang), 2.0/3, (1+front)/3, color.RGBA{236, 246, 250, 255}, a)
 	}
 }
 
@@ -236,8 +237,8 @@ func ring(dst drawTarget, x, y, rx, ry, t, alpha float64) {
 func (g *Game) drawStrokeFX(dst drawTarget, p protocol.PlayerView, d drawable, m motionID, fr int, depth float64) {
 	t := float64(g.frame) + float64(p.ID)*17
 	foam := color.RGBA{232, 244, 250, 255}
-	dot := func(x, y, a float64, w float32) {
-		fillRect(dst, float32(math.Round(x)), float32(math.Round(y)), w, 1, premul(foam, a), false)
+	dot := func(x, y, a float64, w float32) { // fine, as the sea: see fineDot
+		fineDot(dst, x-1.0/3, y, float64(w)*2/3, 1.0/3, foam, a)
 	}
 	// Rings, slower and wider when still.
 	period := 80.0
@@ -247,8 +248,8 @@ func (g *Game) drawStrokeFX(dst drawTarget, p protocol.PlayerView, d drawable, m
 	for k := 0; k < 2; k++ {
 		ph := math.Mod(t/period+float64(k)*0.5, 1)
 		r := 6 + ph*9
-		for s := 0; s < 24; s++ {
-			ang := 2 * math.Pi * float64(s) / 24
+		for s := 0; s < 60; s++ {
+			ang := 2 * math.Pi * float64(s) / 60
 			dot(d.sx+r*math.Cos(ang), d.sy+1+r*0.38*math.Sin(ang), 0.5*(1-ph)*depth, 1)
 		}
 	}

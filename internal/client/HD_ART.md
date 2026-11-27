@@ -363,6 +363,41 @@ go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
   and with someone asleep in it; `shot -tentsheet dir` the sheet with the
   bag icon and a GIF of going to bed in it; `shot -tent -tentsleep` a camp.
 
+## The sea and the cliffs
+
+- **The sea's surface** (`seasurface.go`): the bake leaves the sea
+  see-through, the more the deeper (`seaStops`), over a flat floor of deep
+  blue; after the chunks, a shader runs over each chunk with sea in it at
+  the canvas's own resolution (`drawShaderFine`), reading the chunk's alpha
+  for the depth: soft swell bands, wave crests that rise and sink, glints
+  (dimmer at night and under cloud: `seaLook`), and in wind and storms
+  whitecaps and foam streaks down the snapshot's wind. Nothing is baked
+  again. A swimmer's foam rings are dots a third of an art pixel
+  (`fineDot`).
+- **Reefs** (`terrainreef.go`): before a chunk's pixels are coloured, the
+  coral round it is laid out in a layer of its own (`reefField`): clusters
+  on a grid of about two tiles, one palette each (`coralPals`), heads of
+  brain, staghorn, table, fan and soft coral and reef rock, drawn back to
+  front with their shadows, then blurred a little; `reefPixel` lays the
+  floor (sand patches, sea grass blades, rubble) and the coral tinted by
+  the water. The fish are in the water shader (`terrainanim.go`, bit 4 of a
+  sea texel: coral near).
+- **Cliffs** (`terraincliff.go`): a front face reaches `wallFoot` of a tile
+  down over the low ground and `wallLift` up over the high ground
+  (`raise`), so a level is about 1.7 tiles of wall. The part over the low
+  ground lower than `wallBand` pixels is baked again into a `front` band per
+  row of a chunk's tiles and drawn in the sorted sprite pass
+  (`wallDrawables`, sorted just before the middle of its row): figures at
+  the very foot are behind the bottom stones, anything lower in front.
+  Stones are rounded boxes in staggered courses (`blockAt`) shaded on the
+  rock's ramp three times as fine (`fineRock`); plants grow from the cracks
+  (`crackPlant`). Ramps (`rampPixel`, `terrainfeatures.go`) are flights of
+  steps of the cliff's own rock.
+- Look: `shot -exact -open -size 1024 -w 1920 -h 1080 -at
+  cliffs-desert|cliffs-snow|cliffs-grass|ramp|reef`, `-swim -swimat deep
+  -weather storm`, `-time 0.85`; `-bench 200 -frames 240` prints the frame
+  time and the ground cache's memory.
+
 ## The natural caves
 
 Worlds made since `sim.StyleCaves` have a cave system under each island

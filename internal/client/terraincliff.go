@@ -1,8 +1,12 @@
 package client
 
 import (
+	"image"
 	"image/color"
 	"math"
+	"sync"
+
+	"github.com/hajimehoshi/ebiten/v2"
 
 	"survivalgame/internal/sim"
 )
@@ -35,6 +39,9 @@ const (
 	wallMX   = 100  // pixels of margin, either side of a chunk, its walls are found in
 	wallMY   = 116  // and above and below it
 	wallWarp = 0.11 // tiles: how far a wall's edges wander off the tiles' edges
+	wallFoot = 0.5  // tiles: how far a front face reaches down over the low ground below its tile
+	wallLift = 0.2  // and up over the edge of the high ground above it
+	wallBand = 14   // pixels down a tile of low ground a figure's feet may come: the face below is drawn over them (fronts)
 	wallFar  = 0xfff0
 )
 
@@ -56,6 +63,7 @@ type wallField struct {
 	// level (the high ground the wall is the edge of), and below it.
 	top, low [sim.MaxLevel + 1][]uint16
 	lowLvl   [sim.MaxLevel + 1][]uint8 // the level of the low ground nearest each pixel
+	ext      []bool                    // the face reaching down over low ground below its tile (raise)
 	// For each pixel, how far up and down its column the kind lasts
 	// (wall: to the open ground; open: to a wall), capped.
 	up, down []uint8
@@ -230,6 +238,7 @@ func (b *bake) walls() *wallField {
 	wt := t.wallTilesFor(tx0-3, ty0-3, tx1+3, ty1+3)
 	n := f.w * f.h
 	f.kind, f.lvl, f.mat = make([]uint8, n), make([]uint8, n), make([]uint8, n)
+	rows := make([]int32, n) // the row of the tile each wall pixel belongs to
 	matOf := map[[2]int]uint8{}
 	var levels [sim.MaxLevel + 1]bool
 	for y := 0; y < f.h; y++ {
@@ -247,9 +256,11 @@ func (b *bake) walls() *wallField {
 					matOf[[2]int{wx, wy}] = m
 				}
 				f.mat[i] = m
+				rows[i] = int32(wy)
 			}
 		}
 	}
+	f.raise(b, rows)
 	for l, ok := range levels {
 		if !ok {
 			continue
@@ -460,7 +471,7 @@ func (f *wallField) at(x, y int) (p wallPx, ok bool) {
 	// The face is as tall as the levels it drops; where the band of cliff
 	// is wider than that, the rest of it is rough ground on top.
 	drop := max(1, int(l)-int(f.lowLvl[l][i]))
-	face := float64(drop) * hdTH * (1.02 + 0.45*math.Abs(p.gx))
+	face := (float64(drop) + wallFoot + wallLift) * hdTH * (1.02 + 0.3*math.Abs(p.gx))
 	p.d, p.h = dt, dt+dl
 	if p.h > face*1.12 {
 		if dt < p.h-face {
@@ -506,13 +517,13 @@ const (
 var rockMats = []rockMat{
 	matGranite: {
 		ramp:   mkRamp(0x15161c, 0x2b2e37, 0x40454f, 0x575d68, 0x6f7681, 0x89909a, 0xa6abb1, 0xcbcecd),
-		course: [2]float64{24, 34}, width: 50, squash: 1.5, pillow: 8, topFrac: 0.36,
-		moss: mkRamp(0x3b5a22, 0x55772b, 0x759737), mossy: 0.45, lip: 7, hang: true,
-		shadow: hex(0x12141a), grain: 0.025,
+		course: [2]float64{27, 37}, width: 60, squash: 1.35, pillow: 11, topFrac: 0.3,
+		moss: mkRamp(0x3b5a22, 0x55772b, 0x759737), mossy: 0.35, lip: 8, hang: true,
+		shadow: hex(0x12141a), grain: 0.012,
 	},
 	matMossy: {
 		ramp:   mkRamp(0x121511, 0x262c24, 0x384035, 0x4b5545, 0x606b58, 0x77826b, 0x909a81, 0xadb59a),
-		course: [2]float64{22, 32}, width: 46, squash: 1.45, pillow: 8, topFrac: 0.36,
+		course: [2]float64{25, 35}, width: 56, squash: 1.35, pillow: 11, topFrac: 0.3,
 		moss: mkRamp(0x2f4a1b, 0x456b22, 0x62892e), mossy: 0.8, lip: 7, hang: true,
 		shadow: hex(0x0f130e), grain: 0.015,
 	},
@@ -523,22 +534,22 @@ var rockMats = []rockMat{
 			mkRamp(0x331410, 0x5a2219, 0x772d1f, 0x8f3a25, 0xa5492d, 0xb95e38, 0xcd7b4b, 0xe09d64),
 			mkRamp(0x3d2416, 0x6e4426, 0x8f5c31, 0xab743e, 0xc18d50, 0xd3a566, 0xe2bd80, 0xf1d8a4),
 		},
-		course: [2]float64{11, 17}, width: 92, squash: 4.5, pillow: 3, topFrac: 0.22,
-		lip: 4, shadow: hex(0x3a1c12), grain: 0.05,
+		course: [2]float64{19, 27}, width: 72, squash: 2.3, pillow: 7, topFrac: 0.26,
+		lip: 5, shadow: hex(0x3a1c12), grain: 0.025,
 	},
 	matBasalt: {
 		ramp:   mkRamp(0x09080c, 0x16141b, 0x221f28, 0x2f2c36, 0x3d3945, 0x4d4856, 0x625c6b, 0x7e7887),
-		course: [2]float64{60, 90}, width: 16, squash: 0.4, pillow: 3, topFrac: 0.1,
+		course: [2]float64{60, 90}, width: 20, squash: 0.45, pillow: 4, topFrac: 0.1,
 		lip: 3, shadow: hex(0x08070a), grain: 0.03,
 	},
 	matIce: {
 		ramp:   mkRamp(0x18202c, 0x2d3a49, 0x435565, 0x5b7283, 0x758ea0, 0x95abba, 0xb8c9d4, 0xdfe9ef),
-		course: [2]float64{24, 34}, width: 48, squash: 1.5, pillow: 8, topFrac: 0.36,
-		snow: true, lip: 8, shadow: hex(0x26303e), grain: 0.02, lift: 0.7,
+		course: [2]float64{27, 37}, width: 58, squash: 1.35, pillow: 11, topFrac: 0.28,
+		snow: true, lip: 7, shadow: hex(0x26303e), grain: 0.02, lift: 0.7,
 	},
 	matPale: {
 		ramp:   mkRamp(0x3b3027, 0x615244, 0x7e6e5a, 0x988770, 0xb19f83, 0xc8b798, 0xdccfb1, 0xefe5cd),
-		course: [2]float64{14, 22}, width: 60, squash: 2.4, pillow: 5, topFrac: 0.28,
+		course: [2]float64{20, 28}, width: 64, squash: 2.0, pillow: 7, topFrac: 0.28,
 		lip: 5, shadow: hex(0x3d3228), grain: 0.03,
 	},
 }
@@ -645,7 +656,13 @@ func courseOf(m *rockMat, d float64, seed uint32) int {
 }
 
 // wallPixel colours a pixel of a wall: rock, or the overhang of the ground
-// above it (ground is that ground's colour here).
+// above it (ground is that ground's colour here). A front face is a stack
+// of big rounded stones in rough courses: each lit on its top and along its
+// upper left, its front in half shade, darker round its lower right where
+// it tucks into the crack under it; the cracks crisp and dark, with moss
+// and small plants in them here and there; the ground above hanging over
+// the top in a lip, grass dangling from it; the whole face darker towards
+// its foot.
 func (b *bake) wallPixel(p wallPx, hx, hy int, u, v float64, ground func() color.RGBA) color.RGBA {
 	m := p.mat
 	if p.top {
@@ -663,11 +680,11 @@ func (b *bake) wallPixel(p wallPx, hx, hy int, u, v float64, ground func() color
 	// above.
 	d, f := p.d, p.f
 	if !p.stack {
-		side := p.gx*p.gx*0.34 + max(0, -p.gy)*max(0, -p.gy)*0.5
+		side := p.gx*p.gx*0.22 + max(0, -p.gy)*max(0, -p.gy)*0.36
 		if f < side {
 			g := ground()
-			if f > side-0.06 {
-				return scaleCol(g, 1.14) // the edge of the high ground, in the light
+			if f > side-0.045 {
+				return lipEdge(m, g, hx, hy) // the edge of the high ground, in the light
 			}
 			return g
 		}
@@ -677,118 +694,209 @@ func (b *bake) wallPixel(p wallPx, hx, hy int, u, v float64, ground func() color
 	// A face looking south or north lays its courses along its lip; one
 	// looking east or west is a heap of the same stones seen from the
 	// south, in rows across the screen.
-	front := p.gy >= 0.6 || p.stack
+	front := p.gy >= 0.55 || p.stack
 	a, sd := float64(hx), d
 	if !front {
 		sd = float64(hy) + 7919
 	}
-	// The lip: the ground above hangs over the face, ragged.
+	// The lip: the ground above hangs over the face, ragged, and grass
+	// dangles from it.
 	lw := 0.0
 	if !p.stack {
-		lw = m.lip * (0.4 + 0.8*vnoise(a/11, float64(hy)/40, 1211))
-		if m.hang && hashf(hx, 0, 1212) < 0.25 {
-			lw += 2 + 5*hashf(hx, 1, 1213) // a blade of grass hanging down
-		}
+		lw = m.lip * (0.45 + 0.75*vnoise(a/11, float64(hy)/40, 1211))
 		if m.snow {
-			lw += 3 * vnoise(a/6, 3, 1214)
+			lw += 2 + 3*vnoise(a/6, 3, 1214) // a cornice of snow
 		}
 		if d < lw {
 			g := ground()
 			switch {
-			case d > lw-1.3:
-				return scaleCol(g, 0.5) // its underside
-			case d > lw-3:
-				return scaleCol(g, 1.28) // its edge, catching the light
+			case d > lw-1.4:
+				return scaleCol(g, 0.42) // its underside
+			case d > lw-3.4:
+				return lipEdge(m, g, hx, hy)
 			}
-			return scaleCol(g, 1.12)
+			return scaleCol(g, 1.08)
+		}
+		if m.hang && front {
+			if bl := hashf(hx, 1, 1212); bl < 0.3 {
+				if l := 2 + 9*hashf(hx, 2, 1213); d < lw+l {
+					k := (d - lw) / l
+					g := ground()
+					if hashf(hx, 3, 1215) < 0.5 {
+						return scaleCol(g, 0.62+0.3*k) // a blade in the shade of the lip
+					}
+					return scaleCol(g, 0.85+0.2*(1-k))
+				}
+			}
 		}
 	}
-	st := stoneAt(m, a, sd, 1220)
 	dl := d - lw // pixels under the lip
-	// Where the stones laid along the lip meet those laid in rows, a joint.
-	if !p.stack && math.Abs(p.gy-0.6) < 0.025 && dl > 2 {
-		return m.ramp.at(0)
+	if !p.stack && math.Abs(p.gy-0.55) < 0.03 && dl > 2 {
+		return m.ramp.at(0) // where the stones laid along the lip meet those laid in rows, a joint
 	}
-	// The crack between stones, dark; deeper where three meet. At the
-	// foot the ground shows between the rounded bottoms of the stones.
-	foot := !p.stack && f > 0.86
-	if st.edge < 1.1 {
-		if foot {
-			return scaleCol(ground(), 0.42)
-		}
-		if st.edge < 0.55 || st.nx+st.ny > 0 {
-			return m.ramp.at(0)
-		}
-		return m.ramp.at(1)
-	}
-	if foot && f > 0.9 && st.edge < 1.1+(f-0.9)*40 && st.ny > 0.3 {
-		return scaleCol(ground(), 0.42)
-	}
+	st := blockAt(m, a, sd, 1220)
 	rp := m.ramp
 	if m.strata != nil {
 		rp = m.strata[(st.course%len(m.strata)+len(m.strata))%len(m.strata)]
 	}
-	// The stone, rounded over towards its edge and lit from the upper left;
-	// its top a flat facet in the sun, its front in the shade.
-	tone := 3.5 + m.lift + (hashf(int(st.id), 0, 1223)-0.5)*1.1
+	// Plants and moss growing out of the cracks.
+	if m.hang || m.mossy > 0 {
+		if c, ok := crackPlant(m, a, sd, hx, hy); ok {
+			return c
+		}
+	}
+	// The crack between stones, dark; at the foot the ground shows between
+	// the rounded bottoms of the stones.
+	foot := !p.stack && f > 0.86
+	if st.edge < 0.35 {
+		if foot {
+			return scaleCol(ground(), 0.4)
+		}
+		if m.mossy > 0 && st.ny > 0.4 && vnoise(float64(hx)/6, float64(hy)/5, 1234) < m.mossy*0.55 {
+			return m.moss.at(0) // moss in the crack, under a stone
+		}
+		if st.edge < 0 || st.nx+st.ny > 0 {
+			return rp.at(0)
+		}
+		return rp.at(1)
+	}
+	if foot && f > 0.9 && st.edge < 0.35+(f-0.9)*40 && st.ny > 0.3 {
+		return scaleCol(ground(), 0.4)
+	}
+	// The stone: rounded over towards its edge, a flat top facing the sky,
+	// lit from the upper left.
+	rim := 1 - smooth(clamp01(st.edge/m.pillow))
 	ty := st.y + st.hh // pixels down from the stone's top, roughly
 	topH := m.topFrac*2*st.hh - 2.4*(st.x/(m.width*0.6))*(st.x/(m.width*0.6))
-	rim := 1 - smooth(clamp01(st.edge/m.pillow))
-	lit := -0.55*st.nx - 0.83*st.ny
+	onTop := ty < topH
+	// The top, facing the sky, eases into the front over a few pixels.
+	up := smooth(clamp01((topH - ty + 1.5) / 3))
+	l := lerpf(lambert(st.nx*rim, st.ny*rim, 1.05-0.75*rim), lambert(st.nx*rim*0.5, -0.8, 0.5), up)
+	tone := 0.9 + 5.4*l + m.lift + (hashf(int(st.id), 0, 1223)-0.5)*1.0
 	switch {
-	case ty < topH-1.2:
-		tone = 5.7 + 0.8*rim*lit - 0.5*st.x/m.width + (hashf(int(st.id), 1, 1224)-0.5)*0.5
-		if m.snow && (dl < 26 || hashf(int(st.id), 2, 1233) < 0.35) && ty < topH*0.75 {
+	case !onTop && st.edge < 3.2 && st.ny > 0.15:
+		tone -= 1.1 * (3.2 - st.edge) / 3.2 // tucked into the crack below
+	}
+	if onTop {
+		if m.snow && (st.course <= 0 || hashf(int(st.id), 2, 1233) < 0.4) && ty < topH*0.8 {
 			return snowCap(hx, hy, ty)
 		}
 		if m.mossy > 0 && vnoise(float64(hx)/7, float64(hy)/5, 1231) < m.mossy*0.7 {
-			return m.moss.at(int(clamp01(0.35+0.5*lit*rim+0.3*hashf(hx, hy, 1232)) * 2.99))
-		}
-	case ty < topH:
-		tone = 6.9 // the edge of the top, catching the light
-	default:
-		tone += 1.5*rim*lit - 1.3*(ty-topH)/max(4, 2*st.hh-topH)
-		if lit < -0.3 && st.edge < 2.6 {
-			tone -= 1 // the shaded rim
+			return m.moss.at(int(clamp01(0.3+0.6*l+0.2*hashf(hx, hy, 1232)) * 2.99))
 		}
 	}
-	// The whole face darker towards its foot, darker just under the lip,
-	// and lit by which way it looks.
-	tone -= 1.9 * f * f
-	if dl < 5 && !p.stack {
-		tone -= 1.8 * (1 - dl/5)
+	// The whole face darker towards its foot and just under the lip, and
+	// lit by which way it looks.
+	tone -= 1.7 * f * f
+	if dl < 7 && !p.stack {
+		tone -= 1.7 * (1 - dl/7)
 	}
 	switch {
 	case p.gy < -0.6:
-		tone += 0.6 // the rim of a wall looking north: the stones' tops
+		tone += 0.5 // the rim of a wall looking north: the stones' tops
 	case p.gx > 0.55:
-		tone -= 0.6 // looking east, out of the light
+		tone -= 0.7 // looking east, out of the light
 	case p.gx < -0.55:
 		tone += 0.3
 	}
 	if hashf(hx, hy, 1225) < m.grain {
 		tone += 0.9
 	}
-	i := int(math.Floor(tone + 0.5*(dither(hx, hy)-0.5)))
-	return rp.at(max(1, min(len(rp)-1, i)))
+	// On the ramp three times as fine, so the stone rounds smoothly.
+	fr := fineRock(rp)
+	i := int(math.Round(tone*3 + 0.8*(dither(hx, hy)-0.5)))
+	return fr.at(max(3, min(len(fr)-1, i)))
+}
+
+// fineRocks are the rocks' ramps three times as fine, made once.
+var fineRocks sync.Map // the first colour of a ramp -> its fine ramp
+
+// fineRock is ramp r three times as fine.
+func fineRock(r ramp) ramp {
+	key := [2]color.RGBA{r[0], r[len(r)-1]}
+	if v, ok := fineRocks.Load(key); ok {
+		return v.(ramp)
+	}
+	f := r.sub(3)
+	fineRocks.Store(key, f)
+	return f
+}
+
+// lipEdge is the edge of the high ground where it meets the top of a wall,
+// lit: grass brighter, sand paler, snow white.
+func lipEdge(m *rockMat, g color.RGBA, hx, hy int) color.RGBA {
+	if m.snow {
+		return mix(g, hex(0xfbfdff), 0.6)
+	}
+	return scaleCol(g, 1.22+0.08*hashf(hx, hy, 1216))
+}
+
+// crackPlant colours (hx, hy), at (a, d) on a wall of rock m, if it is on
+// one of the small plants growing out of the cracks along the top of a
+// course of stones: a fan of a few blades rising from the crack and arching
+// over, or a cushion of moss on the stone below.
+func crackPlant(m *rockMat, a, d float64, hx, hy int) (color.RGBA, bool) {
+	const cw = 26.0
+	k := courseOf(m, d, 1220)
+	for c := k; c <= k+1; c++ { // the crack at the top of this course, or the next
+		y0 := courseTop(m, c, 1220)
+		if c <= 0 {
+			continue // the lip is no crack
+		}
+		jc := int(math.Floor(a / cw))
+		for j := jc - 1; j <= jc+1; j++ {
+			h := hash2(int32(c), int32(j), 1236)
+			if float64(h&0xff)/255 > 0.16 {
+				continue
+			}
+			rx := (float64(j) + 0.2 + 0.6*float64(h>>8&0xff)/255) * cw
+			dx, dy := a-rx, d-y0
+			if h>>16&3 == 0 && m.mossy > 0 {
+				// A cushion of moss over the crack.
+				if r := dx*dx/36 + (dy+0.5)*(dy+0.5)/6; r < 1 {
+					return m.moss.at(int(clamp01(0.75-0.5*r-0.12*dy+0.2*hashf(hx, hy, 1237)) * 2.99)), true
+				}
+				continue
+			}
+			// A fan of blades up out of the crack.
+			n := 3 + int(h>>18&3)
+			for i := 0; i < n; i++ {
+				ang := (float64(i)/float64(n-1) - 0.5) * 2.0
+				ln := 4 + 5*hashf(int(h), i, 1238)
+				t := -dy / ln // how far up the blade
+				if t < 0 || t > 1 {
+					continue
+				}
+				x := ang*ln*0.7*t + ang*ln*0.35*t*t // arching out
+				if math.Abs(dx-x) < 0.75-0.35*t {
+					g := grassHD.at(int(clamp01(0.3+0.6*t-0.25*ang) * float64(len(grassHD)-1)))
+					return g, true
+				}
+			}
+		}
+	}
+	return color.RGBA{}, false
 }
 
 // rubbleTop is the rough top of a band of cliff wider than its face is
 // tall: the ground above it, strewn with boulders of its rock.
 func rubbleTop(m *rockMat, hx, hy int, g color.RGBA) color.RGBA {
-	switch p, l := pebble(hx, hy, 30, 24, 1250, 0.55, 6, 12); p {
-	case pebStone:
-		if l < 0.12 {
-			return m.ramp.at(1)
+	// The ground's grass, sand or snow lies on it in patches.
+	if n := vnoise(float64(hx)/16, float64(hy)/12, 1252)*0.8 + 0.2*hashf(fdiv(hx, 2), fdiv(hy, 2), 1254); n > 0.56 {
+		if n < 0.59 {
+			return scaleCol(g, 0.78) // its edge, thin over the rock
 		}
-		return m.ramp.at(2 + int(l*5.2+m.lift))
-	case pebShadow:
-		return scaleCol(g, 0.6)
+		return scaleCol(g, 0.96)
 	}
-	if p, l := pebble(hx+7, hy+5, 11, 9, 1251, 0.35, 1.4, 3); p == pebStone {
-		return m.ramp.at(2 + int(l*4.5+m.lift))
+	// The rock, broken into slabs, each lit along its upper left.
+	edge, id, nx, ny := plates(float64(hx)/30, float64(hy)/22, 1253)
+	if edge < 0.045 {
+		return m.ramp.at(1)
 	}
-	return scaleCol(g, 0.93)
+	r := clamp01((0.22 - edge) / 0.22)
+	l := 4.5 + m.lift + (float64(id%97)/97-0.5)*1.2 - r*(nx+ny) // the rim to the lower right in shade
+	fr := fineRock(m.ramp)
+	return fr.at(max(3, min(len(fr)-1, int(math.Round(l*3+0.8*(dither(hx, hy)-0.5))))))
 }
 
 // snowCap is the snow lying on the top of a stone, ty pixels down it.
@@ -906,4 +1014,193 @@ func (f *wallField) underFall(x, y int) float64 {
 		best = max(best, a)
 	}
 	return best
+}
+
+// raise makes the front faces of the walls stand taller than their tiles:
+// each run of wall down a column that has lower ground under it reaches on
+// down over that ground to wallFoot of a tile below its tile, and up over
+// the last wallLift of the high ground above it. Nobody's feet come that
+// far up into the high ground (a figure keeps a quarter of a tile from a
+// wall); the low ground they do walk on, and the part of the face over it
+// lower than wallBand is drawn again over whoever stands there (fronts), so
+// they are behind the foot of the wall, never standing on its face. Ramps
+// are never covered: they are the way through.
+func (f *wallField) raise(b *bake, rows []int32) {
+	t := b.t
+	f.ext = make([]bool, len(f.kind))
+	lifted := make([]bool, len(f.kind))
+	for x := 0; x < f.w; x++ {
+		hx := b.x0 + x - wallMX
+		tx := fdiv(hx, hdTW)
+		ramp := func(hy int) bool {
+			ty := fdiv(hy, hdTH)
+			return t.rel(tx, ty).Variant() == sim.VarRamp && t.tile(tx, ty).Walkable()
+		}
+		// Down, under the foot of each run of wall.
+		for y := 1; y < f.h; y++ {
+			i, j := y*f.w+x, (y-1)*f.w+x
+			if f.kind[i] != wallOpen || f.kind[j] == wallOpen || f.ext[j] || f.lvl[i] >= f.lvl[j] {
+				continue
+			}
+			// Half a tile below the wall's edge, whatever its shape, so the foot
+			// follows it round its bends.
+			foot := float64(b.y0+y-wallMY) + wallFoot*hdTH - 2*vnoise(float64(hx)/9, 0, 1260)
+			for k := y; k < f.h; k++ {
+				ii := k*f.w + x
+				hy := b.y0 + k - wallMY
+				if float64(hy)+0.5 >= foot || f.kind[ii] != wallOpen || f.lvl[ii] >= f.lvl[j] || ramp(hy) {
+					break
+				}
+				f.kind[ii], f.lvl[ii], f.mat[ii], rows[ii], f.ext[ii] = f.kind[j], f.lvl[j], f.mat[j], rows[j], true
+			}
+		}
+		// Up, over the edge of the high ground above each run.
+		for y := f.h - 2; y >= 0; y-- {
+			i, j := y*f.w+x, (y+1)*f.w+x
+			if f.kind[i] != wallOpen || f.kind[j] == wallOpen || f.ext[j] || lifted[j] || f.lvl[i] < f.lvl[j] {
+				continue
+			}
+			lip := math.Max(float64(b.y0+y+1-wallMY)-wallLift*hdTH, (float64(rows[j])-0.3)*hdTH)
+			for k := y; k >= 0; k-- {
+				ii := k*f.w + x
+				hy := b.y0 + k - wallMY
+				if float64(hy)+0.5 < lip || f.kind[ii] != wallOpen || f.lvl[ii] < f.lvl[j] || ramp(hy) {
+					break
+				}
+				f.kind[ii], f.lvl[ii], f.mat[ii], rows[ii] = f.kind[j], f.lvl[j], f.mat[j], rows[j]
+				lifted[ii] = true
+			}
+		}
+	}
+}
+
+// front reports whether chunk pixel (x, y) is part of a face drawn again
+// over the figures at its foot (see raise), and if so which row of the
+// chunk's tiles it is in and how far down that row's band it lies.
+func (f *wallField) front(b *bake, x, y int) (row, by int, ok bool) {
+	i := f.gi(x, y)
+	if !f.ext[i] || f.kind[i] == wallOpen {
+		return 0, 0, false
+	}
+	hy := b.y0 + y
+	in := hy - fdiv(hy, hdTH)*hdTH
+	if in < wallBand || in >= wallBand+frontBandH {
+		return 0, 0, false
+	}
+	return y / hdTH, in - wallBand, true
+}
+
+// frontBandH is how tall the band of a tile row redrawn over the figures
+// is: from wallBand down to the deepest a face reaches.
+const frontBandH = int(wallFoot*hdTH) - wallBand + 1
+
+// belowWall reports whether point (x, y), in tiles, lies on the low ground
+// a front face reaches down over (see raise): nothing small grows there.
+func (g *Game) belowWall(x, y float64) bool {
+	tx, ty := int(math.Floor(x)), int(math.Floor(y))
+	if y-float64(ty) > wallFoot+0.06 {
+		return false
+	}
+	k := g.tileAt(tx, ty-1)
+	if !isWallTile(k) || g.relief == nil {
+		return false
+	}
+	lvl := func(x, y int) int {
+		if x < 0 || y < 0 || x >= g.width || y >= g.height || y*g.width+x >= len(g.relief) {
+			return 0
+		}
+		return g.relief[y*g.width+x].Level()
+	}
+	return lvl(tx, ty) < lvl(tx, ty-1)
+}
+
+// wallStrip is a band of the foot of the cliffs' faces in one row of
+// tiles of a chunk, to be drawn over the figures standing in it.
+type wallStrip struct {
+	img  *ebiten.Image // the band, at groundDens
+	x, y float64       // its corner, in art pixels of the world
+}
+
+// wallDrawables adds to list the bands of the cliffs' feet in view (see
+// raise), each sorted just before what stands in the middle of its row of
+// tiles: a figure further up the row, its feet hidden by the stones of the
+// foot, is drawn behind it; a bush or a tree in the row, and anyone lower
+// down, in front of it.
+func (g *Game) wallDrawables(list []drawable, cam camera) []drawable {
+	gc := g.ground
+	if gc == nil {
+		return list
+	}
+	gc.strips = gc.strips[:0]
+	for _, k := range gc.keys {
+		img, rows := gc.fronts[k], gc.frows[k]
+		if img == nil {
+			continue
+		}
+		for r := 0; r < chunkTiles; r++ {
+			if rows&(1<<r) == 0 {
+				continue
+			}
+			sub := img.SubImage(image.Rect(0, r*frontBandH, chunkPW, (r+1)*frontBandH)).(*ebiten.Image)
+			x := float64(k.cx * chunkW)
+			y := float64(k.cy*chunkH+r*TileH) + float64(wallBand)/groundDens
+			gc.strips = append(gc.strips, wallStrip{sub, x, y})
+			list = append(list, drawable{y: float64(k.cy*chunkTiles+r) + 0.495, id: uint32(len(gc.strips)), wall: true,
+				idx: len(gc.strips) - 1, sx: x - cam.ox, sy: y - cam.oy})
+		}
+	}
+	return list
+}
+
+// drawWallFront draws the band of a cliff's foot d stands for.
+func (g *Game) drawWallFront(dst drawTarget, d drawable) {
+	s := g.ground.strips[d.idx]
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(d.sx, d.sy)
+	drawImageD(dst, s.img, op, groundDens)
+}
+
+// blockAt finds the stone at (a, d) of a wall of rock m, a pixels along it
+// and d down from its lip: big rounded blocks laid in courses down the
+// wall, each course's joints staggered from the last, each block a rounded
+// box (a superellipse) a little lumpy, its own width, a little higher or
+// lower than its neighbours, with a crack all round it. Outside its outline
+// edge is negative: the crack.
+func blockAt(m *rockMat, a, d float64, seed uint32) stone {
+	k := courseOf(m, d, seed)
+	y0, y1 := courseTop(m, k, seed), courseTop(m, k+1, seed)
+	w := m.width
+	off := hashf(k, 0, seed+11) * w
+	// The joints of the course: every width, give or take.
+	joint := func(j int) float64 {
+		return float64(j)*w - off + (hashf(k, j, seed+13)-0.5)*w*0.55
+	}
+	j := int(math.Floor((a + off) / w))
+	if a < joint(j) {
+		j--
+	} else if a >= joint(j+1) {
+		j++
+	}
+	x0, x1 := joint(j), joint(j+1)
+	h := hash2(int32(k), int32(j), seed+12)
+	const gap = 1.6
+	cx := (x0 + x1) / 2
+	hw := (x1-x0)/2 - gap/2
+	hh := (y1-y0)/2 - gap/2
+	cy := (y0+y1)/2 + (float64(h>>8&0xff)/255-0.5)*hh*0.25
+	hh *= 0.9 + 0.2*float64(h>>16&0xff)/255
+	dx, dy := (a-cx)/hw, (d-cy)/hh
+	ang := math.Atan2(dy, dx)
+	lump := 1 + 0.05*math.Sin(3*ang+float64(h&0xff)) + 0.03*math.Sin(5*ang+float64(h>>4&0xff))
+	const p = 3.2
+	r := math.Pow(math.Pow(math.Abs(dx), p)+math.Pow(math.Abs(dy), p), 1/p) / lump
+	st := stone{id: h, course: k, x: a - cx, y: d - cy, hh: hh}
+	st.edge = (1 - r) * math.Min(hw, hh) * 1.1
+	// Its outward normal, from the superellipse.
+	nx := math.Copysign(math.Pow(math.Abs(dx), p-1), dx)
+	ny := math.Copysign(math.Pow(math.Abs(dy), p-1), dy) * hw / hh
+	if n := math.Hypot(nx, ny); n > 0 {
+		st.nx, st.ny = nx/n, ny/n
+	}
+	return st
 }

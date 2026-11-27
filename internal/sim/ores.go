@@ -155,7 +155,11 @@ func OreTier(k EntityKind) (t Tier, ok bool) {
 // scatterOres lays each ore on free tiles of its home region. It has its own
 // rng so the rest of the world does not shift.
 func (w *World) scatterOres(rng *rand.Rand) {
-	w.scatterVeins(rng, veins, nil) // see orevein.go; jade comes with scatterDeepOres
+	defs := veins
+	if w.style >= StyleFlint {
+		defs = flintVeins // sparser on the rocky hills
+	}
+	w.scatterVeins(rng, defs, nil) // see orevein.go; jade comes with scatterDeepOres
 }
 
 // mine lands one pickaxe hit on the ore e.

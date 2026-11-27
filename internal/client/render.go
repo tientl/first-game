@@ -88,6 +88,7 @@ type drawable struct {
 	moving   bool
 	wx, wy   float64 // a player's place in tiles, for its stride; see limbdraw.go
 	extra    bool    // part of a boss's lair that is not an entity: idx is into lair.extras; see lairrender.go
+	wall     bool    // the foot of a cliff's face, over the figures by it: idx is into ground.strips; see terraincliff.go
 }
 
 // layer orders things standing on the same row: entities, then animals,
@@ -184,7 +185,7 @@ func (g *Game) drawWorld(screen, canvas *ebiten.Image, cam camera, scale, rr, cw
 	w := g.world
 	w.begin(canvas, rr, cw, ch, cam)
 	for _, stage := range []func(){
-		func() { g.ground.draw(w, cam.ox, cam.oy, g.frame) },
+		func() { g.drawGround(w, cam) },
 		func() { g.drawLairWater(w, cam, alpha) }, // the shark's deep: see lairrender.go
 		func() { g.drawFish(w, cam, alpha) },
 		func() { g.drawUndergrowth(w, cam) },
@@ -349,6 +350,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		list = append(list, drawable{y: wy, id: uint32(p.ID), isPlayer: true, idx: i, sx: sx, sy: sy, moving: moving, wx: wx, wy: wy})
 	}
 	list = g.lairDrawables(list, cam, float64(dst.Bounds().Dx()), float64(dst.Bounds().Dy())) // see lairrender.go
+	list = g.wallDrawables(list, cam)
 	slices.SortFunc(list, func(a, b drawable) int {
 		if c := cmp.Compare(a.y, b.y); c != 0 {
 			return c
@@ -380,7 +382,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		switch {
 		case d.drop:
 			w = 7
-		case d.boat, d.extra:
+		case d.boat, d.extra, d.wall:
 			w = 0
 		case d.isPlayer && g.curr.Players[d.idx].Swimming:
 			w = 0
@@ -418,6 +420,10 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 		}
 		if d.boat {
 			g.drawBoat(dst, g.curr.Boats[d.idx], d.sx, d.sy)
+			continue
+		}
+		if d.wall {
+			g.drawWallFront(dst, d)
 			continue
 		}
 		if d.extra {

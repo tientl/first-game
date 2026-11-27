@@ -230,6 +230,8 @@ type chunkResult struct {
 	shore []byte // nil when the chunk has no coast
 	roof  []byte // nil when the chunk has no cave under a mountain
 	water []byte // nil when the chunk has no water that moves: see terrainanim.go
+	front []byte // nil when no cliff's face reaches down over figures: see terraincliff.go
+	rows  uint8
 }
 
 type groundCache struct {
@@ -239,6 +241,10 @@ type groundCache struct {
 	shores map[chunkKey]*ebiten.Image // coast distances for the surf; absent inland
 	roofs  map[chunkKey]*ebiten.Image // the rock over caves; absent where there are none
 	waters map[chunkKey]*ebiten.Image // the water maps of the moving water; absent where there is none
+	seas   map[chunkKey]bool          // the chunks with sea in them, which the sea's surface is drawn over: see seasurface.go
+	fronts map[chunkKey]*ebiten.Image // the feet of the cliffs' faces, drawn over the figures by them (terraincliff.go)
+	frows  map[chunkKey]uint8         // which rows of tiles of each have any
+	strips []wallStrip                // the bands of them in view this frame
 
 	// roofAlpha is how much of the cave roofs to draw: 1 from outside, 0
 	// for a player inside a cave; caveIn eases between them (see caves.go).
@@ -249,7 +255,7 @@ type groundCache struct {
 	results   chan chunkResult
 	sem       chan struct{}
 
-	wave  *ebiten.Image
+	sea   seaLook     // the weather on the sea, for its surface: see seasurface.go
 	style GroundStyle // the look the chunks were baked in
 	keys  []chunkKey  // the chunks in view, for draw
 }
@@ -261,12 +267,14 @@ func newGroundCache() *groundCache {
 		shores:    make(map[chunkKey]*ebiten.Image),
 		roofs:     make(map[chunkKey]*ebiten.Image),
 		waters:    make(map[chunkKey]*ebiten.Image),
+		seas:      make(map[chunkKey]bool),
+		fronts:    make(map[chunkKey]*ebiten.Image),
+		frows:     make(map[chunkKey]uint8),
 		roofAlpha: 1,
 		used:      make(map[chunkKey]int),
 		pending:   make(map[chunkKey]bool),
 		results:   make(chan chunkResult, 64),
 		sem:       make(chan struct{}, n),
-		wave:      genWaveTexture(),
 		style:     groundStyle,
 	}
 	liveGround = gc // see terrainanim.go
@@ -294,15 +302,32 @@ func (gc *groundCache) reset(terr *terrain) {
 		img.Deallocate()
 		delete(gc.waters, k)
 	}
+	clear(gc.seas)
+	for k, img := range gc.fronts {
+		img.Deallocate()
+		delete(gc.fronts, k)
+	}
+	clear(gc.frows)
 	clear(gc.used)
 	clear(gc.pending)
 }
 
 // store keeps a baked chunk.
-func (gc *groundCache) store(k chunkKey, ground, shore, roof, water []byte) *ebiten.Image {
+func (gc *groundCache) store(k chunkKey, bc bakedChunk) *ebiten.Image {
+	ground, shore, roof, water := bc.ground, bc.shore, bc.roof, bc.water
+	if bc.front != nil {
+		f := ebiten.NewImage(chunkPW, chunkTiles*frontBandH)
+		f.WritePixels(bc.front)
+		gc.fronts[k], gc.frows[k] = f, bc.frontRows
+	}
 	img := ebiten.NewImage(chunkPW, chunkPH)
 	img.WritePixels(ground)
 	gc.chunks[k] = img
+	if hasSea(ground) {
+		gc.seas[k] = true
+	} else {
+		delete(gc.seas, k)
+	}
 	if shore != nil {
 		s := ebiten.NewImage(chunkW, chunkH)
 		s.WritePixels(shore)
@@ -329,9 +354,9 @@ func (gc *groundCache) request(k chunkKey) {
 	terr, gen := gc.terr, gc.gen
 	go func() {
 		gc.sem <- struct{}{}
-		data, shore, roof, water := terr.bakeChunkAll(k)
+		bc := terr.bakeChunkFull(k)
 		<-gc.sem
-		gc.results <- chunkResult{k, gen, data, shore, roof, water}
+		gc.results <- chunkResult{k, gen, bc.ground, bc.shore, bc.roof, bc.water, bc.front, bc.frontRows}
 	}()
 }
 
@@ -348,7 +373,7 @@ func (gc *groundCache) collect(most int) {
 			if gc.chunks[r.key] != nil {
 				continue // already baked synchronously
 			}
-			gc.store(r.key, r.data, r.shore, r.roof, r.water)
+			gc.store(r.key, bakedChunk{r.data, r.shore, r.roof, r.water, r.front, r.rows})
 		default:
 			return
 		}
@@ -374,8 +399,7 @@ func (gc *groundCache) ensure(keys []chunkKey) {
 			gc.collect(math.MaxInt) // some may be baked and waiting
 		}
 	}
-	type baked struct{ ground, shore, roof, water []byte }
-	out := make([]baked, len(missing))
+	out := make([]bakedChunk, len(missing))
 	var wg sync.WaitGroup
 	next := int32(-1)
 	for w := 0; w < min(len(missing), runtime.NumCPU()); w++ {
@@ -387,14 +411,13 @@ func (gc *groundCache) ensure(keys []chunkKey) {
 				if i >= len(missing) {
 					return
 				}
-				g, s, r, wa := gc.terr.bakeChunkAll(missing[i])
-				out[i] = baked{g, s, r, wa}
+				out[i] = gc.terr.bakeChunkFull(missing[i])
 			}
 		}()
 	}
 	wg.Wait()
 	for i, k := range missing {
-		gc.store(k, out[i].ground, out[i].shore, out[i].roof, out[i].water)
+		gc.store(k, out[i])
 	}
 }
 
@@ -422,6 +445,12 @@ func (gc *groundCache) evict(keep int) {
 			w.Deallocate()
 			delete(gc.waters, oldest)
 		}
+		delete(gc.seas, oldest)
+		if f := gc.fronts[oldest]; f != nil {
+			f.Deallocate()
+			delete(gc.fronts, oldest)
+			delete(gc.frows, oldest)
+		}
 		delete(gc.used, oldest)
 	}
 }
@@ -433,7 +462,7 @@ func (gc *groundCache) draw(dst drawTarget, ox, oy float64, frame int) {
 		gc.reset(gc.terr)
 	}
 	w, h := dst.Bounds().Dx(), dst.Bounds().Dy()
-	gc.drawWater(dst, ox, oy, frame)
+	gc.drawWater(dst)
 	gc.collect(4)
 
 	cx0, cy0 := int(math.Floor(ox/chunkW)), int(math.Floor(oy/chunkH))
@@ -456,6 +485,12 @@ func (gc *groundCache) draw(dst drawTarget, ox, oy float64, frame int) {
 		op.GeoM.Reset()
 		op.GeoM.Translate(float64(k.cx*chunkW)-ox, float64(k.cy*chunkH)-oy)
 		drawImageD(dst, gc.chunks[k], op, groundDens)
+	}
+	for _, k := range gc.keys {
+		if gc.seas[k] {
+			wx, wy := float64(k.cx*chunkW), float64(k.cy*chunkH)
+			gc.drawSeaSurface(dst, gc.chunks[k], wx-ox, wy-oy, wx, wy, frame) // see seasurface.go
+		}
 	}
 	if gc.roofAlpha > 0 {
 		rop := &ebiten.DrawImageOptions{}
@@ -484,49 +519,10 @@ func (gc *groundCache) draw(dst drawTarget, ox, oy float64, frame int) {
 	gc.evict(max(minChunks, 2*(cx1-cx0+3)*(cy1-cy0+3)))
 }
 
-const waveW, waveH = 96, 72
-
-// drawWater fills the view with water and two drifting layers of ripples.
-func (gc *groundCache) drawWater(dst drawTarget, ox, oy float64, frame int) {
+// drawWater fills the view with the deep blue the sea of the chunks lies
+// over, see-through as it is (more the deeper): the floor of the water. What
+// moves on it is drawn over the chunks (seasurface.go).
+func (gc *groundCache) drawWater(dst drawTarget) {
 	w, h := float64(dst.Bounds().Dx()), float64(dst.Bounds().Dy())
 	fillRect(dst, -1, -1, float32(w)+2, float32(h)+2, colWaterBG, false) // a pixel over, for the canvas's sub-pixel shift
-	t := float64(frame)
-	for _, l := range []struct{ vx, vy, a float64 }{{0.12, 0.05, 0.55}, {-0.08, 0.09, 0.35}} {
-		sx := math.Mod(-ox+t*l.vx, waveW)
-		sy := math.Mod(-oy+t*l.vy, waveH)
-		if sx > 0 {
-			sx -= waveW
-		}
-		if sy > 0 {
-			sy -= waveH
-		}
-		op := &ebiten.DrawImageOptions{}
-		op.ColorScale.ScaleAlpha(float32(l.a))
-		for y := math.Floor(sy); y < h; y += waveH {
-			for x := math.Floor(sx); x < w; x += waveW {
-				op.GeoM.Reset()
-				op.GeoM.Translate(x, y)
-				dst.DrawImage(gc.wave, op)
-			}
-		}
-	}
-}
-
-// genWaveTexture draws tileable contour-line ripples.
-func genWaveTexture() *ebiten.Image {
-	c := newCanvas(waveW, waveH)
-	light := hex(0x9fd4f2)
-	for y := 0; y < waveH; y++ {
-		for x := 0; x < waveW; x++ {
-			n := pnoise(float64(x)/16, float64(y)/9, waveW/16, waveH/9, 80)*0.7 +
-				pnoise(float64(x)/8, float64(y)/4.5, waveW/8, waveH/9*2, 81)*0.3
-			switch {
-			case math.Abs(n-0.5) < 0.012:
-				c.set(x, y, withAlpha(light, 230))
-			case math.Abs(n-0.36) < 0.01 || math.Abs(n-0.64) < 0.01:
-				c.set(x, y, withAlpha(light, 110))
-			}
-		}
-	}
-	return c.image()
 }
