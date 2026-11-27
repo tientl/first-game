@@ -3,7 +3,6 @@ package client
 import (
 	"fmt"
 	"image"
-	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -48,8 +47,7 @@ func (p *diffPicker) worldSize() int { return worldSizes[p.size%len(worldSizes)]
 func (p *diffPicker) drawSize(b *uiDst) {
 	r := diffSizeRect()
 	x, y, w, h := float32(r.Min.X), float32(r.Min.Y), float32(r.Dx()), float32(r.Dy())
-	fillRoundRect(b, x-2, y-2, w+4, h+4, 10, color.RGBA{0, 0, 0, 90})
-	fillRoundRect(b, x, y, w, h, 8, color.RGBA{14, 16, 26, 200})
+	tab(b, float64(x), float64(y), float64(w), float64(h), 10, tabIdle)
 	s := worldSizes[p.size%len(worldSizes)]
 	cx := float64(r.Min.X) + float64(r.Dx())/2
 	drawText(b, "Cỡ thế giới (C)", cx, float64(r.Min.Y)+4, colMuted, text.AlignCenter, 1)

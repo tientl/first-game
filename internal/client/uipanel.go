@@ -29,21 +29,23 @@ const (
 	psGlow                        // a soft glow round a rectangle
 )
 
-// panelLook is what a style is painted with: its colours (body, rim, a
-// third for stitches or studs) and the rim's width, in UI pixels.
+// panelLook is what a style is painted with: its colours (body, rim, the
+// studs of a frame, the stitches' thread; straight colours, the alpha how
+// much each shows) and the rim's width, in UI pixels.
 type panelLook struct {
 	body, rim, accent color.RGBA
 	rimW              float64
+	stitch            color.RGBA
 }
 
 var panelLooks = [...]panelLook{
-	psHide:      {color.RGBA{40, 31, 25, 238}, color.RGBA{92, 64, 42, 255}, color.RGBA{206, 170, 112, 210}, 3},
-	psWood:      {color.RGBA{33, 26, 21, 242}, color.RGBA{128, 88, 54, 255}, color.RGBA{226, 214, 184, 255}, 5.5},
-	psParchment: {color.RGBA{232, 214, 172, 246}, color.RGBA{120, 84, 50, 255}, color.RGBA{160, 120, 70, 255}, 1.5},
-	psStone:     {color.RGBA{86, 82, 76, 250}, color.RGBA{132, 126, 116, 255}, color.RGBA{214, 200, 166, 255}, 4},
-	psWell:      {color.RGBA{20, 16, 13, 235}, color.RGBA{96, 78, 60, 255}, color.RGBA{0, 0, 0, 0}, 1},
-	psPlate:     {color.RGBA{22, 18, 15, 205}, color.RGBA{0, 0, 0, 0}, color.RGBA{0, 0, 0, 0}, 0},
-	psLeather:   {color.RGBA{58, 43, 31, 240}, color.RGBA{104, 74, 48, 255}, color.RGBA{206, 170, 112, 150}, 1.5},
+	psHide:      {color.RGBA{40, 31, 25, 238}, color.RGBA{92, 64, 42, 255}, color.RGBA{}, 3, color.RGBA{196, 156, 102, 125}},
+	psWood:      {color.RGBA{33, 26, 21, 242}, color.RGBA{128, 88, 54, 255}, color.RGBA{226, 214, 184, 255}, 5.5, color.RGBA{176, 136, 88, 95}},
+	psParchment: {color.RGBA{232, 214, 172, 246}, color.RGBA{120, 84, 50, 255}, color.RGBA{160, 120, 70, 255}, 1.5, color.RGBA{}},
+	psStone:     {color.RGBA{86, 82, 76, 250}, color.RGBA{132, 126, 116, 255}, color.RGBA{214, 200, 166, 255}, 4, color.RGBA{}},
+	psWell:      {color.RGBA{20, 16, 13, 235}, color.RGBA{96, 78, 60, 255}, color.RGBA{0, 0, 0, 0}, 1, color.RGBA{}},
+	psPlate:     {color.RGBA{22, 18, 15, 205}, color.RGBA{0, 0, 0, 0}, color.RGBA{0, 0, 0, 0}, 0, color.RGBA{}},
+	psLeather:   {color.RGBA{58, 43, 31, 240}, color.RGBA{104, 74, 48, 255}, color.RGBA{}, 1.5, color.RGBA{196, 156, 102, 70}},
 	psGlow:      {},
 }
 
@@ -60,6 +62,7 @@ var Style float
 var Body vec4
 var Rim vec4
 var Accent vec4
+var Stitch vec4
 var Seed float
 var Shadow float // how dark the shadow is
 
@@ -93,7 +96,7 @@ func over(dst vec4, c vec4) vec4 {
 }
 
 func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
-	pos := dstPos.xy - imageDstOrigin() - Margin
+	pos := srcPos - Margin // srcPos runs over the rectangle drawn, from (0, 0)
 	half := Size * 0.5
 	p := pos - half
 	r := min(Radius, min(half.x, half.y))
@@ -161,15 +164,15 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 		// A dark line at the very edge.
 		col.rgb *= 1.0 - 0.55*(1.0-smoothstep(0.0, 1.0*max(1.0, K*0.6), depth))
 		// Stitches just inside the rim, not round the corners.
-		if Accent.a > 0.0 && !inCorner {
-			sd := abs(depth - (RimW + 2.6*K))
-			dash := fract(along/(5.2*K) + 0.25)
-			if dash < 0.55 && sd < 0.75*K {
-				a := Accent.a * (1.0 - smoothstep(0.35*K, 0.75*K, sd))
-				thread := Accent.rgb * (0.8 + 0.4*(0.5-abs(dash-0.27)*2.0))
-				col.rgb = mix(col.rgb, thread, a)
-			} else if dash < 0.62 && sd < 1.4*K && depth > RimW+2.6*K {
-				col.rgb *= 0.86 // the thread's hole
+		if Stitch.a > 0.0 && !inCorner {
+			sd := abs(depth - (RimW + 2.4*K))
+			dash := fract(along/(6.0*K) + 0.25)
+			end := 1.0 - smoothstep(0.32, 0.46, abs(dash-0.23)*2.0) // soft ends
+			if dash < 0.46 && sd < 0.6*K {
+				a := Stitch.a * end * (1.0 - smoothstep(0.25*K, 0.6*K, sd))
+				col.rgb = mix(col.rgb, Stitch.rgb, a)
+			} else if sd < 1.1*K && depth > RimW+2.4*K && dash < 0.5 {
+				col.rgb *= 1.0 - 0.1*Stitch.a // the thread's shadow
 			}
 		}
 		// Bone studs at the corners of a frame.
@@ -236,6 +239,7 @@ type panelKey struct {
 	k         float32
 	body, rim color.RGBA
 	accent    color.RGBA
+	stitch    color.RGBA
 	shadow    uint8
 }
 
@@ -266,7 +270,7 @@ func drawPanelLook(d *uiDst, ps panelStyle, l panelLook, x, y, w, h, r, shadow f
 	if pw <= 0 || ph <= 0 {
 		return
 	}
-	key := panelKey{ps, pw, ph, int(math.Round(r * d.k)), float32(d.k), l.body, l.rim, l.accent, uint8(shadow * 255)}
+	key := panelKey{ps, pw, ph, int(math.Round(r * d.k)), float32(d.k), l.body, l.rim, l.accent, l.stitch, uint8(shadow * 255)}
 	b := panelBakes[key]
 	if b == nil {
 		b = bakePanel(key, l)
@@ -300,8 +304,9 @@ func bakePanel(key panelKey, l panelLook) *panelBake {
 		if c.A == 0 {
 			return []float32{0, 0, 0, 0}
 		}
-		a := float32(c.A) / 255
-		return []float32{float32(c.R) / 255 / a, float32(c.G) / 255 / a, float32(c.B) / 255 / a, a}
+		// A look's colours are straight, not premultiplied: the alpha is how
+		// much it shows.
+		return []float32{float32(c.R) / 255, float32(c.G) / 255, float32(c.B) / 255, float32(c.A) / 255}
 	}
 	op := &ebiten.DrawRectShaderOptions{}
 	op.Uniforms = map[string]any{
@@ -314,6 +319,7 @@ func bakePanel(key panelKey, l panelLook) *panelBake {
 		"Body":   vec(key.body),
 		"Rim":    vec(key.rim),
 		"Accent": vec(key.accent),
+		"Stitch": vec(key.stitch),
 		"Seed":   float32((key.w*7+key.h*13)%97) / 9.7,
 		"Shadow": float32(key.shadow) / 255,
 	}

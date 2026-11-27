@@ -10,6 +10,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -92,22 +93,27 @@ func (g *Game) drawSlot(dst *uiDst, s sim.Slot, x, y float64, st slotStyle) {
 	g.drawSlotSized(dst, s, x, y, slotPx, st)
 }
 
-// drawSlotSized draws a slot px across: a sunken well with a lit lower
-// edge, its item's icon as big as fits in whole pixels, and the count.
+// drawSlotSized draws a slot px across: a well sunk in the hide, lit warm
+// round its rim when it is held or pointed at, its item's icon as big as
+// fits, and the count.
 func (g *Game) drawSlotSized(dst *uiDst, s sim.Slot, x, y float64, px int, st slotStyle) {
-	fx, fy, p := float32(x), float32(y), float32(px)
+	p := float64(px)
+	r := min(8, p/6)
 	switch st {
 	case slotHeld, slotFocus:
-		fillRoundRect(dst, fx-3, fy-3, p+6, p+6, 9, colKey)
-		fillRoundRect(dst, fx, fy, p, p, 7, color.RGBA{58, 46, 22, 255})
+		pulse := 0.5 + 0.5*math.Sin(float64(g.frame)*0.07)
+		glow(dst, x-1, y-1, p+2, p+2, r+1, colAmberGlow, 0.5+0.2*pulse)
+		well(dst, x, y, p, p, r)
+		fillRoundRect(dst, float32(x), float32(y), float32(p), float32(p), float32(r), color.RGBA{120, 72, 18, 70}) // a warm light in it
+		strokeRoundRectHair(dst, x-1, y-1, p+2, p+2, r+1, 1.5, colAmber)
+		strokeRoundRectHair(dst, x+0.5, y+0.5, p-1, p-1, r-0.5, dst.hair(), color.RGBA{255, 236, 180, 150})
 	case slotLifted:
-		fillRoundRect(dst, fx-2, fy-2, p+4, p+4, 8, color.RGBA{255, 255, 255, 120})
-		fillRoundRect(dst, fx, fy, p, p, 7, colSlot)
+		well(dst, x, y, p, p, r)
+		strokeRoundRectHair(dst, x-1, y-1, p+2, p+2, r+1, 1, color.RGBA{236, 224, 196, 160})
 	default:
-		fillRoundRect(dst, fx, fy, p, p, 7, color.RGBA{70, 74, 92, 235}) // a lit lower edge
-		fillRoundRect(dst, fx, fy, p, p-2, 7, color.RGBA{10, 11, 17, 235})
-		fillRoundRect(dst, fx+1, fy+2, p-2, p-4, 6, color.RGBA{34, 37, 50, 235})
+		well(dst, x, y, p, p, r)
 	}
+	noteBox(dst, x, y, p, p)
 	if s.Empty() {
 		return
 	}
@@ -117,10 +123,40 @@ func (g *Game) drawSlotSized(dst *uiDst, s sim.Slot, x, y float64, px int, st sl
 	}
 	// The icon is the old one's size, 16 UI pixels times as many as fit.
 	is := float64(16 * max(1, (px-8)/16))
-	g.drawItem(dst, s.Item, x+(float64(px)-is)/2, y+(float64(px)-is)/2, is, a) // see iconhd.go
+	g.drawItem(dst, s.Item, x+(p-is)/2, y+(p-is)/2, is, a) // see iconhd.go
 	if s.Item.MaxCount() > 1 {
-		g.text(dst, fmt.Sprintf("%d", s.Count), x+float64(px)-5, y+float64(px)-17, colWhite, text.AlignEnd, 1)
+		drawCount(dst, s.Count, x+p-4, y+p-4)
 	}
+}
+
+// drawCount is a stack's count, small and heavy with a dark rim, its
+// bottom right corner at (x, y).
+func drawCount(dst *uiDst, n int, x, y float64) {
+	const scale = 0.92
+	uiTextW(dst, fmt.Sprintf("%d", n), x, y-baseUI*scale-1, colWhite, text.AlignEnd, scale, wHeavy+60, fxOutline)
+}
+
+// strokeRoundRectHair draws the rim of a rounded rectangle w UI pixels
+// thick, its middle on the rectangle's edge.
+func strokeRoundRectHair(dst *uiDst, x, y, w, h, r, sw float64, c color.RGBA) {
+	var p vector.Path
+	R := float32(min(r, w/2, h/2))
+	X, Y, W, H := float32(x), float32(y), float32(w), float32(h)
+	p.MoveTo(X+R, Y)
+	p.LineTo(X+W-R, Y)
+	p.ArcTo(X+W, Y, X+W, Y+R, R)
+	p.LineTo(X+W, Y+H-R)
+	p.ArcTo(X+W, Y+H, X+W-R, Y+H, R)
+	p.LineTo(X+R, Y+H)
+	p.ArcTo(X, Y+H, X, Y+H-R, R)
+	p.LineTo(X, Y+R)
+	p.ArcTo(X, Y, X+R, Y, R)
+	p.Close()
+	var q vector.Path
+	q.AddPath(&p, &vector.AddPathOptions{GeoM: dst.geoM()})
+	op := &vector.DrawPathOptions{AntiAlias: true}
+	op.ColorScale.ScaleWithColor(c)
+	vector.StrokePath(dst.img, &q, &vector.StrokeOptions{Width: float32(sw * dst.k), LineJoin: vector.LineJoinRound}, op)
 }
 
 type bagView struct {
@@ -543,47 +579,64 @@ func (g *Game) drawBag(screen *uiDst, sw, sh int) {
 
 func (g *Game) drawRecipeCard(screen *uiDst, r sim.Recipe, x, y, w float64, hover bool) {
 	inv := &g.curr.Self.Inv
-	bg := color.RGBA{0, 0, 0, 90}
-	if hover {
-		bg = color.RGBA{58, 46, 22, 200}
+	free := g.freeBuild() // nothing needed and nothing used: see buildpalette.go
+	// A leather card: rimmed green when it can be made now, lit warm under
+	// the pointer.
+	l := panelLooks[psLeather]
+	l.stitch = color.RGBA{}
+	if g.canCraft(r) {
+		l.rim = color.RGBA{112, 168, 88, 255}
 	}
-	fillRoundRect(screen, float32(x), float32(y), float32(w), cardH, 8, bg)
+	if hover {
+		glow(screen, x, y, w, cardH, 8, colAmberGlow, 0.28)
+		l.body = color.RGBA{84, 62, 40, 248}
+	}
+	drawPanelLook(screen, psLeather, l, x, y, w, cardH, 8, 0.4)
+	noteBox(screen, x, y, w, cardH)
 
-	// What it makes: an item's icon, or a structure's world sprite.
+	// What it makes: an item's icon, or a structure's world sprite, kept on
+	// the card.
 	if r.Gives.Valid() {
 		g.drawItem(screen, r.Gives, x+8, y+(cardH-32)/2, 32, 1)
 	} else {
 		ix, iy := x+24, y+cardH-9
+		card := screen.clip(x+2, y+2, 44, cardH-4)
 		s, _ := g.entitySprite(protocol.EntityView{Kind: r.Places, Ready: true})
-		drawAt(screen, s, ix, iy, 1.5, 1.5, 0, nil)
+		drawAt(card, s, ix, iy, 1.5, 1.5, 0, nil)
 		if r.Places == sim.EntityCampfire {
-			drawAt(screen, g.art.flames[(g.frame/5)%flameFrames], ix, iy+1, 1, 1, 0, nil)
-			drawAt(screen, g.art.campFront, ix, iy, 1.5, 1.5, 0, nil)
+			drawAt(card, g.art.flames[(g.frame/5)%flameFrames], ix, iy+1, 1, 1, 0, nil)
+			drawAt(card, g.art.campFront, ix, iy, 1.5, 1.5, 0, nil)
 		}
 	}
 
 	tx := x + 52
-	g.text(screen, r.Name, tx, y+7, colWhite, text.AlignStart, 1)
 	rx, ry := x+w-12, y+7
-	free := g.freeBuild() // nothing needed and nothing used: see buildpalette.go
+	status, scol := "", color.RGBA{}
 	switch {
 	case g.haveTool(r):
-		g.text(screen, "đã có", rx, ry, colMuted, text.AlignEnd, 1)
+		status, scol = "đã có", colMuted
 	case free:
-		g.drawDevBadge(screen, rx+2, ry-1)
 	case r.NearFire && inv.HasAll(r.Inputs) && !g.byFire():
-		g.text(screen, "ra gần lửa trại", rx, ry, colHunger, text.AlignEnd, 1)
+		status, scol = "ra gần lửa trại", colHunger
 	case r.NearFurnace && inv.HasAll(r.Inputs) && !g.byFurnace():
-		g.text(screen, "ra cạnh lò nung", rx, ry, colHunger, text.AlignEnd, 1)
+		status, scol = "ra cạnh lò nung", colHunger
 	case inv.HasAll(r.Inputs):
-		verb := "làm được"
+		status, scol = "làm được", colGood
 		if !r.Gives.Valid() {
-			verb = "dựng được" // then placed with the mouse
+			status = "dựng được" // then placed with the mouse
 		}
-		g.text(screen, verb, rx, ry, colGood, text.AlignEnd, 1)
 	default:
-		g.text(screen, "thiếu", rx, ry, colMuted, text.AlignEnd, 1)
+		status, scol = "thiếu", colMuted
 	}
+	sw := g.textWidth(status)
+	if free {
+		sw = g.textWidth("DEV") + 10
+		g.drawDevBadge(screen, rx+2, ry-1)
+	} else {
+		g.text(screen, status, rx, ry, scol, text.AlignEnd, 1)
+	}
+	// The name, shortened if it would run into what is said of it.
+	g.text(screen, fitText(r.Name, rx-sw-8-tx, 1), tx, y+7, colWhite, text.AlignStart, 1)
 
 	// Ingredients: icon, count and name; just icon and count when the
 	// names would not fit on the card.

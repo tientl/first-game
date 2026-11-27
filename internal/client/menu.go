@@ -210,8 +210,7 @@ func (m *Menu) Draw(real *ebiten.Image) {
 		ty, listY = ty-12, listY-20
 	}
 	drawTitle(screen, "Dino Isles", cx, ty, 6, color.RGBA{250, 214, 110, 255}, color.RGBA{60, 30, 10, 255})
-	drawText(screen, "Survival", cx+3, ty+81, color.RGBA{60, 30, 10, 255}, text.AlignCenter, 3)
-	drawText(screen, "Survival", cx, ty+78, color.RGBA{214, 120, 72, 255}, text.AlignCenter, 3)
+	drawTitle(screen, "Survival", cx, ty+80, 2.6, color.RGBA{226, 128, 74, 255}, color.RGBA{60, 30, 10, 255})
 	drawText(screen, "Một thế giới tiền sử đang chờ bạn", cx, ty+128, color.RGBA{236, 226, 200, 255}, text.AlignCenter, 1)
 
 	m.list.draw(screen, cx, listY, 420)
@@ -225,8 +224,7 @@ func (m *Menu) Draw(real *ebiten.Image) {
 		fillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, 150}, false)
 		pw, ph := float32(480), float32(230)
 		px, py := float32(cx)-pw/2, float32(sh)/2-ph/2
-		fillRoundRect(screen, px-2, py-2, pw+4, ph+4, 12, color.RGBA{0, 0, 0, 120})
-		fillRoundRect(screen, px, py, pw, ph, 10, color.RGBA{18, 20, 32, 245})
+		drawFrame(screen, px, py, pw, ph)
 		drawText(screen, "Bắt đầu trò chơi mới?", cx, float64(py)+20, colWhite, text.AlignCenter, 2)
 		msg := "Bản lưu hiện tại sẽ bị ghi đè."
 		if m.info.Day > 0 {

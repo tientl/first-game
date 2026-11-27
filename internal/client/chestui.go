@@ -202,11 +202,11 @@ func (g *Game) drawChest(screen *uiDst, sw, sh int) {
 		label := fmt.Sprintf("Dỡ rương (lấy lại %d gỗ)", sim.ChestRefund)
 		c.btnW, c.btnH = g.textWidth(label)+24, 26
 		c.btnX, c.btnY = px+pw-24-c.btnW, fy-6
-		bg := color.RGBA{0, 0, 0, 90}
+		st := tabIdle
 		if c.btnHover {
-			bg = color.RGBA{58, 46, 22, 220}
+			st = tabHover
 		}
-		fillRoundRect(screen, float32(c.btnX), float32(c.btnY), float32(c.btnW), float32(c.btnH), 7, bg)
+		tab(screen, c.btnX, c.btnY, c.btnW, c.btnH, 9, st)
 		g.text(screen, label, c.btnX+c.btnW/2, c.btnY+5, colKey, text.AlignCenter, 1)
 	}
 	g.text(screen, "E / B / Esc: đóng  ·  đi xa rương cũng tự đóng", px+pw/2, py+ph-24, colMuted, text.AlignCenter, 1)

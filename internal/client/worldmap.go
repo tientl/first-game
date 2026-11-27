@@ -282,7 +282,7 @@ const maxMapZoom = 6
 func (g *Game) drawMap(screen *uiDst, sw, sh int) {
 	full := screen
 	g.dim(screen, sw, sh, 0.65)
-	g.text(screen, "Bản đồ", float64(sw)/2, 18, colWhite, text.AlignCenter, 2)
+	drawTitle(screen, "Bản đồ", float64(sw)/2, 16, 2, colBoneText, color.RGBA{60, 36, 20, 255})
 
 	// Fit the map between the title and the legend, keeping its shape.
 	const top, bottom, side = 60.0, 74.0, 28.0
@@ -293,7 +293,7 @@ func (g *Game) drawMap(screen *uiDst, sw, sh int) {
 	k := min((float64(sw)-2*side)/mw, (float64(sh)-top-bottom)/mh)
 	dw, dh := mw*k, mh*k
 	x0, y0 := math.Round((float64(sw)-dw)/2), math.Round(top+(float64(sh)-top-bottom-dh)/2)
-	panel(screen, float32(x0)-8, float32(y0)-8, float32(dw)+16, float32(dh)+16)
+	drawFrame(screen, float32(x0)-8, float32(y0)-8, float32(dw)+16, float32(dh)+16)
 	legendY := y0 + dh + 22
 
 	// Zoomed in (the wheel, = and -), the map is bigger than its frame and
@@ -330,12 +330,7 @@ func (g *Game) drawMap(screen *uiDst, sw, sh int) {
 	}
 	// Only what the player has seen shows; the rest is under fog.
 	if fog != nil {
-		b := fog.Bounds()
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Scale(dw/float64(b.Dx()), dh/float64(b.Dy()))
-		op.GeoM.Translate(x0, y0)
-		op.Filter = ebiten.FilterLinear // soft edges where seen land fades out
-		screen.DrawImage(fog, op)
+		drawFog(screen.img, fog, screen.X(x0), screen.Y(y0), dw*screen.k, dh*screen.k, screen.k)
 	}
 
 	at := func(x, y float64) (float32, float32) {
@@ -424,7 +419,7 @@ func (g *Game) drawMapLegend(screen *uiDst, cx, y float64) {
 	}
 	entries = append(entries,
 		entry{"Nước", swatch(colWaterBG)},
-		entry{"Chưa đi tới", swatch(colFogLite)})
+		entry{"Chưa đi tới", swatch(colFogPaper)})
 	const mark, gap = 18.0, 22.0
 	width := func(e entry) float64 { return mark + g.textWidth(e.label) + gap }
 	maxW := math.Max(240, 2*cx-80)

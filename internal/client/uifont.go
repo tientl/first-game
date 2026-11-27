@@ -9,6 +9,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"golang.org/x/image/font/gofont/gobold"
 )
 
 // The interface's type: Nunito (fonts/, SIL Open Font License 1.1, see
@@ -35,6 +36,7 @@ var nunitoTTF []byte
 var (
 	fontOnce sync.Once
 	fontSrc  *text.GoTextFaceSource
+	symSrc   *text.GoTextFaceSource // Go Bold (BSD licence), for the arrows Nunito lacks
 )
 
 // fontSource is the parsed font, read the first time it is wanted.
@@ -45,6 +47,9 @@ func fontSource() *text.GoTextFaceSource {
 			panic("uifont: " + err.Error())
 		}
 		fontSrc = s
+		if symSrc, err = text.NewGoTextFaceSource(bytes.NewReader(gobold.TTF)); err != nil {
+			panic("uifont: " + err.Error())
+		}
 	})
 	return fontSrc
 }
@@ -81,18 +86,23 @@ type faceKey struct {
 	w  fontWeight
 }
 
-var faces = map[faceKey]*text.GoTextFace{}
+var faces = map[faceKey]text.Face{}
 
-// faceAt is the font at px pixels (an em) and weight w.
-func faceAt(px float64, w fontWeight) *text.GoTextFace {
+// faceAt is the font at px pixels (an em) and weight w, with Go Bold behind
+// it for the few signs Nunito has not got (arrows).
+func faceAt(px float64, w fontWeight) text.Face {
 	k := faceKey{float32(math.Round(px*8) / 8), w}
 	if f := faces[k]; f != nil {
 		return f
 	}
 	f := &text.GoTextFace{Source: fontSource(), Size: float64(k.px)}
 	f.SetVariation(text.MustParseTag("wght"), float32(w))
-	faces[k] = f
-	return f
+	m, err := text.NewMultiFace(f, &text.GoTextFace{Source: symSrc, Size: float64(k.px) * 0.94})
+	if err != nil {
+		panic("uifont: " + err.Error())
+	}
+	faces[k] = m
+	return m
 }
 
 // textFX is what is drawn around a string.
@@ -261,4 +271,20 @@ func textWidthW(s string, scale float64, w fontWeight) float64 {
 	v := text.Advance(s, faceAt(sizeUI*scale*4, w)) / 4
 	textWidths[k] = v
 	return v
+}
+
+// fitText is s cut short with "…" to fit w UI pixels at scale, if it must.
+func fitText(s string, w, scale float64) string {
+	if textWidth(s, scale) <= w {
+		return s
+	}
+	r := []rune(s)
+	for len(r) > 1 {
+		r = r[:len(r)-1]
+		t := string(r) + "…"
+		if textWidth(t, scale) <= w {
+			return t
+		}
+	}
+	return "…"
 }

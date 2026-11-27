@@ -293,10 +293,9 @@ func (g *Game) drawCook(screen *uiDst, sw, sh int) {
 		frac := clamp01(float64(cv.Fuel) / float64(most))
 		g.drawFlameIcon(screen, float32(c.x0)+9, float32(fy)+13, cv.Fuel > 0)
 		bx, bw := float32(c.x0)+24, float32(170)
-		fillRoundRect(screen, bx, float32(fy)+7, bw, 12, 6, color.RGBA{0, 0, 0, 150})
+		well(screen, float64(bx), fy+7, float64(bw), 12, 6)
 		if frac > 0 {
-			fillRoundRect(screen, bx+1, float32(fy)+8, (bw-2)*float32(frac), 10, 5, color.RGBA{240, 140, 40, 255})
-			fillRoundRect(screen, bx+2, float32(fy)+9, (bw-4)*float32(frac), 3, 2, color.RGBA{255, 214, 110, 200})
+			drawBarFill(screen, float64(bx)+1.5, fy+8.5, float64(bw)-3, 9, frac, color.RGBA{240, 136, 40, 255}, barFX{}, g.frame)
 		}
 		label := "Lửa: " + clockText(int(cv.Fuel))
 		col := colMuted
@@ -326,7 +325,7 @@ func (g *Game) drawCook(screen *uiDst, sw, sh int) {
 		x, y := c.invSlotXY(i)
 		g.drawSlotSized(screen, inv[i], x, y, chestPx, style(sim.CookSlots+i))
 		if !inv[i].Empty() && !sim.StationAccepts(cv.Kind, inv[i].Item) {
-			fillRoundRect(screen, float32(x), float32(y), chestPx, chestPx, 7, color.RGBA{10, 11, 17, 170}) // of no use here
+			fillRoundRect(screen, float32(x), float32(y), chestPx, chestPx, 7, color.RGBA{12, 9, 7, 170}) // of no use here
 		}
 		if sim.IsHotbar(i) {
 			g.drawKeyBadge(screen, hotbarLabel(i), x-3, y-3, i == g.hotSel)
@@ -412,15 +411,14 @@ func wrapText(s string, w float64) []string {
 
 func (g *Game) drawCookButton(screen *uiDst, b int, label string, on bool) {
 	c := &g.cook
-	bg := color.RGBA{0, 0, 0, 90}
-	col := colKey
-	if !on {
-		col = colMuted
-	} else if c.btn == b {
-		bg = color.RGBA{58, 46, 22, 220}
+	st, col := tabIdle, colKey
+	switch {
+	case !on:
+		st, col = tabOff, colMuted
+	case c.btn == b:
+		st = tabHover
 	}
-	fillRoundRect(screen, float32(c.btnX[b]), float32(c.btnY[b]), float32(c.btnW[b]), float32(c.btnH[b]), 7, bg)
-	strokeRoundRect(screen, float32(c.btnX[b])+0.5, float32(c.btnY[b])+0.5, float32(c.btnW[b])-1, float32(c.btnH[b])-1, 7, fade(col, 90))
+	tab(screen, c.btnX[b], c.btnY[b], c.btnW[b], c.btnH[b], 9, st)
 	g.text(screen, label, c.btnX[b]+c.btnW[b]/2, c.btnY[b]+5, col, text.AlignCenter, 1)
 }
 

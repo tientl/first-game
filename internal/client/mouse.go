@@ -8,7 +8,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/text/v2"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -576,19 +575,28 @@ func (g *Game) drawGhost(dst drawTarget, cam camera) {
 	}
 }
 
-// drawAimCues brackets what the pointer is on, at screen resolution: white
-// for the target the left button will work on, red with "Xa quá" for one
-// out of reach; and names what a left click would build.
+// drawAimCues marks what the pointer is on, at screen resolution, with soft
+// corners (uilabels.go): warm white for the target the left button will
+// work on, faint for the nearest one when the pointer is on nothing, coral
+// with a small hint for one out of reach; and names what a left click
+// would build.
 func (g *Game) drawAimCues(screen *ebiten.Image, cam camera, scale float64, tg, far targetView) {
-	if tg.ok && tg.aimed {
+	k := uiK()
+	if tg.ok {
 		if x, y, w, h, ok := g.targetBox(tg, cam); ok {
-			drawBrackets(screen, x*scale, y*scale, w*scale, h*scale, colWhite)
+			strength := 1.0
+			if !tg.aimed {
+				strength = 0.45 // the nearest: Space works on it
+			}
+			drawCorners(screen, x*scale, y*scale, w*scale, h*scale, colCorner, g.cornerAge(targetKey(tg)), g.frame, strength)
 		}
 	}
+	hint := floatLabel{}
 	if far.ok {
 		if x, y, w, h, ok := g.targetBox(far, cam); ok {
-			drawBrackets(screen, x*scale, y*scale, w*scale, h*scale, colGhostBad)
-			g.text(screen, "Xa quá — lại gần hơn", (x+w/2)*scale, max(y*scale-22*uiK(), 4), colGhostBad, text.AlignCenter, uiK())
+			key := targetKey(far)
+			drawCorners(screen, x*scale, y*scale, w*scale, h*scale, colFar, g.cornerAge(labelKey{4, key.id}), g.frame, 0.75)
+			hint = floatLabel{ok: true, key: labelKey{4, key.id}, text: "xa quá – lại gần hơn", col: colFarText, x: (x + w/2) * scale, y: max(y*scale-2*k, 18*k), hint: true}
 		}
 	}
 	if g.freeBuild() && shiftHeld() { // Shift and the right button take it away; see buildpalette.go
@@ -598,10 +606,11 @@ func (g *Game) drawAimCues(screen *ebiten.Image, cam camera, scale float64, tg, 
 				if !in {
 					label = e.Kind.Name() + " — xa quá"
 				}
-				drawBrackets(screen, x*scale, y*scale, w*scale, h*scale, colGhostBad)
-				g.text(screen, label, (x+w/2)*scale, max(y*scale-22*uiK(), 4), colGhostBad, text.AlignCenter, uiK())
+				drawCorners(screen, x*scale, y*scale, w*scale, h*scale, colFar, g.cornerAge(labelKey{6, uint64(e.ID)}), g.frame, 1)
+				hint = floatLabel{ok: true, key: labelKey{6, uint64(e.ID)}, text: label, col: colFarText, x: (x + w/2) * scale, y: max(y*scale-2*k, 18*k)}
 			}
 		}
+		g.showHint(screen, hint)
 		return
 	}
 	if gv := g.ghost(); gv.ok {
@@ -617,12 +626,29 @@ func (g *Game) drawAimCues(screen *ebiten.Image, cam camera, scale float64, tg, 
 		label, col := "Đặt "+name, colGhostOK
 		switch {
 		case !gv.valid && gv.why == sim.NoticeTooFar:
-			label, col = name+" — xa quá", colGhostBad
+			label, col = name+" — xa quá", colFarText
 		case !gv.valid:
-			label, col = name+" — không đặt được ở đây", colGhostBad
+			label, col = name+" — không đặt được ở đây", colFarText
 		}
-		g.text(screen, label, x*scale, (y-18)*scale-18*uiK(), col, text.AlignCenter, uiK())
+		hint = floatLabel{ok: true, key: labelKey{5, uint64(gv.tx)<<32 | uint64(gv.ty)}, text: label, col: col, x: x * scale, y: (y-18)*scale - 4*k}
 	}
+	g.showHint(screen, hint)
+}
+
+// The corners' colours: what the pointer is on, and what is out of reach.
+var (
+	colCorner  = color.RGBA{255, 240, 212, 255}
+	colFar     = color.RGBA{236, 120, 96, 255}
+	colFarText = color.RGBA{255, 176, 150, 255}
+)
+
+// showHint draws this frame's hint (out of reach, building, taking away):
+// one at a time, like the labels, and never over a label.
+func (g *Game) showHint(screen *ebiten.Image, l floatLabel) {
+	if !l.ok || g.hudFX.labels.lastSeen == g.frame {
+		return
+	}
+	drawFloatLabel(screen, l, 1)
 }
 
 // targetBox is where tg is drawn on the world canvas: its sprite's box.
@@ -648,24 +674,4 @@ func (g *Game) targetBox(tg targetView, cam camera) (x, y, w, h float64, ok bool
 		return 0, 0, 0, 0, false
 	}
 	return sx - s.ax - 1, sy - s.ay - 1, s.w() + 2, s.h() + 2, true
-}
-
-// drawBrackets draws the four corners of a box, with a dark edge so they
-// show on any ground.
-func drawBrackets(dst *ebiten.Image, x, y, w, h float64, col color.RGBA) {
-	l := max(6, min(16, math.Min(w, h)/3))
-	corner := func(cx, cy, dx, dy float64, c color.RGBA, width float32) {
-		strokeLine(dst, float32(cx), float32(cy), float32(cx+dx*l), float32(cy), width, c, true)
-		strokeLine(dst, float32(cx), float32(cy), float32(cx), float32(cy+dy*l), width, c, true)
-	}
-	shadow := color.RGBA{0, 0, 0, 150}
-	for _, pass := range []struct {
-		c color.RGBA
-		w float32
-	}{{shadow, 4}, {col, 2}} {
-		corner(x, y, 1, 1, pass.c, pass.w)
-		corner(x+w, y, -1, 1, pass.c, pass.w)
-		corner(x, y+h, 1, -1, pass.c, pass.w)
-		corner(x+w, y+h, -1, -1, pass.c, pass.w)
-	}
 }

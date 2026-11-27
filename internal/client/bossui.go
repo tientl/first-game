@@ -62,7 +62,13 @@ func (g *Game) drawBossBar(screen *uiDst, sw int) {
 	k := float32(max(1, min(1.5, float64(sw)/1280)))
 	w := min(640*k, float32(sw)-2*270)
 	x, y := (float32(sw)-w)/2, 10*k
-	panel(screen, x-14*k, y-4*k, w+28*k, 62*k)
+	K := float64(k)
+	X, Y, W := float64(x), float64(y), float64(w)
+	// A slab of carved stone, a tusk of bone at each end.
+	drawPanel(screen, psStone, X-16*K, Y-5*K, W+32*K, 64*K, 10*K)
+	noteBox(screen, X-16*K, Y-5*K, W+32*K, 64*K)
+	drawTusk(screen, X-14*K, Y+36*K, -1, K)
+	drawTusk(screen, X+W+14*K, Y+36*K, 1, K)
 	title, col := bossName(b.Kind), colGold
 	if b.Enraged {
 		title += " (nổi giận!)"
@@ -70,45 +76,37 @@ func (g *Game) drawBossBar(screen *uiDst, sw int) {
 			col = colBossRage
 		}
 	}
-	g.text(screen, title, float64(sw)/2, float64(y), col, text.AlignCenter, float64(k)*1.15)
-	by, bh := y+27*k, 18*k
-	fillRoundRect(screen, x-2*k, by-2*k, w+4*k, bh+4*k, 6*k, color.RGBA{96, 74, 34, 255}) // a bronze rim
-	fillRoundRect(screen, x, by, w, bh, 4*k, color.RGBA{30, 10, 12, 255})
+	uiTextW(screen, title, float64(sw)/2, Y-1*K, col, text.AlignCenter, K*1.3, wTitle, fxOutline)
+	by, bh := y+28*k, 18*k
+	BY, BH := float64(by), float64(bh)
+	well(screen, X-1.5*K, BY-1.5*K, W+3*K, BH+3*K, BH/2+1.5*K)
+	noteBox(screen, X, BY, W, BH)
 	fill := colBossBar
 	if b.Enraged {
 		fill = colBossRage
 	}
-	if lost := float32(u.shownHP); u.shownHP > f {
-		c := color.RGBA{240, 200, 170, 230}
-		if since >= 0 && since < 8 {
-			c = color.RGBA{255, 250, 240, 255} // the flash of the blow
-		}
-		fillRoundRect(screen, x, by, w*lost, bh, 4*k, c)
+	flash := 0.0
+	if since >= 0 && since < 10 {
+		flash = 1 - float64(since)/10 // the flash of the blow
 	}
-	if fw := w * float32(f); fw > 1 {
-		fillRoundRect(screen, x, by, fw, bh, 4*k, fill)
-		fillRect(screen, x+3*k, by+2*k, max(0, fw-6*k), 3*k, lighten(fill, 46), false)
-		fillRect(screen, x+3*k, by+bh-4*k, max(0, fw-6*k), 2*k, color.RGBA{fill.R / 2, fill.G / 2, fill.B / 2, 255}, false)
-	}
-	// The mark at half.
+	drawBarFill(screen, X+1, BY+1, W-2, BH-2, f, fill, barFX{trail: u.shownHP, flash: flash}, g.frame)
+	// The mark at half: a notch of bone.
 	mx := x + w/2
-	mark := colGold
+	mark := colBone
 	if f < 0.5 {
-		mark = color.RGBA{150, 124, 60, 255} // passed
+		mark = color.RGBA{120, 104, 82, 255} // passed
 	}
-	fillRect(screen, mx-k, by-3*k, 2*k, bh+6*k, mark, false)
+	fillRect(screen, mx-0.75*k, by, 1.5*k, bh, fade(colHideDark, 160), true)
 	var d vector.Path
-	d.MoveTo(mx, by-8*k)
-	d.LineTo(mx+4*k, by-3*k)
+	d.MoveTo(mx, by-7*k)
+	d.LineTo(mx+4*k, by-2.5*k)
 	d.LineTo(mx, by+2*k)
-	d.LineTo(mx-4*k, by-3*k)
+	d.LineTo(mx-4*k, by-2.5*k)
 	d.Close()
-	vs, is := d.AppendVerticesAndIndicesForFilling(nil, nil)
-	for i := range vs {
-		vs[i].ColorR, vs[i].ColorG, vs[i].ColorB, vs[i].ColorA = float32(mark.R)/255, float32(mark.G)/255, float32(mark.B)/255, 1
-	}
-	screen.DrawTriangles(vs, is, whitePixel(), &ebiten.DrawTrianglesOptions{AntiAlias: true})
-	g.text(screen, fmt.Sprintf("%d / %d", b.HP, b.MaxHP), float64(sw)/2, float64(by+bh/2)-7*float64(k), colWhite, text.AlignCenter, float64(k))
+	op := &vector.DrawPathOptions{AntiAlias: true}
+	op.ColorScale.ScaleWithColor(mark)
+	fillPath(screen, &d, op)
+	uiTextW(screen, fmt.Sprintf("%d / %d", b.HP, b.MaxHP), float64(sw)/2, BY+BH/2-lineUI*K*0.95/2, colWhite, text.AlignCenter, K*0.95, wHeavy, fxOutline)
 	if b.Holds {
 		msg := "Bị siết! Giữ phím di chuyển để vùng ra, hoặc đánh nó"
 		c := colBad
@@ -238,5 +236,36 @@ func (g *Game) drawBossMarks(dst *uiDst, at func(x, y float64) (float32, float32
 			strokeLine(dst, x+10, y-10, x-10, y+10, 3, color.RGBA{230, 40, 40, 255}, true)
 		}
 		g.text(dst, m.Kind.Name(), float64(x), float64(y)+14, colWhite, text.AlignCenter, 1)
+	}
+}
+
+// drawTusk draws a curved tusk of bone at (x, y) curling outwards to side
+// (-1 left, 1 right), k times its size.
+func drawTusk(d *uiDst, x, y float64, side, k float64) {
+	pt := func(dx, dy float64) (float32, float32) { return float32(x + side*dx*k), float32(y + dy*k) }
+	tusk := func(grow float64) *vector.Path {
+		var p vector.Path
+		p.MoveTo(pt(-2-grow, 6+grow))
+		cx, cy := pt(12+grow, 4+grow)
+		ex, ey := pt(14+grow*0.6, -22-grow*1.5)
+		p.QuadTo(cx, cy, ex, ey)
+		cx, cy = pt(8-grow, -6)
+		ex, ey = pt(-2-grow, -4-grow)
+		p.QuadTo(cx, cy, ex, ey)
+		p.Close()
+		return &p
+	}
+	fill := func(p *vector.Path, c color.RGBA) {
+		op := &vector.DrawPathOptions{AntiAlias: true}
+		op.ColorScale.ScaleWithColor(c)
+		fillPath(d, p, op)
+	}
+	fill(tusk(1.4), color.RGBA{30, 22, 16, 230})
+	fill(tusk(0), colBone)
+	fill(tusk(-1.6), color.RGBA{248, 240, 220, 255}) // the lit ridge
+	for i := range 3 {                               // the rings where it grew
+		ax, ay := pt(4+float64(i)*3, 2-float64(i)*5)
+		bx, by := pt(9+float64(i)*2.2, 1-float64(i)*6)
+		strokeLine(d, ax, ay, bx, by, float32(0.7*k), color.RGBA{170, 150, 118, 255}, true)
 	}
 }

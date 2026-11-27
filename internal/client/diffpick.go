@@ -202,24 +202,23 @@ func (p *diffPicker) draw(screen *uiDst) {
 	// shrunk to fit a short screen.
 	p.scale, p.ox, p.oy = diffFit(sw, sh)
 	b := screen.view(p.ox, p.oy, p.scale)
-	fillRoundRect(b, 0, 0, diffW, diffH, 12, color.RGBA{0, 0, 0, 120})
-	fillRoundRect(b, 2, 2, diffW-4, diffH-4, 10, color.RGBA{18, 20, 32, 245})
-	drawText(b, "Chọn độ khó", diffW/2, 16, colWhite, text.AlignCenter, 2)
+	drawFrame(b, 4, 4, diffW-8, diffH-8)
+	drawTitle(b, "Chọn độ khó", diffW/2, 14, 2, colBoneText, color.RGBA{60, 36, 20, 255})
 	for i := range diffBack {
 		p.drawCard(b, i)
 	}
 
 	r := diffBackRect()
-	bg, edge := color.RGBA{14, 16, 26, 200}, color.RGBA{0, 0, 0, 90}
+	st := tabIdle
 	if p.sel == diffBack {
-		bg, edge = color.RGBA{58, 46, 22, 235}, colKey
+		st = tabOn
 	}
-	fillRoundRect(b, float32(r.Min.X)-2, float32(r.Min.Y)-2, diffBackW+4, diffBackH+4, 10, edge)
-	fillRoundRect(b, float32(r.Min.X), float32(r.Min.Y), diffBackW, diffBackH, 8, bg)
+	tab(b, float64(r.Min.X), float64(r.Min.Y), diffBackW, diffBackH, 12, st)
+	by := float64(r.Min.Y) + (diffBackH-lineUI*1.55)/2
 	if p.sel == diffBack {
-		drawText(b, ">", float64(r.Min.X)+16, float64(r.Min.Y)+10, colKey, text.AlignStart, 2)
+		uiText(b, "›", float64(r.Min.X)+18, by, colAmber, text.AlignStart, 1.55, fxShadow)
 	}
-	drawText(b, "Quay lại", diffW/2, float64(r.Min.Y)+10, colWhite, text.AlignCenter, 2)
+	uiText(b, "Quay lại", diffW/2, by, colBoneText, text.AlignCenter, 1.55, fxShadow)
 	p.drawSize(b)
 	drawText(b, "A/D hoặc chuột để chọn · Enter để xác nhận · Esc để quay lại", diffW/2, diffH-26, colMuted, text.AlignCenter, 1)
 
@@ -230,12 +229,11 @@ func (p *diffPicker) drawCard(b *uiDst, i int) {
 	r := diffCardRect(i)
 	x, y := float32(r.Min.X), float32(r.Min.Y)
 	sel := p.sel == i
-	bg, edge := color.RGBA{14, 16, 26, 220}, color.RGBA{0, 0, 0, 110}
+	st := tabIdle
 	if sel {
-		bg, edge = color.RGBA{58, 46, 22, 240}, colKey
+		st = tabOn
 	}
-	fillRoundRect(b, x-2, y-2, diffCardW+4, diffCardH+4, 10, edge)
-	fillRoundRect(b, x, y, diffCardW, diffCardH, 8, bg)
+	tab(b, float64(x), float64(y), diffCardW, diffCardH, 10, st)
 
 	// The scene, in a thin frame of the level's colour.
 	const inset = (diffCardW - diffSceneW) / 2
@@ -254,7 +252,7 @@ func (p *diffPicker) drawCard(b *uiDst, i int) {
 	// The name, and the level as pips: one, two, three.
 	cx := float64(r.Min.X) + diffCardW/2
 	ty := float64(sy) + diffSceneH + 8
-	drawText(b, d.Name(), cx, ty, card.accent, text.AlignCenter, 2)
+	uiText(b, d.Name(), cx, ty+2, card.accent, text.AlignCenter, 1.75, fxShadow)
 	for j := range diffBack {
 		c := color.RGBA{70, 74, 90, 255}
 		if j <= i {

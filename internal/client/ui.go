@@ -9,6 +9,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 // Shared pieces of the menus: the art (built once), and a vertical list of
@@ -170,16 +171,16 @@ func (b *buttonList) draw(dst *uiDst, x, y, w float64) {
 	b.x, b.y, b.w, b.h, b.gap = x, y, w, 44, 10
 	for i, it := range b.items {
 		ry, rh := b.rowY(i), b.rowH(i)
-		left := float32(x - w/2)
-		bg, edge, fg := color.RGBA{14, 16, 26, 200}, color.RGBA{0, 0, 0, 90}, colWhite
-		if i == b.sel && !it.disabled {
-			bg, edge = color.RGBA{58, 46, 22, 235}, colKey
+		left := x - w/2
+		sel := i == b.sel && !it.disabled
+		st, fg := tabIdle, colBoneText
+		switch {
+		case it.disabled:
+			st, fg = tabOff, color.RGBA{128, 116, 100, 255}
+		case sel:
+			st, fg = tabOn, color.RGBA{255, 240, 206, 255}
 		}
-		if it.disabled {
-			bg, fg = color.RGBA{14, 16, 26, 140}, color.RGBA{110, 114, 126, 255}
-		}
-		fillRoundRect(dst, left-2, float32(ry)-2, float32(w)+4, float32(rh)+4, 10, edge)
-		fillRoundRect(dst, left, float32(ry), float32(w), float32(rh), 8, bg)
+		tab(dst, left, ry, w, rh, 12, st)
 		label := it.label
 		if it.volume != volNone {
 			pct := int(math.Round(it.volume.get() * 100))
@@ -187,12 +188,14 @@ func (b *buttonList) draw(dst *uiDst, x, y, w float64) {
 			case snd == nil:
 				label += ": không có"
 			case i == b.sel:
-				label = fmt.Sprintf("< %s: %d%% >", label, pct)
+				label = fmt.Sprintf("‹ %s: %d%% ›", label, pct)
 			default:
 				label = fmt.Sprintf("%s: %d%%", label, pct)
 			}
 		}
-		drawText(dst, label, x, ry+10, fg, text.AlignCenter, 2)
+		const ls = 1.55 // the label's size
+		ly := ry + (b.h-lineUI*ls)/2
+		uiText(dst, label, x, ly, fg, text.AlignCenter, ls, fxShadow)
 		if it.sub != "" {
 			sc := colMuted
 			if it.disabled {
@@ -200,8 +203,16 @@ func (b *buttonList) draw(dst *uiDst, x, y, w float64) {
 			}
 			drawText(dst, it.sub, x, ry+38, sc, text.AlignCenter, 1)
 		}
-		if i == b.sel && !it.disabled {
-			drawText(dst, ">", float64(left)+16, ry+10, colKey, text.AlignStart, 2)
+		if sel { // a small amber point at the left
+			cy := float32(ry + b.h/2)
+			var p vector.Path
+			p.MoveTo(float32(left)+15, cy-6)
+			p.LineTo(float32(left)+22, cy)
+			p.LineTo(float32(left)+15, cy+6)
+			p.Close()
+			op := &vector.DrawPathOptions{AntiAlias: true}
+			op.ColorScale.ScaleWithColor(colAmber)
+			fillPath(dst, &p, op)
 		}
 	}
 }

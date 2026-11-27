@@ -302,7 +302,7 @@ func (c *charCreator) draw(dst *uiDst) {
 	}
 	fillRect(dst, 0, 0, float32(sw), float32(sh), color.RGBA{6, 8, 16, 150}, false)
 	cx := sw / 2
-	drawText(dst, "Tạo nhân vật", cx, titleY, color.RGBA{250, 214, 110, 255}, text.AlignCenter, 3)
+	drawTitle(dst, "Tạo nhân vật", cx, titleY, 3, color.RGBA{250, 214, 110, 255}, color.RGBA{60, 30, 10, 255})
 
 	// The rows, top to bottom, with a little space after the name and
 	// between the choices and the buttons.
@@ -355,8 +355,7 @@ func (c *charCreator) drawPreview(dst *ebiten.Image, k int) {
 	}
 	f := float64(k)
 	b := box{c.preview.x * f, c.preview.y * f, c.preview.w * f, c.preview.h * f}
-	fillRoundRect(dst, float32(b.x-2), float32(b.y-2), float32(b.w+4), float32(b.h+4), 12, colPanelEdge)
-	fillRoundRect(dst, float32(b.x), float32(b.y), float32(b.w), float32(b.h), 10, color.RGBA{14, 16, 26, 210})
+	drawFrame(&uiDst{img: dst, k: f}, float32(c.preview.x), float32(c.preview.y), float32(c.preview.w), float32(c.preview.h))
 	a := getArt()
 	s := float64(int(min((b.w-40*f)/18, (b.h-80*f)/38)))
 	if playerHD {
@@ -386,12 +385,11 @@ func (c *charCreator) drawPreview(dst *ebiten.Image, k int) {
 
 func (c *charCreator) drawRow(dst *uiDst, i int, r box) {
 	focused := i == c.focus
-	bg, edge := color.RGBA{14, 16, 26, 200}, color.RGBA{0, 0, 0, 90}
+	st := tabIdle
 	if focused {
-		bg, edge = color.RGBA{58, 46, 22, 235}, colKey
+		st = tabOn
 	}
-	fillRoundRect(dst, float32(r.x-2), float32(r.y-2), float32(r.w+4), float32(r.h+4), 10, edge)
-	fillRoundRect(dst, float32(r.x), float32(r.y), float32(r.w), float32(r.h), 8, bg)
+	tab(dst, r.x, r.y, r.w, r.h, 12, st)
 
 	var label, value string
 	switch i {
@@ -413,22 +411,23 @@ func (c *charCreator) drawRow(dst *uiDst, i int, r box) {
 	case ccBack:
 		label = "Quay lại"
 	}
+	ty := r.y + (ccRowH-lineUI*ccText)/2
 	if value == "" { // a button
-		drawText(dst, label, r.x+r.w/2, r.y+10, colWhite, text.AlignCenter, 2)
+		uiText(dst, label, r.x+r.w/2, ty, colBoneText, text.AlignCenter, ccText, fxShadow)
 		if focused {
-			drawText(dst, ">", r.x+16, r.y+10, colKey, text.AlignStart, 2)
+			uiText(dst, "›", r.x+18, ty, colAmber, text.AlignStart, ccText, fxShadow)
 		}
 		return
 	}
-	drawText(dst, label, r.x+18, r.y+10, colMuted, text.AlignStart, 2)
+	uiText(dst, label, r.x+18, ty, colMuted, text.AlignStart, ccText, fxShadow)
 	vx := r.x + r.w*valueAt
-	drawText(dst, value, vx, r.y+10, colWhite, text.AlignCenter, 2)
+	uiText(dst, value, vx, ty, colWhite, text.AlignCenter, ccText, fxShadow)
 	arrow := colMuted
 	if focused {
-		arrow = colKey
+		arrow = colAmber
 	}
-	drawText(dst, "<", vx-88, r.y+10, arrow, text.AlignCenter, 2)
-	drawText(dst, ">", vx+88, r.y+10, arrow, text.AlignCenter, 2)
+	uiText(dst, "‹", vx-88, ty, arrow, text.AlignCenter, ccText, fxShadow)
+	uiText(dst, "›", vx+88, ty, arrow, text.AlignCenter, ccText, fxShadow)
 
 	if !isColorRow(i) {
 		return
@@ -443,9 +442,10 @@ func (c *charCreator) drawRow(dst *uiDst, i int, r box) {
 		c.swatches[i] = append(c.swatches[i], b)
 		sh := shades(k)
 		if k == chosen {
-			fillRoundRect(dst, float32(b.x-4), float32(b.y-4), float32(b.w+8), float32(b.h+8), 8, colWhite)
+			glow(dst, b.x-3, b.y-3, b.w+6, b.h+6, 8, colAmberGlow, 0.55)
+			strokeRoundRectHair(dst, b.x-3.5, b.y-3.5, b.w+7, b.h+7, 8, 1.6, colAmber)
 		}
-		fillRoundRect(dst, float32(b.x-1), float32(b.y-1), float32(b.w+2), float32(b.h+2), 6, color.RGBA{220, 222, 232, 110})
+		well(dst, b.x-2, b.y-2, b.w+4, b.h+4, 7)
 		fillRoundRect(dst, float32(b.x), float32(b.y), float32(b.w), float32(b.h), 5, sh[1])
 		fillRoundRect(dst, float32(b.x+3), float32(b.y+3), float32(b.w-9), float32(b.h-12), 4, sh[2])
 		fillRect(dst, float32(b.x+6), float32(b.y+6), 6, 3, sh[3], false)
@@ -455,18 +455,22 @@ func (c *charCreator) drawRow(dst *uiDst, i int, r box) {
 // drawName draws the name row: a label and a text box with a blinking caret.
 // Left blank, it shows what the server will call the player.
 func (c *charCreator) drawName(dst *uiDst, r box, focused bool) {
-	drawText(dst, "Tên", r.x+18, r.y+10, colMuted, text.AlignStart, 2)
+	ty := r.y + (r.h-lineUI*ccText)/2
+	uiText(dst, "Tên", r.x+18, ty, colMuted, text.AlignStart, ccText, fxShadow)
 	bx, bw := r.x+82, r.w-82-10
-	fillRoundRect(dst, float32(bx), float32(r.y+6), float32(bw), float32(r.h-12), 5, color.RGBA{0, 0, 0, 120})
+	well(dst, bx, r.y+6, bw, r.h-12, 7)
 	tx := bx + 10
 	name := string(c.name)
 	if name == "" && !focused {
-		drawText(dst, "Người chơi 1", tx, r.y+10, color.RGBA{120, 124, 138, 255}, text.AlignStart, 2)
+		uiText(dst, "Người chơi 1", tx, ty, color.RGBA{130, 118, 102, 255}, text.AlignStart, ccText, fxPlain)
 		return
 	}
-	drawText(dst, name, tx, r.y+10, colWhite, text.AlignStart, 2)
+	uiText(dst, name, tx, ty, colWhite, text.AlignStart, ccText, fxShadow)
 	if focused && (c.frame/30)%2 == 0 {
-		x := float32(tx + textWidth(name, 2) + 2)
+		x := float32(tx + textWidth(name, ccText) + 2)
 		fillRect(dst, x, float32(r.y+11), 2, float32(r.h-22), colKey, false)
 	}
 }
+
+// ccText is the size of the character screen's row text.
+const ccText = 1.45

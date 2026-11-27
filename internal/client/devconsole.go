@@ -195,7 +195,10 @@ func (g *Game) drawDev(screen *uiDst, sw, sh int) {
 		tag = "DEV · XÂY TỰ DO" // see buildpalette.go
 	}
 	tw := float32(g.textWidth(tag))
-	panel(screen, 250, 12, tw+16, 24)
+	l := panelLooks[psLeather]
+	l.body, l.rim, l.stitch = color.RGBA{70, 24, 12, 236}, color.RGBA{214, 92, 48, 255}, color.RGBA{}
+	drawPanelLook(screen, psLeather, l, 250, 12, float64(tw)+16, 24, 7, 0.45)
+	noteBox(screen, 250, 12, float64(tw)+16, 24)
 	g.text(screen, tag, 258, 17, colDevTag, text.AlignStart, 1)
 	if !d.open {
 		return
@@ -203,8 +206,10 @@ func (g *Game) drawDev(screen *uiDst, sw, sh int) {
 	n := min(devShowLines, len(d.out))
 	h := float32((n+1)*devLineH + 14)
 	y0 := float32(sh) - h - 8
-	fillRect(screen, 8, y0, float32(sw-16), h, colDevBack, false)
-	strokeRect(screen, 8, y0, float32(sw-16), h, 1, colDevTag, false)
+	l = panelLooks[psHide]
+	l.body, l.rim, l.stitch = color.RGBA{18, 14, 11, 236}, color.RGBA{150, 70, 36, 255}, color.RGBA{}
+	drawPanelLook(screen, psHide, l, 8, float64(y0), float64(sw-16), float64(h), 8, 0.5)
+	noteBox(screen, 8, float64(y0), float64(sw-16), float64(h))
 	y := float64(y0) + 6
 	for _, l := range d.out[len(d.out)-n:] {
 		g.text(screen, l.s, 16, y, l.col, text.AlignStart, 1)

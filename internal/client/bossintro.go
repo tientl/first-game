@@ -153,9 +153,10 @@ func (g *Game) drawBossIntro(screen *ebiten.Image, sw, sh int) {
 	nw := textWidth(spaced, ns)
 	cx := float64(sw) / 2
 	fillRect(screen, 0, float32(y-18*u), float32(sw), float32(190*u), color.RGBA{0, 0, 0, uint8(120 * show)}, false)
-	g.text(screen, spaced, cx, y, color.RGBA{uint8(int(246) * int(a) / 255), uint8(int(226) * int(a) / 255), uint8(int(170) * int(a) / 255), a}, text.AlignCenter, ns)
+	sd := screenDst(screen)
+	uiTextW(sd, spaced, cx, y, color.RGBA{uint8(int(246) * int(a) / 255), uint8(int(226) * int(a) / 255), uint8(int(170) * int(a) / 255), a}, text.AlignCenter, ns, wTitle+60, fxOutline)
 	ly := float32(y + 108*u)
 	grow := float32(smooth(clamp01((t - 0.2) / 0.16)))
 	fillRect(screen, float32(cx)-float32(nw)/2*grow, ly, float32(nw)*grow, float32(math.Max(2, 3*u)), color.RGBA{uint8(200 * show), uint8(60 * show), uint8(40 * show), a}, false)
-	g.text(screen, "— "+epithet+" —", cx, y+122*u, color.RGBA{a, a, a, a}, text.AlignCenter, 3*u)
+	uiTextW(sd, "— "+epithet+" —", cx, y+122*u, color.RGBA{a, a, a, a}, text.AlignCenter, 3*u, 800, fxOutline)
 }

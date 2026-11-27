@@ -173,7 +173,7 @@ func (g *Game) drawCraft(screen *uiDst, sw, sh int) {
 	c.scrollBy(0)
 	ph := fixedH + float64(c.rowsShown)*(cardH+cardGap) - cardGap
 	px, py := float64(int((float64(sw)-pw)/2)), float64(int(max(8, (float64(sh)-ph)/2)))
-	panel(screen, float32(px), float32(py), float32(pw), float32(ph))
+	drawFrame(screen, float32(px), float32(py), float32(pw), float32(ph))
 
 	n := 0
 	for _, r := range recipes() {
@@ -196,15 +196,14 @@ func (g *Game) drawCraft(screen *uiDst, sw, sh int) {
 		label := craftTabNames[t]
 		w := g.textWidth(label) + 24
 		c.tabX[t], c.tabW[t] = tx, w
-		bg := color.RGBA{0, 0, 0, 90}
-		col := colMuted
+		st, col := tabIdle, colMuted
 		switch {
 		case t == c.tab:
-			bg, col = color.RGBA{58, 46, 22, 230}, colKey
+			st, col = tabOn, colKey
 		case int(t) == c.hoverTab:
-			bg, col = color.RGBA{40, 40, 48, 200}, colWhite
+			st, col = tabHover, colWhite
 		}
-		fillRoundRect(screen, float32(tx), float32(c.tabY), float32(w), float32(c.tabH), 7, bg)
+		tab(screen, tx, c.tabY, w, c.tabH, 9, st)
 		g.text(screen, label, tx+w/2, c.tabY+6, col, text.AlignCenter, 1)
 		tx += w + 8
 	}
@@ -218,12 +217,9 @@ func (g *Game) drawCraft(screen *uiDst, sw, sh int) {
 		}
 		x, y := c.cardXY(i)
 		lit := g.canCraft(r)
-		if lit {
-			strokeRoundRect(screen, float32(x), float32(y), float32(c.cardW), cardH, 8, color.RGBA{100, 156, 95, 170})
-		}
 		g.drawRecipeCard(screen, r, x, y, c.cardW, i == c.hover)
 		if !lit {
-			fillRoundRect(screen, float32(x), float32(y), float32(c.cardW), cardH, 8, color.RGBA{0, 0, 0, 95})
+			fillRoundRect(screen, float32(x), float32(y), float32(c.cardW), cardH, 8, color.RGBA{12, 9, 7, 110})
 		}
 	}
 
