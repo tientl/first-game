@@ -439,7 +439,7 @@ three times as fine (`iconFine`).
   canvas (`hpv.lit`, `hpv.rod`). Facing left the image is mirrored, as
   the figure is. An item's angles are painted the first time it is shown,
   ahead on another goroutine; an angle wanted before then is painted on
-  the spot (about 5 ms). One angle is 2 to 25 KB; all 64 angles of every
+  the spot (about 5 ms). One angle is 2 to 17 KB; all 64 angles of every
   held item would be about 11 MB, a session pays for what is held.
 - **Stone by tier** (`heldMats`): stone knapped in broad matt scars, flint
   in finer scars with a waxy gloss, jade and agate ground smooth and
