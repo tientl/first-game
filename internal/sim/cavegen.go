@@ -60,6 +60,12 @@ type caveChamber struct {
 	adj     []int        // its tunnels
 	pillars [][3]float64 // the rock pillars standing in it: x, y, radius
 	leaf    bool         // the end of a side branch: something worth the detour lies here
+	// Since StyleCaveWays (caveways.go): a fork in a passage, where one
+	// tunnel leaves another (no chamber, a widening of the tunnels); or a
+	// side pocket, a small grotto at the end of a short spur, and what lies
+	// in it.
+	junction bool
+	pocket   uint8
 }
 
 // caveTunnel is a tunnel joining chambers a and b of one level.
@@ -89,6 +95,8 @@ type caveSystem struct {
 	owner          [CaveLevels][]int16
 	open           [CaveLevels][]bool // per grid cell and level: dug out
 	floor          [CaveLevels]int    // floor tiles of each level
+	ways           bool               // laid out by the rules of StyleCaveWays: see caveways.go
+	shafts         []caveShaft        // the ways down past the first, under the big islands of StyleCaveWays
 }
 
 // caveSecret is a long tunnel under the sea joining the lower levels of two
@@ -256,6 +264,33 @@ func (w *World) buildCaveSystem(rng *rand.Rand, k int, tiles []int, mouths [][2]
 			aspect: 1.3, level: 0, hall: true, zone: ZoneEntrance,
 		})
 	}
+	if w.caveWays() {
+		s.ways = true
+		w.planCaveWays(rng, s, tiles, inside) // see caveways.go
+	} else {
+		s.planChambers(rng, tiles, inside)
+	}
+	for i := range s.chambers {
+		s.chambers[i].rock = w.rockAbove(&s.chambers[i], w.islands[k].Kind)
+	}
+	s.assignZones(rng, w.islands[k].Kind) // see cavethemes.go
+
+	for i := range s.tunnels {
+		s.windTunnel(rng, i)
+	}
+	if s.ways {
+		w.addPockets(rng, s)
+	}
+	for i := range s.chambers {
+		s.placePillars(rng, i)
+	}
+	w.digSystem(s)
+	return s
+}
+
+// planChambers lays out the chambers and tunnels of s past the halls, its
+// way down and its main route, as the caves of StyleCaves were.
+func (s *caveSystem) planChambers(rng *rand.Rand, tiles []int, inside []uint8) {
 	rmax := clamp(math.Sqrt(float64(len(tiles)))/6.5, caveChamberMin-1.5, caveChamberMax)
 	n0 := min(caveMaxChambers, len(tiles)/caveUpperPer)
 	if n0 == 0 && len(tiles) >= 1200 {
@@ -314,19 +349,6 @@ func (w *World) buildCaveSystem(rng *rand.Rand, k int, tiles []int, mouths [][2]
 		c := &s.chambers[i]
 		c.leaf = len(c.adj) == 1 && !c.hall && !c.route
 	}
-	for i := range s.chambers {
-		s.chambers[i].rock = w.rockAbove(&s.chambers[i], w.islands[k].Kind)
-	}
-	s.assignZones(rng, w.islands[k].Kind) // see cavethemes.go
-
-	for i := range s.tunnels {
-		s.windTunnel(rng, i)
-	}
-	for i := range s.chambers {
-		s.placePillars(rng, i)
-	}
-	w.digSystem(s)
-	return s
 }
 
 // placeChambers spreads n more chambers over the island on level lv, each

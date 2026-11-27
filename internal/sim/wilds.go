@@ -174,28 +174,9 @@ func (w *World) newWilds(all *[NumCreatureKinds][]int32) *wilds {
 	for i := range wildRules {
 		wl.rules[wildRules[i].kind] = &wildRules[i]
 	}
-	half := float64(max(w.width, w.SurfaceHeight())) / 2
-	sum := make([][3]float64, len(w.islands))
-	for i, k := range wl.index {
-		if k >= 0 {
-			sum[k][0] += float64(i%W) + 0.5
-			sum[k][1] += float64(i/W) + 0.5
-			sum[k][2]++
-		}
-	}
+	rings := w.islandRings(wl.index)
 	for k, is := range w.islands {
-		ring := 1
-		far := 0.0
-		if sum[k][2] > 0 {
-			far = math.Hypot(sum[k][0]/sum[k][2]-w.spawnX, sum[k][1]/sum[k][2]-w.spawnY) / half
-		}
-		switch {
-		case is.Home:
-			ring = 0
-		case is.Kind == IslandSnow || is.Kind == IslandDesert || is.Kind == IslandAsh || far > wildsFarRing:
-			ring = 2
-		}
-		wl.isles = append(wl.isles, wildIsle{Island: is, ring: ring, spots: make([][]int, NumCreatureKinds)})
+		wl.isles = append(wl.isles, wildIsle{Island: is, ring: rings[k], spots: make([][]int, NumCreatureKinds)})
 	}
 	for _, r := range wildRules {
 		for _, i := range all[r.kind] {
@@ -214,6 +195,39 @@ func (w *World) newWilds(all *[NumCreatureKinds][]int32) *wilds {
 		}
 	}
 	return wl
+}
+
+// islandRings is the ring of each island of w, by index (islandIndex): 0
+// the home island, 2 the far ones (the desert, the volcano, the snow, and
+// any further out from the spawn than wildsFarRing of half the world), 1
+// the near ones, the rest.
+func (w *World) islandRings(index []int16) []int {
+	W := w.width
+	half := float64(max(w.width, w.SurfaceHeight())) / 2
+	sum := make([][3]float64, len(w.islands))
+	for i, k := range index {
+		if k >= 0 {
+			sum[k][0] += float64(i%W) + 0.5
+			sum[k][1] += float64(i/W) + 0.5
+			sum[k][2]++
+		}
+	}
+	rings := make([]int, len(w.islands))
+	for k, is := range w.islands {
+		ring := 1
+		far := 0.0
+		if sum[k][2] > 0 {
+			far = math.Hypot(sum[k][0]/sum[k][2]-w.spawnX, sum[k][1]/sum[k][2]-w.spawnY) / half
+		}
+		switch {
+		case is.Home:
+			ring = 0
+		case is.Kind == IslandSnow || is.Kind == IslandDesert || is.Kind == IslandAsh || far > wildsFarRing:
+			ring = 2
+		}
+		rings[k] = ring
+	}
+	return rings
 }
 
 // groupsOn is how many groups of r's kind island is gets: its share by
