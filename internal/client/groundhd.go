@@ -319,6 +319,12 @@ func (b *bake) pixel(x, y int, u, v float64) (color.RGBA, bool) {
 				c = mix(c, colInk, rockShadow(int(o))) // at the foot of a mountain's face
 			}
 		}
+		if t.relief != nil { // the Megalodon's reef: coral rock awash (see atollart.go)
+			wu, wv := u+(vnoise(u*1.7, v*1.9, 1510)-0.5)*0.6, v+(vnoise(u*1.9, v*1.7, 1511)-0.5)*0.6 // ragged, not by the tile
+			if tx, ty := int(math.Floor(wu)), int(math.Floor(wv)); t.tile(tx, ty) == sim.TileSand && t.rel(tx, ty).Variant() == sim.VarReef {
+				return reefFlat(hx, hy, u, v, s), true
+			}
+		}
 		if s < surfLand && t.pondAt(u, v) > 0.5 { // a swamp pond's bank: wet mud, and no surf
 			if s < 0.22 {
 				c = swampBank(c, hx, hy, s)

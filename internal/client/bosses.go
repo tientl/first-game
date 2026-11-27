@@ -98,6 +98,9 @@ func (g *Game) bossHDSprite(c protocol.CreatureView, moving bool) (sprite, bool)
 	if bossAgeShot >= 0 {
 		t = bossAgeShot
 	}
+	if s, ok := g.bossSkillSprite(c, t, left); ok { // its moves in its temple or at its atoll: see lairfight.go
+		return s, true
+	}
 	switch c.Kind {
 	case sim.CreatureTitanoboa:
 		hdWarm(titanIdle, titanRoar, titanSlither, titanStrike, titanGrab)

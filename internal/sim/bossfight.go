@@ -181,6 +181,9 @@ func (w *World) bossFoe(c *Creature, l *bossLair, wounded bool) (*Player, float6
 // awake, it keeps after its foe anywhere in it, and turns on the nearest
 // other when it loses them.
 func (w *World) arenaFoe(c *Creature, l *bossLair, wounded bool) (*Player, float64) {
+	if w.dev.calm {
+		return nil, math.Inf(1) // dev mode: asleep whoever comes (boss calm)
+	}
 	r := l.arenaR(c.Kind) - 0.5
 	if l.awake {
 		r += 4

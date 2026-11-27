@@ -1495,3 +1495,65 @@ func titanStrikeFrame(age int) int {
 	}
 	return f
 }
+
+// --- the moves of its temple fight (sim/titanfight.go) -------------------------
+
+// tbBent is the snake laid out back from its neck at (x, 0), raised z
+// above the ground: th(sg) is the way it runs sg art pixels back from the
+// neck (0 straight on, towards +x), so the body bends as th turns. n art
+// pixels of it, tail first.
+func tbBent(x, z float64, th func(sg float64) float64, n float64) []vec3 {
+	const step = 0.5
+	m := int(n / step)
+	pts := make([]vec3, m+1)
+	p := vec3{x, 0, 0}
+	for i := range pts {
+		sg := float64(i) * step
+		p.z = z * smooth(clamp01(1-sg/90))
+		pts[m-i] = p
+		t := th(sg)
+		p = p.add(vec3{-math.Cos(t), -math.Sin(t), 0}.mul(step))
+	}
+	return pts
+}
+
+const (
+	titanSweepN = 10
+	titanSlamN  = 8
+)
+
+// titanSweepBend is how far the hind part of its body is swung round in
+// each frame of the sweep: drawn back the other way through the wind-up
+// (frames 0 to 2), whipped round (3 to 7), and settling (8, 9).
+var titanSweepBend = [titanSweepN]float64{-0.7, -1.4, -1.95, -1.1, 0.2, 1.4, 2.05, 2.15, 1.5, 0.8}
+
+var (
+	titanSweep = newBHAnim(titanSweepN, func(i int) (*canvas, float64, float64) {
+		// The tail swept round in a great arc behind it, the head held low
+		// and turned to watch.
+		a := titanSweepBend[i]
+		th := func(sg float64) float64 {
+			return a*smooth(clamp01((sg-110)/420)) + 0.15*math.Sin(sg/70+float64(i)*0.4)
+		}
+		p := tbPose{path: tbBent(-20, 22, th, tbLen+80), look: 0.25 - 0.1*math.Abs(a), gape: 0.3 + 0.2*clamp01(math.Abs(a)-1), spread: 0.6}
+		return p.canvas()
+	})
+	titanSlam = newBHAnim(titanSlamN, func(i int) (*canvas, float64, float64) {
+		// Reared high (the wind-up is its roar), and brought crashing down,
+		// the front of its body flat along the ground, the coils behind
+		// heaving; then it gathers itself.
+		u := []float64{0.2, 0.55, 0.9, 1, 1, 1, 0.85, 0.65}[i]
+		up := []vec3{{-22, 34, 30}, {-16, 26, 72}, {-8, 18, 112}, {6, 12, 138}, {24, 8, 146}, {40, 6, 138}}
+		down := []vec3{{-30, 30, 6}, {-6, 24, 3}, {22, 18, 2}, {52, 12, 2}, {80, 8, 3}, {104, 6, 6}}
+		ctrl := []vec3{{-430, -10, 0}, {-360, 30, 0}, {-290, 40, 0}, {-225, 12, 0}, {-165, 18, 0}, {-118, 36, 0}}
+		ctrl = append(ctrl, tbSpiral(-34, 2, 62, 36, math.Pi*1.02, 1.0, 0, 8)...)
+		ctrl = append(ctrl, tbLerpPts(up, down, smooth(u))...)
+		for j := range ctrl {
+			if q := &ctrl[j]; q.z == 0 && u > 0.85 {
+				q.y += 6 * math.Sin(float64(i)*1.3-q.x*0.02) // the coils jolted
+			}
+		}
+		p := tbPose{path: tbSpline(ctrl), look: -0.6 + 0.75*smooth(u), gape: 0.8 - 0.5*u, spread: 1 - 0.4*u, drool: 0.5}
+		return p.canvas()
+	})
+)

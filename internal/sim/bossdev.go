@@ -18,7 +18,7 @@ func init() {
 	}
 	devMore["boss"] = func(w *World, r *DevResult, p *Player, args []string) { w.devBoss(r, p, args) }
 	DevHelp = append(DevHelp,
-		"boss wake | phase <1-3> | skill [chiêu]   trùm gần nhất: thức dậy, sang giai đoạn, ra chiêu")
+		"boss wake | phase <1-3> | skill [chiêu] | calm [on|off]   trùm gần nhất: thức dậy, sang giai đoạn, ra chiêu; ngủ say")
 }
 
 // devNearBoss is the boss nearest p, within 60 tiles of its lair, and its lair.
@@ -53,7 +53,7 @@ func (w *World) devWake(c *Creature, l *bossLair, p *Player) {
 
 func (w *World) devBoss(r *DevResult, p *Player, args []string) {
 	c, l := w.devNearBoss(p)
-	if c == nil {
+	if c == nil && (len(args) == 0 || fold(args[0]) != "calm") {
 		r.say("Không có trùm nào gần đây (tp trùm 1 hoặc 2)")
 		return
 	}
@@ -62,6 +62,22 @@ func (w *World) devBoss(r *DevResult, p *Player, args []string) {
 		return
 	}
 	switch fold(args[0]) {
+	case "calm", "ngu", "sleep":
+		w.dev.calm = !w.dev.calm
+		if len(args) > 1 {
+			w.dev.calm = fold(args[1]) == "on" || fold(args[1]) == "bat" || args[1] == "1"
+		}
+		if w.dev.calm {
+			for i := range w.bosses.lairs {
+				if l := &w.bosses.lairs[i]; l.c != nil {
+					l.awake, l.foe, l.roared = false, 0, false
+				}
+			}
+			r.say("Trùm ngủ say, không ai đánh thức được")
+		} else {
+			r.say("Trùm thức như thường")
+		}
+		return
 	case "wake", "day", "thuc":
 		w.devWake(c, l, p)
 		r.say("%s thức dậy", c.Kind.Name())

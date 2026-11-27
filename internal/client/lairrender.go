@@ -144,7 +144,8 @@ func (g *Game) lairUpdate() {
 	} else {
 		f.fish = f.fish[:0]
 	}
-	g.introUpdate() // see bossintro.go
+	g.introUpdate()     // see bossintro.go
+	g.lairFightUpdate() // see lairfight.go
 }
 
 func b2f(b bool) float64 {
@@ -274,7 +275,7 @@ func (g *Game) drawLairWater(dst drawTarget, cam camera, alpha float64) {
 	}
 
 	a := lairArtOf()
-	if wx, wy, ok := g.wreckAt(m); ok { // the hull, seen through the water
+	if wx, wy, ok := g.wreckAt(m); ok && m.Layout == sim.LayoutHollow { // the hull, seen through the water
 		sx, sy := cam.toScreen(wx+1.2, wy+0.6)
 		drawAt(dst, a.hull, sx, sy, 1, 1, 0, color.RGBA{150, 150, 150, 150})
 	}
@@ -301,6 +302,8 @@ func (g *Game) drawLairWater(dst drawTarget, cam camera, alpha float64) {
 		strokeLine(dst, float32(sx-dx*3), float32(sy-dy*2.2), float32(sx+dx*3), float32(sy+dy*2.2), 1.7, color.RGBA{3, 12, 22, 120}, true)
 		strokeLine(dst, float32(sx-dx*3), float32(sy-dy*2.2), float32(sx-dx*5-dy*1.4), float32(sy-dy*3.6+dx*1.4), 1, color.RGBA{3, 12, 22, 110}, true)
 	}
+
+	g.drawSharkWake(dst, cam, alpha) // its run at the edge, seen coming: see lairfight.go
 
 	// The whirlpool: streaks of foam running round the ring.
 	if f.whirl > 0 {
@@ -394,6 +397,9 @@ func strokeCircleOval(dst drawTarget, cx, cy, r, flat float64, clr color.Color) 
 
 // lairSprite is the sprite of lair prop e.
 func (g *Game) lairSprite(e protocol.EntityView) sprite {
+	if s, ok := g.lairSpriteV2(e); ok { // the temple, the atoll: see lairfight.go
+		return s
+	}
 	a := lairArtOf()
 	h := int(sim.HashTile(int(e.TX), int(e.TY)) / 16)
 	switch e.Var {
@@ -438,6 +444,7 @@ func lairShadow(e protocol.EntityView) (float64, bool) {
 // drawLairGround draws the lairs' props that lie flat, under everything
 // that stands.
 func (g *Game) drawLairGround(dst drawTarget, cam camera) {
+	g.drawLairFloor(dst, cam) // the temple's paving, the wreck, the fights' marks: see lairfight.go
 	for _, e := range g.curr.Entities {
 		if e.Kind != sim.EntityLairProp || !lairFlat(e.Var) || g.hiddenInCave(float64(e.TX)+0.5, float64(e.TY)+0.5) {
 			continue
@@ -449,12 +456,17 @@ func (g *Game) drawLairGround(dst drawTarget, cam camera) {
 
 // drawLairProp draws a standing lair prop in the sorted pass.
 func (g *Game) drawLairProp(dst drawTarget, e protocol.EntityView, d drawable) {
-	if lairFlat(e.Var) {
+	if lairFlat(e.Var) || lairHidden(e.Var) {
 		return
 	}
 	s := g.lairSprite(e)
 	if e.Var != sim.LairCover {
-		drawAt(dst, s, d.sx, d.sy, 1, 1, 0, nil)
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(d.sx-s.ax, d.sy-s.ay)
+		if solid := g.seeThrough(e, s, d); solid < 1 { // a pillar, the dead tree, the mast: faded while they hide someone
+			op.ColorScale.ScaleAlpha(solid)
+		}
+		drawSprite(dst, s, op)
 		return
 	}
 	// The fronds over the sleeping snake: thrown aside when it wakes.
@@ -537,7 +549,7 @@ func (g *Game) lairDrawables(list []drawable, cam camera, w, h float64) []drawab
 			}
 		}
 	}
-	if m, ok := g.lairOf(sim.CreatureMegalodon); ok {
+	if m, ok := g.lairOf(sim.CreatureMegalodon); ok && m.Layout == sim.LayoutHollow {
 		if x, y, ok := g.wreckAt(m); ok {
 			add(a.mast, x, y, 1)
 		}
@@ -573,4 +585,9 @@ func (g *Game) drawLairSky(dst drawTarget, cam camera) {
 		v := uint8(255 * clamp01(float64(b.life)/40))
 		drawAt(dst, a.bird[(g.frame+b.flap)/5%2], sx, sy-b.alt, 1, 1, 0, color.RGBA{v, v, v, v})
 	}
+	g.drawLandmarkBirds(dst, cam) // see lairfight.go
+	g.drawVenomGlobs(dst, cam)
+	alpha := g.alpha()
+	g.drawSpears(dst, cam, alpha)
+	g.drawThrowLine(dst, cam, alpha)
 }

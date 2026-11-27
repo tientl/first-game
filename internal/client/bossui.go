@@ -90,25 +90,31 @@ func (g *Game) drawBossBar(screen *uiDst, sw int) {
 		flash = 1 - float64(since)/10 // the flash of the blow
 	}
 	drawBarFill(screen, X+1, BY+1, W-2, BH-2, f, fill, barFX{trail: u.shownHP, flash: flash}, g.frame)
-	// The mark at half: a notch of bone.
-	mx := x + w/2
-	mark := colBone
-	if f < 0.5 {
-		mark = color.RGBA{120, 104, 82, 255} // passed
+	// The marks where its fight changes: a notch of bone at each (at half,
+	// where it flies into its rage; in a lair of StyleLairs, its stages).
+	for _, at := range g.bossBarMarks(b.Kind) {
+		mx := x + w*float32(at)
+		mark := colBone
+		if f < at {
+			mark = color.RGBA{120, 104, 82, 255} // passed
+		}
+		fillRect(screen, mx-0.75*k, by, 1.5*k, bh, fade(colHideDark, 160), true)
+		var d vector.Path
+		d.MoveTo(mx, by-7*k)
+		d.LineTo(mx+4*k, by-2.5*k)
+		d.LineTo(mx, by+2*k)
+		d.LineTo(mx-4*k, by-2.5*k)
+		d.Close()
+		op := &vector.DrawPathOptions{AntiAlias: true}
+		op.ColorScale.ScaleWithColor(mark)
+		fillPath(screen, &d, op)
 	}
-	fillRect(screen, mx-0.75*k, by, 1.5*k, bh, fade(colHideDark, 160), true)
-	var d vector.Path
-	d.MoveTo(mx, by-7*k)
-	d.LineTo(mx+4*k, by-2.5*k)
-	d.LineTo(mx, by+2*k)
-	d.LineTo(mx-4*k, by-2.5*k)
-	d.Close()
-	op := &vector.DrawPathOptions{AntiAlias: true}
-	op.ColorScale.ScaleWithColor(mark)
-	fillPath(screen, &d, op)
 	uiTextW(screen, fmt.Sprintf("%d / %d", b.HP, b.MaxHP), float64(sw)/2, BY+BH/2-lineUI*K*0.95/2, colWhite, text.AlignCenter, K*0.95, wHeavy, fxOutline)
 	if b.Holds {
 		msg := "Bị siết! Giữ phím di chuyển để vùng ra, hoặc đánh nó"
+		if l, ok := g.lairOf(b.Kind); ok && l.Layout != sim.LayoutHollow {
+			msg = "Bị siết! Bấm đánh liên tục để vùng ra"
+		}
 		c := colBad
 		if (g.frame/12)%2 == 0 {
 			c = lighten(c, 50)
@@ -236,6 +242,30 @@ func (g *Game) drawBossMarks(dst *uiDst, at func(x, y float64) (float32, float32
 			strokeLine(dst, x+10, y-10, x-10, y+10, 3, color.RGBA{230, 40, 40, 255}, true)
 		}
 		g.text(dst, m.Kind.Name(), float64(x), float64(y)+14, colWhite, text.AlignCenter, 1)
+		if m.Camp { // its camp: a tent by a fire, and the way in
+			cx, cy := at(float64(m.CX), float64(m.CY))
+			for i := 0.15; i < 0.85; i += 0.1 {
+				fillCircle(dst, cx+(x-cx)*float32(i), cy+(y-cy)*float32(i), 1.4, fade(colBone, 200), true)
+			}
+			var p vector.Path
+			p.MoveTo(cx-8, cy+5)
+			p.LineTo(cx, cy-7)
+			p.LineTo(cx+8, cy+5)
+			p.Close()
+			op := &vector.DrawPathOptions{AntiAlias: true}
+			op.ColorScale.ScaleWithColor(colInk)
+			fillPath(dst, &p, op)
+			var q vector.Path
+			q.MoveTo(cx-6.5, cy+4)
+			q.LineTo(cx, cy-5)
+			q.LineTo(cx+6.5, cy+4)
+			q.Close()
+			op2 := &vector.DrawPathOptions{AntiAlias: true}
+			op2.ColorScale.ScaleWithColor(color.RGBA{96, 150, 70, 255})
+			fillPath(dst, &q, op2)
+			fillCircle(dst, cx+11, cy+3, 3, color.RGBA{240, 150, 50, 255}, true)
+			g.text(dst, "Trại", float64(cx), float64(cy)+8, colWhite, text.AlignCenter, 1)
+		}
 	}
 }
 

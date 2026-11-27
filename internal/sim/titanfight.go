@@ -49,7 +49,7 @@ func init() {
 			Puddles: 5, Spread: 0.8, Damage: 8, Slow: 3 * TicksPerSecond,
 			Cooldown: 150, MinD: 3.5, MaxD: 9, Lock: 6, Weight: 5},
 		SkillDef{Kind: CreatureTitanoboa, Name: "dive", Label: "Lặn trồi", Class: SkillSpecial,
-			Windup: 28, Active: 3, Recover: 24, Shape: ZoneCircle, Reach: 3.2, Zone: true,
+			Windup: 28, Active: 3, Recover: 24, Shape: ZoneCircle, Reach: 3.2, Zone: true, Anchor: AtTarget,
 			Damage: 38, Knock: 2.2, Motion: MoveDive, Cooldown: 260, MaxD: 30, Need: NeedPool, Lock: 9, Weight: 9,
 			Stages: 1<<1 | 1<<2, Wind: CreatureLurk},
 		SkillDef{Kind: CreatureTitanoboa, Name: "slam", Label: "Nện thân", Class: SkillSpecial,

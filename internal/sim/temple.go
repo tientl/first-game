@@ -505,8 +505,17 @@ func (w *World) buildCamp(x, y, lx, ly float64) {
 	cx, cy := int(math.Floor(x)), int(math.Floor(y))
 	for ty := cy - campRoom; ty <= cy+campRoom; ty++ {
 		for tx := cx - campRoom; tx <= cx+campRoom; tx++ {
-			if math.Hypot(float64(tx-cx), float64(ty-cy)*1.2) <= float64(campRoom)+0.3 {
-				w.clearFor(tx, ty)
+			d := math.Hypot(float64(tx-cx), float64(ty-cy)*1.2)
+			if d > float64(campRoom)+0.3 || !w.inBounds(tx, ty) {
+				continue
+			}
+			w.clearFor(tx, ty)
+			// The ground of the camp itself trodden bare, where there is grass
+			// or woods to tread (not the cay's sand).
+			if i := ty*w.width + tx; d <= 2.6+unit(hash2(int32(tx), int32(ty), uint32(w.seed)^0xca9))*0.8 {
+				if t := w.tiles[i]; t == TileGrass || t == TileForest {
+					w.tiles[i] = TilePath
+				}
 			}
 		}
 	}

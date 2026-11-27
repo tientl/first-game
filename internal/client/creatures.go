@@ -1041,6 +1041,10 @@ func (g *Game) drawFish(dst drawTarget, cam camera, alpha float64) {
 			g.drawSleepingShark(dst, cam, c, alpha) // see lairrender.go
 			continue
 		}
+		if c.Kind == sim.CreatureTitanoboa && c.State == sim.CreatureLurk {
+			g.drawTitanUnder(dst, cam, c, alpha) // down in its pool: see lairfight.go
+			continue
+		}
 		if c.State == sim.CreatureLurk {
 			if !g.underIce(c) {
 				g.drawLurker(dst, cam, c)

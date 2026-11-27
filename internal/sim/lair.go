@@ -166,7 +166,13 @@ func (w *World) stepArena(l *bossLair, k CreatureKind) {
 		return
 	}
 	l.arenaT++
-	if foe := w.players[l.foe]; foe == nil || foe.Dead || math.Hypot(foe.X-c.X, foe.Y-c.Y) > arenaCalmDist {
+	far := func(p *Player) bool {
+		if l.site.layout != LayoutHollow { // at the temple, the atoll: only gone out of the arena
+			return math.Hypot(p.X-l.x, p.Y-l.y) > r+2
+		}
+		return math.Hypot(p.X-c.X, p.Y-c.Y) > arenaCalmDist
+	}
+	if foe := w.players[l.foe]; foe == nil || foe.Dead || far(foe) {
 		l.calm++
 	} else {
 		l.calm = 0

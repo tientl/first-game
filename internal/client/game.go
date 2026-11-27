@@ -169,6 +169,9 @@ type Game struct {
 	swimBuf     *fineBuf    // scratch for drawing a swimmer cut off at the water
 	boss        bossUI      // the boss bar and the victory screen; see bossui.go
 	lair        lairFX      // the lairs' scenes and the moment a fight starts; see lairrender.go, bossintro.go
+	lf          lairFight   // the temple's and the atoll's fights: their ground, their marks, the spears; see lairfight.go
+	throwHold   int         // frames the left button has been held with a spear in hand
+	drawing     bool        // a spear drawn back to throw: see lairfight.go
 	dev         *devConsole // the dev console, only with -dev; see devconsole.go
 
 	// How a fight feels: see feel.go and fx.go.
@@ -540,7 +543,8 @@ func (g *Game) handleInput() {
 		if ax, ay, ok := g.aim(); ok {
 			in.Aim, in.AimX, in.AimY = true, quantAim(ax), quantAim(ay)
 		}
-		in.Guard = g.guardHeld() // Q, or the right button with nothing else to do; see shieldart.go
+		in.Guard = g.guardHeld()                     // Q, or the right button with nothing else to do; see shieldart.go
+		in.Action, in.Draw = g.throwInput(in.Action) // a spear: a click thrusts, holding it draws it to throw; see lairfight.go
 	}
 
 	if g.introLocked() {
@@ -786,6 +790,8 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		return sim.ItemKind(arg).Def().Name + " có độc — bạn trúng độc! (nhai Thảo dược để giải)"
 	case sim.NoticeCured:
 		return sim.ItemKind(arg).Def().Name + " đã giải độc"
+	case sim.NoticeSpearHit:
+		return "Giáo trúng " + sim.CreatureKind(arg).Name() + "!"
 	case sim.NoticeStolen:
 		return "Thằn lằn bay cướp mất " + strings.ToLower(sim.ItemKind(arg).Def().Name) + "!"
 	case sim.NoticeArmoured:

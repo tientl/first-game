@@ -39,6 +39,7 @@ type devWorld struct {
 	weather Weather // forced weather, when forced is set
 	forced  bool
 	on      bool // the server runs in dev mode: see SetDevMode in devbuild.go
+	calm    bool // the bosses sleep through anyone coming near (boss calm): see bossdev.go
 }
 
 // DevPlace is somewhere `tp` can go.
