@@ -40,12 +40,12 @@ func TestNoLilyGrowsOnTheSea(t *testing.T) {
 }
 
 func TestOlderStylesKeepTheirPonds(t *testing.T) {
-	w, err := Generate(GenConfig{Seed: 11, Width: SizeLarge, Height: SizeLarge, Style: StyleFlint})
+	w, err := Generate(GenConfig{Seed: 11, Width: SizeLarge, Height: SizeLarge, Style: StyleLairs - 1})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(PondMaskFor(StyleFlint, w.width, w.height, w.tiles), PondMask(w.width, w.height, w.tiles)) {
-		t.Errorf("the ponds of a StyleFlint world changed")
+	if !slices.Equal(PondMaskFor(StyleLairs-1, w.width, w.height, w.tiles), PondMask(w.width, w.height, w.tiles)) {
+		t.Errorf("the ponds of a world of the style before StyleLairs changed")
 	}
 	if slices.Equal(PondMaskFor(StyleLairs, w.width, w.height, w.tiles), PondMask(w.width, w.height, w.tiles)) {
 		t.Errorf("by the rule of StyleLairs the same world's sea pockets are still ponds: the test proves nothing")
@@ -53,16 +53,16 @@ func TestOlderStylesKeepTheirPonds(t *testing.T) {
 }
 
 func TestAnOldSaveHasItsSeaLiliesPulled(t *testing.T) {
-	w, err := Generate(GenConfig{Seed: 11, Width: SizeLarge, Height: SizeLarge, Style: StyleFlint})
+	w, err := Generate(GenConfig{Seed: 11, Width: SizeLarge, Height: SizeLarge, Style: StyleLairs - 1})
 	if err != nil {
 		t.Fatal(err)
 	}
 	sea, pond := seaLilies(w)
 	if sea == 0 {
-		t.Fatalf("no lily on the sea in the StyleFlint world: pick another seed")
+		t.Fatalf("no lily on the sea in the older world: pick another seed")
 	}
 	d := w.Save()
-	d.Version = 27
+	d.Version = SaveVersion - 1
 	w2, err := Load(d)
 	if err != nil {
 		t.Fatal(err)

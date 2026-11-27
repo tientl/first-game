@@ -59,6 +59,9 @@ func (w *World) finishCaves() {
 		}
 		return floors
 	}
+	if w.caveWays() {
+		w.caves.rings = w.islandRings(w.islandIndex()) // the chests are by the island's ring: see caveways.go
+	}
 	for _, s := range w.caves.systems {
 		w.pourCaves(rng, s, floorsOf(s)) // the waters, the lava and the ice: see cavethemes.go
 	}
@@ -129,6 +132,13 @@ func (w *World) caveFloorOf(s *caveSystem, lv int) *caveFloor {
 			h = s.up
 		}
 		keep(h[0], h[1], 2)
+		for _, sh := range s.shafts {
+			h := sh.down
+			if lv == 1 {
+				h = sh.up
+			}
+			keep(h[0], h[1], 2)
+		}
 	}
 	return fl
 }
@@ -180,33 +190,10 @@ func (w *World) dressFloor(rng *rand.Rand, fl *caveFloor) {
 	if len(all) == 0 {
 		return
 	}
-	// The hoards: at the end of the main route, and of each side branch.
-	for ci, c := range s.chambers {
-		if c.level != fl.lv {
-			continue
-		}
-		switch {
-		case ci == s.dest && c.hall: // a cave of one hall, on an islet
-			if rng.Float64() < 0.35 {
-				w.caveHoard(rng, fl, ci, treasureDepth+2)
-			}
-		case ci == s.dest:
-			w.caveHoard(rng, fl, ci, caveTreasureTop+20*fl.lv)
-		case c.leaf && rng.Float64() < 0.8:
-			w.caveHoard(rng, fl, ci, treasureDepth+4+18*fl.lv+rng.IntN(8))
-		}
-	}
-	// And a few more off the main route, as many as the level is big: more,
-	// and richer, down below.
-	var off []int
-	for ci, c := range s.chambers {
-		if c.level == fl.lv && !c.hall && !c.route && !c.leaf && ci != s.dest {
-			off = append(off, ci)
-		}
-	}
-	rng.Shuffle(len(off), func(a, b int) { off[a], off[b] = off[b], off[a] })
-	for _, ci := range off[:min(len(off), floor/(caveHoardPer-caveHoardPer/2*fl.lv))] {
-		w.caveHoard(rng, fl, ci, treasureDepth+2+20*fl.lv+rng.IntN(10))
+	if s.ways {
+		w.waysChests(rng, fl) // fewer and leaner: see caveways.go
+	} else {
+		w.depthChests(rng, fl)
 	}
 	// Stalagmites stand free in the chambers, off the tunnels.
 	for ci, c := range s.chambers {
@@ -269,6 +256,40 @@ func (w *World) dressFloor(rng *rand.Rand, fl *caveFloor) {
 		glow *= 2 // the deep is darker
 	}
 	scatter(EntityGlowPlant, glow, [2]uint8{1, 2}, func() uint8 { return 0 })
+}
+
+// depthChests hides the old chests of one level of a system as in the
+// caves of StyleCaves, each as rich as it lies deep: at the end of the main
+// route, and of each side branch, and a few more off the main route.
+func (w *World) depthChests(rng *rand.Rand, fl *caveFloor) {
+	s := fl.s
+	for ci, c := range s.chambers {
+		if c.level != fl.lv {
+			continue
+		}
+		switch {
+		case ci == s.dest && c.hall: // a cave of one hall, on an islet
+			if rng.Float64() < 0.35 {
+				w.caveHoard(rng, fl, ci, treasureDepth+2)
+			}
+		case ci == s.dest:
+			w.caveHoard(rng, fl, ci, caveTreasureTop+20*fl.lv)
+		case c.leaf && rng.Float64() < 0.8:
+			w.caveHoard(rng, fl, ci, treasureDepth+4+18*fl.lv+rng.IntN(8))
+		}
+	}
+	// And a few more off the main route, as many as the level is big: more,
+	// and richer, down below.
+	var off []int
+	for ci, c := range s.chambers {
+		if c.level == fl.lv && !c.hall && !c.route && !c.leaf && ci != s.dest {
+			off = append(off, ci)
+		}
+	}
+	rng.Shuffle(len(off), func(a, b int) { off[a], off[b] = off[b], off[a] })
+	for _, ci := range off[:min(len(off), s.floor[fl.lv]/(caveHoardPer-caveHoardPer/2*fl.lv))] {
+		w.caveHoard(rng, fl, ci, treasureDepth+2+20*fl.lv+rng.IntN(10))
+	}
 }
 
 // blockerNear reports whether something that blocks the way stands within

@@ -71,12 +71,19 @@ import (
 //     the ores where the flint no longer lies. Nothing older changes, but an
 //     older game would make the wrong world of such a save, so it must
 //     refuse it.
-//   - 28: worlds of StyleLairs: Titanoboa's temple and the Megalodon's atoll
+//   - 28: worlds of StyleCaveWays: caves of more, smaller chambers, with
+//     forks and loops round the main route, passages branching off
+//     passages, side pockets and a second way down under the big islands
+//     (caveways.go), and fewer, leaner old chests by how far the island lies
+//     from home (an old chest's Var is what kind of chest it is and its
+//     island's ring, not its depth). Nothing older changes, but an older
+//     game would make the wrong world of such a save, so it must refuse it.
+//   - 29: worlds of StyleLairs: Titanoboa's temple and the Megalodon's atoll
 //     (temple.go, atoll.go), and the deep pockets of the sea no ponds
 //     (PondMaskFor). An older save has the lilies and lotus that grew on
 //     water joined to the sea pulled up once on loading (pullSeaLilies);
 //     its lairs stay as they were made.
-const SaveVersion = 28
+const SaveVersion = 29
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -387,7 +394,7 @@ func Load(d SaveData) (*World, error) {
 			w.occ[e.TY*w.width+e.TX] = e.ID
 		}
 	}
-	if d.Version < 28 {
+	if d.Version < 29 {
 		w.pullSeaLilies() // lilies and lotus that grew on the sea: see flora.go
 	}
 	for _, ps := range d.Players {
