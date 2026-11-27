@@ -9,7 +9,9 @@ import (
 
 // The interface (HUD, bag, chest, crafting, map, menus) is laid out in UI
 // pixels, for a screen about 540 to 720 UI pixels tall: at 1080p a UI pixel
-// is 2 screen pixels, at 4K 4. The layout, the slot sizes and the mouse
+// is 2 screen pixels, at 1440p 2.5, at 4K 4 (the scale need not be whole,
+// and the player can choose another in the settings: autoUIScale,
+// uiScaleFor). The layout, the slot sizes and the mouse
 // (uiCursor) all stay in UI pixels.
 //
 // It is drawn straight on the screen at the screen's own resolution, not on
@@ -24,29 +26,51 @@ import (
 // World labels are drawn on the screen in screen pixels (screenDst), their
 // text grown by uiK, the same factor.
 
-// uiScaleSetting is the scale asked for: 0 is automatic.
-var uiScaleSetting int
+// uiScaleSetting is the scale asked for, in screen pixels to a UI pixel
+// (1.5 is 150%): 0 is automatic.
+var uiScaleSetting float64
 
 // uiScaleNow is the scale of the frame last drawn, for the mouse.
-var uiScaleNow = 1
+var uiScaleNow = 1.0
 
-// SetUIScale sets the interface's scale: 1, 2, 3… pixels per UI pixel, or
-// 0 for automatic (by the screen's height).
-func SetUIScale(s int) { uiScaleSetting = max(0, min(8, s)) }
+// SetUIScale sets the interface's scale for this session, without saving
+// it: 1, 1.5, 2… screen pixels to a UI pixel, or 0 for automatic (by the
+// screen's height).
+func SetUIScale(s float64) {
+	OverrideSettings(func(st *Settings) { st.UIScale = int(math.Round(max(0, min(8, s)) * 100)) })
+}
 
 // UIScale is the scale asked for: 0 is automatic.
-func UIScale() int { return uiScaleSetting }
+func UIScale() float64 { return uiScaleSetting }
 
-// uiScaleFor is the interface's scale on a screen sh pixels tall: automatic
-// is one UI pixel per screen pixel up to 1079 pixels, 2 at 1080p and 1440p,
-// 4 at 4K: the screen's height over 540, at least 1. A chosen scale never
-// leaves the interface shorter than 480 UI pixels.
-func uiScaleFor(sh int) int {
-	s := max(1, sh/540)
+// uiScaleStep is what the automatic scale is a whole number of: a quarter
+// of a screen pixel. Panels, bars and icons are painted at the size they
+// land at on the screen and text is set at its true size (uifont.go), so a
+// fractional scale is as sharp as a whole one; panels' edges and text are
+// put on whole screen pixels.
+const uiScaleStep = 0.25
+
+// autoUIScale is the automatic scale on a screen sh pixels tall: the
+// screen's height over 540, rounded down to a quarter, at least 1, so the
+// interface is 540 to about 600 UI pixels tall at any resolution, the
+// height it is laid out for: 1.25 at 720p, 1.5 at 900p, 2 at 1080p, 2.5 at
+// 1440p, 4 at 4K.
+func autoUIScale(sh int) float64 {
+	return max(1, math.Floor(float64(sh)/540/uiScaleStep+1e-9)*uiScaleStep)
+}
+
+// maxUIScale is the biggest scale a screen sh pixels tall takes: the
+// interface is never shorter than 480 UI pixels.
+func maxUIScale(sh int) float64 { return max(1, float64(sh)/480) }
+
+// uiScaleFor is the interface's scale on a screen sh pixels tall: the
+// scale chosen in the settings, as far as maxUIScale lets it, or else the
+// automatic one.
+func uiScaleFor(sh int) float64 {
 	if uiScaleSetting > 0 {
-		s = max(1, min(uiScaleSetting, sh/480))
+		return max(1, min(uiScaleSetting, maxUIScale(sh)))
 	}
-	return s
+	return autoUIScale(sh)
 }
 
 // uiDst is an image seen in UI pixels: UI point (x, y) is image pixel
@@ -61,15 +85,21 @@ type uiDst struct {
 // uipanel.go.
 var uiFrame int
 
+// uiSize is the size in UI pixels of a screen sw by sh at scale k: every
+// screen pixel is under the interface.
+func uiSize(sw, sh int, k float64) (uw, uh int) {
+	return int(math.Ceil(float64(sw)/k - 1e-9)), int(math.Ceil(float64(sh)/k - 1e-9))
+}
+
 // beginUI starts drawing the interface over screen. It returns the screen
 // seen in UI pixels and its size in UI pixels; endUI ends the pass.
 func beginUI(screen *ebiten.Image) (ui *uiDst, uw, uh int) {
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
-	s := uiScaleFor(sh)
-	uiScaleNow = s
+	k := uiScaleFor(sh)
+	uiScaleNow = k
 	uiFrame++
-	uw, uh = (sw+s-1)/s, (sh+s-1)/s
-	return &uiDst{img: screen, k: float64(s)}, uw, uh
+	uw, uh = uiSize(sw, sh, k)
+	return &uiDst{img: screen, k: k}, uw, uh
 }
 
 // endUI ends a pass of the interface: what it baked and did not show for a
@@ -171,17 +201,11 @@ func (d *uiDst) view(x, y, s float64) *uiDst {
 }
 
 // uiPoint maps a screen point to the UI canvas at scale s.
-func uiPoint(mx, my, s int) (int, int) {
+func uiPoint(mx, my int, s float64) (int, int) {
 	s = max(1, s)
-	return floorDiv(mx, s), floorDiv(my, s)
-}
-
-func floorDiv(a, b int) int {
-	q := a / b
-	if a%b != 0 && a < 0 {
-		q--
-	}
-	return q
+	// By the pixel's centre, so at a fractional scale a screen pixel goes to
+	// the UI pixel most of it lies in.
+	return int(math.Floor((float64(mx) + 0.5) / s)), int(math.Floor((float64(my) + 0.5) / s))
 }
 
 // uiCursor is the mouse pointer on the UI canvas.
@@ -191,4 +215,4 @@ func uiCursor() (int, int) {
 }
 
 // uiK is the factor world labels' text grows by.
-func uiK() float64 { return float64(uiScaleNow) }
+func uiK() float64 { return uiScaleNow }

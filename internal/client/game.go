@@ -950,13 +950,12 @@ func (g *Game) updateZoom() {
 
 // setZoom sets and saves the view's zoom.
 func setZoom(z int) {
-	viewZoom = max(minZoom, min(maxZoom, z))
-	snd.saveZoom(viewZoom)
+	changeSettings(func(s *Settings) { s.Zoom = z }) // sets viewZoom: see settings.go
 }
 
 // SetZoom sets the view's zoom, minZoom to maxZoom, without saving it: for
 // the screenshot tool.
-func SetZoom(z int) { viewZoom = max(minZoom, min(maxZoom, z)) }
+func SetZoom(z int) { OverrideSettings(func(s *Settings) { s.Zoom = z }) }
 
 // caveRow is the first map row of the caves under the world, 0 if none.
 func (g *Game) caveRow() int {

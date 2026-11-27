@@ -349,11 +349,11 @@ func (c *charCreator) draw(dst *uiDst) {
 
 // drawPreview draws the character in its box from the last draw, on the
 // screen itself (k screen pixels to a UI pixel) so the art keeps its detail.
-func (c *charCreator) drawPreview(dst *ebiten.Image, k int) {
+func (c *charCreator) drawPreview(dst *ebiten.Image, k float64) {
 	if c.preview.w <= 0 {
 		return
 	}
-	f := float64(k)
+	f := k
 	b := box{c.preview.x * f, c.preview.y * f, c.preview.w * f, c.preview.h * f}
 	drawFrame(&uiDst{img: dst, k: f}, float32(c.preview.x), float32(c.preview.y), float32(c.preview.w), float32(c.preview.h))
 	a := getArt()

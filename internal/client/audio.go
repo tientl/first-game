@@ -2,15 +2,14 @@ package client
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"log"
 	"math"
 	"math/rand/v2"
-	"os"
-	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 )
 
@@ -27,6 +26,7 @@ type bus uint8
 const (
 	busSFX bus = iota
 	busMusic
+	busVoice // the creatures' voices: see creatureVoice
 	numBuses
 )
 
@@ -156,16 +156,6 @@ func (m *mixer) Read(p []byte) (int, error) {
 	return frames * 8, nil
 }
 
-// --- settings ---------------------------------------------------------------
-
-// audioSettings are the player's volume choices, kept in a small JSON file.
-type audioSettings struct {
-	Music   float64 `json:"music"`
-	Effects float64 `json:"effects"`
-	Zoom    int     `json:"zoom,omitempty"`   // the view's zoom; see render.go
-	Ground  string  `json:"ground,omitempty"` // the look of the ground: "" (green) or "warm"; see groundhd.go
-}
-
 // --- sound system -----------------------------------------------------------
 
 type soundSystem struct {
@@ -186,8 +176,7 @@ type soundSystem struct {
 	musicWant  string
 	musicReady chan musicTrack
 
-	settings     audioSettings
-	settingsPath string
+	muted bool // silenced while the window is in the background (Settings.MuteUnfocused)
 
 	lx, ly   float64 // listener position, in tiles
 	lastPlay map[string]time.Time
@@ -204,33 +193,23 @@ type musicTrack struct {
 // the screenshot tool). Every method is safe to call on nil.
 var snd *soundSystem
 
-// InitAudio starts sound and music. settingsPath is where the volume
-// settings are read from and saved to. Without a call, the game is silent.
-func InitAudio(settingsPath string) {
-	s := &soundSystem{
-		mix:          &mixer{},
-		rng:          rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 7)),
-		loops:        make(map[string]*voice),
-		loopWant:     make(map[string]float64),
-		loopCur:      make(map[string]float64),
-		music:        make(map[string]*voice),
-		musicCur:     make(map[string]float64),
-		musicReady:   make(chan musicTrack, 4),
-		settings:     audioSettings{Music: 0.6, Effects: 0.8},
-		settingsPath: settingsPath,
-		lastPlay:     make(map[string]time.Time),
+// InitAudio starts sound and music, at the volumes of the settings kept at
+// path (read now, unless LoadSettings already has). Without a call,
+// the game is silent.
+func InitAudio(path string) {
+	if path != "" && path != settingsPath {
+		_ = LoadSettings(path)
 	}
-	if b, err := os.ReadFile(settingsPath); err == nil {
-		var st audioSettings
-		if json.Unmarshal(b, &st) == nil {
-			s.settings.Music = clamp01(st.Music)
-			s.settings.Effects = clamp01(st.Effects)
-			s.settings.Zoom = max(minZoom, min(maxZoom, st.Zoom))
-			viewZoom = s.settings.Zoom
-			if s.settings.Ground = st.Ground; st.Ground == "warm" {
-				groundStyle = GroundWarm
-			}
-		}
+	s := &soundSystem{
+		mix:        &mixer{},
+		rng:        rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 7)),
+		loops:      make(map[string]*voice),
+		loopWant:   make(map[string]float64),
+		loopCur:    make(map[string]float64),
+		music:      make(map[string]*voice),
+		musicCur:   make(map[string]float64),
+		musicReady: make(chan musicTrack, 4),
+		lastPlay:   make(map[string]time.Time),
 	}
 
 	t0 := time.Now()
@@ -258,47 +237,69 @@ func InitAudio(settingsPath string) {
 	snd = s
 }
 
+// busGains are the gains of the mixer's buses for settings st: each
+// volume squared, so a slider feels even to the ear, times the whole
+// volume squared; nothing at all while muted.
+func busGains(st Settings, muted bool) [numBuses]float32 {
+	var g [numBuses]float32
+	if muted {
+		return g
+	}
+	m := st.Master * st.Master
+	g[busSFX] = float32(m * st.Effects * st.Effects)
+	g[busMusic] = float32(m * st.Music * st.Music)
+	g[busVoice] = float32(m * st.Voices * st.Voices)
+	return g
+}
+
+// applyVolumes sets the buses to the volumes in force.
 func (s *soundSystem) applyVolumes() {
-	// Squared, so the slider feels even to the ear.
+	if s == nil {
+		return
+	}
+	g := busGains(settings, s.muted)
 	s.mix.mu.Lock()
-	s.mix.busTarget[busSFX] = float32(s.settings.Effects * s.settings.Effects)
-	s.mix.busTarget[busMusic] = float32(s.settings.Music * s.settings.Music)
+	s.mix.busTarget = g
 	s.mix.mu.Unlock()
 }
 
-func (s *soundSystem) saveSettings() {
-	b, err := json.MarshalIndent(s.settings, "", "  ")
-	if err != nil {
-		return
-	}
-	_ = os.MkdirAll(filepath.Dir(s.settingsPath), 0o755)
-	if err := os.WriteFile(s.settingsPath, b, 0o644); err != nil {
-		log.Printf("audio: saving settings: %v", err)
+// followFocus silences the game while its window is in the background,
+// if the player asked for that.
+func (s *soundSystem) followFocus() {
+	muted := settings.MuteUnfocused && !ebiten.IsFocused()
+	if muted != s.muted {
+		s.muted = muted
+		s.applyVolumes()
 	}
 }
 
-func (s *soundSystem) volume(music bool) float64 {
-	if s == nil {
-		return 0
+// creatureVoice reports whether the sound name is a creature's voice,
+// played on the voices' bus: the recorded voices (realvoice.go) and the
+// synthesised calls, cries and growls of the beasts, the monsters and the
+// tribes. Footsteps, bites and blows stay with the effects.
+func creatureVoice(name string) bool {
+	if v, ok := voiceNames.Load(name); ok {
+		return v.(bool)
 	}
-	if music {
-		return s.settings.Music
+	is := false
+	for _, p := range voicePrefixes {
+		if strings.HasPrefix(name, p) {
+			is = true
+			break
+		}
 	}
-	return s.settings.Effects
+	voiceNames.Store(name, is)
+	return is
 }
 
-func (s *soundSystem) setVolume(music bool, v float64) {
-	if s == nil {
-		return
-	}
-	v = math.Round(clamp01(v)*10) / 10
-	if music {
-		s.settings.Music = v
-	} else {
-		s.settings.Effects = v
-	}
-	s.applyVolumes()
-	s.saveSettings()
+var voiceNames sync.Map // name → bool, as creatureVoice found
+
+var voicePrefixes = []string{
+	"achero", "ankylo", "anzu", "bear_", "bellow", "brachio", "brachy", "carcharo", "champso",
+	"croak", "croc_", "giganoto", "hiss", "honk", "hoot", "kraken", "mammoth", "megalodon",
+	"monkey_", "mosa", "ornitho", "plesio", "ptero", "quetzal", "raptor", "rex", "roar",
+	"sabre", "scorpion_", "screech", "shriek", "snarl", "spider_", "spino", "squeak", "stego",
+	"thesc", "toro", "tribe_", "trike", "troodon", "trumpet",
 }
 
 // play starts a one-shot sound. vol is 0..1, pan -1..1, rate 1 = as made.
@@ -320,7 +321,7 @@ func (s *soundSystem) play(name string, vol, pan, rate float64) {
 	data := vs[s.rng.IntN(len(vs))]
 	s.mix.add(&voice{
 		data: data, rate: rate, gain: float32(vol), target: float32(vol),
-		pan: float32(max(-1, min(1, pan))), bus: busSFX,
+		pan: float32(max(-1, min(1, pan))), bus: busFor(name),
 	})
 }
 
@@ -403,6 +404,7 @@ func (s *soundSystem) update() {
 	if s == nil {
 		return
 	}
+	s.followFocus()
 	for {
 		select {
 		case t := <-s.musicReady:
@@ -447,24 +449,10 @@ func approach(cur, want, step float64) float64 {
 	return cur
 }
 
-// saveGround keeps the look of the ground with the settings.
-func (s *soundSystem) saveGround(g GroundStyle) {
-	name := ""
-	if g == GroundWarm {
-		name = "warm"
+// busFor is the bus sound name plays on: the voices' or the effects'.
+func busFor(name string) bus {
+	if creatureVoice(name) {
+		return busVoice
 	}
-	if s == nil || s.settings.Ground == name {
-		return
-	}
-	s.settings.Ground = name
-	s.saveSettings()
-}
-
-// saveZoom keeps the view's zoom with the settings.
-func (s *soundSystem) saveZoom(z int) {
-	if s == nil || s.settings.Zoom == z {
-		return
-	}
-	s.settings.Zoom = z
-	s.saveSettings()
+	return busSFX
 }

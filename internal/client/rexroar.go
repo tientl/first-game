@@ -92,7 +92,7 @@ const shakeReach = 14.0
 
 // roarShake shakes the view for a roar d tiles off.
 func roarShake(d float64) {
-	if d >= shakeReach {
+	if !shakeOn || d >= shakeReach { // the "Rung màn hình" setting: see settings.go
 		return
 	}
 	a := 0.16 * (1 - d/shakeReach)

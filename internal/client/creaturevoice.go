@@ -448,7 +448,7 @@ func (s *soundSystem) playVariant(name string, i int, vol, pan, rate float64) {
 	}
 	s.mix.add(&voice{
 		data: s.sfx[name][i], rate: rate, gain: float32(vol), target: float32(vol),
-		pan: float32(max(-1, min(1, pan))), bus: busSFX,
+		pan: float32(max(-1, min(1, pan))), bus: busFor(name),
 	})
 }
 

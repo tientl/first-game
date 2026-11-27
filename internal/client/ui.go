@@ -29,11 +29,6 @@ func getArt() *art {
 	return sharedArt
 }
 
-// Layout is the screen layout every scene uses: the window size in pixels.
-func Layout(outsideWidth, outsideHeight int) (int, int) {
-	return max(outsideWidth, 320), max(outsideHeight, 240)
-}
-
 type button struct {
 	label    string
 	sub      string // optional second line
@@ -49,11 +44,23 @@ const (
 	volEffects
 )
 
-func (k volumeKind) get() float64 { return snd.volume(k == volMusic) }
+func (k volumeKind) get() float64 {
+	if k == volMusic {
+		return settings.Music
+	}
+	return settings.Effects
+}
 
 // set changes a volume and lets the player hear the new level.
 func (k volumeKind) set(v float64) {
-	snd.setVolume(k == volMusic, v)
+	v = math.Round(clamp01(v)*10) / 10
+	changeSettings(func(s *Settings) {
+		if k == volMusic {
+			s.Music = v
+		} else {
+			s.Effects = v
+		}
+	})
 	if k == volEffects {
 		snd.play("ui_select", 0.5, 0, 1)
 	}
