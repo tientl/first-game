@@ -163,29 +163,52 @@ func (g *Game) drawInWater(dst drawTarget, p protocol.PlayerView, d drawable, si
 	// falls a little with the swell.
 	surf := int(math.Round((waterBufY - sink - lift + math.Sin(t*0.07)*0.4) * k))
 	surf = max(0, min(waterBufH*k, surf))
-	put := func(y0, y1 int, dx float64, under bool) {
+	// How far into the water one sees here: in the deep only a dim hint of
+	// the chest just under the surface, gone before the hips; in clear
+	// shallows the whole body, legs and all, faint and wavering.
+	clear := g.waterClarity(d.wx, d.wy)
+	reach := lerpf(4.5, 15, clear) * k // image pixels under the surface that show at all
+	deep := [3]float32{0.16, 0.3, 0.46}
+	shallow := [3]float32{0.42, 0.6, 0.66}
+	tint := [3]float32{}
+	for i := range tint {
+		tint[i] = deep[i] + (shallow[i]-deep[i])*float32(clear)
+	}
+	put := func(y0, y1 int, dx, dy, alpha float64, under bool) {
 		if y1 <= y0 {
 			return
 		}
 		sub := buf.img.SubImage(imageRect(0, y0, waterBufW*k, y1)).(*ebiten.Image)
 		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(ox+dx, oy+float64(y0)/k)
+		op.GeoM.Translate(ox+dx, oy+dy+float64(y0)/k)
 		if under {
-			op.ColorScale.Scale(0.42, 0.6, 0.66, 1)
-			op.ColorScale.ScaleAlpha(0.42)
+			op.ColorScale.Scale(tint[0], tint[1], tint[2], 1)
+			op.ColorScale.ScaleAlpha(float32(alpha))
 		}
 		drawImageD(dst, sub, op, k)
 	}
-	// Under the water: in bands, each pushed a little aside by the swell,
-	// fading with depth.
-	for y := surf; y < waterBufH*k; y += 4 {
-		dx := math.Round(math.Sin(t*0.09+float64(y)*0.35)*0.9) / k
-		if float64(y-surf) > 10*k {
-			break // deeper than that, the water hides it
-		}
-		put(y, min(y+4, waterBufH*k), dx, true)
+	// In the deep a soft dark shadow under the swimmer, round, not their
+	// shape: what the water shows of a body in it.
+	if clear < 1 {
+		underShadow(dst, d.sx, oy+float64(surf)/k+2.5, 7.5, 3, 0.2*(1-clear))
 	}
-	put(0, surf, 0, false)
+	// Under the water: in bands, each pushed a little aside by the swell,
+	// fading to nothing at the reach; the murkier the water, the dimmer and
+	// the more smudged (drawn three times, a pixel apart, each fainter).
+	for y := surf; y < waterBufH*k && float64(y-surf) < reach; y += 3 {
+		dx := math.Round(math.Sin(t*0.09+float64(y)*0.35)*0.9) / k
+		fade := 1 - float64(y-surf)/reach
+		a := lerpf(0.16, 0.42, clear) * math.Pow(fade, 2-clear) // clear water: fading evenly; murky: gone fast
+		y1 := min(y+3, waterBufH*k)
+		if clear < 0.6 {
+			for _, o := range [3][2]float64{{-1, 0}, {1, 0.5}, {0, -0.5}} {
+				put(y, y1, dx+o[0]/k, o[1]/k, a*0.45, true)
+			}
+			continue
+		}
+		put(y, y1, dx, 0, a, true)
+	}
+	put(0, surf, 0, 0, 1, false)
 	// The waterline: a ring of foam round the figure where it meets the
 	// surface, its near half over it.
 	wy := oy + float64(surf)/k
@@ -297,15 +320,31 @@ func (g *Game) waterReels() []reel {
 		g.drawSwimmerHD(dst, p, d)
 		sheetDepth = -1
 	}
+	// clarity is a scene in water that clear (see waterClarity).
+	clarity := func(c float64, at func(*Game, int, *protocol.PlayerView, *drawable)) func(*Game, int, *protocol.PlayerView, *drawable) {
+		return func(g *Game, t int, p *protocol.PlayerView, d *drawable) {
+			at(g, t, p, d)
+			sheetClarity = c
+		}
+	}
+	inClear := func(g *Game, dst drawTarget, p protocol.PlayerView, d drawable) {
+		inWater(g, dst, p, d)
+		sheetClarity = -1
+	}
 	return []reel{
-		{name: "swim", n: 68, dirs: allDirs, at: swim(0.72, 1, 1), draw: inWater, bg: reelWater},
-		{name: "tread water", n: 80, dirs: allDirs, at: swim(0, 1, 1), draw: inWater, bg: reelWater},
-		{name: "wade in", n: 90, dirs: allDirs, at: swim(0.72, 0, 1), draw: inWater, bg: reelWater},
+		{name: "swim", n: 68, dirs: allDirs, at: clarity(0, swim(0.72, 1, 1)), draw: inClear, bg: reelWater},
+		{name: "swim in clear water", n: 68, dirs: allDirs, at: clarity(1, swim(0.72, 1, 1)), draw: inClear, bg: reelShallow},
+		{name: "tread water", n: 80, dirs: allDirs, at: clarity(0, swim(0, 1, 1)), draw: inClear, bg: reelWater},
+		{name: "wade in", n: 90, dirs: allDirs, at: func(g *Game, t int, p *protocol.PlayerView, d *drawable) {
+			swim(0.72, 0, 1)(g, t, p, d)
+			sheetClarity = 1 - smooth(clamp01(float64(t)/90)) // out from the clear shallows into the deep
+		}, draw: inClear, bg: reelWater},
 		{name: "hair afloat", n: 140, dirs: allDirs, at: func(g *Game, t int, p *protocol.PlayerView, d *drawable) {
 			swim(0.72, 1, 1)(g, t, p, d)
 			p.Look.Hair, p.Look.HairColor = sim.HairStyle(t/20%int(sim.NumHairStyles)), uint8(t/20%int(sim.NumHairColors))
 			p.Look.Female = t/20%2 == 1
-		}, draw: inWater, bg: reelWater},
+			sheetClarity = 0.2
+		}, draw: inClear, bg: reelWater},
 		{name: "ford", n: 48, dirs: allDirs, at: func(g *Game, t int, p *protocol.PlayerView, d *drawable) {
 			dx, dy := p.Dir.Delta()
 			along := float32(0.9 * float64(t) / TileW)
