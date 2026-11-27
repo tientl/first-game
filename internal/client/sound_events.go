@@ -135,7 +135,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		switch {
 		case c.Kind == sim.EntityCampfire && c.Fuel > sim.FireStartFuel-sim.TicksPerSecond:
 			snd.playAt("ignite", x, y, 0.7, 0.03)
-		case c.Kind == sim.EntityWall || c.Kind == sim.EntityStoneWall || c.Kind == sim.EntityBed:
+		case c.Kind == sim.EntityWall || c.Kind == sim.EntityStoneWall || sim.IsBedLike(c.Kind):
 			snd.playAt("build", x, y, 0.6, 0.05)
 		case c.Kind == sim.EntityFarmland:
 			snd.playAt("step_sand", x, y, 0.9, 0.1) // tilled
@@ -212,7 +212,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		case sim.NoticeTossed:
 			tossSound() // see toss.go
 		case sim.NoticeCantToss, sim.NoticeNotEnough, sim.NoticeNoSpace, sim.NoticeNotEdible, sim.NoticeNoneLeft, sim.NoticeBagFull,
-			sim.NoticeNeedTool, sim.NoticeHaveOne, sim.NoticeNeedBait, sim.NoticeNeedFire, sim.NoticeNotTired, sim.NoticeTooFar, sim.NoticeNothingNear:
+			sim.NoticeNeedTool, sim.NoticeHaveOne, sim.NoticeNeedBait, sim.NoticeNeedFire, sim.NoticeNotTired, sim.NoticeTooFar, sim.NoticeNothingNear, sim.NoticeHardGround:
 			// Holding Space at a tree with no axe repeats the notice twice
 			// a second; one buzz now and then is enough.
 			if snd.ready("error", 1500*time.Millisecond) {

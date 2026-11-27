@@ -83,7 +83,9 @@ const (
 	RecipeLegWraps = RecipeMantle + 1
 	RecipeBoots    = RecipeLegWraps + 1
 
-	NumRecipes = RecipeBoots + 1
+	RecipeLeafTent = RecipeBoots + 1 // see tent.go
+
+	NumRecipes = RecipeLeafTent + 1
 )
 
 // Recipe turns ingredients into either a structure placed in front of the
@@ -410,7 +412,7 @@ const (
 	NoticeNeedBait                 // Arg: ItemKind used up as bait
 	NoticeBitten                   // Arg: CreatureKind that bit the player
 	NoticeNeedFire                 // Arg: RecipeID that must be made by a burning campfire
-	NoticeNotTired                 // a bed by day: sleep comes only in the evening and at night
+	NoticeNotTired                 // a bed by day: sleep comes only in the evening and at night; Arg: its EntityKind
 	NoticeTooEarly                 // Arg: CreatureKind scared off by striking before the bite
 	NoticeBaitStolen               // Arg: ItemKind of the bait a fish took
 	NoticeCaught                   // Arg: ItemKind landed on the line
@@ -440,7 +442,7 @@ const (
 	NoticeTornado   // caught in a tornado
 	NoticeWebbed    // tangled in a spider's web
 	NoticeTreasure  // an old chest opened
-	NoticeHomeSet   // this bed is where you will come back
+	NoticeHomeSet   // this bed is where you will come back; Arg: its EntityKind (a bed or a tent)
 
 	// The open sea: see boats.go. Arg: BoatKind unless noted.
 	NoticeLaunched  // a boat set on the water
@@ -478,6 +480,8 @@ const (
 
 	NoticeArmoured // Arg: CreatureKind whose armour took half the blow; see ankylo.go
 
+	NoticeHardGround // Arg: EntityKind whose stakes do not go into rock or a ford; see tent.go
+
 	// The natural caves: see cavesys.go and caveprops.go.
 	NoticeDeepCaves  // down the rope into the deep caves
 	NoticeUpperCaves // back up the rope out of the deep caves
@@ -512,13 +516,15 @@ const (
 	CmdCookTakeDown              // take my open station down, or its gear off the fire; it must be empty
 	CmdCookStoke                 // put a coal or a log on the fire of my open station
 	CmdFeed                      // give the held food to the beast pointed at, or the nearest that eats it; see aim.go
+	CmdDevBuild                  // free build: put build palette piece Slot on tile (TX, TY) when At, else in front; see devbuild.go
+	CmdDevRemove                 // free build: take the structure on tile (TX, TY) away when At, else the one in front
 )
 
 // Command is a discrete player request. Fields not used by Kind are ignored.
 type Command struct {
 	Kind     CommandKind
 	Recipe   RecipeID
-	Slot, To uint8 // inventory slot indices
+	Slot, To uint8 // inventory slot indices; for CmdDevBuild, Slot is the build palette's piece
 	Count    uint8 // CmdToss: how many, clamped to what the slot holds
 	// CmdCraft of a structure and CmdPlace: At says to build on tile
 	// (TX, TY), which the server checks (reach, free ground); without it

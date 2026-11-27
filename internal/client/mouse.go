@@ -32,9 +32,9 @@ import (
 //     it there. A right click or Esc stops building a structure.
 
 const (
-	aimIdle    = 5 * time.Second      // a pointer left alone this long no longer aims
-	aimStep    = 16                   // the aim is sent in steps of 1/aimStep tile
-	ghostRange = sim.PlaceReach + 2.5 // a torch or seed in hand shows its ghost this close
+	aimIdle    = 5 * time.Second // a pointer left alone this long no longer aims
+	aimStep    = 16              // the aim is sent in steps of 1/aimStep tile
+	ghostRange = 2.5             // a torch or seed in hand shows its ghost this far past where it can go (placeReach)
 )
 
 // pointer is the mouse in play.
@@ -51,11 +51,18 @@ type pointer struct {
 	fixX, fixY float64
 }
 
-// buildMode is a structure chosen in the crafting window, waiting for a
-// tile to stand on.
+// buildMode is a structure chosen in the crafting window, or a piece of the
+// build palette in free build, waiting for a tile to stand on.
 type buildMode struct {
 	on     bool
 	recipe sim.RecipeID
+	dev    bool // a palette piece (free build): piece, not recipe; see buildpalette.go
+	piece  int
+
+	// In free build, holding the left button down and moving puts one on
+	// every tile passed: the last tile it was put on, while held.
+	dragged        bool
+	lastTX, lastTY int
 }
 
 // SetAim holds the pointer (dx, dy) tiles from the player, as if the mouse
@@ -65,6 +72,10 @@ func (g *Game) SetAim(dx, dy float64) { g.ptr.fixed, g.ptr.fixX, g.ptr.fixY = tr
 // StartBuild chooses recipe id to build, as a click in the crafting window
 // does: for the screenshot tool.
 func (g *Game) StartBuild(id sim.RecipeID) { g.build = buildMode{on: true, recipe: id} }
+
+// StartPiece takes build palette piece i in hand, as a click in the palette
+// does: for the screenshot tool.
+func (g *Game) StartPiece(i int) { g.build = buildMode{on: true, dev: true, piece: i} }
 
 // toWorld maps a point on the world canvas (art pixels) to tiles.
 func (c camera) toWorld(x, y float64) (float64, float64) {
@@ -166,8 +177,10 @@ func (g *Game) viewOf(t sim.Target) (targetView, bool) {
 type ghostView struct {
 	ok     bool
 	kind   sim.EntityKind
+	v      uint8        // which one of its kind: a palette piece's
 	item   sim.ItemKind // what is held, when it comes from the hand
 	recipe bool         // a structure from a recipe (build mode)
+	piece  bool         // a piece of the build palette (free build)
 	tx, ty int
 	valid  bool
 	why    sim.NoticeKind
@@ -182,11 +195,20 @@ func (g *Game) ghost() ghostView {
 		return ghostView{}
 	}
 	ax, ay, aim := g.aim()
-	if !aim {
+	if !aim || (g.freeBuild() && shiftHeld()) { // Shift: taking away, not building; see buildpalette.go
 		return ghostView{}
 	}
 	gv := ghostView{tx: int(math.Floor(ax)), ty: int(math.Floor(ay))}
 	soft := false
+	if g.build.on && g.build.dev {
+		pc, ok := sim.DevPieceAt(g.build.piece)
+		if !ok {
+			return ghostView{}
+		}
+		gv.ok, gv.kind, gv.v, gv.item, gv.piece = true, pc.Kind, pc.Var, pc.Item, true
+		gv.valid, gv.why = sim.DevBuildSpot(float64(me.X), float64(me.Y), gv.tx, gv.ty, pc, g.tileAt, g.kindAt, g.standers())
+		return gv
+	}
 	if g.build.on {
 		r, ok := sim.RecipeByID(g.build.recipe)
 		if !ok || r.Places == sim.EntityNone {
@@ -198,7 +220,7 @@ func (g *Game) ghost() ghostView {
 		if me.Held == sim.ItemTorch {
 			return ghostView{} // the torch in the hand lights the way; the right button plants it in front
 		}
-		if !ok || math.Hypot(ax-float64(me.X), ay-float64(me.Y)) > ghostRange || me.Cast != sim.CastNone {
+		if !ok || math.Hypot(ax-float64(me.X), ay-float64(me.Y)) > g.placeReach()+ghostRange || me.Cast != sim.CastNone {
 			return ghostView{}
 		}
 		if u, _ := g.underPointer(me, ax, ay); u.ok {
@@ -207,7 +229,7 @@ func (g *Game) ghost() ghostView {
 		gv.kind, gv.item, soft = k, me.Held, s
 	}
 	gv.ok = true
-	gv.valid, gv.why = sim.BuildSpot(float64(me.X), float64(me.Y), gv.tx, gv.ty, gv.kind, soft, g.tileAt, g.taken, g.standers())
+	gv.valid, gv.why = sim.BuildSpotWithin(g.placeReach(), float64(me.X), float64(me.Y), gv.tx, gv.ty, gv.kind, soft, g.tileAt, g.taken, g.standers())
 	return gv
 }
 
@@ -215,6 +237,17 @@ func (g *Game) ghost() ghostView {
 func (g *Game) taken(tx, ty int) bool {
 	_, ok := g.entAt[[2]int{tx, ty}]
 	return ok
+}
+
+// kindAt is the kind and variant of what stands on a tile, as far as this
+// client sees.
+func (g *Game) kindAt(tx, ty int) (sim.EntityKind, uint8, bool) {
+	i, ok := g.entAt[[2]int{tx, ty}]
+	if !ok || i >= len(g.curr.Entities) {
+		return sim.EntityNone, 0, false
+	}
+	e := g.curr.Entities[i]
+	return e.Kind, e.Var, true
 }
 
 // standers are where the players in view stand.
@@ -235,11 +268,18 @@ func (g *Game) standers() [][2]float64 {
 func (g *Game) leftButton() bool {
 	if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) || g.lastScreenH == 0 {
 		g.ptr.block = false
+		g.build.dragged = false
 		return false
 	}
 	mx, my := uiCursor()
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		g.build.dragged = false
 		g.ptr.block = g.leftClick(mx, my)
+	} else if g.build.on && g.build.dragged && g.freeBuild() {
+		// Free build: held down and moved on, one on every new tile.
+		if gv := g.ghost(); gv.ok && gv.valid && (gv.tx != g.build.lastTX || gv.ty != g.build.lastTY) {
+			g.placeGhost(gv)
+		}
 	}
 	return !g.ptr.block && my < hotbarY(g.lastScreenH)-10 // not on the hotbar
 }
@@ -266,10 +306,16 @@ func (g *Game) placeGhost(gv ghostView) {
 		return
 	}
 	c := sim.Command{Kind: sim.CmdPlace, At: true, TX: int16(gv.tx), TY: int16(gv.ty)}
-	if gv.recipe {
+	switch {
+	case gv.piece:
+		c.Kind, c.Slot = sim.CmdDevBuild, uint8(g.build.piece) // see buildpalette.go
+	case gv.recipe:
 		c.Kind, c.Recipe = sim.CmdCraft, g.build.recipe
 	}
 	g.command(c)
+	if gv.piece || gv.recipe {
+		g.build.dragged, g.build.lastTX, g.build.lastTY = true, gv.tx, gv.ty
+	}
 }
 
 // buildRefusal says why the ghost is red.
@@ -384,7 +430,7 @@ func (g *Game) useContextNow() useContext {
 	}
 	if k, s, ok := sim.PlacedBy(me.Held); ok && me.Held != sim.ItemTorch { // a torch goes in front
 		gv := ghostView{ok: true, kind: k, tx: ctx.aimTX, ty: ctx.aimTY}
-		gv.valid, gv.why = sim.BuildSpot(float64(me.X), float64(me.Y), gv.tx, gv.ty, k, s, g.tileAt, g.taken, g.standers())
+		gv.valid, gv.why = sim.BuildSpotWithin(g.placeReach(), float64(me.X), float64(me.Y), gv.tx, gv.ty, k, s, g.tileAt, g.taken, g.standers())
 		ctx.spot = gv
 	}
 	return ctx
@@ -392,6 +438,10 @@ func (g *Game) useContextNow() useContext {
 
 // rightClick is the right button in play.
 func (g *Game) rightClick() {
+	if g.freeBuild() && shiftHeld() {
+		g.devRemove() // see buildpalette.go
+		return
+	}
 	if g.build.on {
 		g.build.on = false
 		g.showNotice("Đã thôi xây")
@@ -424,6 +474,8 @@ func useLabel(cmd sim.Command, held sim.ItemKind) string {
 			return "bón phân cho cây non, luống đất dưới con trỏ"
 		case held == sim.ItemTorch:
 			return "cắm đuốc xuống trước mặt"
+		case held == sim.ItemLeafTent:
+			return "dựng lều lá ở chỗ con trỏ"
 		case sim.IsSeed(held):
 			return "gieo hạt ở chỗ con trỏ"
 		case cookPlaced(held):
@@ -442,7 +494,7 @@ func (g *Game) craftRecipe(r sim.Recipe) {
 		g.command(sim.Command{Kind: sim.CmdCraft, Recipe: r.ID})
 		return
 	}
-	if !g.curr.Self.Inv.HasAll(r.Inputs) {
+	if !g.freeBuild() && !g.curr.Self.Inv.HasAll(r.Inputs) {
 		g.showNotice("Thiếu nguyên liệu — cần " + ingredientsText(r))
 		return
 	}
@@ -451,16 +503,26 @@ func (g *Game) craftRecipe(r sim.Recipe) {
 	g.showNotice("Chọn chỗ dựng " + r.Name + ": chuột trái đặt · chuột phải hoặc Esc thôi")
 }
 
-// keepBuild leaves build mode once the ingredients run out, or on death.
+// keepBuild leaves build mode once the ingredients run out, or on death; a
+// palette piece, and the palette, once free build is off.
 func (g *Game) keepBuild() {
+	if g.overlay == overlayPalette && !g.freeBuild() {
+		g.setOverlay(overlayNone)
+	}
 	if !g.build.on {
+		return
+	}
+	if g.build.dev {
+		if g.curr.Self.Dead || !g.freeBuild() {
+			g.build.on = false
+		}
 		return
 	}
 	r, ok := sim.RecipeByID(g.build.recipe)
 	switch {
 	case !ok || g.curr.Self.Dead:
 		g.build.on = false
-	case !g.curr.Self.Inv.HasAll(r.Inputs):
+	case !g.freeBuild() && !g.curr.Self.Inv.HasAll(r.Inputs):
 		g.build.on = false
 		g.showNotice("Hết nguyên liệu để dựng " + r.Name)
 	}
@@ -488,8 +550,10 @@ func (g *Game) drawGhost(dst drawTarget, cam camera) {
 	pulse := uint8(150 + 70*math.Sin(float64(g.frame)*0.15))
 	fillRect(dst, float32(x)+1, float32(y)+1, TileW-2, TileH-2, color.RGBA{col.R / 3, col.G / 3, col.B / 3, 90}, false)
 	strokeRect(dst, float32(x)+1.5, float32(y)+1.5, TileW-3, TileH-3, 1, color.RGBA{uint8(int(col.R) * int(pulse) / 255), uint8(int(col.G) * int(pulse) / 255), uint8(int(col.B) * int(pulse) / 255), pulse}, false)
-	ev := protocol.EntityView{Kind: gv.kind, TX: int16(gv.tx), TY: int16(gv.ty), Ready: true}
+	ev := protocol.EntityView{Kind: gv.kind, Var: gv.v, TX: int16(gv.tx), TY: int16(gv.ty), Ready: true}
 	switch gv.kind {
+	case sim.EntityCampfire, sim.EntityBonfire:
+		ev.Fuel = sim.FireStartFuel
 	case sim.EntityTorchStand:
 		ev.Fuel = sim.TorchStandTicks
 	case sim.EntityTrophy:
@@ -508,8 +572,7 @@ func (g *Game) drawGhost(dst drawTarget, cam camera) {
 		drawSprite(dst, s, op)
 	}
 	cx, cy := x+TileW/2, y+TileH/2
-	s, _ := g.entitySprite(ev)
-	draw(s, cx, cy)
+	draw(g.pieceSprite(ev), cx, cy)    // see buildpalette.go
 	if gv.kind == sim.EntityCampfire { // the flames and the front stones, as on its recipe card
 		draw(g.art.flames[(g.frame/5)%flameFrames], cx, cy+1)
 		draw(g.art.campFront, cx, cy)
@@ -531,12 +594,25 @@ func (g *Game) drawAimCues(screen *ebiten.Image, cam camera, scale float64, tg, 
 			g.text(screen, "Xa quá — lại gần hơn", (x+w/2)*scale, max(y*scale-22*uiK(), 4), colGhostBad, text.AlignCenter, uiK())
 		}
 	}
+	if g.freeBuild() && shiftHeld() { // Shift and the right button take it away; see buildpalette.go
+		if e, in, ok := g.devRemoveTarget(); ok {
+			if x, y, w, h, ok := g.targetBox(targetView{ok: true, e: e}, cam); ok {
+				label := "Shift + chuột phải: gỡ " + strings.ToLower(e.Kind.Name())
+				if !in {
+					label = e.Kind.Name() + " — xa quá"
+				}
+				drawBrackets(screen, x*scale, y*scale, w*scale, h*scale, colGhostBad)
+				g.text(screen, label, (x+w/2)*scale, max(y*scale-22*uiK(), 4), colGhostBad, text.AlignCenter, uiK())
+			}
+		}
+		return
+	}
 	if gv := g.ghost(); gv.ok {
 		x, y := cam.toScreen(float64(gv.tx)+0.5, float64(gv.ty))
 		name := gv.kind.Name()
-		if gv.recipe {
-			if r, ok := sim.RecipeByID(g.build.recipe); ok {
-				name = r.Name
+		if gv.recipe || gv.piece {
+			if n, ok := g.buildName(); ok {
+				name = n
 			}
 		} else if gv.item.Valid() {
 			name = gv.item.Def().Name

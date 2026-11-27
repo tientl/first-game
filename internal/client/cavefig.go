@@ -695,10 +695,14 @@ func (g *figGen) bareLeg(lg legGeom, dim float64, view sim.Dir) {
 		cx, cy = lg.kx+sy*1.2, lg.ky-sx*1.2
 	}
 	knee := sEll(cx, cy, 2.4, 2.5)
+	// Round the knee the thigh and the shin are lit as one: no seam where
+	// they meet, however far the knee bends.
+	limb := thigh.or(shin)
+	nearKnee := func(fx, fy float64) float64 { return clamp01(1 - (math.Hypot(fx-lg.kx, fy-lg.ky)-2)/5) }
 	hemT := skirtT(g.look.Female, g.wear) // the fur's shadow falls on the thigh
 	f.fill(g.L, thigh, func(px, py int, _ float64) color.RGBA {
 		fx, fy := float64(px)+0.5, float64(py)+0.5
-		i := skinBand(thigh.lum(px, py, rt0) - dim + 0.03)
+		i := skinBand(lerpf(thigh.lum(px, py, rt0), limb.lum(px, py, rt0), nearKnee(fx, fy)) - dim + 0.03)
 		if t := ((fx-lg.hx)*tx + (fy-lg.hy)*ty) / (tn * tn); t > hemT-0.1 && t < hemT+0.13 {
 			i = min(i, 3)
 		}
@@ -710,6 +714,7 @@ func (g *figGen) bareLeg(lg legGeom, dim float64, view sim.Dir) {
 		if dc := calf.d(fx, fy); dc < 0 && dc < shin.d(fx, fy) {
 			v = calf.lum(px, py, rc)
 		}
+		v = lerpf(v, limb.lum(px, py, rt0), nearKnee(fx, fy))
 		i := skinBand(v - dim + 0.03)
 		t := (fx-lg.kx)*sx + (fy-lg.ky)*sy // down the shin
 		c := (fx-lg.kx)*sy - (fy-lg.ky)*sx // across it, forwards

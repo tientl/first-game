@@ -246,6 +246,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.drawCook(ui, uw, uh) // see cookui.go
 	case overlayCraft:
 		g.drawCraft(ui, uw, uh) // see craftui.go
+	case overlayPalette:
+		g.drawPalette(ui, uw, uh) // see buildpalette.go
 	}
 	g.drawNotice(ui, uw)      // above the bag, so a failed craft or meal says why
 	g.drawVictory(ui, uw, uh) // every boss has fallen; see bossui.go
@@ -263,6 +265,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target targetView) {
+	g.drawCam = cam
 	list := g.drawList[:0]
 	for i, e := range g.curr.Entities {
 		wx, wy := float64(e.TX)+0.5, float64(e.TY)+0.5
@@ -625,6 +628,8 @@ func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 		return g.chestSprite(e), 0
 	case sim.EntityBed:
 		return a.bed, 0
+	case sim.EntityLeafTent:
+		return g.tentSprite(e), 0 // see tentart.go
 	case sim.EntityGrave: // a fallen player's body and their things; see sim/grave.go
 		return graveSprite(e), 0 // see bodyart.go
 	case sim.EntityPebble:
@@ -693,6 +698,9 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 	}
 	g.drawFloraUnder(dst, e, d)                                       // see florarender.go
 	if g.drawTribalEntity(dst, e, d) || g.drawCookEntity(dst, e, d) { // a pot on the fire; see cookrender.go
+		return
+	}
+	if g.drawTentEntity(dst, e, d) { // see tentart.go
 		return
 	}
 	s, sway := g.entitySprite(e)
@@ -873,6 +881,10 @@ func (g *Game) drawSleeper(dst drawTarget, p protocol.PlayerView, d drawable) {
 	if playerHD && playerJointed { // laid down under a fur, breathing; see sleephd.go
 		g.drawSleeperHD(dst, p, d)
 		return
+	}
+	if e, ok := g.tentUnder(p); ok { // in a tent: lying further in, its shell over them; see tentart.go
+		defer g.drawTentShell(dst, e, math.Round(d.sx), math.Round(d.sy))
+		d.sx, d.sy = d.sx+tentSleepDX, d.sy+tentSleepDY
 	}
 	tint := playerColors[int(p.ID)%len(playerColors)]
 	// Turned a quarter left: the feet anchor goes to the foot of the bed and
@@ -1081,12 +1093,8 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				} else {
 					label += " — dỡ"
 				}
-			case e.Kind == sim.EntityBed:
-				if sim.PhaseOf(g.curr.Tick) == sim.PhaseDay {
-					label += " — ngủ khi trời tối"
-				} else {
-					label += " — ngủ"
-				}
+			case sim.IsBedLike(e.Kind):
+				label = g.bedLabel(label) // see tentart.go
 			case (e.Kind == sim.EntityBoulder || e.Kind == sim.EntityCoal) && !g.has(sim.ToolPickaxe):
 				label, col = label+" — cần cúp đá", colBad
 			case e.Kind == sim.EntityCactus && !g.has(sim.ToolAxe):

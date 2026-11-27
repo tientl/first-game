@@ -1,6 +1,7 @@
 package client
 
 import (
+	"image/color"
 	"math"
 
 	"survivalgame/internal/protocol"
@@ -150,6 +151,10 @@ func (g *Game) whatSwing(old protocol.Snapshot, oldAt map[[2]int]protocol.Entity
 			return tool(sim.ToolAxe, swingAxe, p.AxeTier)
 		case e.Kind == sim.EntityBoulder || e.Kind == sim.EntityStoneWall || e.Kind == sim.EntityCoal || isOre(e.Kind):
 			return tool(sim.ToolPickaxe, swingPick, sim.TierStone)
+		case sim.IsBedLike(e.Kind) && sim.PhaseOf(old.Tick) == sim.PhaseDay:
+			if c, _ := p.Held.ToolKind(); c == sim.ToolAxe { // taking it down; see sim/tent.go
+				return tool(sim.ToolAxe, swingAxe, p.AxeTier)
+			}
 		}
 	}
 	return swingInfo{kind: swingHand}
@@ -164,20 +169,35 @@ func (g *Game) drawSwing(dst drawTarget, p protocol.PlayerView, d drawable, bob,
 		side = -1
 	}
 	tier := func(t sim.Tier) sim.Tier { return min(t, sim.NumTiers-1) }
-	tool := func(s sprite) { // gripped at the hand, swung about the grip
+	tool := func(s sprite, c sim.ToolClass) { // gripped at the hand, swung about the grip
 		gx, gy := d.sx+6*side, d.sy-7-bob
 		if limbGrip.on { // the jointed figure's hand; see limbdraw.go
 			gx, gy = limbGrip.x, limbGrip.y
 		}
-		drawAt(dst, s, gx, gy, side, 1, chopAngle(age)*side, nil)
+		a := chopAngle(age)
+		if hd := heldDefOf(sim.ToolItem(c, tier(w.tier))); hd != nil { // see heldhd.go
+			// Coming down fast, the head leaves a trail of where it has
+			// just been, fading once it has landed.
+			if age < chopStrike+chopBounce+4 {
+				fade := 1.0
+				if age > chopStrike {
+					fade = 1 - (age-chopStrike)/(chopBounce+4)
+				}
+				lead := min(a, chopImpact) // the bounce does not draw it on
+				swingArc(dst, gx, gy, side, lead, chopRaised, 1, 1.5, 7.5, 15, color.RGBA{0xe8, 0xe4, 0xd8, 0xff}, 0.55*fade)
+			}
+			drawHeldDef(dst, hd, gx, gy, a, side, 1)
+			return
+		}
+		drawAt(dst, s, gx, gy, side, 1, a*side, nil)
 	}
 	switch w.kind {
 	case swingAxe:
-		tool(g.art.ore.axes[tier(w.tier)])
+		tool(g.art.ore.axes[tier(w.tier)], sim.ToolAxe)
 	case swingPick:
-		tool(g.art.ore.picks[tier(w.tier)])
+		tool(g.art.ore.picks[tier(w.tier)], sim.ToolPickaxe)
 	case swingHoe:
-		tool(g.art.ore.hoes[tier(w.tier)])
+		tool(g.art.ore.hoes[tier(w.tier)], sim.ToolHoe)
 	case swingCleave:
 		g.drawCleave(dst, p, d, bob)
 	default: // a hand or a spear pushed out towards the target, and back

@@ -55,6 +55,10 @@ const (
 	moRideWide            // astride a broad back (the Ankylosaurus): upright, the knees wide, rocking
 	moSleep               // lying asleep: on the back, on one side, the other, curled on the ground; each breathing in and out
 	moWake                // sitting up out of sleep, standing, a stretch and a yawn
+	moRise                // stepping off from sitting: the walk, rising out of a crouch (riseLevels of loFrames)
+	moLieBack             // from sitting on the bed's edge to lying on the back, turned down onto it (spun)
+	moSleepTurn           // the in-betweens of turning over: on the back rolling (0), on the side not yet curled (1)
+	moTopple              // going over in a fall: the body as it will lie, turned part way down (spun, drawn mirrored)
 	numMotions
 )
 
@@ -105,6 +109,10 @@ var motions = [numMotions]motionDef{
 	moRideWide:   {"ride (broad back)", []int{150, 150, 150, 150, 150, 150, 150, 150}, true, "walk"},
 	moSleep:      {"sleep", []int{1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500}, false, "sit"},
 	moWake:       {"wake", []int{170, 150, 150, 260, 300, 170}, false, "spellcast"},
+	moRise:       {"rise", riseMs(), false, "sit"},
+	moLieBack:    {"lie back", []int{150, 150, 150, 150}, false, "sit"},
+	moSleepTurn:  {"turn over", []int{300, 300}, false, "sit"},
+	moTopple:     {"topple", []int{42, 42, 41}, false, "hurt"},
 }
 
 // frames is how many key poses m has.
@@ -168,14 +176,15 @@ type kp struct {
 	fore0, fore1 bool    // the hand comes up in front of the face: drawn over the head (out of sight from behind)
 	shut         bool
 	breath       float64 // image pixels the chest rises
+	spin         float64 // the whole figure turned about its hips, clockwise: drawn by itself (standingCanvas), not put together at draw
 	lagX, lagY   float64
 }
 
 func (k kp) pose() bodyPose {
 	var b bodyPose
 	b.up = upperPose{arm: [2]armJ{k.a0, k.a1}, lagX: k.lagX, lagY: k.lagY, shut: k.shut,
-		tilt: k.tilt, nod: k.nod, roll: k.roll, jaw: k.jaw, open: [2]bool{k.open0, k.open1}, breath: k.breath, fore: [2]bool{k.fore0, k.fore1}}
-	b.lo = lowerPose{leg: [2]legJ{k.l0, k.l1}, drop: k.drop, spread: k.spread, tuck: [2]bool{k.tuck0, k.tuck1}}
+		tilt: k.tilt, nod: k.nod, roll: k.roll, jaw: k.jaw, open: [2]bool{k.open0, k.open1}, breath: k.breath, fore: [2]bool{k.fore0, k.fore1}, spin: k.spin, spinDrop: k.drop}
+	b.lo = lowerPose{leg: [2]legJ{k.l0, k.l1}, drop: k.drop, spread: k.spread, tuck: [2]bool{k.tuck0, k.tuck1}, spin: k.spin}
 	return b
 }
 
@@ -262,6 +271,14 @@ func motionKey(m motionID, f int, side, back bool) kp {
 		k.breath = [4]float64{0, 1, 1.5, 0.6}[f]
 		k.drop = 0
 		return k
+	case moRise:
+		return riseKey(f, side)
+	case moLieBack:
+		return lieBackKey(f)
+	case moSleepTurn:
+		return sleepTurnKey(f)
+	case moTopple:
+		return toppleKey(f)
 	case moSleep:
 		return sleepPoseKey(f)
 	case moWake:
@@ -478,6 +495,9 @@ func dieKey(f int, side bool) kp {
 		if f >= 3 {
 			k.tilt, k.nod = 0.55, 0.5
 			k.a0.sh, k.a1.sh = -0.35, -0.3
+		}
+		if f >= 3 && !side { // slumping back and to one side: going over backwards
+			k.tilt, k.nod, k.roll = -0.35, -0.3, -0.22
 		}
 	}
 	return k
@@ -829,6 +849,7 @@ func rideKey(m motionID, f int, side bool) kp {
 // head's key, as the head is drawn by itself and laid over the body.
 type bendKey struct {
 	tilt, nod, roll, jaw, breath float64
+	spin, spinDrop               float64 // the whole figure turned about its hips, which have dropped spinDrop: see kp.spin
 }
 
 // neckX, neckY is where the head turns on the neck, in image pixels.
@@ -838,7 +859,7 @@ const (
 )
 
 func bendOf(p upperPose) bendKey {
-	return bendKey{p.tilt, p.nod, p.roll, p.jaw, p.breath}
+	return bendKey{p.tilt, p.nod, p.roll, p.jaw, p.breath, p.spin, p.spinDrop}
 }
 
 // trunk is how the trunk is bent facing d (not DirLeft): leaning, it turns
@@ -860,6 +881,9 @@ func (b bendKey) trunk(d sim.Dir) []figMap {
 		if b.roll != 0 {
 			xf = append(xf, xfRot(b.roll, 27, hipY))
 		}
+	}
+	if b.spin != 0 { // the drop the halves are put together with at draw, then the turn
+		xf = append(xf, xfMove(0, b.spinDrop), xfRot(b.spin, 27, hipY+b.spinDrop))
 	}
 	return xf
 }
@@ -918,48 +942,53 @@ func (b bendKey) mouth(f *figHD, T *figLayer, d sim.Dir, l sim.Look) {
 	}
 }
 
-// swimKey is a breaststroke (no LPC row swims; its rhythm is the walk's
-// eight beats): arms out ahead in the glide (0, 1), swept out and down (2),
-// pulled in under the chin as the head comes up for air (3), the knees
-// drawn up (4), the arms shot forward as the legs kick (5), and into the
-// glide (6, 7). Sideways the body lies forward into the water, the head up.
-// Only the head and shoulders show: the rest is drawn under the surface
-// (swimhd.go).
+// swimKey is a front crawl (no LPC row swims; its rhythm is the walk's
+// eight beats), timed by the water covered. The arms go round in turn:
+// a hand goes in ahead (0), catches and pulls under the body (1, 2),
+// pushes back past the hip (3), comes out (4), and swings over the water,
+// high, to go in again (5 to 7). Sideways it is the near arm that comes
+// over the water; the far one pulls under it, seen dimly through the water
+// (swimhd.go). From the front or the back the two arms come over in turn,
+// one up as the other pulls. The body lies forward into the water, the head
+// up; the legs flutter.
 func swimKey(f int, side, back bool) kp {
 	var k kp
-	type st struct{ sh, el, ab, lift, kf, ku float64 }
-	s := [8]st{
-		{1.25, 0.05, 0.1, 0, -9, 4},
-		{1.2, 0.1, 0.15, 0, -9, 4},
-		{0.75, 0.25, 0.55, -1, -6, 6},
-		{0.25, 1.9, 0.35, -2.5, 2, 10},
-		{0.45, 2.3, 0.15, -2, 5, 12},
-		{0.95, 1.0, 0.1, -0.5, -12, 3},
-		{1.25, 0.15, 0.08, 0.5, -11, 3},
-		{1.25, 0.05, 0.1, 0.5, -10, 4},
-	}[f]
+	// The hand that comes over, frame by frame: its upper arm's angle from
+	// hanging (in the trunk's own frame, the trunk leaning 0.5 forward) and
+	// the elbow's bend.
+	type st struct{ sh, el float64 }
+	over := [8]st{{1.1, 0.05}, {0.7, 0.25}, {0.0, 0.6}, {-0.8, 0.4}, {-1.8, 0.7}, {-3.1, 0.45}, {2.5, 0.45}, {1.8, 0.25}}
+	s := over[f]
+	kick := math.Sin(float64(f) / 8 * 4 * math.Pi)
 	if side {
-		k.a0 = armJ{sh: s.sh, el: s.el, ab: 0.05, out: 1}
-		k.a1 = armJ{sh: s.sh - 0.08, el: s.el, ab: 0.05}
-		k.tilt, k.nod = 0.45, -0.42-0.12*clamp01(-s.lift/2)
-		k.l0 = legJ{f: s.kf, u: s.ku, pitch: 0.6}
-		k.l1 = legJ{f: s.kf - 2, u: s.ku + 1, pitch: 0.6}
+		k.a0 = armJ{sh: s.sh, el: s.el, ab: 0.08, out: 1}
+		ph := float64(f) / 8 * 2 * math.Pi
+		k.a1 = armJ{sh: 0.8 + 0.4*math.Sin(ph+math.Pi), el: 0.6, ab: 0.05}
+		k.tilt, k.nod = 0.5, -0.48
+		k.l0 = legJ{f: -9 + 3*kick, u: 4 + 2*kick, pitch: 0.7}
+		k.l1 = legJ{f: -9 - 3*kick, u: 4 - 2*kick, pitch: 0.7}
 		k.lagX = -2
-	} else {
-		// From the front or the back the arms sweep out to the sides
-		// and in.
-		ab := [8]float64{0.25, 0.4, 1.15, 0.7, 0.2, 0.15, 0.2, 0.25}[f]
-		k.a0 = armJ{sh: math.Max(0.6, s.sh+0.1), el: s.el * 0.8, ab: ab}
-		k.a1 = k.a0
-		k.tilt = 0.35
-		k.nod = -0.2
-		if back {
-			k.nod = 0.1
-		}
-		k.l0, k.l1 = legJ{f: s.kf * 0.3, u: s.ku}, legJ{f: s.kf * 0.3, u: s.ku}
-		k.spread = [8]float64{2, 2, 3, 6, 8, 4, 2, 2}[f]
+		k.drop = [8]float64{0, 0, -0.5, -1, -1, -0.5, 0, 0}[f]
+		return k
 	}
-	k.drop = s.lift
+	// From the front or the back: the arm coming over is raised high and
+	// a little out; the other pulls, low, in turn.
+	t := over[(f+4)%8]
+	arm := func(s st, out float64) armJ {
+		a := armJ{sh: s.sh + 0.3, el: s.el, ab: 0.25 + out}
+		if math.Cos(s.sh) < -0.2 { // up over the water: out to the side as it swings
+			a.ab = 0.45 + out
+		}
+		return a
+	}
+	k.a0, k.a1 = arm(s, 0), arm(t, 0)
+	k.tilt, k.nod = 0.35, -0.2
+	if back {
+		k.nod = 0.1
+	}
+	k.l0, k.l1 = legJ{f: -3, u: 5 + 2*kick}, legJ{f: -3, u: 5 - 2*kick}
+	k.spread = 2
+	k.roll = 0.06 * math.Sin(float64(f)/8*2*math.Pi) // rolling with the stroke
 	return k
 }
 
@@ -1047,4 +1076,103 @@ func wakeKey(f int, side bool) kp {
 		k.a0.ab, k.a1.ab = lerpf(armOut, 0.55, up), lerpf(armOut, 0.55, up)
 	}
 	return k
+}
+
+// riseLevels is how many steps up out of a crouch moRise has, each a whole
+// walking stride of loFrames frames.
+const riseLevels = 4
+
+func riseMs() []int {
+	ms := make([]int, riseLevels*loFrames)
+	for i := range ms {
+		ms[i] = 1000 * riseFrames / 60 / len(ms)
+	}
+	return ms
+}
+
+// riseKey is frame f of moRise: walking frame f%loFrames, at level f/loFrames
+// of getting up from the ground, the hips low and the trunk forward at
+// first, the hand pushing off the knee.
+func riseKey(f int, side bool) kp {
+	lvl := min(f/loFrames, riseLevels-1)
+	ph := (float64(f%loFrames) + 0.5) / loFrames
+	l, drop := stepGait.legs(ph)
+	a := stepGait.arms(ph)
+	extra := [riseLevels]float64{31, 21, 11, 4}[lvl]
+	k := kp{l0: l[0], l1: l[1], a0: a[0], a1: a[1], drop: drop + extra}
+	k.tilt = [riseLevels]float64{0.42, 0.3, 0.17, 0.06}[lvl]
+	k.nod = [riseLevels]float64{0.14, 0.1, 0.05, 0}[lvl]
+	if lvl == 0 { // a hand on the knee, pushing up
+		k.a1 = armJ{sh: 0.75, el: 0.5, ab: 0.15}
+	}
+	if !side {
+		k.spread = [riseLevels]float64{6, 4, 2, 1}[lvl]
+	}
+	return k
+}
+
+// lerpKey is the pose t of the way from a to b.
+func lerpKey(a, b kp, t float64) kp {
+	arm := func(x, y armJ) armJ {
+		return armJ{lerpf(x.sh, y.sh, t), lerpf(x.el, y.el, t), lerpf(x.ab, y.ab, t), lerpf(x.out, y.out, t)}
+	}
+	leg := func(x, y legJ) legJ { return legJ{lerpf(x.f, y.f, t), lerpf(x.u, y.u, t), lerpf(x.pitch, y.pitch, t)} }
+	k := a
+	if t >= 0.5 {
+		k = b
+	}
+	k.a0, k.a1 = arm(a.a0, b.a0), arm(a.a1, b.a1)
+	k.l0, k.l1 = leg(a.l0, b.l0), leg(a.l1, b.l1)
+	k.drop, k.tilt, k.nod, k.roll = lerpf(a.drop, b.drop, t), lerpf(a.tilt, b.tilt, t), lerpf(a.nod, b.nod, t), lerpf(a.roll, b.roll, t)
+	k.spread, k.breath, k.spin = lerpf(a.spread, b.spread, t), lerpf(a.breath, b.breath, t), lerpf(a.spin, b.spin, t)
+	return k
+}
+
+// lieBackKey is lying back onto the bed: from sitting on its edge, facing
+// out, the body turned down onto it, the head to the pillow, a quarter turn
+// in four steps, the pose easing into the sleeper's on its back.
+func lieBackKey(f int) kp {
+	t := float64(f+1) / 4
+	a := sitKey(moSit, 0, false)
+	b := sleepPoseKey(0)
+	b.shut = false
+	k := lerpKey(a, b, smooth(t))
+	k.spin = -math.Pi / 2 * t
+	k.shut = f == 3
+	return k
+}
+
+// sleepTurnKey is the in-betweens of turning over in bed, drawn laid down
+// under the blanket: on the back with the knees falling to one side and
+// the shoulders rolling (0, from the front); on the side before curling up
+// (1, from the side).
+func sleepTurnKey(f int) kp {
+	if f == 0 {
+		k := sleepPoseKey(0)
+		k.roll = 0.22
+		k.l0, k.l1 = legJ{f: 10}, legJ{f: 6}
+		k.spread = -2
+		k.a1 = armJ{sh: 0.6, el: 1.5, ab: 0.1}
+		return k
+	}
+	k := lerpKey(sleepPoseKey(2), sleepPoseKey(0), 0.5)
+	k.l0, k.l1 = legJ{f: 15, u: 6, pitch: 0.3}, legJ{f: 11, u: 4, pitch: 0.3}
+	k.tilt, k.nod = 0.15, 0.1
+	k.shut = true
+	return k
+}
+
+// toppleKey is going over in a fall, the body as it will lie (bodyart.go:
+// on the back, an arm thrown up past the head) turned part way down: a
+// sixth, a third, five twelfths of a quarter turn. It is drawn mirrored, so
+// that turned all the way it is the body laid down (layDown) exactly.
+func toppleKey(f int) kp {
+	t := float64(f+1) / 4
+	return kp{
+		a0: armJ{sh: 0.1, el: 0.3, ab: armOut}, a1: armJ{sh: 0.2, el: 0.5, ab: lerpf(0.6, 2.3, t)},
+		open1: true, shut: true,
+		l0: legJ{f: 6 * (1 - t)}, l1: legJ{f: -4 * (1 - t)},
+		drop: 10 * (1 - t), nod: 0.2 * (1 - t),
+		spin: math.Pi / 2 * float64(f+1) * 5 / 18,
+	}
 }

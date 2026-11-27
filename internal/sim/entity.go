@@ -122,6 +122,9 @@ const (
 	// The new plants: see flora.go.
 	EntityFlora // a wild plant picked for what it gives; Var is its FloraKind
 
+	// A shelter of branches and leaves, slept in like a bed: see tent.go.
+	EntityLeafTent
+
 	// The natural caves: see cavesys.go.
 	EntityCaveDown   // the hole down to the deep caves, a rope tied over it: walk in to go down
 	EntityCaveUp     // the rope up out of the deep caves, under the hole it hangs from: walk in to climb
@@ -198,6 +201,8 @@ var entityNames = [NumEntityKinds]string{
 
 	EntityFlora: "Cây dại",
 
+	EntityLeafTent: "Lều lá",
+
 	EntityCaveDown:   "Lối xuống hang sâu",
 	EntityCaveUp:     "Dây thừng lên",
 	EntityStalagmite: "Măng đá",
@@ -243,7 +248,7 @@ func Interactable(kind EntityKind, ready, hasWood bool) bool {
 	case EntityTree, EntityBerryBush, EntityGrassTuft, EntityTwig, EntityPebble, EntityCrop,
 		EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree, EntityGiantTree:
 		return ready
-	case EntityBoulder, EntityWall, EntityStoneWall, EntityBed, EntityFarmland, EntityChest:
+	case EntityBoulder, EntityWall, EntityStoneWall, EntityBed, EntityLeafTent, EntityFarmland, EntityChest:
 		return true
 	case EntityCampfire, EntityFurnace:
 		return hasWood
@@ -307,6 +312,10 @@ func hits(kind EntityKind, big bool) int {
 		return CoalHits
 	case EntityDoor, EntityFloor:
 		return WallHits
+	case EntityBed:
+		return BedHits
+	case EntityLeafTent:
+		return TentHits
 	case EntitySpikes:
 		return SpikesHits
 	case EntityManEater:

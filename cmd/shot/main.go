@@ -109,6 +109,8 @@ func main() {
 	scaleSheet := flag.Bool("scalesheet", false, "write the scale sheet instead of a frame: the player next to every tree, plant, rock and building, with heights (see internal/client/scalesheet.go); the heights are printed too")
 	trunkSheet := flag.Bool("trunksheet", false, "write the trunk sheet instead of a frame: the foot of every kind of tree close up, three times the size (see internal/client/trunksheet.go)")
 	costFlag := flag.Bool("cost", false, "print what the art drawn in code has cost once the frame is taken: the bytes of its images, the time to draw the start-up set and the trees drawn ahead, and the Go heap")
+	swimAt := flag.String("swimat", "", "with -swim: put the player in the water nearest the spawn: deep (open sea), mid (deep water by the shallows), shallow (the shallows), ford or river")
+	swimFlag := flag.Bool("swim", false, "the player is swimming where they stand (put them in the water with -coast -move), and the other player, a woman with long hair, swims beside them; with -run both are on the move")
 	moveBy := flag.String("move", "", "dx,dy: stand this many tiles from where the other flags put the player (to stand behind a tree, at a door)")
 	standAt := flag.String("pos", "", "x,y: stand on this tile, whatever the other flags say (to see one place in worlds of two styles)")
 	scaleOnly := flag.String("scaleonly", "", "with -scalesheet: only the groups whose name contains this (trees, conifers, swamp, low, buildings, rocks, creatures)")
@@ -132,6 +134,11 @@ func main() {
 	exact := flag.Bool("exact", false, "draw on a screen exactly -w by -h pixels, whatever size the window gets (a window taller than the desktop is cut short, and a 1061-pixel screen is not 1080p: the interface is drawn at scale 1, not 2)")
 	iconHD := flag.Bool("iconhd", true, "the HD item icons, at the screen's own resolution (false: the old 16x16 icons, scaled up; see internal/client/iconhd.go)")
 	iconSheet := flag.Bool("iconsheet", false, "write the icon sheet instead of a frame: every HD item icon next to its old one, in 1080p hotbar slots and three times as big")
+	freeBuild := flag.Bool("freebuild", false, "dev mode with free build on: the DEV · XÂY TỰ DO tag, every recipe lit with a DEV badge; -overlay palette opens the build palette (see internal/sim/devbuild.go)")
+	devBase := flag.Bool("devbase", false, "build a small base round the player through free build's own commands: the ground cleared, then walls, a door, floors, a bed, fires, a farm, flowers (implies -freebuild; see dev.go)")
+	devPiece := flag.Int("devpiece", -1, "a piece of the build palette in hand, by its number (free build): its ghost under -aim")
+	heldSheet := flag.String("heldsheet", "", "write the held-item sheets into this folder instead of a frame: every held item in the hand old and new, and a GIF of the swings (see internal/client/heldsheet.go)")
+	heldHD := flag.Bool("heldhd", true, "the HD held items, painted at the figure's density and turned cleanly (false: the old density-1 sprites; see internal/client/heldhd.go)")
 	flag.Parse()
 	client.SetMeasureCanopy(*canopyFlag)
 	client.SetHeroHD(*herohd)
@@ -140,6 +147,7 @@ func main() {
 	client.SetEnvHD(*envHD)
 	client.SetCritterHD(*critterHD)
 	client.SetIconHD(*iconHD)
+	client.SetHeldHD(*heldHD)
 	client.SetSubPixel(*subPixel)
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
@@ -292,6 +300,9 @@ func main() {
 				}
 			}
 		}
+	}
+	if *swimAt != "" {
+		sx, sy = swimSpot(w, *swimAt, sx, sy)
 	}
 	if x, y, ok := islesSpot(w, *at, sx, sy); ok { // see isles.go
 		sx, sy, *at = x, y, ""
@@ -544,6 +555,11 @@ func main() {
 		}
 	}
 	snap.Self.Inv.Add(sim.ItemSpear, 1)
+	if *devBase {
+		*freeBuild = true
+		buildDevBase(w, sx, sy) // see dev.go
+	}
+	snap.Self.DevBuild = *freeBuild
 
 	cx, cy := int(math.Floor(sx)), int(math.Floor(sy))
 	n := 0
@@ -823,6 +839,15 @@ func main() {
 			ID: 1<<27 + 1, Kind: sim.CreatureRaptor, X: float32(sx + 1.3*float64(dx)), Y: float32(sy + 1.3*float64(dy)), State: sim.CreatureIdle, FaceLeft: dx > 0,
 		})
 	}
+	if *swimFlag {
+		snap.Players[0].Swimming, snap.Self.Breath = true, 1
+		if len(snap.Players) > 1 {
+			o := &snap.Players[1]
+			o.X, o.Y, o.Dir, o.Swimming = float32(sx-2.4), float32(sy+0.4), snap.Players[0].Dir, true
+			o.Look = sim.Look{Female: true, Hair: sim.HairLong, HairColor: 3, Skin: 2}
+			o.Mount, o.Boat, o.Asleep = 0, 0, false
+		}
+	}
 	if *sea {
 		snap.Boats = []protocol.BoatView{
 			{ID: 1, Kind: sim.BoatSail, X: float32(sx), Y: float32(sy), Heading: 0.2, Speed: 0.25, HP: 110, Rider: 1},
@@ -848,8 +873,9 @@ func main() {
 		snap.Tornadoes = []protocol.TornadoView{{ID: 1, X: float32(sx - 6), Y: float32(sy + 1)}}
 	}
 
-	// A campfire next to the spawn, so lighting is visible at night.
-	if !*sea {
+	// A campfire next to the spawn, so lighting is visible at night; not
+	// in the base built by -devbase, which has its own.
+	if !*sea && !*devBase {
 		snap.Entities = append(snap.Entities, protocol.EntityView{
 			ID: 1 << 30, Kind: sim.EntityCampfire, TX: int16(cx + 2), TY: int16(cy), Ready: true,
 			Fuel: sim.FireStartFuel,
@@ -914,6 +940,10 @@ func main() {
 		dx, dy := snap.Players[0].Dir.Delta()
 		before.Players[0].X -= 0.04 * float32(dx)
 		before.Players[0].Y -= 0.04 * float32(dy)
+		if *swimFlag && len(before.Players) > 1 {
+			before.Players[1].X -= 0.04 * float32(dx)
+			before.Players[1].Y -= 0.04 * float32(dy)
+		}
 		conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: before}
 	}
 	if *hurtFlag {
@@ -924,6 +954,7 @@ func main() {
 		snap.Players[0].HurtSeq++
 	}
 	cookScene(&snap, sx, sy)   // see cook.go
+	tentScene(&snap, sx, sy)   // see tent.go
 	thinEntities(&snap, *thin) // see terrain.go
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}
 
@@ -941,6 +972,12 @@ func main() {
 	}
 	if *buildID >= 0 {
 		game.StartBuild(sim.RecipeID(*buildID))
+	}
+	if *freeBuild {
+		game.SetDev(true) // the DEV tag, which names free build
+	}
+	if *devPiece >= 0 {
+		game.StartPiece(*devPiece)
 	}
 	game.HoldBlows(*blowAge)
 	if *devCon {
@@ -982,6 +1019,12 @@ func main() {
 	if *iconSheet {
 		g.icons = game
 	}
+	if *heldSheet != "" {
+		g.held, g.heldDir = game, *heldSheet
+	}
+	if *tentSheetFlag != "" {
+		g.tents, g.tentDir = game, *tentSheetFlag
+	}
 	if err := ebiten.RunGame(g); err != nil && !errors.Is(err, ebiten.Termination) {
 		log.Fatal(err)
 	}
@@ -1022,7 +1065,11 @@ type shooter struct {
 	trunks    *client.Game // write its trunk sheet instead of the frame
 	motions   *client.Game // write its motion sheets into motionDir instead of the frame
 	motionDir string
+	held      *client.Game // write its held-item sheets into heldDir instead of the frame
+	heldDir   string
 	icons     *client.Game // write its icon sheet instead of the frame
+	tents     *client.Game // write the leaf tent's sheet and GIF into tentDir instead of the frame
+	tentDir   string       // the folder they go in
 	cost      bool         // print what the art has cost
 
 	gifN, gifStep int           // -gif: frames to keep, and game frames between them
@@ -1064,10 +1111,24 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 		}
 		log.Printf("wrote %s", gifPath(s.out))
 	}
+	if s.tents != nil {
+		s.err, s.done = s.tents.TentSheets(s.tentDir), true
+		if s.err == nil {
+			log.Printf("wrote the tent sheets in %s", s.tentDir)
+		}
+		return
+	}
 	if s.motions != nil {
 		s.err, s.done = s.motions.MotionSheets(s.motionDir), true
 		if s.err == nil {
 			log.Printf("wrote the motion sheets in %s", s.motionDir)
+		}
+		return
+	}
+	if s.held != nil {
+		s.err, s.done = s.held.HeldSheets(s.heldDir), true
+		if s.err == nil {
+			log.Printf("wrote the held-item sheets in %s", s.heldDir)
 		}
 		return
 	}
@@ -1322,4 +1383,53 @@ func addJungle(snap *protocol.Snapshot, sx, sy float64) {
 	}
 	monkey(4.2, 1.6, sim.CreatureEat, true)
 	monkey(-4.5, 4.2, sim.CreatureIdle, false)
+}
+
+// swimSpot is the middle of the water tile nearest (sx, sy) of the kind
+// asked for (see -swimat), or (sx, sy) if there is none.
+func swimSpot(w *sim.World, kind string, sx, sy float64) (float64, float64) {
+	N, H := w.Size()
+	tiles := w.Tiles()
+	at := func(x, y int) sim.Tile {
+		if x < 0 || y < 0 || x >= N || y >= H {
+			return sim.TileWater
+		}
+		return tiles[y*N+x]
+	}
+	all := func(tx, ty, r int, ok func(sim.Tile) bool) bool {
+		for y := ty - r; y <= ty+r; y++ {
+			for x := tx - r; x <= tx+r; x++ {
+				if !ok(at(x, y)) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	water := func(t sim.Tile) bool { return t == sim.TileWater }
+	want := func(tx, ty int) bool {
+		t := at(tx, ty)
+		switch kind {
+		case "deep":
+			return water(t) && all(tx, ty, 6, water)
+		case "mid":
+			return water(t) && all(tx, ty, 1, water) && !all(tx, ty, 3, water)
+		case "shallow":
+			return t == sim.TileShallow && all(tx, ty, 1, func(t sim.Tile) bool { return t == sim.TileShallow })
+		case "ford":
+			return t == sim.TileFord
+		case "river":
+			return t == sim.TileRiver && all(tx, ty, 1, func(t sim.Tile) bool { return t == sim.TileRiver })
+		}
+		return false
+	}
+	best, bx, by := math.Inf(1), sx, sy
+	for ty := 4; ty < H-4; ty++ {
+		for tx := 4; tx < N-4; tx++ {
+			if d := math.Hypot(float64(tx)-sx, float64(ty)-sy); d < best && want(tx, ty) {
+				best, bx, by = d, float64(tx)+0.5, float64(ty)+0.5
+			}
+		}
+	}
+	return bx, by
 }

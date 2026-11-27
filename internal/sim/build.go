@@ -129,14 +129,19 @@ func (w *World) takeTorch(p *Player, e *Entity) bool {
 }
 
 // dismantle takes down something a player built with the right tool,
-// spilling what it gives back on the ground.
-func (w *World) dismantle(p *Player, e *Entity, tool ToolClass, refund []Ingredient) bool {
+// spilling what it gives back on the ground; in free build, with one blow
+// and no tool (see devbuild.go).
+func (w *World) dismantle(p *Player, e *Entity, tool ToolClass, refund []Ingredient, free bool) bool {
 	t, ok := p.Inv.BestTool(tool)
-	if !ok {
+	switch {
+	case free:
+		e.HP = 0
+	case !ok:
 		p.notify(NoticeNeedTool, uint8(ToolItem(tool, TierStone)))
 		return false
+	default:
+		e.HP -= ToolPower(t)
 	}
-	e.HP -= ToolPower(t)
 	if e.HP > 0 {
 		return true
 	}
@@ -146,10 +151,10 @@ func (w *World) dismantle(p *Player, e *Entity, tool ToolClass, refund []Ingredi
 	return true
 }
 
-// homeBed is where p comes back after dying: beside the last bed slept in,
-// while it stands, else the world's spawn.
+// homeBed is where p comes back after dying: beside the last bed (or tent)
+// slept in, while it stands, else the world's spawn.
 func (w *World) homeBed(p *Player) (x, y float64) {
-	if b := w.entities[p.home]; b != nil && b.Kind == EntityBed {
+	if b := w.entities[p.home]; b != nil && IsBedLike(b.Kind) {
 		cx, cy := float64(b.TX)+0.5, float64(b.TY)+0.5
 		for _, d := range [][2]float64{{0, 0}, {0, 1}, {1, 0}, {-1, 0}, {0, -1}, {1, 1}, {-1, 1}, {1, -1}, {-1, -1}} {
 			if w.standable(cx+d[0], cy+d[1]) {

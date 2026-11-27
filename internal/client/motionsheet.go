@@ -46,10 +46,11 @@ const (
 )
 
 var (
-	reelGrass = color.RGBA{92, 132, 74, 255}
-	reelWater = color.RGBA{52, 112, 140, 255}
-	reelFloor = color.RGBA{122, 104, 80, 255}
-	allDirs   = []sim.Dir{sim.DirDown, sim.DirUp, sim.DirRight, sim.DirLeft}
+	reelGrass   = color.RGBA{92, 132, 74, 255}
+	reelWater   = color.RGBA{52, 112, 140, 255}
+	reelShallow = color.RGBA{96, 196, 190, 255}
+	reelFloor   = color.RGBA{122, 104, 80, 255}
+	allDirs     = []sim.Dir{sim.DirDown, sim.DirUp, sim.DirRight, sim.DirLeft}
 )
 
 // sheetID is the player the sheets show: someone other than me, so nothing
@@ -191,9 +192,9 @@ func gifOf(name string) string {
 		return "motion_eat_drink.gif"
 	case "hurt", "die":
 		return "motion_hurt_death.gif"
-	case "swim", "tread water", "wade in", "ford":
+	case "swim", "swim in clear water", "tread water", "wade in", "ford", "hair afloat":
 		return "motion_swim.gif"
-	case "sleep", "sleep on the ground":
+	case "sleep", "sleep on the ground", "hair on the pillow":
 		return "motion_sleep.gif"
 	}
 	return "motion_ride.gif"
@@ -261,8 +262,11 @@ func (g *Game) motionReels() []reel {
 		}},
 		{name: "die", n: int(moDie.span()) + 20, dirs: allDirs, at: func(g *Game, t int, p *protocol.PlayerView, d *drawable) {
 			p.Dead = true
+			p.X, p.Y = 40.3, 40.2 // the body is laid on this tile's middle: the fall slides there
 			st := g.moveState(p.ID)
-			st.deadAt, st.deadDir = g.frame-t, p.Dir
+			st.deadAt, st.deadDir, st.deadX, st.deadY = g.frame-t, p.Dir, p.X, p.Y
+			g.drawCam = camera{ox: float64(p.X)*TileW - d.sx, oy: float64(p.Y)*TileH - d.sy, r: HDDensity}
+			g.sheetGrave(*p)
 		}, draw: func(g *Game, dst drawTarget, p protocol.PlayerView, d drawable) {
 			if !g.drawDying(dst, p, d) { // down: as the body the server leaves lies
 				g.drawLaidBody(dst, p, d)
@@ -278,13 +282,22 @@ func (g *Game) motionReels() []reel {
 		{name: "drink at water", n: int(moDrinkWater.span()) + 8, dirs: allDirs, draw: drawMotionReel(moDrinkWater)},
 		{name: "sit by the fire", n: 300, dirs: allDirs, at: func(g *Game, t int, p *protocol.PlayerView, d *drawable) {
 			st := g.moveState(p.ID)
-			st.movedAt, st.blowAt = g.frame-sitAfter-1-t, never
+			st.blowAt = never
+			g.sheetFire(p)
 			if t < 250 {
+				st.movedAt = g.frame - sitAfter - 1 - t
 				st.sitAt = g.frame - t
-			} else if t == 250 {
+				return
+			}
+			// Up and off at once: rising as they step off (moRise).
+			if t == 250 {
 				st.sitAt, st.standAt = never, g.frame
 			}
-			g.sheetFire(p)
+			dx, dy := p.Dir.Delta()
+			along := float32(0.9 * float64(t-250) / TileW)
+			p.X += float32(dx) * along
+			p.Y += float32(dy) * along
+			d.moving = true
 		}},
 	}
 	reels = append(reels, g.waterReels()...)
@@ -538,4 +551,22 @@ func (g *Game) compareStrips(dir string) error {
 		}
 	}
 	return nil
+}
+
+// sheetGrave puts the body p leaves on the tile they stand on, as the
+// server lays it (sim/grave.go), for the sheet's fall to meet.
+func (g *Game) sheetGrave(p protocol.PlayerView) {
+	for _, e := range g.curr.Entities {
+		if e.ID == 1<<30+78 {
+			return
+		}
+	}
+	l := p.Look.Sanitized()
+	f := int32(0)
+	if l.Female {
+		f = 1
+	}
+	f |= int32(l.Hair&7)<<1 | int32(l.HairColor&7)<<4 | int32(l.Skin&7)<<7 | int32(int(p.ID)&15)<<10
+	g.curr.Entities = append(g.curr.Entities, protocol.EntityView{ID: 1<<30 + 78, Kind: sim.EntityGrave,
+		TX: int16(p.X), TY: int16(p.Y), Fuel: f})
 }

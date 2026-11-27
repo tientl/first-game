@@ -55,11 +55,14 @@ import (
 //     out by island and by distance from home (wilds.go). Nothing older
 //     changes, but an older game would make the wrong world of such a save,
 //     so it must refuse it.
-//   - 24: worlds of StyleCaves: a natural cave system under each island, on
+//   - 24: the leaf tent (tent.go): a save may hold one standing, rolled up in
+//     a bag or a chest, or as a player's home, which an older game would
+//     lose. Nothing older changes.
+//   - 25: worlds of StyleCaves: a natural cave system under each island, on
 //     two levels (cavesys.go), with its stalagmites, ropes and props, and
 //     torches that burn on in it. Nothing older changes, but an older game
 //     would make the wrong world of such a save, so it must refuse it.
-const SaveVersion = 24
+const SaveVersion = 25
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -102,6 +105,7 @@ type PlayerSave struct {
 	TorchFuel      int      `json:",omitempty"` // ticks left on the torch being burnt
 	Home           EntityID `json:",omitempty"` // the last bed slept in
 	Buffs          []int    `json:",omitempty"` // ticks left of each buff, by BuffKind; see cooking.go
+	Dev            *DevSave `json:",omitempty"` // dev-mode settings: only ever in a dev world's save; see devbuild.go
 
 	// Inv is how saves before version 4 kept the inventory: a count per item
 	// kind, indexed by ItemKind. Load turns it into Slots.
@@ -109,11 +113,15 @@ type PlayerSave struct {
 }
 
 func savePlayer(p *Player) PlayerSave {
-	return PlayerSave{
+	ps := PlayerSave{
 		Name: p.Name, Look: p.Look, X: p.X, Y: p.Y, Dir: p.Dir,
 		Health: p.Health, Hunger: p.Hunger, Slots: p.Inv, Selected: p.Selected, Explored: p.explored.Bytes(), Dead: p.Dead,
 		TorchFuel: p.torchFuel, Home: p.home, Buffs: saveBuffs(p),
 	}
+	if p.dev.buildSet { // only ever chosen in dev mode; Save drops it from any other world
+		ps.Dev = &DevSave{FreeBuild: p.dev.build}
+	}
+	return ps
 }
 
 // legacyInventory lays out a count-per-kind inventory from an old save in
@@ -153,13 +161,16 @@ func (w *World) restorePlayer(p *Player, ps PlayerSave) {
 	p.explored = ExploredFrom(w.width, w.height, ps.Explored)
 	p.torchFuel = min(TorchBurnTicks, max(0, ps.TorchFuel))
 	loadBuffs(p, ps.Buffs)
-	if b := w.entities[ps.Home]; b != nil && b.Kind == EntityBed {
+	if b := w.entities[ps.Home]; b != nil && IsBedLike(b.Kind) {
 		p.home = ps.Home
 	}
 	if IsHotbar(ps.Selected) {
 		p.Selected = ps.Selected
 	}
 	p.Dead = ps.Dead || p.Health <= 0
+	if ps.Dev != nil && w.dev.on { // a dev save opened outside dev mode keeps nothing of it
+		p.dev.build, p.dev.buildSet = ps.Dev.FreeBuild, true
+	}
 }
 
 func finite(vs ...float64) bool {
@@ -208,6 +219,11 @@ func (w *World) Save() SaveData {
 	for name, ps := range w.offline {
 		if !online[name] {
 			d.Players = append(d.Players, ps)
+		}
+	}
+	if !w.dev.on {
+		for i := range d.Players {
+			d.Players[i].Dev = nil // dev settings never reach a normal save
 		}
 	}
 	slices.SortFunc(d.Players, func(a, b PlayerSave) int {

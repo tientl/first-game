@@ -49,8 +49,9 @@ type Config struct {
 	AutosaveEvery time.Duration // 0 means no autosave
 
 	// Dev runs the dev console's commands (ClientDev) and puts every player
-	// who joins in god mode with the whole map seen; see dev.go. Without it
-	// the server refuses dev commands.
+	// who joins in god mode with the whole map seen and free build on; see
+	// dev.go. Without it the server refuses dev commands, free build's among
+	// them.
 	Dev bool
 }
 
@@ -104,6 +105,7 @@ func NewFromSave(cfg Config, d sim.SaveData) (*Server, error) {
 }
 
 func newServer(cfg Config, w *sim.World) *Server {
+	w.SetDevMode(cfg.Dev) // free build, and what a dev save keeps of it: see sim/devbuild.go
 	s := &Server{cfg: cfg, world: w}
 	s.scheduleAutosave()
 	return s
@@ -271,6 +273,9 @@ func (s *Server) handle(p *peer, m protocol.ClientMsg) bool {
 	case protocol.ClientCommand:
 		if !p.joined {
 			return false
+		}
+		if s.devCommandRefused(m.Command) {
+			return true // free build outside dev mode: dropped, the connection kept; see dev.go
 		}
 		s.world.Apply(p.player, m.Command)
 	case protocol.ClientDev:

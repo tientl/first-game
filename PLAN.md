@@ -36,6 +36,10 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Giới hạn khung hình: 30 / 60 / 120 / không giới hạn, kèm VSync.
   - Thu phóng camera (đã có phím = / −) đưa vào menu.
   - Mặc định tự động: độ phân giải màn hình, toàn màn hình, chất lượng Cao, cỡ giao diện Tự động. Cài đặt được lưu lại.
+- [ ] **Bộ chiêu tấn công cho từng loài** (mục 7): mỗi loài 2–4 chiêu, chiêu nào cũng có lấy đà rõ (đòn nhẹ 0,4–0,5 giây, đòn mạnh 0,8–1 giây, đòn đặc biệt 1,2–1,5 giây kèm vùng đỏ dưới đất), sát thương chỉ tính lúc ra đòn, đánh xong khựng 0,5–1 giây cho người chơi phản công. Bảng chiêu đã đề xuất, chờ chốt.
+- [ ] **Trận trùm Titanoboa và Megalodon**: chiêu báo trước, đổi đòn theo giai đoạn máu.
+- [ ] **Ghi công và giấy phép** (bắt buộc trước Steam): màn hình "Ghi công" trong menu (tiếng CC BY trong `CREDITS.md`, Ebitengine, phông chữ, pixelfx nếu dùng) và file `LICENSES.txt` kèm game (nguyên văn giấy phép Apache, MIT, BSD, OFL của các thư viện và phông).
+- [ ] **Kiểm tra trước khi cho chơi thử**: đo RAM và khung hình thực tế trên máy Windows (bộ nhớ đệm mặt đất, cây, tiếng, trùm, chuyển động); thời gian tải thế giới 2048; test tải bản lưu cũ qua từng đời (save 1 → mới nhất) không hỏng.
 
 ## 1. Công cụ dev (làm đầu tiên)
 
@@ -45,6 +49,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Bảng lệnh (phím `~`): `give <đồ> <số>`, `tp <làng|trùm N|hang|kim tự tháp|x y>`, `spawn <thú>`, `time <giờ|đêm|ngày>`, `season <mùa>`, `weather <thời tiết>`, `speed <hệ số>`, `kill` (thú quanh), `heal`.
   - Hiện hết bản đồ (bỏ vùng chưa khám phá).
   - Không bao giờ bật trong bản phát hành: chỉ khi chạy với `-dev`.
+- [x] **Xây tự do** trong chế độ dev (`sim/devbuild.go`, `client/buildpalette.go`; mặc định bật, lệnh `freebuild on|off`, nhãn "DEV · XÂY TỰ DO", lưu trong `dev-save.json`): chế tạo mọi món không cần nguyên liệu, không cần lửa / lò, không mất gì (thẻ chế tạo sáng hết, có huy hiệu DEV); **B** mở bảng xây với mọi thứ đặt được (tường, cửa, sàn, rào, giường, rương, lều, lửa, đuốc, lò, đồ nấu trên lửa, luống đất, hạt giống, hoa, đầu thú, đồ trang trí), chọn rồi đặt liên tục, giữ kéo để đặt một dãy, luật mặt đất vẫn giữ; **Shift + chuột phải** gỡ ngay, không trả lại gì; chặt, đập, đào một nhát. Server không ở chế độ dev thì từ chối, bản lưu thường không bao giờ có. Giao thức 47.
 
 ## 2. Đồ hoạ
 
@@ -53,8 +58,20 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 - [x] Giai đoạn 0: nền tảng vẽ ở độ phân giải màn hình (`internal/client/hd.go`, `HD_ART.md`).
 - [x] Giai đoạn 1: nhân vật (8 khung đi, giáp, đấm, bơi, ngủ, màn hình tạo nhân vật) và mặt đất (cả hai kiểu: cỏ xanh và đất ấm; `SetGroundStyle`, lưu trong cài đặt).
 - [x] Giai đoạn 2: cây, cỏ, hoa, đá, công trình (vẽ lại ở HD). Còn tinh chỉnh tự động, cần vẽ tay sau: quặng, lò nung, lều, cây ăn thịt, chông, kim tự tháp. Lửa, thuyền, icon vẫn hình cũ.
-- [ ] Giai đoạn 3: khủng long và các sinh vật. **Xong phần khủng long** (16 loài vẽ từ PNG, 8 khung đi/chạy, 8 khung vỗ cánh, lấy đà trước đòn — hình HD tạo tự động từ hình cũ, chưa vẽ tay). Còn: thú vẽ bằng code (thỏ, rắn, cua, cá sấu, voi ma mút, hổ răng kiếm, gấu, nhện, thổ dân, khỉ, bọ cạp, cá, giun), quái biển, 6 trùm; và sim phải trì hoãn đòn đánh để lấy đà là báo trước thật (hiện trúng đòn ngay khi bắt đầu lấy đà).
+- [x] Giai đoạn 3: khủng long và các sinh vật. 16 loài khủng long và Ankylosaurus vẽ tay lại ở HD (`internal/dinopaint`, mắt mở, đùi chuyển động theo chân), voi ma mút, hổ răng kiếm, quái biển và trùm vẽ HD. Còn thú nhỏ và thổ dân: xem dòng dưới.
 - [ ] Giai đoạn 4: icon, giao diện, hiệu ứng (có thể lấy hiệu ứng từ pixelfx, giấy phép MIT).
+  - [ ] **Biểu tượng**: mới 20 / ~150 món vẽ HD (`iconhd.go`); còn lại chia nhóm vẽ tiếp.
+  - [ ] **Giao diện HD** (đang làm): thanh máu, ô đồ, túi, rương, chế tạo, nấu ăn, bản đồ nhỏ, thanh trùm, menu vẽ ở độ phân giải thật; phông chữ vector có đủ dấu tiếng Việt (giấy phép OFL); khung kiểu da thuộc, gỗ, đá, xương; chữ nổi trong thế giới nhỏ gọn, chỉ hiện khi trỏ chuột.
+  - [ ] **Đồ cầm tay HD** (đang làm): rìu, cuốc, giáo, dao, kiếm, đuốc, cần câu, bát… vẽ HD, xoay mượt khi vung.
+  - [ ] **Lửa, đuốc, hiệu ứng** từ pixelfx (làm chung với Cảm giác đánh nhau); thuyền vẽ lại.
+  - [ ] **Bộ lọc ánh sáng bật mặc định ở mức nhẹ** (`postfx.go`), gộp với kết quả thử tông màu COMFY52 (đang thử 3 bản: hiện tại / chỉnh màu theo COMFY52 / ép đúng 52 màu).
+- [ ] **Thú nhỏ, thổ dân và làng HD**: thỏ, cua, cá, khỉ, nhện, giun, rắn, bọ cạp, người và nhà thổ dân vẽ lại cho ngang khủng long.
+- [ ] **Cây cỏ và mặt đất** (đang làm): mỗi loại 4–6 kiểu, mọc thành đám, lá rụng và rêu dưới tán, cỏ lay theo gió và rạp khi đi qua, màu theo mùa, vẽ lại thân cây tuế, bớt giun.
+- [ ] **Biển và vách đá**: san hô thành cụm gọn, sóng biển sâu vẽ HD, vách đá cao có khối như tranh mẫu.
+- [ ] **Quặng đá lửa** ở đồi đá bớt dày (giữ đá lửa vẫn là quặng nhiều nhất).
+- [ ] **Chuyển động nhân vật**: làm lại dáng chạy (chúi người, tay vung, chân đá ngược, nhún) và đi bộ (đang làm); hết lộ chân khi bơi ở nước sâu (đang làm); cưỡi thú nhìn từ trước và sau (phải vẽ thêm góc nhìn cho thú cưỡi, chờ quyết).
+- [ ] **Xoay hướng đồ xây dựng**: phím R hoặc lăn chuột khi đặt, hình mờ hiện đúng hướng, hướng lưu trong game; cửa, giường, lều, hàng rào, tường, bàn ghế, đồ nấu ăn, bàn chế tạo, rương; cả bảng xây tự do của dev.
+- [ ] **Hang mới** (đang làm): mỗi đảo một hệ hang, khoang lớn nối đường hầm rộng 3–6 ô, hai tầng, khoang theo chủ đề (pha lê, hồ ngầm, nấm, ổ nhện, hang gấu, hoá thạch, tranh vách) và theo đảo phía trên (rễ cây, sa thạch và lăng mộ, ống dung nham, hang băng, hang ngập nước).
 
 ### Tỉ lệ và hoạt ảnh
 
@@ -91,7 +108,9 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Quần đảo thiết kế: đảo nhà ở giữa (đồng cỏ, một ngọn đồi, vịnh kín), quanh đó các đảo lớn mỗi đảo một tính cách (rừng rậm, châu thổ đầm lầy, đảo khỉ có núi đá, dãy núi tuyết có vịnh hẹp, sa mạc cao nguyên, núi lửa), đảo vừa, đảo nhỏ, một đảo san hô vòng có phá bên trong; bờ có vịnh, mũi đất, bán đảo, eo biển giữa các đảo.
   - Ô mới: **biển nông** (bơi và đi thuyền được; rạn san hô, phá, bãi cạn), **sông** (bơi qua), **chỗ lội** (đi bộ qua), **thác**, **vách đá**. Mỗi ô có thêm một byte địa hình: tầng cao 0–3, biến thể (đồng hoa, trảng rừng, rừng dày / thưa, mỏm đá, cồn cát, đá vụn, bãi bùn, bãi đá tảng, dốc lên, …), mép mềm, đất ẩm.
   - Vách đá giữa các tầng, có dốc lên đủ để đi khắp mỗi đảo; sông từ chỗ cao chảy ra biển, có thác, hồ, châu thổ. Hình vẽ hiện là tạm (`client/terrainfeatures.go`), chờ vẽ đẹp.
-- [ ] **Thời gian**: ngày chậm lại, mỗi ngày 15–20 phút; 1 năm 50 ngày; độ dài ngày và đêm khác nhau theo mùa.
+- [x] **Thời gian**: ngày chậm lại, mỗi ngày 15–20 phút; 1 năm 50 ngày; độ dài ngày và đêm khác nhau theo mùa. (Đã làm: ngày 16 phút, mùa 12 ngày, ngày và đêm theo mùa.)
+- [ ] **Camera**: lia theo người mượt, phóng to thu nhỏ mượt, rung màn hình khi có sự kiện lớn (gầm của bạo chúa, trùm, đòn mạnh).
+- [ ] **Mưa và đêm đẹp hơn**: hạt mưa, vũng nước, ánh chớp; ban đêm có ánh trăng, bóng tối mềm quanh nguồn sáng.
 - [ ] **Thời tiết theo vùng** (hiện thời tiết chung cho cả thế giới):
   - Sa mạc: không mưa, không tuyết; có bão cát (che tầm nhìn, đi chậm), nắng nóng ban ngày (khát nhanh), đêm lạnh.
   - Vùng tuyết: tuyết và bão tuyết quanh năm, lạnh hơn.
@@ -101,7 +120,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Đồng cỏ: theo mùa như hiện nay.
   - Khi đi từ vùng này sang vùng khác thì thời tiết chuyển dần, không đổi đột ngột.
 - [x] **Cửa hang**: miệng hang **quay xuống phía dưới màn hình** (về phía người nhìn): một ụ đá / vách đá có mặt đứng hướng xuống dưới, ở chân vách là vòm cửa tối có lối đất dẫn ra; chỉ đi vào được từ phía dưới (hai bên và phía sau là đá chặn). ✅ Vẽ lại ở HD (`caveart.go`): ụ đá phủ rêu, vòm cửa có đá lanh tô, dây leo, lối đất; lối ra trong hang là vòm sáng ở phía trên màn hình trên một dãy bậc. Đá chặn hai bên và phía sau đã có test (`TestCaveMouthOpensSouth`).
-- [x] **Hang động tự nhiên** (kiểu thế giới mới `StyleCaves`, sau `StyleWilds`; thế giới cũ tạo lại y như trước; bản lưu 24, giao thức 47). Trước đây là một mê cung khắp bản đồ: lối đi 2 ô, góc vuông, ngõ cụt vô tận, mọi cửa hang dẫn vào cùng một mê cung — vào là lạc.
+- [x] **Hang động tự nhiên** (kiểu thế giới mới `StyleCaves`, sau `StyleWilds`; thế giới cũ tạo lại y như trước; bản lưu 25, giao thức 48). Trước đây là một mê cung khắp bản đồ: lối đi 2 ô, góc vuông, ngõ cụt vô tận, mọi cửa hang dẫn vào cùng một mê cung — vào là lạc.
   - [x] **Bước 1 — cấu trúc** (`sim/cavesys.go`, `cavegen.go`, `cavedig.go`, `cavedress.go`, `caveprops.go`; client `cavebake.go`, `cavethings.go`, `cavemap.go`, `cavelights.go`): **mỗi đảo một hệ thống hang** nằm ngay dưới đảo, to theo diện tích đảo (đảo rừng 100 nghìn ô: 27 gian trên, 16 gian dưới; đảo nhỏ: một gian sảnh); mọi cửa hang của đảo dẫn vào hệ thống đó; vài đường hầm bí mật dài dưới đáy biển nối tầng dưới của hai đảo gần nhau. **Gian rộng** 15–40 ô, tường tròn lởm chởm, cột đá và cụm măng đá (chặn đường, đào ra đá); **đường hầm uốn lượn 3–6 ô** (không chỗ nào hẹp dưới 3 ô), có vòng, nhánh phụ ngắn và cuối nhánh có rương; **một lối chính** từ cửa hang tới gian đích (rương báu) hiện thành vệt đất mòn sáng hơn. **Hai tầng**: tầng trên ngay dưới đảo, sảnh cửa hang có ánh nắng rọi xuống, có than; tầng dưới tối hơn, xuống bằng **hố có dây thừng** ở cuối tầng trên, leo dây để lên, có ngọc bích (và mã não dưới sa mạc, hắc diện thạch dưới núi lửa) và gấu. **Nhện chỉ ở tổ nhện** (khoảng 120 con ở 1024, trước 6.400), **gấu ở hang gấu**. Vách hang có mặt đá cao ngang người rưỡi, chia mặt phẳng lấy sáng; nền đá có sỏi, chỗ ẩm, vũng nước; đá theo đảo phía trên (đá vôi, đá rêu, sa thạch, bazan, băng, bùn). **Bản đồ (M)** và bản đồ nhỏ vẽ riêng từng tầng hang theo phần đã đi qua, đánh dấu lối lên và dây thừng đã thấy. **Đuốc cắm trong hang cháy mãi** để đánh dấu đường. Test: `go test ./internal/sim -run TestCaves`; xem: `go run ./cmd/shot -open -size 1024 -at cavein|cavedown|caveup`, bản đồ `-overlay map -reveal -mapzoom 3`.
   - [x] **Bước 2 — chủ đề** (`sim/cavethemes.go`; client `cavezones.go`, `caveprops.go`): **mỗi hang mang chất của đảo phía trên** (theo vùng trên đảo: dưới sườn rừng của đảo núi lửa là hang rêu, dưới miệng núi là ống dung nham): đảo rừng — rễ cây buông qua mép vách, rêu, **suối ngầm** có chỗ lội; sa mạc — sa thạch nhiều lớp, **hầm mộ cổ** lát đá có quan tài, chum và rương, bọ cạp; núi lửa — **ống dung nham** (dung nham chặn đường, đứng sát bị bỏng, phát sáng), đá bazan, cột bazan, mảnh hắc diện thạch; tuyết — **hang băng** vách băng trong, nhũ băng, **hồ đóng băng** đi được; đầm lầy — **hang ngập** vũng nước có cá sấu; đồng cỏ — đá vôi hiền lành, **hồ ngầm**. Gian đích ở cuối lối chính là gian riêng của đảo. **Gian chủ đề** khắp nơi: hang pha lê ngọc bích phát sáng (có mạch ngọc ở tầng dưới), hồ ngầm có cá mù (câu được), rừng nấm phát sáng (nấm ăn được), tổ nhện giăng tơ (đi vào bị tơ giữ chân), hang gấu đầy xương, chỗ dơi đậu (dơi bay), **bộ xương khủng long hoá thạch** (đào lấy xương một lần), **tranh vẽ trên vách** (xem: người đi săn, đàn thú, ngôi sao lửa rơi xuống đảo giữa biển, hoặc rương báu kèm hướng đi tới gian đích). Cá mù, cá sấu, bọ cạp, nhện, gấu sống trong đúng gian của mình. Test: `go test ./internal/sim -run 'TestCaves'`; xem từng gian: `go run ./cmd/shot -open -size 1024 -at cavezone:crystal|lake|mushroom|nest|den|roost|fossil|paintings|tomb|lava|frozen|flooded|stream`, `-at caverock:limestone`.
 - [ ] **Sửa phân bố quặng** (hiện mỗi ô của vùng có cùng một tỉ lệ ra quặng, nên quặng rải lẻ tẻ đều khắp vùng, không thành mạch):
@@ -145,6 +164,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Món nấu có hiệu ứng tạm thời: canh thịt rau (hồi máu nhanh), súp nóng (chống lạnh), cá nướng thảo mộc (chạy nhanh), thịt hầm khủng long (no lâu, thêm sức đánh), trà thảo dược (giải độc), nước dừa / nước ép quả (đỡ khát, thêm chút máu).
   - **Muối**: phơi nước biển trên giàn ở bờ biển; ướp thịt để được lâu, nấu món ngon hơn.
   - **Đồ ăn ôi thiu** (để sau, chỉ ở độ khó Thành thạo và Chúa tể): thịt, cá sống để lâu thì hỏng; thịt khô, muối, hun khói giữ được lâu.
+- [x] **Lều lá**: khung chữ A bằng cành, lợp lá to (dương xỉ trên cỏ, lá rộng trong rừng và đầm lầy, tàu dừa trên cát và sa mạc, cành thông phủ tuyết trên tuyết); làm bằng tay từ 6 cành cây, 4 cỏ khô, 2 sợi lanh, mang trong túi, cầm trên tay rồi dựng (không dựng trên đá hay chỗ lội). Dùng như giường: ngủ qua đêm, làm nơi hồi sinh, rừng không mọc lại sát bên; người ngủ nằm trong lều, lá và khung che lên đầu và chân. Ban ngày cầm rìu thì dỡ được lều (và cả giường), lấy lại một nửa vật liệu.
 - [ ] **Quần áo và trang bị** (hiện giáp chỉ cần nằm trong túi, game tự chọn bộ tốt nhất; áo lông trong túi thì chống lạnh; không có ô mặc đồ). Làm trước: ô trang bị + hiện trên người, chỉ số Ấm / Mát / Giáp, túi đeo lưng, khiên tròn:
   - **6 ô trang bị**: Mũ, Áo, Quần, Giày, Áo choàng, Đeo thêm (vòng cổ, túi đeo). Mặc gì thì hiện đúng trên nhân vật Viking (mũ sắt có thanh che mũi, áo choàng lông, ủng…).
   - **Độ bền**: mòn khi bị đánh, sửa bằng nguyên liệu ở bàn chế tạo.
@@ -178,6 +198,12 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 ## 8. Trùm
 
+- [ ] **Hang ổ cho 4 trùm còn lại** (hiện chỉ Titanoboa và Megalodon có hang ổ, ẩn mình, dấu hiệu báo trước, màn mở đầu, đấu trường; 4 trùm kia đứng giữa trời nên tạm bật chế độ demo mặc định, `cmd/game -demo=false` để có đủ 6):
+  - **Spinosaurus**: khúc sông lớn hoặc châu thổ đầm lầy; nằm chìm dưới nước, chỉ lộ cánh buồm lưng; đánh trong nước nông.
+  - **Voi Ma Mút Chúa**: thung lũng băng trên đảo tuyết; nằm phủ tuyết như một ụ đất, lại gần mới rùng mình đứng dậy; bão tuyết khi đánh.
+  - **Carcharodontosaurus**: hẻm núi lửa, bãi xương rải quanh, nằm ăn xác trong khe đá; khe có lava.
+  - **Giganotosaurus**: hẻm núi cao nguyên sa mạc, bóng đổ trên vách, vết chân to dẫn tới; bão cát chặn lối ra.
+  - Mỗi trùm có màn mở đầu kèm tên, nhạc chiến đấu, hoạt động lúc không đánh; xong cả 4 thì tắt lại chế độ demo mặc định.
 - [ ] **Yêu cầu chung cho mọi trùm** (6 trùm hiện có và 2 trùm mới):
   - **To**: trùm phải to hơn hẳn thú thường; ít nhất cỡ bạo chúa, trùm mới (vượn, bọ cạp chúa) to gấp 2–3 lần. Rà lại cỡ 6 trùm hiện có cho cân.
   - **Thanh máu**: đã có thanh máu trùm ở trên cùng màn hình; thêm tên trùm, chia vạch theo giai đoạn (ví dụ dưới 50% máu thì đổi cách đánh, nổi giận), hiệu ứng khi máu tụt.
@@ -194,6 +220,14 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Đánh: kẹp hai càng (giữ người lại, siết máu), chích đuôi (độc nặng, mất máu lâu), phun độc thành vũng trên sàn, chui xuống cát rồi trồi lên dưới chân người chơi, gọi bọ cạp con. Vỏ cứng: phải đánh vào đuôi hoặc lúc nó ngóc lên mới trúng mạnh.
   - Chiến lợi phẩm huyền thoại gợi ý: **Giáp vỏ bọ cạp** (miễn độc, phản lại một phần sát thương) hoặc **Dao đuôi bọ cạp** (mỗi đòn làm thú trúng độc).
   - Đưa vào màn hình "Phá đảo!" và các ô bóng trùm trong đĩa bay.
+
+## 12. Âm thanh
+
+- [x] **Tiếng thú thật** (`realvoice.go`, `assets/voices/SOURCES.md`): mỗi loài một giọng ghép từ bản thu thú thật (tài sản công, CC0, 2 file CC BY ghi trong `CREDITS.md`).
+- [ ] **Bước chân theo mặt đất**: cỏ, cát, đá, nước, tuyết, bùn, gỗ (sàn nhà); thú to bước nặng.
+- [ ] **Âm thanh nền theo vùng**: gió, chim, côn trùng ban đêm, sóng biển, mưa, suối và thác, tiếng vọng trong hang; đổi theo giờ và thời tiết.
+- [ ] **Tiếng nhân vật**: thở khi chạy, kêu khi bị đánh, tiếng ăn, uống, ngáp khi ngủ dậy.
+- [ ] **Tiếng giao diện**: mở túi, chế tạo xong, nhặt đồ, đặt công trình, thông báo.
 
 ## 10. Đồ trang trí (sau demo)
 

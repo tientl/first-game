@@ -193,8 +193,20 @@ Colours come from tables, not code: skin from `skinTones`, hair from
 with the player's colour as they are drawn (`upperTinted`); a new skin,
 hair or cloth colour is a new entry.
 
-What it costs: every frame of every motion of one look is 1632
-half-frames, 14 MB if all were shown, 1.3 ms each to draw; they are drawn
+A figure turned whole (lying back onto a bed, going over in a fall) is
+not turned at draw: its pose sets `kp.spin`, and both halves and the head
+are drawn through the turn (the hips dropped first), so it comes out
+crisp; such a frame is put together on the CPU (`standingCanvas`) and
+kept as one sprite (`laidSprite`). The fall ends on the body's own drawing
+(`graveSprite`), on the tile the server laid it, the figure sliding there
+as it goes, so the body takes over without a jump; the body stays a tile
+entity and the server does not change. Setting off from sitting is
+`moRise`, the walk rising out of a crouch over 0.55 s, so the controls
+answer at once. Loose hair (`hairfloat.go`) lies on the pillow and floats
+behind a swimmer for every style.
+
+What it costs: every frame of every motion of one look is 2216
+half-frames, 19 MB if all were shown, 1.3 ms each to draw; they are drawn
 the first time they are shown, so a session pays for what it shows.
 `go run ./cmd/shot -w 1920 -h 1080 -motionsheet dir` plays every motion
 through the game's own drawing and writes `motion_sheet.png` and a GIF of
@@ -298,6 +310,22 @@ go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
   player. `ROCK_DUMP=dir go test ./internal/client -run DumpRocks` writes a
   sheet of all of them and the steps one vein is drawn in.
 
+- The leaf tent (`tentart.go`) is built in its own space and seen from the
+  game's angle: an A-frame two tiles wide, its ridge running back (straight
+  up the screen), each slope a plane (`slopeXY`, `slopeAB`) on which leaves
+  are laid row by row from the foot up, tips down the slope, each a shape of
+  that plane that casts a short shadow on what it lies over. Pixels keep a
+  material and a light until the end (`tentPaint`), so folds and shadows add
+  up before the tones are picked; leaves, bark and snow take clean bands,
+  the bed of grass and the dark inside are dithered. Four thatches by the
+  ground (`tentLeafOf`): fern, broad leaves, palm fronds, fir boughs under
+  snow. It is two drawings, the inside and the shell: a sleeper is drawn
+  between them (`drawSleeper`, `tentSleepDX`), so the poles and the thatch
+  of the front come over their head and feet. `TENT_DUMP=dir go test
+  ./internal/client -run DumpTent` writes every thatch three times as big,
+  and with someone asleep in it; `shot -tentsheet dir` the sheet with the
+  bag icon and a GIF of going to bed in it; `shot -tent -tentsleep` a camp.
+
 ## The natural caves
 
 Worlds made since `sim.StyleCaves` have a cave system under each island
@@ -374,8 +402,10 @@ screen pixel, like the world.
   is drawn on `overIcons(dst)`. `uiBreak` is called by `dim`, the notice
   and the dev console, and `endUI` ends with it: call it before anything new
   that is drawn over item icons (a tooltip, a dialog), or it will end up
-  under them. World uses (a drop on the ground, a held item) still take
-  the old icons from `g.art.icons`.
+  under them. In the world (a pile on the ground, food or a bowl in the
+  hand) an item shows its HD icon at the world's density, or, without
+  one, its old icon redrawn three times as fine (`iconFine`); tools and
+  weapons in the hand have painters of their own (see "Held items").
 - **Off.** `shot -iconhd=false` (`SetIconHD`) gives every item its old icon.
 
 ### The look (the pilot set, `iconhd_pilot.go`)
@@ -432,3 +462,66 @@ screen pixel, like the world.
 
 A pilot icon took 10 to 20 minutes, most of it looking at it at 96 and x3
 and moving a few numbers; a bake costs 1 to 8 ms at 96 pixels.
+
+## Held items
+
+Tools and weapons in the hand are painted at `HDDensity` in the look of
+the HD icons (`heldhd.go` draws them, `heldhd_art.go` holds the painters):
+the axe, pickaxe and hoe of every tier, the knives (swords) of flint,
+jade, agate and obsidian, the spear and the ivory spear, the war axe, the
+torch and the fishing rod. Anything else in the hand, and every pile on
+the ground, is its HD icon at the world's density, or its old icon redrawn
+three times as fine (`iconFine`).
+
+- **Its own frame.** A held item is painted in art pixels with the grip,
+  where the fist closes, at (0, 0) and the working end straight up (-y),
+  the edge forward (+x), at its size beside the 31-pixel figure (an axe
+  about 16 pixels from butt to head, a spear 27, the rod 28: the old held
+  sprites' sizes, so swings reach as far). `heldDef` gives the painter,
+  the box it paints in, and `grip`, the gap left in the haft at the grip:
+  the fist, drawn before the item, shows through it, so the hand closes
+  round the haft instead of the haft lying over the hand.
+- **Turned before it is painted.** Swings turn tools through every angle,
+  so each item is painted anew at each of `heldTurns` (64) angles: every
+  shape is turned first (`hpv.xf`), so edges stay clean, the outline stays
+  one pixel and the light stays in the top left at every angle. Painting
+  is three times finer and shrunk (`heldSS`). Grain, knapping scars and
+  agate's bands are taken in the item's frame (`hpv.loc`), so they stay
+  on the item as it turns; normals of the item's frame are turned onto the
+  canvas (`hpv.lit`, `hpv.rod`). Facing left the image is mirrored, as
+  the figure is. An item's angles are painted the first time it is shown,
+  ahead on another goroutine; an angle wanted before then is painted on
+  the spot (about 5 ms). One angle is 2 to 17 KB; all 64 angles of every
+  held item would be about 11 MB, a session pays for what is held.
+- **Stone by tier** (`heldMats`): stone knapped in broad matt scars, flint
+  in finer scars with a waxy gloss, jade and agate ground smooth and
+  polished (agate banded), obsidian in big glassy scars. `face` shades a
+  face of a head from the normal it leans to, bevels it to its edge, and
+  puts a glint only where an edge or a ridge mirrors the sun to the eye.
+- **In the hand.** `drawHeldAt` puts the grip on the hand of the jointed
+  figure's frame and tips the item by `heldCarry` plus what the forearm
+  turns (`heldTurn`); the chop, the slash and the war axe's cleave turn
+  it about the grip on their own clocks. The item goes behind the body
+  when the hand is (facing up, or the far hand), and behind the head with
+  a hand raised beside it, seen from the side, or a tool raised over the
+  head, seen from behind (`figDraw.tool`). Reaching up for fruit, the
+  other hand takes it (`figDraw.offHand`). Swimmers and sleepers hold
+  nothing; riders keep it.
+- **Trails.** The slash, the cleave and the chop leave an arc drawn at the
+  canvas's own resolution (`swingArc`, triangles on the full canvas), as
+  is a fishing line from the rod's tip (`fineStrip`). The torch's flame
+  is painted apart in `torchFlameN` frames and stands upright on the
+  turned torch; where the flame and the rod's tip were drawn is noted for
+  the torch's light and the line (`markHeld`).
+- **Off.** `shot -heldhd=false` (`SetHeldHD`) gives the old density-1
+  sprites and icons back, to compare.
+
+Look at them: `go run ./cmd/shot -exact -w 1920 -h 1080 -heldsheet dir`
+writes `held_compare.png` (each item in the caveman's hand, old and new,
+at 1080p and three times as big about the hand), `held_swings.gif` (the
+chop, the slash, the thrust and a walk with a torch, every facing),
+`held_motions_*.png` (the motions that keep something in the hand) and
+prints what painting them costs. `HELD_DUMP=dir go test ./internal/client
+-run DumpHeld` writes every item at a few angles four times as big
+(`HELD_ONLY=6,32` for some), and `go test ./internal/client -run Held`
+paints every angle of every item and checks each is whole.

@@ -43,6 +43,8 @@ func aimBox(k EntityKind) (halfW, height float64) {
 	switch k {
 	case EntityGiantTree:
 		return 1.6, 5.5
+	case EntityLeafTent:
+		return 0.95, 2.4 // two tiles wide and a little taller than a player: see tent.go
 	case EntityTree, EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree:
 		return 0.6, 2.6
 	case EntityBoulder, EntityBerryBush, EntityCactus, EntityWall, EntityStoneWall, EntityDoor,
@@ -201,6 +203,8 @@ func PlacedBy(held ItemKind) (k EntityKind, soft, ok bool) {
 	switch {
 	case held == ItemTorch:
 		return EntityTorchStand, false, true
+	case held == ItemLeafTent:
+		return EntityLeafTent, false, true // see tent.go
 	case IsSeed(held):
 		return EntitySapling, true, true
 	}
@@ -221,7 +225,13 @@ func BlocksPlayers(k EntityKind) bool { return blocksPlayers(k) }
 // stand, which a structure that blocks them may not be put on. why is the
 // notice when it fails.
 func BuildSpot(px, py float64, tx, ty int, k EntityKind, soft bool, tileAt func(tx, ty int) Tile, taken func(tx, ty int) bool, standers [][2]float64) (ok bool, why NoticeKind) {
-	if dx, dy := float64(tx)+0.5-px, float64(ty)+0.5-py; dx*dx+dy*dy > PlaceReach*PlaceReach {
+	return BuildSpotWithin(PlaceReach, px, py, tx, ty, k, soft, tileAt, taken, standers)
+}
+
+// BuildSpotWithin is BuildSpot with reach in place of PlaceReach: DevReach
+// in free build (see devbuild.go).
+func BuildSpotWithin(reach, px, py float64, tx, ty int, k EntityKind, soft bool, tileAt func(tx, ty int) Tile, taken func(tx, ty int) bool, standers [][2]float64) (ok bool, why NoticeKind) {
+	if dx, dy := float64(tx)+0.5-px, float64(ty)+0.5-py; dx*dx+dy*dy > reach*reach {
 		return false, NoticeTooFar
 	}
 	t := tileAt(tx, ty)
@@ -230,6 +240,8 @@ func BuildSpot(px, py float64, tx, ty int, k EntityKind, soft bool, tileAt func(
 		return false, NoticeNoSpace
 	case !t.Walkable() || (soft && !t.Soft()) || taken(tx, ty):
 		return false, NoticeNoSpace
+	case k == EntityLeafTent && !TentGround(t):
+		return false, NoticeHardGround // see tent.go
 	}
 	if blocksPlayers(k) {
 		for _, s := range standers {
@@ -244,13 +256,7 @@ func BuildSpot(px, py float64, tx, ty int, k EntityKind, soft bool, tileAt func(
 
 // buildSpot is BuildSpot in w for p; on failure p is told why.
 func (w *World) buildSpot(p *Player, tx, ty int, k EntityKind, soft bool) bool {
-	var standers [][2]float64
-	for _, id := range w.playerOrder {
-		if o := w.players[id]; !o.Dead {
-			standers = append(standers, [2]float64{o.X, o.Y})
-		}
-	}
-	ok, why := BuildSpot(p.X, p.Y, tx, ty, k, soft, w.TileAt, func(tx, ty int) bool { return w.entityAt(tx, ty) != nil }, standers)
+	ok, why := BuildSpotWithin(w.placeReach(p), p.X, p.Y, tx, ty, k, soft, w.TileAt, func(tx, ty int) bool { return w.entityAt(tx, ty) != nil }, w.standers())
 	if ok && !w.canPlace(tx, ty) {
 		ok, why = false, NoticeNoSpace
 	}
@@ -410,7 +416,7 @@ func (w *World) interactKey(p *Player) {
 		switch e.Kind {
 		case EntityChest, EntityGrave, EntityTreasure:
 			return e.Kind != EntityTreasure || w.treasureLeft(e)
-		case EntityBed:
+		case EntityBed, EntityLeafTent:
 			return aimed // a bed only when pointed at: E by the bed is mostly for something else
 		}
 		return isStation(e) // see cooking.go

@@ -43,6 +43,7 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Notice:    self.Notice,
 			NoticeArg: self.NoticeArg,
 			NoticeSeq: self.NoticeSeq,
+			DevBuild:  s.world.DevFreeBuild(id), // only ever true in dev mode
 		},
 	}
 	if id := self.OpenChest(); id != 0 {
