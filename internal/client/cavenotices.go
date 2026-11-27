@@ -19,7 +19,19 @@ func caveNoticeText(kind sim.NoticeKind, arg uint8) (string, bool) {
 	return "", false
 }
 
+// caveDirs are the eight ways, from the north round by the east.
+var caveDirs = [8]string{"bắc", "đông bắc", "đông", "đông nam", "nam", "tây nam", "tây", "tây bắc"}
+
 // paintingText is what a picture on a cave wall shows.
 func paintingText(arg uint8) string {
-	return "Hình vẽ cổ trên vách đá"
+	pic, dir := sim.PaintingOf(int(arg))
+	switch pic {
+	case sim.PaintingHunt:
+		return "Hình vẽ cổ: những người đi săn vây quanh một con thú có sừng"
+	case sim.PaintingHoard:
+		return "Hình vẽ cổ: một chiếc rương, mũi tên chỉ về phía " + caveDirs[dir%8] + " của hang"
+	case sim.PaintingStar:
+		return "Hình vẽ cổ: một vì sao lửa rơi xuống hòn đảo ở giữa biển"
+	}
+	return "Hình vẽ cổ: đàn thú cổ dài kéo nhau đi qua các hòn đảo"
 }

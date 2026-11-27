@@ -87,9 +87,10 @@ type caveMat struct {
 }
 
 var (
-	cmMoss   = mkRamp(0x3f4328, 0x5f7132, 0x94ad39, 0xc2d64f)
-	cmPuddle = mkRamp(0x0d1018, 0x1a1f2e, 0x1e314b, 0x2f4c6c, 0x3d80a3)
-	cmGlass  = mkRamp(0x1a1f2e, 0x2f193e, 0x39275e, 0x5c3a6f, 0x7e659b, 0xb8a1c2)
+	cmMoss      = mkRamp(0x3f4328, 0x5f7132, 0x94ad39, 0xc2d64f)
+	cmFloorMoss = mkRamp(0x282e3b, 0x343f41, 0x3f4328, 0x4d6659, 0x5f7132)
+	cmPuddle    = mkRamp(0x0d1018, 0x1a1f2e, 0x1e314b, 0x2f4c6c, 0x3d80a3)
+	cmGlass     = mkRamp(0x1a1f2e, 0x2f193e, 0x39275e, 0x5c3a6f, 0x7e659b, 0xb8a1c2)
 )
 
 // caveMats are the rocks of the caves, by sim.CaveRock, in the tones of
@@ -97,7 +98,7 @@ var (
 var caveMats = [sim.NumCaveRocks]caveMat{
 	sim.RockLimestone: {
 		face:  mkRamp(0x1a1f2e, 0x2b222a, 0x3f333b, 0x533b41, 0x6d4e4b, 0x867066, 0xb49d7e, 0xc4c6b8),
-		floor: mkRamp(0x2b222a, 0x3f333b, 0x533b41, 0x6d4e4b, 0x867066, 0xb49d7e).sub(3),
+		floor: mkRamp(0x3f333b, 0x6d4e4b, 0x867066, 0xb49d7e, 0xc4c6b8, 0xe3e6ac).sub(3),
 		grit:  mkRamp(0x2b222a, 0x533b41, 0x867066, 0xb49d7e, 0xc4c6b8),
 		cell:  [2]float64{34, 50}, wet: 0.45, flow: 0.55, gloss: 0.02,
 	},
@@ -149,6 +150,11 @@ type caveBake struct {
 	trock            []sim.CaveRock
 	tzone            []sim.CaveZone
 	troute           []bool
+	tkind            []sim.Tile
+
+	liq   []uint8  // per pixel off the rock: the liquid on it (caveWater...), 0 for floor; nil with none near
+	toDry []uint16 // in a liquid: the chamfer distance to its shore
+	toWet []uint16 // on the floor: to the nearest liquid
 }
 
 const caveFar = 0xffff
@@ -177,12 +183,15 @@ func (t *terrain) newCaveBake(k chunkKey) *caveBake {
 	b.tw = fdiv(b.x0+chunkPW+caveMX, hdTW) + 4 - b.tx0
 	b.th = fdiv(b.y0+chunkPH+caveMYB, hdTH) + 4 - b.ty0
 	n := b.tw * b.th
-	b.trock, b.tzone, b.troute = make([]sim.CaveRock, n), make([]sim.CaveZone, n), make([]bool, n)
+	b.trock, b.tzone, b.troute, b.tkind = make([]sim.CaveRock, n), make([]sim.CaveZone, n), make([]bool, n), make([]sim.Tile, n)
+	wet := false
 	seen := make([]bool, n)
 	var q []int
 	solid := make([]bool, n)
 	for i := range n {
 		tx, ty := b.tx0+i%b.tw, b.ty0+i/b.tw
+		b.tkind[i] = t.tile(tx, ty)
+		wet = wet || caveLiquid(b.tkind[i]) != 0
 		if !caveOpen(t.tile(tx, ty)) || ty < t.cave.from {
 			solid[i] = true
 			continue
@@ -243,6 +252,9 @@ func (t *terrain) newCaveBake(k chunkKey) *caveBake {
 	}
 	b.toRock = chamfer(b.gw, b.gh, func(i int) bool { return b.rock[i] })
 	b.toOpen = chamfer(b.gw, b.gh, func(i int) bool { return !b.rock[i] })
+	if wet {
+		b.liquids() // see cavezones.go
+	}
 	return b
 }
 
@@ -282,19 +294,26 @@ func (b *caveBake) pixel(x, y int) color.RGBA {
 		foot := int(b.foot[gi])
 		if foot <= caveFaceH {
 			ti := b.tileAt(int(math.Floor(u)), int(math.Floor(v+float64(foot)/hdTH)))
-			return b.facePixel(&caveMats[b.trock[ti]], gi, hx, hy, foot)
+			return b.facePixel(&caveMats[b.trock[ti]], b.tzone[ti], b.trock[ti], gi, hx, hy, foot)
 		}
 		ti := b.tileAt(int(math.Floor(u)), int(math.Floor(v)))
 		return b.topPixel(&caveMats[b.trock[ti]], gi, hx, hy, u, v)
 	}
+	if b.liq != nil && b.liq[gi] != 0 {
+		return b.liquidPixel(b.liq[gi], gi, hx, hy, u, v) // see cavezones.go
+	}
 	// The floor's rock, its borders ragged.
 	ju, jv := (vnoise(u*1.7, v*1.9, 3110)-0.5)*0.8, (vnoise(u*1.7, v*1.9, 3111)-0.5)*0.8
 	ti := b.tileAt(int(math.Floor(u+ju)), int(math.Floor(v+jv)))
-	return b.floorPixel(&caveMats[b.trock[ti]], b.tzone[ti], gi, hx, hy, u, v)
+	m, z := &caveMats[b.trock[ti]], b.tzone[ti]
+	if z == sim.ZoneTomb {
+		return b.shore(b.tombFloor(m, gi, hx, hy, u, v), gi, hx, hy) // see cavezones.go
+	}
+	return b.shore(b.zoneFloor(b.floorPixel(m, z, gi, hx, hy, u, v), z, gi, hx, hy, u, v), gi, hx, hy)
 }
 
 // facePixel colours a pixel of a wall's face, foot pixels above its foot.
-func (b *caveBake) facePixel(m *caveMat, gi, hx, hy, foot int) color.RGBA {
+func (b *caveBake) facePixel(m *caveMat, z sim.CaveZone, r sim.CaveRock, gi, hx, hy, foot int) color.RGBA {
 	d := float64(caveFaceH - foot) // pixels down from the lip
 	// The lip: the edge of the rock's top, catching the light, ragged.
 	lip := 3 + 3*vnoise(float64(hx)/9, float64(hy)/31, 3120)
@@ -408,6 +427,9 @@ func (b *caveBake) facePixel(m *caveMat, gi, hx, hy, foot int) color.RGBA {
 	if hashf(hx, hy, 3127) < m.gloss {
 		tone += 0.35 // a glint
 	}
+	if c, ok := b.faceAccent(z, r, hx, hy, d, foot, &tone); ok {
+		return c // see cavezones.go
+	}
 	i := int(math.Floor(clamp01(tone)*float64(len(rp)-1) + (dither(hx, hy) - 0.5)))
 	return rp.at(max(1, min(len(rp)-1, i)))
 }
@@ -486,12 +508,12 @@ func (b *caveBake) floorPixel(m *caveMat, z sim.CaveZone, gi, hx, hy int, u, v f
 	// Moss where it is damp, and by the walls.
 	if m.moss > 0 && (damp > 0.58 || near < 14) && vnoise(u*3.4, v*3.9, 3146) < m.moss*0.22 {
 		k := clamp01(0.3 + (vnoise(u*9, v*10, 3147)-0.5)*1.1)
-		c := cmMoss.at(int(k * 1.99))
+		c := cmFloorMoss.at(int(k * 3.99))
 		return mix(c, colInk, 0.15+b.shade(gi, near)*0.8)
 	}
 	// Daylight by the way up: a little green creeps in.
-	if z == sim.ZoneEntrance && vnoise(u*2.4, v*2.7, 3148) > 0.74 {
-		c := cmMoss.at(int(hashf(hx, hy, 3149) * 2.2))
+	if z == sim.ZoneEntrance && vnoise(u*2.4, v*2.7, 3148) > 0.79 {
+		c := cmFloorMoss.at(1 + int(hashf(hx, hy, 3149)*2.9))
 		return mix(c, colInk, 0.1+b.shade(gi, near)*0.8)
 	}
 	t -= b.shade(gi, near)

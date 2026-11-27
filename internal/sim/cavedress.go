@@ -32,46 +32,6 @@ const (
 	caveHoardPer    = 4400 // floor tiles of the upper level to each hoard off the main route (half as many below)
 )
 
-// assignZones gives the chambers of s their parts: the spiders' nests and
-// the bears' dens, as many as the island is big, the nests off the main
-// route where they can be, the dens down on the lower level.
-func (s *caveSystem) assignZones(rng *rand.Rand) {
-	free := func(lower, offRoute bool) []int {
-		var out []int
-		for i, c := range s.chambers {
-			if c.hall || c.zone != ZoneHall || i == s.descent || i == s.arrival {
-				continue
-			}
-			if lower && c.level != s.levels-1 || offRoute && c.route {
-				continue
-			}
-			out = append(out, i)
-		}
-		rng.Shuffle(len(out), func(a, b int) { out[a], out[b] = out[b], out[a] })
-		return out
-	}
-	pick := func(z CaveZone, n int, prefs ...[]int) {
-		for _, p := range prefs {
-			for _, i := range p {
-				if n == 0 {
-					return
-				}
-				if s.chambers[i].zone == ZoneHall {
-					s.chambers[i].zone = z
-					n--
-				}
-			}
-		}
-	}
-	nests := int(math.Round(float64(s.area) / caveNestPer))
-	dens := int(math.Round(float64(s.area) / caveDenPer))
-	if s.levels == 2 {
-		dens = max(dens, 1)
-	}
-	pick(ZoneDen, dens, free(true, true), free(true, false), free(false, true))
-	pick(ZoneNest, nests, free(false, true), free(false, false))
-}
-
 // caveFloor is one level of a system as it is being dressed.
 type caveFloor struct {
 	s     *caveSystem
@@ -79,6 +39,7 @@ type caveFloor struct {
 	top   int     // the band's first map row
 	wall  []uint8 // per cell: steps to the nearest rock (1 beside it), 0 on rock
 	taken []bool  // per cell: kept clear, or something stands there already
+	by    [][]int // the floor cells of each chamber, by its index plus one; the tunnels' at 0
 }
 
 // finishCaves dresses every system once the rest of the world is made, and
@@ -91,17 +52,26 @@ func (w *World) finishCaves() {
 	f := &w.fauna
 	f.spawnAt[CreatureSpider], f.spawnAt[CreatureBear] = nil, nil
 	f.target[CreatureSpider], f.target[CreatureBear] = 0, 0
-	for _, s := range w.caves.systems {
+	floorsOf := func(s *caveSystem) []*caveFloor {
 		floors := make([]*caveFloor, s.levels)
 		for lv := range floors {
 			floors[lv] = w.caveFloorOf(s, lv)
 		}
-		for _, fl := range floors {
-			w.dressFloor(rng, fl)
-		}
-		w.settleLife(rng, s, floors)
+		return floors
+	}
+	for _, s := range w.caves.systems {
+		w.pourCaves(rng, s, floorsOf(s)) // the waters, the lava and the ice: see cavethemes.go
 	}
 	w.fauna.shallow = nil // the caves' waters are fished too
+	for _, s := range w.caves.systems {
+		floors := floorsOf(s)
+		for _, fl := range floors {
+			w.dressFloor(rng, fl)
+			w.dressThemes(rng, fl) // see cavethemes.go
+		}
+		w.settleLife(rng, s, floors)
+		w.settleThemes(rng, s, floors) // fish, crocodiles, scorpions: see cavethemes.go
+	}
 }
 
 // caveFloorOf works out level lv of s for dressing: how far each cell is
@@ -171,13 +141,15 @@ func (fl *caveFloor) at(i int) (int, int) {
 // cellsOf lists the floor cells of chamber c (or with c < 0, of the
 // tunnels), in order.
 func (fl *caveFloor) cellsOf(c int) []int {
-	var out []int
-	for i, o := range fl.s.owner[fl.lv] {
-		if fl.wall[i] > 0 && int(o)-1 == c && (c >= 0 || o == 0) {
-			out = append(out, i)
+	if fl.by == nil {
+		fl.by = make([][]int, len(fl.s.chambers)+1)
+		for i, o := range fl.s.owner[fl.lv] {
+			if fl.wall[i] > 0 {
+				fl.by[o] = append(fl.by[o], i)
+			}
 		}
 	}
-	return out
+	return slices.Clone(fl.by[max(c, -1)+1])
 }
 
 // put sets an entity of kind k on cell i if it is free, and reports

@@ -59,7 +59,7 @@ var stalagRamps = [sim.NumCaveRocks]ramp{
 	sim.RockLimestone: mkRamp(0x2b222a, 0x3f333b, 0x6d4e4b, 0x867066, 0xb49d7e, 0xc4c6b8, 0xe5efef),
 	sim.RockMossy:     mkRamp(0x1a1f2e, 0x282e3b, 0x414453, 0x4d6659, 0x696f80, 0x8d99a4, 0xbac9cd),
 	sim.RockSandstone: mkRamp(0x3c252b, 0x5c2b34, 0x8d4830, 0xb77862, 0xc57835, 0xe1a845, 0xeecb90),
-	sim.RockBasalt:    mkRamp(0x0b0d14, 0x1a1f2e, 0x282e3b, 0x414453, 0x5c3a6f, 0x7e659b, 0xb8a1c2),
+	sim.RockBasalt:    mkRamp(0x0b0d14, 0x1a1f2e, 0x282e3b, 0x343f41, 0x414453, 0x696f80, 0x8d99a4),
 	sim.RockIce:       mkRamp(0x1e314b, 0x2f4c6c, 0x3d80a3, 0x63c4cc, 0x9ae5d5, 0xe5efef, 0xffffff),
 	sim.RockMud:       mkRamp(0x0d1018, 0x1a1f2e, 0x2b222a, 0x3f333b, 0x3f4328, 0x5f7132, 0x739a70),
 }
@@ -335,6 +335,10 @@ func (g *Game) drawCaveThing(dst drawTarget, e protocol.EntityView, d drawable) 
 	case sim.EntityCaveUp:
 		s = caveThings().up
 	case sim.EntityStalagmite:
+		if sp, ok := specialStalag(e); ok { // see caveprops.go
+			s = sp
+			break
+		}
 		s = caveThings().stalag[g.caveCellAt(int(e.TX), int(e.TY)).Rock()%sim.NumCaveRocks][int(e.Var)%stalagLooks]
 	case sim.EntityCaveProp:
 		return g.drawCaveProp(dst, e, d) // see caveprops.go

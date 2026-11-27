@@ -297,6 +297,13 @@ func main() {
 		sx, sy, *at = x, y, ""
 		log.Printf("standing at %.1f,%.1f", sx, sy)
 	}
+	if x, y, ok := cavePropSpot(w, *at, sx, sy, -1.5, 2.5); ok { // see caves.go
+		sx, sy, *at = x, y, ""
+	}
+	if x, y, ok := caveSpot(w, *at, sx, sy); ok { // see caves.go
+		sx, sy, *at = x, y, ""
+		log.Printf("standing at %.1f,%.1f", sx, sy)
+	}
 	if *at == "cavemouth" || *at == "cavein" || *at == "cavedown" || *at == "caveup" || *at == "giant" || *at == "hut" {
 		k := sim.EntityCaveMouth
 		switch *at {
@@ -328,6 +335,7 @@ func main() {
 				}
 			}
 		})
+		log.Printf("standing at %.1f,%.1f", sx, sy)
 		*at = ""
 	}
 	if *at == "pyramid" {

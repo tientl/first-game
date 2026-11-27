@@ -41,6 +41,19 @@ func TestDumpCaves(t *testing.T) {
 		}
 	}
 	t.Logf("underground creatures: %v", cr)
+	liquid := map[Tile]int{}
+	for i, tl := range w.tiles {
+		if i >= w.width*w.surfaceH && (tl == TileRiver || tl == TileLava || tl == TileIce || tl == TileFord) {
+			liquid[tl]++
+		}
+	}
+	zones := map[CaveZone]int{}
+	for _, s := range w.caves.systems {
+		for _, c := range s.chambers {
+			zones[c.zone]++
+		}
+	}
+	t.Logf("water %d, lava %d, ice %d, fords %d; chambers by zone %v", liquid[TileRiver], liquid[TileLava], liquid[TileIce], liquid[TileFord], zones)
 	floor := 0
 	for _, s := range w.caves.systems {
 		n0, n1 := 0, 0

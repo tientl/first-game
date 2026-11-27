@@ -68,7 +68,7 @@ func (t *terrain) caveMapPixel(u, v float64, px, py int) color.RGBA {
 			}
 		}
 		return mix(caveMapRock, colInk, 0.3*vnoise(u*0.2, v*0.25, 3170))
-	case sim.TileRiver:
+	case sim.TileRiver, sim.TileFord:
 		return mapLake
 	case sim.TileLava:
 		return lavaRamp.at(3)
@@ -85,6 +85,16 @@ func (t *terrain) caveMapPixel(u, v float64, px, py int) color.RGBA {
 		col = mix(col, hex(0xa070b0), 0.4)
 	case sim.ZoneDen:
 		col = mix(col, hex(0xa05a48), 0.4)
+	case sim.ZoneCrystal:
+		col = mix(col, hex(0x63c4cc), 0.45)
+	case sim.ZoneMushroom:
+		col = mix(col, hex(0x7e659b), 0.45)
+	case sim.ZoneTomb:
+		col = mix(col, hex(0xe1a845), 0.45)
+	case sim.ZoneFrozen:
+		col = mix(col, caveMapIce, 0.4)
+	case sim.ZoneFossil, sim.ZonePaintings:
+		col = mix(col, hex(0xe3e6ac), 0.3)
 	}
 	if c.Route() {
 		col = mix(col, caveMapRoute, 0.45)

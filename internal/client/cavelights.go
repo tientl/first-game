@@ -1,6 +1,8 @@
 package client
 
 import (
+	"math"
+
 	"github.com/hajimehoshi/ebiten/v2"
 
 	"survivalgame/internal/sim"
@@ -42,6 +44,7 @@ func (g *Game) caveLevel() (int, bool) {
 // caveLights punches the caves' light out of the dark (punch), or adds its
 // glow over the scene.
 func (g *Game) caveLights(dst drawTarget, cam camera, punch bool, in float64) {
+	g.caveGlows(dst, cam, punch, in)
 	day := 0.35 + 0.65*sim.Ambient(g.curr.Tick)
 	for _, e := range g.curr.Entities {
 		r, k := caveDayRadius, caveDayPunch*day
@@ -66,4 +69,35 @@ func (g *Game) caveLights(dst drawTarget, cam camera, punch bool, in float64) {
 		}
 		dst.DrawImage(g.art.light, op)
 	}
+}
+
+// caveGlows lets the crystals and the giant mushrooms of the caves light
+// the dark round them, pulsing slowly, in their cold colours.
+func (g *Game) caveGlows(dst drawTarget, cam camera, punch bool, in float64) {
+	for _, e := range g.curr.Entities {
+		r, col, ok := caveGlow(e) // see caveprops.go
+		if !ok {
+			continue
+		}
+		pulse := 1 + 0.07*math.Sin(float64(g.frame)*0.04+float64(e.ID%97))
+		op := g.lightOp(cam, e.TX, e.TY, r*pulse)
+		if punch {
+			op.Blend = ebiten.BlendDestinationOut
+			op.ColorScale.ScaleAlpha(float32(0.7 * in))
+		} else {
+			k := float32(0.22 * in * pulse)
+			op.ColorScale.Scale(k*col[0], k*col[1], k*col[2], k)
+			op.Blend = ebiten.BlendLighter
+		}
+		dst.DrawImage(g.art.light, op)
+	}
+}
+
+// caveLavaGlow is how much of lava's warm glow is added over the scene: in
+// the natural caves less, for their lava is drawn glowing already.
+func (g *Game) caveLavaGlow() float64 {
+	if _, ok := g.caveLevel(); ok {
+		return 0.3
+	}
+	return 1
 }

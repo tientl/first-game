@@ -314,16 +314,16 @@ func (w *World) buildCaveSystem(rng *rand.Rand, k int, tiles []int, mouths [][2]
 		c := &s.chambers[i]
 		c.leaf = len(c.adj) == 1 && !c.hall && !c.route
 	}
-	s.assignZones(rng) // see cavedress.go
+	for i := range s.chambers {
+		s.chambers[i].rock = w.rockAbove(&s.chambers[i], w.islands[k].Kind)
+	}
+	s.assignZones(rng, w.islands[k].Kind) // see cavethemes.go
 
 	for i := range s.tunnels {
 		s.windTunnel(rng, i)
 	}
 	for i := range s.chambers {
 		s.placePillars(rng, i)
-	}
-	for i := range s.chambers {
-		s.chambers[i].rock = w.rockAbove(&s.chambers[i], w.islands[k].Kind)
 	}
 	w.digSystem(s)
 	return s
