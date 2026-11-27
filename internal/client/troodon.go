@@ -265,6 +265,11 @@ func (g *Game) drawEyeshine(dst drawTarget, cam camera, alpha, dark float64) {
 		if c.Skill == sim.SkillTroodonAmbush && c.Phase == sim.PhaseWindup {
 			shimmer = 1.6 + 0.4*math.Sin(float64(t)*0.5) // about to spring: its eyes catch the light
 		}
+		if c.Skill == sim.SkillTroodonAmbush && c.Phase == sim.PhaseWindup { // a soft halo round each eye: it is about to spring
+			halo := color.RGBA{uint8(110 * k), uint8(80 * k), uint8(10 * k), uint8(110 * k)}
+			fillCircle(dst, ex+0.5, ey+0.5, 2.6, halo, true)
+			fillCircle(dst, ex+float32(dir*4)+0.5, ey+0.5, 2.2, halo, true)
+		}
 		glint(dst, ex, ey, k*shimmer)
 		glint(dst, ex+float32(dir*4), ey, k*shimmer*0.75) // the far eye, past the snout
 	}

@@ -192,6 +192,7 @@ func openSpot(w *sim.World, x0, y0 float64, r int) (float64, float64, bool) {
 			}
 			n := 0
 			w.EachEntityIn(cx-r-2, cy-4, cx+3, cy+7, func(sim.Entity) { n++ })
+			w.EachEntityIn(cx-2, cy-2, cx+2, cy+2, func(sim.Entity) { n += 100 }) // nothing by the player: no label over it
 			if n < bestN {
 				bestN, bx, by = n, float64(cx)+0.5, float64(cy)+0.5
 			}
@@ -203,10 +204,18 @@ func openSpot(w *sim.World, x0, y0 float64, r int) (float64, float64, bool) {
 // shoreSpot is a tile of land with open deep water east of it.
 func shoreSpot(w *sim.World, x0, y0 float64) (float64, float64, bool) {
 	ww, hh := w.Size()
+	nearLair := func(x, y int) bool {
+		for _, b := range w.Bosses() {
+			if math.Hypot(b.LairX-float64(x), b.LairY-float64(y)) < 45 {
+				return true
+			}
+		}
+		return false
+	}
 	for d := 0; d < 160; d++ {
 		for i := 0; i < 8*max(d, 1); i++ {
 			cx, cy := ring(int(x0), int(y0), d, i)
-			if cx < 2 || cy < 4 || cx >= ww-12 || cy >= hh-4 || !w.TileAt(cx, cy).Walkable() {
+			if cx < 2 || cy < 4 || cx >= ww-12 || cy >= hh-4 || !w.TileAt(cx, cy).Walkable() || nearLair(cx, cy) {
 				continue
 			}
 			ok := true

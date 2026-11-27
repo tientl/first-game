@@ -125,5 +125,5 @@ func skyShadow(c protocol.CreatureView, ts float64) (scale, alpha float64) {
 		return 1, 0.6
 	}
 	u := clamp01(ts / max(1, float64(c.PhaseLen)))
-	return 1 - 0.45*u, 0.6 + 0.35*u
+	return 1.7 - 0.9*easeInOut(min(1, u*1.4)), 0.7 + 0.3*u // wide and faint as it gathers, then small, dark and still
 }

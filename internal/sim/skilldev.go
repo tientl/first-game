@@ -107,7 +107,7 @@ func skillDistance(d *SkillDef) float64 {
 	case d.Motion == MoveHover:
 		return 0
 	case d.Anchor == AtAhead || d.Anchor == AtBehind:
-		return d.Offset
+		return d.Offset + d.Reach*0.5
 	}
 	if d.Shape == ZoneCircle {
 		return min(max(d.MinD+0.3, d.Reach*0.5), d.MaxD)
