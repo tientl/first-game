@@ -3,6 +3,7 @@ package client
 import (
 	"image/color"
 	"math"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -37,15 +38,17 @@ type floatLabel struct {
 // corners' target, to close them in.
 type labelFX struct {
 	key       labelKey
-	since     int // the frame the label's thing was first pointed at
+	since     time.Time // when the label's thing was first pointed at
 	last      floatLabel
-	lastSeen  int
+	had       bool      // the last frame drawn had a label
+	goneAt    time.Time // when it stopped having one
 	cornerKey labelKey
 	cornerAt  int
 }
 
-// labelFade is how many frames a label takes to come or go.
-const labelFade = 8
+// labelFade is how long a label takes to come or go: in time, not frames,
+// so it comes as fast however many frames a second are drawn.
+const labelFade = 140 * time.Millisecond
 
 // labelText is the size of a label's text, in screen pixels to a UI pixel.
 func labelScale() float64 { return 0.9 * uiK() }
@@ -54,18 +57,21 @@ func labelScale() float64 { return 0.9 * uiK() }
 // none, the last fades out.
 func (g *Game) showLabel(screen *ebiten.Image, l floatLabel) {
 	fx := &g.hudFX.labels
-	now := g.frame
+	now := time.Now()
 	if l.ok {
-		if l.key != fx.key || now-fx.lastSeen > 2 {
+		if l.key != fx.key || !fx.had {
 			fx.key, fx.since = l.key, now
 		}
-		fx.last, fx.lastSeen = l, now
-		a := min(1, float64(now-fx.since+1)/labelFade)
+		fx.last, fx.had = l, true
+		a := min(1, float64(now.Sub(fx.since)+16*time.Millisecond)/float64(labelFade))
 		drawFloatLabel(screen, l, smooth(a))
 		return
 	}
-	if gone := now - fx.lastSeen; fx.last.ok && gone > 0 && gone < labelFade {
-		drawFloatLabel(screen, fx.last, smooth(1-float64(gone)/labelFade))
+	if fx.had {
+		fx.had, fx.goneAt = false, now
+	}
+	if gone := now.Sub(fx.goneAt); fx.last.ok && gone < labelFade {
+		drawFloatLabel(screen, fx.last, smooth(1-float64(gone)/float64(labelFade)))
 	}
 }
 

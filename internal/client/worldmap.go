@@ -310,7 +310,10 @@ func (g *Game) drawMap(screen *uiDst, sw, sh int) {
 	drawTitle(screen, title, float64(sw)/2, 16, 2, colBoneText, color.RGBA{60, 36, 20, 255})
 
 	// Fit the map between the title and the legend, keeping its shape.
-	const top, bottom, side = 60.0, 74.0, 28.0
+	// The legend's rows (more in a world with more kinds of ground) and the
+	// line of keys go under the map.
+	const top, side = 60.0, 28.0
+	bottom := 54 + 20*float64(g.drawMapLegend(nil, float64(sw)/2, 0))
 	// With caves under the islands, the map shows the layer the player is
 	// in: the islands, or the caves.
 	r0, rh := g.mapRows()
@@ -422,7 +425,7 @@ func drawFireMark(dst drawTarget, x, y float32) {
 }
 
 // drawMapLegend draws one centred row explaining the marks and colours.
-func (g *Game) drawMapLegend(screen *uiDst, cx, y float64) {
+func (g *Game) drawMapLegend(screen *uiDst, cx, y float64) (rowsDrawn int) {
 	type entry struct {
 		label string
 		draw  func(x, y float32)
@@ -459,6 +462,9 @@ func (g *Game) drawMapLegend(screen *uiDst, cx, y float64) {
 		rows[len(rows)-1] = append(rows[len(rows)-1], e)
 		rowW += width(e)
 	}
+	if screen == nil {
+		return len(rows) // only measured
+	}
 	for r, row := range rows {
 		total := -gap
 		for _, e := range row {
@@ -471,6 +477,7 @@ func (g *Game) drawMapLegend(screen *uiDst, cx, y float64) {
 			x += width(e)
 		}
 	}
+	return len(rows)
 }
 
 // mapRows is the band of map rows the map shows: the islands, or with the

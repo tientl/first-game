@@ -150,6 +150,12 @@ var uiScreens = []uiScreen{
 	{"craft", func(g *Game) { g.setOverlay(overlayCraft) }},
 	{"craft-free", func(g *Game) { g.curr.Self.DevBuild = true; g.setOverlay(overlayCraft) }},
 	{"map", func(g *Game) { g.setOverlay(overlayMap) }},
+	{"map-every-ground", func(g *Game) { // the longest legend: two rows of it
+		for i := range g.wmap.present {
+			g.wmap.present[i] = true
+		}
+		g.setOverlay(overlayMap)
+	}},
 	{"palette", func(g *Game) { g.curr.Self.DevBuild = true; g.overlay = overlayPalette }},
 	{"dev", func(g *Game) {
 		g.SetDev(true)
@@ -207,9 +213,14 @@ func checkTexts(t *testing.T, where string, p *probe, w, h int) {
 				continue // a title drawn twice, for its shadow
 			}
 			ix := math.Min(r.x+r.w, o.x+o.w) - math.Max(r.x, o.x)
-			iy := math.Min(r.y+r.h, o.y+o.h) - math.Max(r.y, o.y)
-			if ix > 2*tol && iy > 0.4*math.Min(r.h, o.h) && bad < 8 {
-				if ob, ok := boxOf(o); ok == (b != screen) && ob == b {
+			// The band the letters fill, not the whole line with room for
+			// accents and tails.
+			band := func(p probeRect) (float64, float64) { return p.y + 0.2*p.h, p.y + 0.8*p.h }
+			r0, r1 := band(r)
+			o0, o1 := band(o)
+			iy := math.Min(r1, o1) - math.Max(r0, o0)
+			if ix > 2*tol && iy > 0.25*math.Min(r1-r0, o1-o0) && bad < 8 {
+				if ob, ok := boxOf(o); (!ok && b == screen) || (ok && ob == b) {
 					bad++
 					t.Errorf("%s: %q runs over %q", where, r.s, o.s)
 				}

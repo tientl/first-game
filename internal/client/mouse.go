@@ -647,7 +647,7 @@ var (
 // showHint draws this frame's hint (out of reach, building, taking away):
 // one at a time, like the labels, and never over a label.
 func (g *Game) showHint(screen *ebiten.Image, l floatLabel) {
-	if !l.ok || g.hudFX.labels.lastSeen == g.frame {
+	if !l.ok || g.hudFX.labels.had {
 		return
 	}
 	drawFloatLabel(screen, l, 1)
