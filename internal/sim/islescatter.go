@@ -13,6 +13,11 @@ func (w *World) scatterIsles(rng, sizeRng *rand.Rand) {
 	if w.style >= StyleBeaches {
 		shore = w.seaDistance(8)
 	}
+	var cov *coverField // since StyleGround: drifts, thickets and glades; see groundcover.go
+	if w.style >= StyleGround {
+		cov = w.newCover(uint32(w.seed) ^ uint32(w.seed>>32))
+		w.woods.cover = cov // for the undergrowth
+	}
 	for ty := 0; ty < w.height; ty++ {
 		for tx := 0; tx < w.width; tx++ {
 			r := rng.Float64()
@@ -21,6 +26,10 @@ func (w *World) scatterIsles(rng, sizeRng *rand.Rand) {
 			v := w.relief[i].Variant()
 			if v == VarRamp || tile == TileFord || !tile.Walkable() {
 				continue // the ways up and across stay open
+			}
+			pick := pick
+			if cov != nil {
+				pick = cov.picker(i, tx, ty)
 			}
 			var kind EntityKind
 			switch tile {
@@ -57,6 +66,9 @@ func (w *World) scatterIsles(rng, sizeRng *rand.Rand) {
 				kind = pick(r, chance{EntityBoulder, boulders}, chance{EntityGrassTuft, 0.02})
 			case TileSand:
 				switch {
+				case shore != nil && cov != nil && (v == VarDunes || shore[i] > 3 && !w.seaside(tx, ty)):
+					// The grass of the dunes and the back of the beach, in drifts.
+					kind = w.beachThing(r/max(0.05, cov.mul(EntityGrassTuft, i, tx, ty)), tx, ty, v, int(shore[i]))
 				case shore != nil:
 					kind = w.beachThing(r, tx, ty, v, int(shore[i]))
 				case v == VarDunes:

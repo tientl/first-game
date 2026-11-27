@@ -382,6 +382,7 @@ type fauna struct {
 	homes     []homeRec                 // burrows and dens, in the order they were dug
 	seated    bool                      // homes checked after loading; see reseatHomes
 	drinkers  []*Creature               // those drinking at the start of this tick; see drinkerNear
+	rain      rainWorms                 // since StyleGround: the worms the rain brought up; see groundcover.go
 }
 
 func (w *World) random() *rand.Rand {
@@ -494,6 +495,9 @@ func (w *World) spawnCreatures() {
 		tilesPer := d.tilesPer
 		if n, ok := wildsTilesPer[k]; ok && wl != nil {
 			tilesPer = n
+		}
+		if k == CreatureWorm && w.style >= StyleGround {
+			tilesPer = wormDampTilesPer // see groundcover.go
 		}
 		f.target[k] = max(creatureMinPerKind, len(spots)/tilesPer)
 		if w.style < d.since && wl == nil {
@@ -627,6 +631,9 @@ func (w *World) stepCreatures() {
 	if !f.seated {
 		w.reseatHomes() // a loaded world may have lost its homes
 		f.seated = true
+	}
+	if w.style >= StyleGround {
+		w.stepRainWorms() // see groundcover.go
 	}
 	f.drinkers = f.drinkers[:0]
 	for _, c := range f.creatures {

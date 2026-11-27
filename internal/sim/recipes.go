@@ -482,6 +482,13 @@ const (
 	NoticeArmoured // Arg: CreatureKind whose armour took half the blow; see ankylo.go
 
 	NoticeHardGround // Arg: EntityKind whose stakes do not go into rock or a ford; see tent.go
+
+	// The natural caves: see cavesys.go and caveprops.go.
+	NoticeDeepCaves  // down the rope into the deep caves
+	NoticeUpperCaves // back up the rope out of the deep caves
+	NoticeLavaBurn   // burnt by the lava, stood against it
+	NoticePainting   // Arg: the picture on the wall (see PaintingOf)
+	NoticeFossil     // Arg: ItemKind dug out of a great skeleton in the rock
 )
 
 // CommandKind is a discrete player request, as opposed to held input.

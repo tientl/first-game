@@ -192,6 +192,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		func() { g.drawGlowMasks(w, cam, g.darknessNow()) },
 		func() { g.drawToadGlow(w, cam, g.darknessNow()) },        // see toadart.go
 		func() { g.drawEyeshine(w, cam, alpha, g.darknessNow()) }, // the night hunters' eyes; see troodon.go
+		func() { g.drawCaveBats(w, cam) },                         // bats flitting over their roost; see caveprops.go
 		func() { g.drawLightning(w, cam) },
 		func() { g.drawEmbers(w, cam) },
 		func() { g.drawFireflies(w, cam) },
@@ -334,6 +335,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 	g.drawSoil(dst, list)
 	g.drawFloors(dst, cam) // see tribalrender.go
 	g.drawLairGround(dst, cam)
+	g.drawCaveGround(dst, cam) // see caveprops.go
 	g.drawDigSpot(dst, cam)
 	// Each thing is drawn on the art-pixel grid through its own ground
 	// point, so a moving one keeps its pixel art whole between art pixels;
@@ -389,8 +391,16 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 			continue
 		}
 		if d.isPlayer {
-			g.drawPlayer(dst, g.curr.Players[d.idx], d)
-			g.drawSwarm(dst, g.curr.Players[d.idx], d.sx, d.sy) // see jungleart.go
+			p := g.curr.Players[d.idx]
+			g.drawPlayer(dst, p, d)
+			if !p.Dead && !p.Swimming && !p.Asleep {
+				vx := 0.0
+				if q, ok := g.prevPlayers[p.ID]; ok {
+					vx = float64(p.X - q.X)
+				}
+				g.drawFeetInGrass(dst, d.wx, d.wy, d.sx, d.sy, 22, vx) // see coverlife.go
+			}
+			g.drawSwarm(dst, p, d.sx, d.sy) // see jungleart.go
 			continue
 		}
 		if d.creature {
@@ -403,6 +413,14 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 				}
 			}
 			g.drawCreature(dst, c, d)
+			if c.Kind != sim.CreatureWorm && c.State != sim.CreatureLurk {
+				wx, wy, _ := g.lerpCreature(c, g.alpha())
+				vx := 0.0
+				if q, ok := g.prevCreatures[c.ID]; ok {
+					vx = float64(c.X - q.X)
+				}
+				g.drawFeetInGrass(dst, wx, wy, d.sx, d.sy, max(14, creatureShadow(c.Kind)*0.9), vx) // see coverlife.go
+			}
 			if c.Ridden {
 				for _, i := range riders {
 					if p := g.curr.Players[i]; p.Mount == c.ID {
@@ -433,7 +451,13 @@ func (g *Game) shadowWidth(e protocol.EntityView) float64 {
 	if w, ok := woodsShadow(e); ok {
 		return w
 	}
+	if w, ok := coverShadow(e); ok { // see coverlife.go
+		return w
+	}
 	if w, ok := lairShadow(e); ok {
+		return w
+	}
+	if w, ok := caveShadow(e); ok { // see cavethings.go
 		return w
 	}
 	if w, ok := tribalShadow(e); ok {
@@ -686,6 +710,8 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 	case e.Kind == sim.EntityLairProp:
 		g.drawLairProp(dst, e, d) // see lairrender.go
 		return
+	case g.drawCaveThing(dst, e, d): // see cavethings.go
+		return
 	case g.floraHidden(e):
 		return // under the ice
 	}
@@ -694,6 +720,9 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		return
 	}
 	if g.drawTentEntity(dst, e, d) { // see tentart.go
+		return
+	}
+	if g.drawCoverEntity(dst, e, d) { // tall grass, bushes, flowers: see coverlife.go
 		return
 	}
 	s, sway := g.entitySprite(e)

@@ -71,8 +71,10 @@ type Game struct {
 	surfaceH      int        // rows above ground; the caves lie below; 0 if none
 	groundSeason  sim.Season // the season the ground is drawn for
 
-	relief     []sim.Relief  // each tile's level and variant; nil for worlds made before sim.StyleIsles; see terrainfeatures.go
-	seasonNext *seasonGround // the next season's ground, being worked out: see mapperf.go
+	relief     []sim.Relief              // each tile's level and variant; nil for worlds made before sim.StyleIsles; see terrainfeatures.go
+	caveCells  []sim.CaveCell            // the natural caves, from row surfaceH down; nil before sim.StyleCaves: see cavebake.go
+	caveMarks  map[sim.EntityID]caveMark // the ways up and down seen, for the map: see cavemap.go
+	seasonNext *seasonGround             // the next season's ground, being worked out: see mapperf.go
 
 	// The two latest snapshots; players are drawn interpolated between them.
 	hasCurr       bool
@@ -91,6 +93,8 @@ type Game struct {
 	hearts        []heartFX      // floating up from beasts being fed; see ride.go
 	riders        []int          // scratch: players drawn on their mounts this frame
 	entAt         map[[2]int]int // tile -> index into curr.Entities
+	bend          bender         // the plants trodden down; see coverlife.go
+	shade         shadeGrid      // the tiles in view the trees shade; see coverlife.go
 
 	sentInput sim.Input
 
@@ -373,9 +377,11 @@ func (g *Game) onMessage(m protocol.ServerMsg) {
 		g.surfaceH = w.SurfaceH
 		g.difficulty = w.Difficulty
 		g.relief = w.Relief
+		g.caveCells = w.Caves
 		terr := newTerrain(w.Width, w.Height, w.Tiles)
 		terr.setRelief(g.relief) // see terrainfeatures.go
 		terr.under = g.caveRow()
+		terr.setCaves(g.caveCells, g.surfaceH) // see cavebake.go
 		g.ground.reset(terr)
 		g.groundSeason = sim.Spring
 		if !g.demo {
@@ -428,6 +434,7 @@ func (g *Game) onSnapshot(s protocol.Snapshot) {
 			terr := newTerrain(g.width, g.height, seasonTiles(g.width, g.height, g.tiles, want, g.pondMask))
 			terr.setRelief(g.relief)
 			terr.under = g.caveRow()
+			terr.setCaves(g.caveCells, g.surfaceH)
 			g.ground.reset(terr)
 		}
 	}
@@ -879,6 +886,9 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		return "Vào hang — đi lên dốc chỗ có ánh nắng để ra lại"
 	case sim.NoticeOutOfCave:
 		return "Đã ra khỏi hang"
+	}
+	if s, ok := caveNoticeText(kind, arg); ok {
+		return s // see cavenotices.go
 	}
 	return cookNoticeText(kind, arg) // see cookrender.go
 }

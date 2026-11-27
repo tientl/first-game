@@ -124,6 +124,12 @@ const (
 
 	// A shelter of branches and leaves, slept in like a bed: see tent.go.
 	EntityLeafTent
+
+	// The natural caves: see cavesys.go.
+	EntityCaveDown   // the hole down to the deep caves, a rope tied over it: walk in to go down
+	EntityCaveUp     // the rope up out of the deep caves, under the hole it hangs from: walk in to climb
+	EntityStalagmite // a cluster of stalagmites: blocks the way; a pickaxe breaks it for stone; Var is its look
+	EntityCaveProp   // a thing of the caves to see or look at; Var is which (CaveProp)
 	NumEntityKinds
 )
 
@@ -196,6 +202,11 @@ var entityNames = [NumEntityKinds]string{
 	EntityFlora: "Cây dại",
 
 	EntityLeafTent: "Lều lá",
+
+	EntityCaveDown:   "Lối xuống hang sâu",
+	EntityCaveUp:     "Dây thừng lên",
+	EntityStalagmite: "Măng đá",
+	EntityCaveProp:   "Hang động",
 }
 
 // Name is the display name of k.
@@ -246,6 +257,10 @@ func Interactable(kind EntityKind, ready, hasWood bool) bool {
 		return true
 	case EntityGrave:
 		return true // see grave.go
+	case EntityStalagmite:
+		return true // broken with a pickaxe; see cavedress.go
+	case EntityCaveProp:
+		return ready // see caveprops.go
 	case EntityTreasure:
 		return true // opened, it opens again like a chest; see cavelife.go
 	case EntityTrap, EntityFlower, EntityGlowPlant, EntityFlora:
@@ -285,6 +300,8 @@ func hits(kind EntityKind, big bool) int {
 		return bySize(big, TreeHits, BigTreeHits)
 	case EntityBoulder:
 		return bySize(big, BoulderHits, BigBoulderHits)
+	case EntityStalagmite:
+		return BigBoulderHits
 	case EntityWall:
 		return WallHits
 	case EntityStoneWall:

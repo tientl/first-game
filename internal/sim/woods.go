@@ -680,6 +680,16 @@ func (w *World) fillUndergrowth(seed uint32) {
 			u = underThick
 		}
 		r := unit(hash2(int32(x), int32(y), seed^0x0dd5))
+		pick := pick
+		if cov := w.woods.cover; cov != nil { // since StyleGround: see groundcover.go
+			trees := w.treesNear(x, y)
+			pick = func(r float64, options ...chance) EntityKind {
+				for j := range options {
+					options[j].p *= cov.undergrowthMul(options[j].kind, i, x, y, trees)
+				}
+				return pickChance(r, options...)
+			}
+		}
 		kind := pick(r, chance{EntityGrassTuft, u.tuft}, chance{EntityBerryBush, u.bush}, chance{EntityTwig, u.twig},
 			chance{EntityFlower, u.flower}, chance{EntityMushroom, u.mushroom})
 		if kind == EntityNone {
@@ -691,4 +701,5 @@ func (w *World) fillUndergrowth(seed uint32) {
 			e.Var = uint8(int(fbm(float64(x)/14+3, float64(y)/14+7, seed+72, 2)*float64(NumFlowers)*1.6) % int(NumFlowers))
 		}
 	}
+	w.woods.cover = nil
 }

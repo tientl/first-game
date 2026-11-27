@@ -87,6 +87,7 @@ func (g *Game) drawMinimap(screen *ebiten.Image, x0 float64) {
 		x, y := at(float64(f.tx)+0.5, float64(f.ty)+0.5)
 		drawFireMark(c, x, y)
 	}
+	g.drawCaveMarks(c, at, 0, float64(g.height)) // the ways up and down: see cavemap.go
 	for _, p := range g.curr.Players {
 		if p.ID == g.myID || p.Dead {
 			continue

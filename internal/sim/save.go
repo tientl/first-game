@@ -58,7 +58,15 @@ import (
 //   - 24: the leaf tent (tent.go): a save may hold one standing, rolled up in
 //     a bag or a chest, or as a player's home, which an older game would
 //     lose. Nothing older changes.
-const SaveVersion = 24
+//   - 25: worlds of StyleGround: tall grass, bushes, twigs and flowers in
+//     drifts and patches with glades between, worms on damp ground and after
+//     rain (groundcover.go). Nothing older changes, but an older game would
+//     make the wrong world of such a save, so it must refuse it.
+//   - 26: worlds of StyleCaves: a natural cave system under each island, on
+//     two levels (cavesys.go), with its stalagmites, ropes and props, and
+//     torches that burn on in it. Nothing older changes, but an older game
+//     would make the wrong world of such a save, so it must refuse it.
+const SaveVersion = 26
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.

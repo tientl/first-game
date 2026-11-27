@@ -117,8 +117,10 @@ func main() {
 	scaleTitle := flag.String("scaletitle", "", "with -scalesheet: a heading for the sheet")
 	subPixel := flag.Bool("subpixel", true, "let the camera and moving things sit between art pixels, on screen pixels (false: whole art pixels, as before HD art)")
 	reveal := flag.Bool("reveal", false, "the whole map seen: no fog on the map (M) and the minimap")
+	mapZoom := flag.Int("mapzoom", 1, "with -overlay map: zoom the map in this many times round the player (as the wheel does)")
 	gifN := flag.Int("gif", 0, "write a GIF of this many frames (with -crop: of that region, not enlarged) as <o>.gif, from the frame -frames picks")
 	gifStep := flag.Int("gifstep", 2, "with -gif: game frames between the GIF's frames")
+	walkFlag := flag.String("walk", "", "dx,dy: the player walks this many tiles a second the whole time (to see the grass bend round them; with -gif)")
 	benchN := flag.Int("bench", 0, "time this many frames before the capture, vsync off, and print what they took and the ground's memory")
 	motionSheet := flag.String("motionsheet", "", "write the player's motion sheet and GIFs into this folder instead of a frame (see internal/client/motionsheet.go)")
 	thin := flag.Float64("thin", 1, "keep about this share of the trees, bushes and rocks round the player (to see the ground)")
@@ -307,9 +309,20 @@ func main() {
 		sx, sy, *at = x, y, ""
 		log.Printf("standing at %.1f,%.1f", sx, sy)
 	}
-	if *at == "cavemouth" || *at == "cavein" || *at == "giant" || *at == "hut" {
+	if x, y, ok := cavePropSpot(w, *at, sx, sy, -1.5, 2.5); ok { // see caves.go
+		sx, sy, *at = x, y, ""
+	}
+	if x, y, ok := caveSpot(w, *at, sx, sy); ok { // see caves.go
+		sx, sy, *at = x, y, ""
+		log.Printf("standing at %.1f,%.1f", sx, sy)
+	}
+	if *at == "cavemouth" || *at == "cavein" || *at == "cavedown" || *at == "caveup" || *at == "giant" || *at == "hut" {
 		k := sim.EntityCaveMouth
 		switch *at {
+		case "cavedown": // by the hole down to the deep caves (natural caves)
+			k = sim.EntityCaveDown
+		case "caveup": // down in the deep caves, by the rope back up
+			k = sim.EntityCaveUp
 		case "cavein":
 			k = sim.EntityCaveExit
 		case "giant": // in front of the nearest giant of the old forest (-move to step aside)
@@ -326,11 +339,15 @@ func main() {
 				if k == sim.EntityCaveExit {
 					sy = float64(e.TY) + 1.5 // where the way down arrives
 				}
+				if k == sim.EntityCaveDown || k == sim.EntityCaveUp {
+					sy = float64(e.TY) + 2.2
+				}
 				if k == sim.EntityHut {
 					sy = float64(e.TY) + 1.45 // on the step before the doorway
 				}
 			}
 		})
+		log.Printf("standing at %.1f,%.1f", sx, sy)
 		*at = ""
 	}
 	if *at == "pyramid" {
@@ -869,7 +886,7 @@ func main() {
 	conn := &fakeConn{ch: make(chan protocol.ServerMsg, 8)}
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerWelcome, Welcome: protocol.Welcome{
 		PlayerID: 1, Width: N, Height: mapH, Tiles: w.Tiles(), Relief: w.Relief(),
-		Explored: shotExplored(N, mapH, sx, sy), SurfaceH: surfH,
+		Explored: shotExplored(N, mapH, sx, sy), SurfaceH: surfH, Caves: w.CaveCells(),
 	}}
 	if *reveal {
 		m := <-conn.ch
@@ -949,6 +966,7 @@ func main() {
 	ebiten.SetWindowTitle("shot")
 	game := client.New(conn, "Tien")
 	game.ShowOverlay(*overlay)
+	game.SetMapZoom(*mapZoom)
 	var adx, ady float64
 	if n, _ := fmt.Sscanf(*aimAt, "%g,%g", &adx, &ady); n == 2 {
 		game.SetAim(adx, ady)
@@ -983,6 +1001,10 @@ func main() {
 		inner = &menuGame{m}
 	}
 	g := &shooter{inner: inner, frames: *frames, out: *out, crop: *crop, cost: *costFlag, gifN: *gifN, gifStep: max(1, *gifStep), bench: *benchN}
+	var wdx, wdy float64
+	if n, _ := fmt.Sscanf(*walkFlag, "%g,%g", &wdx, &wdy); n == 2 {
+		g.walk = &walker{conn: conn, snap: snap, vx: float32(wdx / sim.TicksPerSecond), vy: float32(wdy / sim.TicksPerSecond)}
+	}
 	if *exact {
 		g.fixW, g.fixH = *winW, *winH
 	}
@@ -1062,6 +1084,7 @@ type shooter struct {
 	fixW, fixH    int           // -exact: the screen's size, whatever the window's
 	benchTimes    []time.Duration
 	benchLast     time.Time
+	walk          *walker // -walk: the player on the move; see walk.go
 }
 
 func (s *shooter) Update() error {
@@ -1069,6 +1092,9 @@ func (s *shooter) Update() error {
 		return ebiten.Termination
 	}
 	s.n++
+	if s.walk != nil {
+		s.walk.step(s.n)
+	}
 	return s.inner.Update()
 }
 
