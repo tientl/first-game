@@ -575,7 +575,20 @@ lays out a panel at its own size and shrinks it (the difficulty picker).
   icons are painters like the item icons', baked per size.
 - **Maps** (`uimap.go`): ground not yet walked is faded paper with
   hatching (`fogSrc`) on both maps; the minimap is drawn at the screen's
-  resolution and cut round (`maskSrc`).
+  resolution and cut round (`maskSrc`), a circle in the ring of the day.
+- **The HUD** (`hudlayout.go`, `hud.go`, `hudtoasts.go`) is kept small so
+  the world is what is seen, 12 UI pixels from the edges: thin vital bars
+  (11 px, the value small inside) on a see-through hide (`hudPanel`),
+  round status chips under them (a buff's rim runs down like a clock), the
+  long line of a status said once under the chips as it begins; top right
+  the round minimap in the ring of the day (a sun or moon rides it), one
+  line of day, season and weather under it; top middle a slim boss bar,
+  the notices under it (three at most, fading by themselves); over the
+  hotbar one line, the held item's name for a moment, else the one hint.
+  Every piece's place comes from `hudlayout.go`, and
+  `TestHUDLayoutKeepsClear` checks they keep clear of each other at every
+  screen size and UI size. A chip or the day's line names itself under the
+  pointer.
 - **Over the world** (`uilabels.go`): one label at a time, for what the
   pointer is on, on a soft plate that fades in and out over 140 ms; what is
   out of reach gets a small hint; the target is marked by thin soft
@@ -588,7 +601,8 @@ lays out a panel at its own size and shrinks it (the difficulty picker).
   call `noteBox`; a full-screen dim is `dimScreen`. The screenshot tool
   shows them: `-overlay bag|recipes|craft|map|palette`, `-chest`,
   `-cook -cookui pot`, `-bosses -demobosses`, `-menu`, `-create`,
-  `-devconsole`, `-freebuild`, `-status`, `-aim`.
+  `-devconsole`, `-freebuild`, `-status`, `-skillstatus`, `-buffs`,
+  `-notices "a|b|c"`, `-aim`.
 
 ## Held items
 

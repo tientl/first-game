@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -33,14 +34,26 @@ var (
 	colGold     = color.RGBA{255, 212, 90, 255}
 )
 
-// drawBossBar draws the health of the boss fighting this player: its name,
-// a bar with a mark at half (where it flies into its rage), and behind the
-// health left a paler stretch of what the last blows took, which holds a
-// moment and then drains. It is half as big again on a Full HD screen.
+// bossUp reports whether the boss's bar is up, and whether the boss holds
+// this player (a line under the bar says how to get free).
+func (g *Game) bossUp() (up, holds bool) {
+	b := g.curr.Boss
+	if !b.Kind.Boss() || b.MaxHP <= 0 || g.curr.Self.Dead {
+		return false, false
+	}
+	return true, b.Holds
+}
+
+// drawBossBar draws the health of the boss fighting this player, top
+// middle on a slim slab of carved stone between the vitals and the minimap
+// (hudlayout.go): its name in the title type, a thin bar with a mark at
+// half (where it flies into its rage), and behind the health left a paler
+// stretch of what the last blows took, which holds a moment and then
+// drains.
 func (g *Game) drawBossBar(screen *uiDst, sw int) {
 	b := g.curr.Boss
 	u := &g.boss
-	if !b.Kind.Boss() || b.MaxHP <= 0 || g.curr.Self.Dead {
+	if up, _ := g.bossUp(); !up {
 		u.shownHP, u.lastHP = 1, 1
 		return
 	}
@@ -59,16 +72,14 @@ func (g *Game) drawBossBar(screen *uiDst, sw int) {
 			u.shownHP = f
 		}
 	}
-	k := float32(max(1, min(1.5, float64(sw)/1280)))
-	w := min(640*k, float32(sw)-2*270)
-	x, y := (float32(sw)-w)/2, 10*k
-	K := float64(k)
-	X, Y, W := float64(x), float64(y), float64(w)
-	// A slab of carved stone, a tusk of bone at each end.
-	drawPanel(screen, psStone, X-16*K, Y-5*K, W+32*K, 64*K, 10*K)
-	noteBox(screen, X-16*K, Y-5*K, W+32*K, 64*K)
-	drawTusk(screen, X-14*K, Y+36*K, -1, K)
-	drawTusk(screen, X+W+14*K, Y+36*K, 1, K)
+	W := bossBarW(sw)
+	X := math.Round((float64(sw) - W) / 2)
+	// A slim slab of carved stone, a small tusk of bone at each end.
+	const pad = 12.0
+	drawPanel(screen, psStone, X-pad, bossTop, W+2*pad, bossSlabH, 8)
+	noteBox(screen, X-pad, bossTop, W+2*pad, bossSlabH)
+	drawTusk(screen, X-pad+2, bossTop+bossSlabH-7, -1, 0.7)
+	drawTusk(screen, X+W+pad-2, bossTop+bossSlabH-7, 1, 0.7)
 	title, col := bossName(b.Kind), colGold
 	if b.Enraged {
 		title += " (nổi giận!)"
@@ -76,10 +87,9 @@ func (g *Game) drawBossBar(screen *uiDst, sw int) {
 			col = colBossRage
 		}
 	}
-	uiTextW(screen, title, float64(sw)/2, Y-1*K, col, text.AlignCenter, K*1.3, wTitle, fxOutline)
-	by, bh := y+28*k, 18*k
-	BY, BH := float64(by), float64(bh)
-	well(screen, X-1.5*K, BY-1.5*K, W+3*K, BH+3*K, BH/2+1.5*K)
+	drawTitle(screen, title, float64(sw)/2, bossTop+3, 1.08, col, color.RGBA{50, 30, 12, 255}) // see menu.go
+	BY, BH := float64(bossTop+25), 10.0
+	well(screen, X-1.5, BY-1.5, W+3, BH+3, BH/2+1.5)
 	noteBox(screen, X, BY, W, BH)
 	fill := colBossBar
 	if b.Enraged {
@@ -91,29 +101,34 @@ func (g *Game) drawBossBar(screen *uiDst, sw int) {
 	}
 	drawBarFill(screen, X+1, BY+1, W-2, BH-2, f, fill, barFX{trail: u.shownHP, flash: flash}, g.frame)
 	// The mark at half: a notch of bone.
-	mx := x + w/2
+	mx, by, bh := float32(X+W/2), float32(BY), float32(BH)
 	mark := colBone
 	if f < 0.5 {
 		mark = color.RGBA{120, 104, 82, 255} // passed
 	}
-	fillRect(screen, mx-0.75*k, by, 1.5*k, bh, fade(colHideDark, 160), true)
+	fillRect(screen, mx-0.6, by, 1.2, bh, fade(colHideDark, 160), true)
 	var d vector.Path
-	d.MoveTo(mx, by-7*k)
-	d.LineTo(mx+4*k, by-2.5*k)
-	d.LineTo(mx, by+2*k)
-	d.LineTo(mx-4*k, by-2.5*k)
+	d.MoveTo(mx, by-4.5)
+	d.LineTo(mx+2.8, by-1.6)
+	d.LineTo(mx, by+1.3)
+	d.LineTo(mx-2.8, by-1.6)
 	d.Close()
 	op := &vector.DrawPathOptions{AntiAlias: true}
 	op.ColorScale.ScaleWithColor(mark)
 	fillPath(screen, &d, op)
-	uiTextW(screen, fmt.Sprintf("%d / %d", b.HP, b.MaxHP), float64(sw)/2, BY+BH/2-lineUI*K*0.95/2, colWhite, text.AlignCenter, K*0.95, wHeavy, fxOutline)
+	const vs = 0.58
+	uiTextW(screen, fmt.Sprintf("%d / %d", b.HP, b.MaxHP), X+W-7, BY+BH/2-lineUI*vs/2, colWhite, text.AlignEnd, vs, 880, fxOutline) // clear of the mark at half
 	if b.Holds {
+		const s = 0.85
 		msg := "Bị siết! Giữ phím di chuyển để vùng ra, hoặc đánh nó"
 		c := colBad
 		if (g.frame/12)%2 == 0 {
 			c = lighten(c, 50)
 		}
-		g.text(screen, msg, float64(sw)/2, float64(y+64*k), c, text.AlignCenter, float64(k))
+		w := textWidth(msg, s) + 22
+		y := bossBottom(false) + 4
+		plateA(screen, float64(sw)/2-w/2, y, w, noticeH, noticeH/2, 0.9)
+		uiText(screen, msg, float64(sw)/2, y+(noticeH-lineUI*s)/2, c, text.AlignCenter, s, fxShadow)
 	}
 }
 
