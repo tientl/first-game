@@ -95,7 +95,7 @@ func (b *buttonList) handle() int {
 	if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) || inpututil.IsKeyJustPressed(ebiten.KeyW) {
 		b.move(-1)
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsKeyJustPressed(ebiten.KeyNumpadEnter) {
+	if (inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsKeyJustPressed(ebiten.KeyNumpadEnter)) && !altHeld() { // Alt+Enter is fullscreen
 		return b.sel
 	}
 	if b.w == 0 {

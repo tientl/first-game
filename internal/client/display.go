@@ -180,6 +180,7 @@ func ToggleFullscreen() {
 		} else {
 			s.Window = WindowWindowed
 		}
+		s.Width, s.Height = 0, 0 // a window's size is no fullscreen's: each takes its own default
 	})
 }
 
@@ -293,8 +294,9 @@ func sizedImage(img **ebiten.Image, w, h int) *ebiten.Image {
 
 // fullscreenKeys toggles fullscreen on F11 or Alt+Enter.
 func fullscreenKeys() {
-	alt := ebiten.IsKeyPressed(ebiten.KeyAltLeft) || ebiten.IsKeyPressed(ebiten.KeyAltRight)
-	if inpututil.IsKeyJustPressed(ebiten.KeyF11) || alt && inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyF11) || altHeld() && inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 		ToggleFullscreen()
 	}
 }
+
+func altHeld() bool { return ebiten.IsKeyPressed(ebiten.KeyAlt) }

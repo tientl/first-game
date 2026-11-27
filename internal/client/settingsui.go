@@ -433,9 +433,10 @@ func (s *settingsScreen) update() bool {
 		s.line = at - 1
 		snd.ui("ui_move")
 	}
+	rows = s.rows() // the tab may have turned
 	left := justPressed(ebiten.KeyA, ebiten.KeyArrowLeft)
 	right := justPressed(ebiten.KeyD, ebiten.KeyArrowRight)
-	enter := justPressed(ebiten.KeyEnter, ebiten.KeyNumpadEnter, ebiten.KeySpace)
+	enter := justPressed(ebiten.KeyEnter, ebiten.KeyNumpadEnter, ebiten.KeySpace) && !altHeld() // Alt+Enter is fullscreen
 	switch {
 	case s.line < 0: // the tabs
 		switch {
