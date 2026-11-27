@@ -147,7 +147,8 @@ type Game struct {
 	art      *art
 	ground   *groundCache
 	world    *worldDst     // the world pass: art pixels on a full-resolution canvas; see hd.go
-	worldHi  *ebiten.Image // the canvas when post-processing needs it apart from the screen
+	worldHi  *ebiten.Image // the canvas when post-processing or the render quality needs it apart from the screen
+	worldUp  *ebiten.Image // a smaller canvas blown up, for a hit-stop to hold; see display.go
 	darkness *ebiten.Image
 	hd       *heroHDState  // the trial hero's frames and lights; see herohddraw.go
 	caveMask *ebiten.Image // one pixel per tile in view: where it is always dark

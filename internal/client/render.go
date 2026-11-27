@@ -127,17 +127,15 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		scale = worldScale(sh)
 	}
 	cw, ch := (sw+scale-1)/scale, (sh+scale-1)/scale
+	// The render quality may draw it on a smaller canvas, rr canvas pixels
+	// to an art pixel, blown up to the screen after: see display.go.
+	rr := renderScale(scale)
 	canvas := screen
 	frozen := g.frozen() && !g.demo // a hit-stop: the world as it was at the blow; see feel.go
-	if (postFX || g.stop.capture) && !g.demo {
-		if g.worldHi == nil || g.worldHi.Bounds() != screen.Bounds() {
-			if g.worldHi != nil {
-				g.worldHi.Deallocate()
-			}
-			g.worldHi = ebiten.NewImage(sw, sh)
-		}
-		g.worldHi.Fill(color.RGBA{14, 18, 28, 255})
-		canvas = g.worldHi
+	if rr < scale || (postFX || g.stop.capture) && !g.demo {
+		w, h := renderSize(sw, sh, scale, rr)
+		canvas = sizedImage(&g.worldHi, w, h)
+		canvas.Fill(color.RGBA{14, 18, 28, 255})
 	}
 	if g.world == nil {
 		g.world = &worldDst{}
@@ -162,7 +160,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	sub := 1
 	if subPixel {
-		sub = scale
+		sub = rr
 	}
 	cam := newCamera(cx, cy, cw, ch, sub)
 	if !g.demo {
@@ -175,15 +173,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if frozen {
 		g.drawStopped(screen, scale)
 	} else {
-		g.drawWorld(screen, canvas, cam, scale, cw, ch, alpha, target)
+		g.drawWorld(screen, canvas, cam, scale, rr, cw, ch, alpha, target)
 	}
 	g.drawAfterWorld(screen, cam, scale, sw, sh, alpha, target, far)
 }
 
-// drawWorld draws the world on canvas, and that on screen if it is not.
-func (g *Game) drawWorld(screen, canvas *ebiten.Image, cam camera, scale, cw, ch int, alpha float64, target targetView) {
+// drawWorld draws the world on canvas, rr canvas pixels to an art pixel, and
+// that on screen (at scale) if it is not.
+func (g *Game) drawWorld(screen, canvas *ebiten.Image, cam camera, scale, rr, cw, ch int, alpha float64, target targetView) {
 	w := g.world
-	w.begin(canvas, scale, cw, ch, cam)
+	w.begin(canvas, rr, cw, ch, cam)
 	for _, stage := range []func(){
 		func() { g.ground.draw(w, cam.ox, cam.oy, g.frame) },
 		func() { g.drawLairWater(w, cam, alpha) }, // the shark's deep: see lairrender.go
@@ -223,11 +222,15 @@ func (g *Game) drawWorld(screen, canvas *ebiten.Image, cam camera, scale, cw, ch
 	w.end()
 	if canvas != screen {
 		img := canvas
-		if postFX {
-			img = g.applyPost(canvas, scale) // see postfx.go
+		if postFX && !g.demo {
+			img = g.applyPost(canvas, rr) // see postfx.go
 		}
-		screen.DrawImage(img, nil)
-		g.keepStop(img) // the picture a hit-stop holds; see feel.go
+		if rr < scale && g.stop.capture {
+			// The picture a hit-stop holds is kept at the screen's size.
+			img, rr = upscaleWorld(&g.worldUp, img, screen.Bounds().Dx(), screen.Bounds().Dy(), scale, rr), scale
+		}
+		presentWorld(screen, img, scale, rr) // see display.go
+		g.keepStop(img)                      // the picture a hit-stop holds; see feel.go
 	}
 }
 

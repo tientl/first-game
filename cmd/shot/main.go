@@ -69,6 +69,9 @@ func main() {
 	zoom := flag.Int("zoom", 0, "the view's zoom, -3 to 3")
 	warm := flag.Bool("warm", false, "the trial warm ground: ochre earth with patches of grass")
 	fx := flag.Bool("fx", false, "turn on the post-processing shaders: glow and colour grading")
+	quality := flag.Int("quality", 100, "the render quality: the world drawn at 100, 75 or 50 percent of the screen and blown up (the interface stays sharp; see internal/client/display.go)")
+	uiScale := flag.Float64("uiscale", 0, "the interface's scale, screen pixels to a UI pixel (2.5 is 250%); 0 is automatic")
+	settingsTab := flag.String("settings", "", "open the settings screen at a tab: audio, display or controls (with -menu, over the main menu; else over the pause menu)")
 	fight := flag.Bool("fight", false, "show the beasts' health: a few just hurt, with the damage floating up (use with -dinos)")
 	troodon := flag.Bool("troodon", false, "put a pack of night hunters round the player: one stalking, one leaping in, one biting, and two more watching from the dark (use with -time 0.9 for their eyes)")
 	woodsFlag := flag.Bool("woods", false, "put the woods round the player: a giant tree and a tree with beehives, banana trees, a troop of monkeys, and bees after the player")
@@ -154,6 +157,11 @@ func main() {
 	client.SetSubPixel(*subPixel)
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
+	client.OverrideSettings(func(s *client.Settings) { s.Quality = *quality })
+	_ = settingsTab
+	if *uiScale > 0 {
+		client.SetUIScale(*uiScale)
+	}
 	client.SetWarmGround(*warm)
 	if *bossesFlag {
 		*coast = true

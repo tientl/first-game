@@ -269,3 +269,23 @@ func presentWorld(screen, canvas *ebiten.Image, r, rr int) {
 	op.GeoM.Scale(k, k)
 	screen.DrawImage(canvas, op)
 }
+
+// upscaleWorld blows the canvas up from rr to r into *buf, sw by sh, and
+// returns it.
+func upscaleWorld(buf **ebiten.Image, canvas *ebiten.Image, sw, sh, r, rr int) *ebiten.Image {
+	up := sizedImage(buf, sw, sh)
+	up.Clear()
+	presentWorld(up, canvas, r, rr)
+	return up
+}
+
+// sizedImage is *img, made anew if it is not w by h.
+func sizedImage(img **ebiten.Image, w, h int) *ebiten.Image {
+	if *img == nil || (*img).Bounds().Dx() != w || (*img).Bounds().Dy() != h {
+		if *img != nil {
+			(*img).Deallocate()
+		}
+		*img = ebiten.NewImage(w, h)
+	}
+	return *img
+}
