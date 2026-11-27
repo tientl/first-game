@@ -83,9 +83,10 @@ const (
 	RecipeLegWraps = RecipeMantle + 1
 	RecipeBoots    = RecipeLegWraps + 1
 
-	RecipeLeafTent = RecipeBoots + 1 // see tent.go
+	RecipeLeafTent = RecipeBoots + 1    // see tent.go
+	RecipeShield   = RecipeLeafTent + 1 // see shield.go
 
-	NumRecipes = RecipeLeafTent + 1
+	NumRecipes = RecipeShield + 1
 )
 
 // Recipe turns ingredients into either a structure placed in front of the
@@ -542,11 +543,14 @@ type Input struct {
 	// See aim.go.
 	Aim        bool
 	AimX, AimY float32
+	// Guard holds a shield up while it is set (right button or Q): see
+	// shield.go.
+	Guard bool
 }
 
 func (in Input) sanitized() Input {
 	clamp := func(v int8) int8 { return max(-1, min(1, v)) }
-	out := Input{MoveX: clamp(in.MoveX), MoveY: clamp(in.MoveY), Action: in.Action}
+	out := Input{MoveX: clamp(in.MoveX), MoveY: clamp(in.MoveY), Action: in.Action, Guard: in.Guard}
 	if in.Aim && finite(float64(in.AimX), float64(in.AimY)) { // aim from the network may be anything
 		out.Aim, out.AimX, out.AimY = true, in.AimX, in.AimY
 	}

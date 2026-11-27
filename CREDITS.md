@@ -28,3 +28,15 @@ The few signs Nunito has not got (arrows such as → and ↔) are drawn from **G
 the Go fonts by Bigelow & Holmes Inc. (<https://go.dev/blog/go-fonts>), under the BSD 3-Clause
 licence of the Go project; it comes with the `golang.org/x/image` module and is not copied into
 the repository.
+
+## Effects
+
+The combat effects and the fire (hit sparks, critical hits, the flash and lines of a blow,
+claw marks, the sword's slash, the thrust, the spear's sweep, the war axe's cleave, the
+splash, blocks and parries, the flames of campfires, torches and bonfires) follow the recipes
+of **pixelfx** by Patch (<https://github.com/patch-gg/pixelfx>), whose effects are in part
+adapted from Sprite Fusion's pixel-art effects by Hugo Duprez: their timings, shapes and
+palettes, redrawn in Go in [internal/client/fx.go](internal/client/fx.go) and
+[internal/client/fireart.go](internal/client/fireart.go). Used under the MIT License
+(Copyright 2026 Patch, Copyright 2026 Hugo Duprez); the licence is given in full in
+[internal/client/LICENSE-pixelfx.txt](internal/client/LICENSE-pixelfx.txt).

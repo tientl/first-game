@@ -361,6 +361,13 @@ type Creature struct {
 	trip           int        // ticks left of a walk to water
 
 	hops int // a toad's hops left in this run; see toad.go
+
+	// Fighting: see knock.go and riposte.go.
+	kx, ky    float64  // tiles of a throw still to go
+	reel      int      // ticks to reel for, from its next step: a parried blow
+	riposte   int      // ticks it keeps coming back at ripFoe after a blow
+	ripFoe    PlayerID // who struck it
+	ripChased bool     // it had to come after them: it strikes as soon as it is there
 }
 
 // fauna is the world's animal life.
@@ -637,7 +644,9 @@ func (w *World) stepCreatures() {
 	awake := w.awake()
 	for _, c := range f.creatures {
 		if !c.gone && !w.dozes(c, awake) { // see doze.go
+			w.striker = blowSrc{c, w.tick} // its blows, whose they are: see shield.go
 			w.stepCreature(c)
+			w.striker = blowSrc{}
 			w.maybeDung(c) // see dung.go
 		}
 	}
@@ -653,7 +662,8 @@ func (w *World) stepCreature(c *Creature) {
 	if c.flinchCD > 0 {
 		c.flinchCD--
 	}
-	w.stepBlow(c) // see telegraph.go
+	w.stepJostle(c) // reeling, thrown back: see knock.go
+	w.stepBlow(c)   // see telegraph.go
 	if c.Kind.Boss() {
 		w.stepBoss(c) // no snare holds it, and it eats nobody's food: see bossfight.go
 		return
@@ -685,6 +695,9 @@ func (w *World) stepCreature(c *Creature) {
 				c.State, c.timer = c.after, c.afterT // a big beast shrugs it off
 			}
 		}
+		return
+	}
+	if w.stepRiposte(c) { // struck, it comes back at them: see riposte.go
 		return
 	}
 	if c.fedCD > 0 {
@@ -950,6 +963,7 @@ func (w *World) catch(p *Player, c *Creature) bool {
 	}
 	// What a kill gives falls on the ground (see drops.go), so a full bag
 	// never stops a blow; only a fish comes straight off the line into it.
+	seq := p.NoticeSeq
 	dmg := w.blow(p, c.Kind)  // see combat.go
 	dmg = armoured(p, c, dmg) // an Ankylosaurus's plates: see ankylo.go
 	if c.Kind == CreatureToad && Punches(p.Held()) && c.biteCD == 0 {
@@ -967,6 +981,7 @@ func (w *World) catch(p *Player, c *Creature) bool {
 	if w.wound(c, dmg, p) && d.bait.Valid() {
 		p.Inv.Take(d.bait, 1)
 	}
+	w.struckBy(p, c, p.NoticeSeq != seq && p.Notice == NoticeCrit) // thrown back, and back at them: see riposte.go
 	return true
 }
 

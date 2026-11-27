@@ -157,6 +157,8 @@ const (
 
 	ItemLeafTent // a leaf tent rolled up, set down with V and slept in like a bed: see tent.go
 
+	ItemShield // a round wooden shield, raised to block blows: see shield.go
+
 	itemsEnd // new items go above this line
 
 	// The head of each kind of beast, a trophy: HeadItem(k). They sit at a

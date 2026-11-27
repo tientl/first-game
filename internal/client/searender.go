@@ -52,7 +52,9 @@ func (g *Game) drawBoat(dst drawTarget, b protocol.BoatView, sx, sy float64) {
 	left := boatLeft(float64(b.Heading))
 
 	// A wake of foam behind a boat under way.
-	if b.Speed > 0.02 {
+	if b.Speed > 0.02 && envHD {
+		drawBoatWake(dst, sx, sy, float64(b.Heading), float64(b.Speed), t/60, b.Kind != sim.BoatSail) // see boathd.go
+	} else if b.Speed > 0.02 {
 		hx, hy := math.Cos(float64(b.Heading)), math.Sin(float64(b.Heading))
 		n := int(min(10, float64(b.Speed)*60))
 		for k := 1; k <= n; k++ {

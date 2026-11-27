@@ -62,7 +62,7 @@ type Settings struct {
 	VSync bool `json:"vsync"`
 
 	Zoom    int    `json:"zoom,omitempty"`    // the view's zoom, minZoom to maxZoom; see render.go
-	NoShake bool   `json:"noshake,omitempty"` // screen shake turned off (the key claude/combat-feel uses)
+	NoShake bool   `json:"noshake,omitempty"` // screen shake turned off; see feel.go
 	PostFX  bool   `json:"postfx"`            // the lighting shaders: glow and grading; see postfx.go
 	Grade   string `json:"grade,omitempty"`   // a colour grade of the world: "" (the game's own) or "comfy"
 	Ground  string `json:"ground,omitempty"`  // the look of the ground: "" (green) or "warm"; see groundhd.go
@@ -251,19 +251,10 @@ func setSettings(s Settings) {
 	}
 }
 
-// --- hooks for settings whose code is on other branches ---------------------------
+// applyScreenShake turns screen shake on or off: see feel.go.
+func applyScreenShake(on bool) { screenShake = on }
 
-// shakeOn is the "Rung màn hình" setting: whether the view may shake.
-var shakeOn = true
-
-// applyScreenShake turns screen shake on or off.
-//
-// HOOK(screen shake): claude/combat-feel adds the screen shake proper
-// (feel.go: screenShake, SetScreenShake, saved as "noshake" through
-// audio.go's saveShake). Once it is merged, set its screenShake here, make
-// SetScreenShake call changeSettings(func(s *Settings) { s.NoShake = !on }),
-// and drop saveShake: this file already keeps "noshake".
-func applyScreenShake(on bool) { shakeOn = on }
+// --- a hook for a setting whose code is on another branch ---------------------------
 
 // colourGrades are the colour grades of the world the settings screen
 // offers besides the game's own, by the name kept in the settings. None is
