@@ -136,6 +136,9 @@ type figDraw struct {
 	// offHand puts item in the other hand: the hand that holds things is
 	// busy (reaching up for fruit).
 	offHand bool
+	// itemBack draws item behind the body: a tool carried along the side of
+	// a figure seen from the front or the back (carriedBehind).
+	itemBack bool
 	// shield draws the shield (shieldart.go) at each of the layers it may
 	// go in: behind the figure, over the trunk under the near arm, or over
 	// everything; it draws only at the one it belongs in.
@@ -208,7 +211,7 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 	}
 	h := u.hand[0]
 	sideways := dir == sim.DirLeft || dir == sim.DirRight
-	back := heldBehind(dir) // drawn before the body
+	back := heldBehind(dir) || f.itemBack // drawn before the body
 	if f.offHand {
 		h = u.hand[1]
 		back = back || sideways // the far hand
@@ -270,6 +273,20 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 	layer(upTopOver)
 	shieldAt(shieldOver)
 	return ux, uy, skew, u
+}
+
+// carried reports whether figure f, its legs lo, carries what it holds
+// (drawCarried): standing, idling, walking or running, not astride a
+// mount, nor in a blow or a deed.
+func carried(f figDraw, lo loKey) bool {
+	if lo.anim == loSit || f.offHand {
+		return false
+	}
+	switch f.up.anim {
+	case upStand, upWalk, upRun, upWalkHold, upRunHold, upMotion + upAnim(moIdle):
+		return f.up.frame&upSit == 0
+	}
+	return false
 }
 
 // toolBehindHeadY is how high a hand seen from the side has to be, art
@@ -516,6 +533,17 @@ func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, l
 				f.lo = l2
 			}
 			g.deedItems(dst, &f, p, m, fr)
+		}
+	}
+	// Walking, running or standing, a tool is carried as it would be: see
+	// drawCarried. A torch is held up, its arm raised whatever the other does.
+	if carried(f, lo) && heldDefOf(p.Held) != nil {
+		if p.Held == sim.ItemTorch {
+			f.up.frame |= upTorch
+		}
+		f.tool, f.itemBack = false, carriedBehind(p.Held, dir)
+		f.item = func(dst drawTarget, hx, hy, swing float64) {
+			g.drawCarried(dst, p.Held, dir, hx, hy, swing)
 		}
 	}
 	if p.Shield {

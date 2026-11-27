@@ -28,7 +28,7 @@ func TestHeldHD(t *testing.T) {
 		name := sim.ItemKind(k).Def().Name
 		start := time.Now()
 		for i := range heldTurns {
-			p := bakeHeld(d, i)
+			p := bakeHeld(d, i, 1)
 			n++
 			bytes += 4 * p.w * p.h
 			least, most = min(least, 4*p.w*p.h), max(most, 4*p.w*p.h)
@@ -72,7 +72,7 @@ func TestHeldBoxes(t *testing.T) {
 		}
 		wide := *d
 		wide.x0, wide.y0, wide.x1, wide.y1 = d.x0-3, d.y0-3, d.x1+3, d.y1+3
-		p := bakeHeld(&wide, 0)
+		p := bakeHeld(&wide, 0, 1)
 		// The painted extent, in art pixels from the grip.
 		x0, y0, x1, y1 := math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)
 		for y := 0; y < p.h; y++ {
@@ -85,9 +85,10 @@ func TestHeldBoxes(t *testing.T) {
 			}
 		}
 		const slack = 0.7 // the outline
-		if x0 < d.x0-slack || y0 < d.y0-slack || x1 > d.x1+slack || y1 > d.y1+slack {
+		s := d.k()        // the box is in design units
+		if x0 < d.x0*s-slack || y0 < d.y0*s-slack || x1 > d.x1*s+slack || y1 > d.y1*s+slack {
 			t.Errorf("%s paints (%.1f, %.1f)-(%.1f, %.1f), outside its box (%.1f, %.1f)-(%.1f, %.1f)",
-				sim.ItemKind(k).Def().Name, x0, y0, x1, y1, d.x0, d.y0, d.x1, d.y1)
+				sim.ItemKind(k).Def().Name, x0, y0, x1, y1, d.x0*s, d.y0*s, d.x1*s, d.y1*s)
 		}
 	}
 }
@@ -125,7 +126,7 @@ func TestDumpHeld(t *testing.T) {
 	}
 	for r, k := range kinds {
 		for c, turn := range turns {
-			p := bakeHeld(heldDefs[k], turn)
+			p := bakeHeld(heldDefs[k], turn, 1)
 			ox, oy := c*cell+(cell-p.w)/2, r*cell+(cell-p.h)/2
 			for y := 0; y < p.h; y++ {
 				for x := 0; x < p.w; x++ {
@@ -165,6 +166,34 @@ func TestDumpHeld(t *testing.T) {
 func BenchmarkBakeHeld(b *testing.B) {
 	d := heldDefs[sim.ItemAxe]
 	for i := 0; i < b.N; i++ {
-		bakeHeld(d, i%heldTurns)
+		bakeHeld(d, i%heldTurns, 1)
+	}
+}
+
+// TestHeldSizes checks each held item against the figure (playerArtH art
+// pixels tall): an axe, a pick or a hoe about the forearm and hand, a knife
+// a hand and a half, a spear a head and a half taller than the figure, a
+// torch about a third of it, a rod as tall as it.
+func TestHeldSizes(t *testing.T) {
+	want := map[sim.ItemKind][2]float64{ // its length over the figure's height, at least and at most
+		sim.ItemAxe: {0.38, 0.47}, sim.ItemPickaxe: {0.38, 0.47}, sim.ItemHoe: {0.38, 0.47},
+		sim.ItemCopperSword: {0.18, 0.28}, sim.ItemSpear: {1.1, 1.25}, sim.ItemIvorySpear: {1.1, 1.3},
+		sim.ItemTorch: {0.3, 0.42}, sim.ItemRod: {0.95, 1.05},
+	}
+	for k, r := range want {
+		d := heldDefs[k]
+		p := bakeHeld(d, 0, 1) // upright: its height is its length
+		solidTop, solidBottom := p.h, -1
+		for y := 0; y < p.h; y++ {
+			for x := 0; x < p.w; x++ {
+				if p.px[y*p.w+x].A >= 128 {
+					solidTop, solidBottom = min(solidTop, y), max(solidBottom, y)
+				}
+			}
+		}
+		l := float64(solidBottom-solidTop+1) / HDDensity / playerArtH
+		if l < r[0] || l > r[1] {
+			t.Errorf("%s is %.2f of the figure's height, not %.2f to %.2f", k.Def().Name, l, r[0], r[1])
+		}
 	}
 }

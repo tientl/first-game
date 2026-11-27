@@ -152,7 +152,9 @@ func (g *Game) drawCleave(dst drawTarget, p protocol.PlayerView, d drawable, bob
 		}
 		const tail = 2.4                         // radians of sweep behind the head
 		if heldDefOf(sim.ItemBattleAxe) != nil { // at the canvas's own resolution; see heldhd.go
-			swingArc(dst, gx, gy, side, a, ps.back, 1, tail, battleAxeHead-4.5, battleAxeHead+5.2, mix(iiJade[4], colWhite, 0.4), fade*0.9)
+			hd := heldDefOf(sim.ItemBattleAxe)
+			r := hd.headAt()
+			swingArc(dst, gx, gy, side, a, ps.back, 1, tail, r-0.4*(hd.reachAt()-r), hd.reachAt()+0.3, mix(iiJade[4], colWhite, 0.4), fade*0.9)
 		}
 		for s := 0.0; s <= 1 && heldDefOf(sim.ItemBattleAxe) == nil; s += 1.0 / 72 {
 			b := a - tail*s
@@ -175,7 +177,11 @@ func (g *Game) drawCleave(dst drawTarget, p protocol.PlayerView, d drawable, bob
 	// and wide, at the canvas's resolution (see fx.go); a blow that bites a
 	// beast adds heavy-cleave's embers (feel.go).
 	if landed >= 0 && landed < 40 {
-		hx, hy := at(ps.down, battleAxeHead+1)
+		hr := battleAxeHead + 1
+		if hd := heldDefOf(sim.ItemBattleAxe); hd != nil {
+			hr = hd.headAt() + 1 // where the HD head is: see heldhd_art.go
+		}
+		hx, hy := at(ps.down, hr)
 		t := landed / 60
 		var b fxBatch
 		r := fxRng{uint32(p.ID)*7919 + 1}
