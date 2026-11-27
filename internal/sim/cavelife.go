@@ -346,7 +346,7 @@ func (w *World) openTreasure(p *Player, e *Entity) bool {
 		e.Ready = false
 		e.RegrowAt = math.MaxUint64 // never fills again
 		inv := &Inventory{}
-		for _, it := range treasureLoot(e.ID, int(e.Var)) {
+		for _, it := range w.chestLoot(e) { // by its depth, or since StyleCaveWays its kind and ring: see caveways.go
 			inv.Add(it.Item, it.Count)
 		}
 		w.chests[e.ID] = inv

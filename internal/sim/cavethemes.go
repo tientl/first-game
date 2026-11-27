@@ -92,7 +92,7 @@ func (s *caveSystem) assignZones(rng *rand.Rand, kind IslandKind) {
 	free := func(ok func(i int, c caveChamber) bool) []int {
 		var out []int
 		for i, c := range s.chambers {
-			if c.hall || c.zone != ZoneHall || i == s.descent || i == s.arrival || !ok(i, c) {
+			if c.hall || c.zone != ZoneHall || i == s.descent || i == s.arrival || s.shaft(i) || !ok(i, c) {
 				continue
 			}
 			out = append(out, i)

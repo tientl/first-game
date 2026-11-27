@@ -8,9 +8,9 @@ import (
 )
 
 // The held painters (heldhd.go): each item in its own frame, art pixels,
-// the grip at (0, 0), the working end up. Sizes are the old held sprites'
-// (held.go), so swings reach as far as they did: beside the 31-pixel
-// figure an axe is about 16 pixels from butt to head, a spear 27, a rod 28.
+// the grip at (0, 0), the working end up, set to its real size beside the
+// 31-pixel figure by its scale (TestHeldSizes): an axe, a pick or a hoe 13
+// pixels from butt to head, a knife 7.5, a spear 37, a torch 11, a rod 31.
 // Tools stand upright with the head's edge forward (+u); the stone of a
 // tool's head is its tier's (heldMats).
 
@@ -206,7 +206,7 @@ func (h *hpv) strap(u0, v0, u1, v1, w float64, r ramp) {
 // the edge forward.
 func heldAxe(m heldMat, t sim.Tier) *heldDef {
 	seed := uint32(5 + 10*t)
-	return &heldDef{x0: -2.6, y0: -15.2, x1: 7, y1: 3.6, grip: 0.85, paint: func(h *hpv) {
+	return &heldDef{x0: -2.6, y0: -15.2, x1: 7, y1: 3.6, grip: 0.85, scale: 0.75, head: 9.5, reach: 15.2, paint: func(h *hpv) {
 		h.haft(2.8, -13.1, 0.84, 0.74, iiWood, 11)
 		head := sPoly(-1.8, -11.6, -0.8, -12.5, 1.8, -12.2, 3.6, -13.8, 5.0, -14.5, 6.0, -13.0,
 			6.4, -10.3, 6.0, -7.6, 5.0, -6.0, 3.6, -6.7, 1.8, -8.4, -0.8, -8.2, -1.8, -9.0).rough(0.08, 0.5, seed)
@@ -238,7 +238,7 @@ func heldAxe(m heldMat, t sim.Tier) *heldDef {
 // the top of the haft, the front one the longer.
 func heldPick(m heldMat, t sim.Tier) *heldDef {
 	seed := uint32(9 + 10*t)
-	return &heldDef{x0: -7.4, y0: -14.2, x1: 7.6, y1: 3.6, grip: 0.85, paint: func(h *hpv) {
+	return &heldDef{x0: -7.4, y0: -14.2, x1: 7.6, y1: 3.6, grip: 0.85, scale: 0.8, head: 11.5, reach: 13.5, paint: func(h *hpv) {
 		h.haft(2.8, -11.4, 0.84, 0.74, iiWood, 21)
 		// The head's middle line: highest over the haft, the points drooping.
 		mid := func(u float64) float64 { return -11.7 + 2.0*(u/6.6)*(u/6.6) }
@@ -271,7 +271,7 @@ func heldPick(m heldMat, t sim.Tier) *heldDef {
 // as an axe.
 func heldHoe(m heldMat, t sim.Tier) *heldDef {
 	seed := uint32(33 + 10*t)
-	return &heldDef{x0: -1.8, y0: -14.6, x1: 7.8, y1: 3.6, grip: 0.85, paint: func(h *hpv) {
+	return &heldDef{x0: -1.8, y0: -14.6, x1: 7.8, y1: 3.6, grip: 0.85, scale: 0.78, head: 10, reach: 13, paint: func(h *hpv) {
 		h.haft(2.8, -12.7, 0.82, 0.72, iiWood, 31)
 		blade := sPoly(-0.7, -13.4, 3.6, -13.8, 5.2, -13.2, 6.3, -10.6, 7.2, -7.4, 7.6, -5.9, 5.8, -5.5,
 			4.0, -5.6, 3.9, -7.0, 3.4, -9.6, 2.4, -11.4, -0.7, -11.6).rough(0.07, 0.5, seed)
@@ -298,41 +298,44 @@ func heldHoe(m heldMat, t sim.Tier) *heldDef {
 // down it, bound into a wooden grip with a knob at its end.
 func heldKnife(m heldMat, t sim.Tier) *heldDef {
 	seed := uint32(40 + t)
-	return &heldDef{x0: -2.6, y0: -14.6, x1: 2.6, y1: 4.2, grip: 0.8, paint: func(h *hpv) {
-		h.haft(2.6, -2.4, 0.72, 0.66, iiWood, seed)
-		h.fill(sEll(0, 3.1, 1.0, 0.9), func(f *ifrag) color.RGBA { // the knob
+	// A hand's length of blade, the grip a fist wide: a quarter of the figure.
+	return &heldDef{x0: -1.5, y0: -5.4, x1: 1.5, y1: 2.8, grip: 0.7, head: 2.9, reach: 5.0, paint: func(h *hpv) {
+		h.haft(1.8, -0.9, 0.56, 0.5, iiWood, seed)
+		h.fill(sEll(0, 1.95, 0.62, 0.56), func(f *ifrag) color.RGBA { // the knob
 			u, v := h.loc(f.x, f.y)
-			return pick(iiWood, h.lit(u/1.0*0.85, (v-3.1)/0.9*0.85))
+			return pick(iiWood, h.lit(u/0.62*0.85, (v-1.95)/0.56*0.85))
 		})
-		blade := sPoly(-0.85, -2.0, 0.85, -2.0, 1.7, -4.0, 2.05, -6.8, 1.8, -9.6, 1.15, -12.0, 0.15, -14.0,
-			-0.6, -12.6, -1.4, -10.0, -1.95, -7.2, -1.75, -4.4).rough(0.06, 0.35, seed+1)
+		blade := sPoly(-0.6, -0.8, 0.6, -0.8, 0.98, -1.8, 1.05, -2.9, 0.78, -3.9, 0.12, -5.0,
+			-0.38, -4.3, -0.8, -3.2, -0.98, -1.9).rough(0.04, 0.3, seed+1)
 		h.fill(blade, func(f *ifrag) color.RGBA {
 			u, v := h.loc(f.x, f.y)
 			// Two faces meeting along a ridge from the grip to the point.
-			ridge := 0.05 + 0.012*(v+2)
+			ridge := 0.04 + 0.01*(v+0.8)
 			nu, lift := -0.5, 0.0
 			if u > ridge {
 				nu = 0.5
 			}
-			if math.Abs(u-ridge) < 0.18 {
+			if math.Abs(u-ridge) < 0.12 {
 				lift = 0.16
 			}
-			return m.face(h, f, u, v, nu, -0.1, lift, 0, -7.5, seed+2)
+			return m.face(h, f, u, v, nu, -0.1, lift, 0, -2.9, seed+2)
 		})
-		h.lash(-3.8, -1.6, 1.02, icHideIn, seed+3)
+		h.lash(-1.5, -0.5, 0.7, icHideIn, seed+3)
 	}}
 }
 
 // heldSpearDef is the spear: a long shaft, a knapped flint point lashed on,
 // a strip of hide hanging from the lashing.
-var heldSpearDef = &heldDef{x0: -2.4, y0: -22, x1: 2.8, y1: 6.8, grip: 0.8, paint: func(h *hpv) {
-	h.haft(6.3, -13.6, 0.64, 0.56, iiWood, 51)
-	point := sPoly(-0.8, -13.0, 0.8, -13.0, 1.7, -15.0, 2.05, -16.9, 1.4, -19.0, 0.15, -21.4,
-		-1.0, -19.2, -1.85, -16.9, -1.6, -15.0).rough(0.06, 0.35, 52)
+// It is a head and a half taller than the figure, gripped a third of the way
+// up from its butt.
+var heldSpearDef = &heldDef{x0: -2.4, y0: -25.4, x1: 2.8, y1: 12.6, grip: 0.8, head: 20.5, reach: 25, carry: carryPole, paint: func(h *hpv) {
+	h.haft(12.0, -17.4, 0.58, 0.5, iiWood, 51)
+	point := sPoly(-0.8, -16.8, 0.8, -16.8, 1.7, -18.8, 2.05, -20.7, 1.4, -22.8, 0.15, -25.2,
+		-1.0, -23.0, -1.85, -20.7, -1.6, -18.8).rough(0.06, 0.35, 52)
 	m := heldMats[sim.TierCopper]
 	h.fill(point, func(f *ifrag) color.RGBA {
 		u, v := h.loc(f.x, f.y)
-		ridge := 0.03 * (v + 13)
+		ridge := 0.03 * (v + 16.8)
 		nu, lift := -0.5, 0.0
 		if u > ridge {
 			nu = 0.5
@@ -340,23 +343,23 @@ var heldSpearDef = &heldDef{x0: -2.4, y0: -22, x1: 2.8, y1: 6.8, grip: 0.8, pain
 		if math.Abs(u-ridge) < 0.18 {
 			lift = 0.16
 		}
-		return m.face(h, f, u, v, nu, -0.1, lift, 0, -17, 53)
+		return m.face(h, f, u, v, nu, -0.1, lift, 0, -20.8, 53)
 	})
-	h.lash(-14.3, -12.2, 0.92, icLashR, 54)
-	h.fill(sPath(0.34, 0.22, 0.6, -12.6, 1.5, -11.2, 1.8, -9.6, 1.5, -8.3), shBulge(icLashR, 0.3, 0.05))
+	h.lash(-18.1, -16.0, 0.9, icLashR, 54)
+	h.fill(sPath(0.34, 0.22, 0.6, -16.4, 1.5, -15.0, 1.8, -13.4, 1.5, -12.1), shBulge(icLashR, 0.3, 0.05))
 }}
 
 // heldIvorySpearDef is the ivory spear: a slender point cut from a tusk,
 // bound with hide.
-var heldIvorySpearDef = &heldDef{x0: -2.4, y0: -23.4, x1: 2.6, y1: 6.8, grip: 0.8, paint: func(h *hpv) {
-	h.haft(6.3, -14.6, 0.66, 0.58, iiWood, 61)
-	point := sPoly(-0.9, -14.0, 0.9, -14.0, 1.4, -16.6, 1.2, -19.6, 0.3, -22.8, -0.5, -20.6, -1.2, -17.4)
+var heldIvorySpearDef = &heldDef{x0: -2.4, y0: -26.4, x1: 2.6, y1: 12.6, grip: 0.8, head: 21.5, reach: 26, carry: carryPole, paint: func(h *hpv) {
+	h.haft(12.0, -18.2, 0.6, 0.52, iiWood, 61)
+	point := sPoly(-0.9, -17.6, 0.9, -17.6, 1.4, -20.2, 1.2, -23.2, 0.3, -26.0, -0.5, -24.0, -1.2, -21.0)
 	h.fill(point, func(f *ifrag) color.RGBA {
 		u, v := h.loc(f.x, f.y)
 		// Round and polished: lit as a tube, a glint where it turns to the
 		// light, and the faint rings of the tusk's growth.
-		hw := lerpf(1.25, 0.2, clamp01((-v-14)/8.8))
-		c := lerpf(0, 0.2, clamp01((-v-14)/8.8))
+		hw := lerpf(1.25, 0.2, clamp01((-v-17.6)/8.4))
+		c := lerpf(0, 0.2, clamp01((-v-17.6)/8.4))
 		tt := max(-1, min(1, (u-c)/hw))
 		nx, ny := h.dir(tt*0.85, -0.12)
 		l := litOf(nx, ny) - 0.18
@@ -368,12 +371,12 @@ var heldIvorySpearDef = &heldDef{x0: -2.4, y0: -23.4, x1: 2.6, y1: 6.8, grip: 0.
 		}
 		return pick(icBoneR, l)
 	})
-	h.lash(-15.2, -13.0, 0.94, icHideIn, 63)
+	h.lash(-18.8, -16.6, 0.92, icHideIn, 63)
 }}
 
 // heldBattleAxeDef is the war axe: a double-bitted jade head, each bit a
 // crescent, lashed with hide to a long haft gripped low.
-var heldBattleAxeDef = &heldDef{x0: -7.2, y0: -18.6, x1: 7.2, y1: 3.8, grip: 0.9, paint: func(h *hpv) {
+var heldBattleAxeDef = &heldDef{x0: -7.2, y0: -18.6, x1: 7.2, y1: 3.8, grip: 0.9, scale: 0.72, head: 12, reach: 18, paint: func(h *hpv) {
 	h.haft(3.0, -17.2, 0.9, 0.8, iiWood, 71)
 	m := heldMats[sim.TierIron] // jade
 	const cv = -12.0            // the head's middle
@@ -413,7 +416,7 @@ const torchFlameV = -10.6
 
 // heldTorchDef is a torch: a stick with a bundle of tarred cloth and straw
 // bound round its top. Its flame is drawn apart, upright (torchFlame).
-var heldTorchDef = &heldDef{x0: -2, y0: -12.6, x1: 2, y1: 3.4, grip: 0.75, paint: func(h *hpv) {
+var heldTorchDef = &heldDef{x0: -2, y0: -12.6, x1: 2, y1: 3.4, grip: 0.75, scale: 0.76, carry: carryTorch, paint: func(h *hpv) {
 	h.haft(2.7, -8.4, 0.64, 0.58, iiWood, 81)
 	// Straw ends sticking out of the top of the bundle.
 	for i := 0; i < 5; i++ {
@@ -443,7 +446,7 @@ const rodTipU, rodTipV = 1.0, -24.4
 // heldRodDef is the fishing rod: a long pole of peeled sapling, thinning
 // and bending a little to its tip, cord wound where it is held and at the
 // tip.
-var heldRodDef = &heldDef{x0: -1.4, y0: -25.2, x1: 2.2, y1: 4.6, grip: 0.7, paint: func(h *hpv) {
+var heldRodDef = &heldDef{x0: -1.4, y0: -25.2, x1: 2.2, y1: 4.6, grip: 0.7, scale: 1.04, carry: carryPole, paint: func(h *hpv) {
 	bend := func(v float64) float64 { return rodTipU * (v / rodTipV) * (v / rodTipV) }
 	var pts []float64
 	for i := 0; i <= 10; i++ {
