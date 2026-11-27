@@ -36,6 +36,10 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Giới hạn khung hình: 30 / 60 / 120 / không giới hạn, kèm VSync.
   - Thu phóng camera (đã có phím = / −) đưa vào menu.
   - Mặc định tự động: độ phân giải màn hình, toàn màn hình, chất lượng Cao, cỡ giao diện Tự động. Cài đặt được lưu lại.
+- [ ] **Bộ chiêu tấn công cho từng loài** (mục 7): mỗi loài 2–4 chiêu, chiêu nào cũng có lấy đà rõ (đòn nhẹ 0,4–0,5 giây, đòn mạnh 0,8–1 giây, đòn đặc biệt 1,2–1,5 giây kèm vùng đỏ dưới đất), sát thương chỉ tính lúc ra đòn, đánh xong khựng 0,5–1 giây cho người chơi phản công. Bảng chiêu đã đề xuất, chờ chốt.
+- [ ] **Trận trùm Titanoboa và Megalodon**: chiêu báo trước, đổi đòn theo giai đoạn máu.
+- [ ] **Ghi công và giấy phép** (bắt buộc trước Steam): màn hình "Ghi công" trong menu (tiếng CC BY trong `CREDITS.md`, Ebitengine, phông chữ, pixelfx nếu dùng) và file `LICENSES.txt` kèm game (nguyên văn giấy phép Apache, MIT, BSD, OFL của các thư viện và phông).
+- [ ] **Kiểm tra trước khi cho chơi thử**: đo RAM và khung hình thực tế trên máy Windows (bộ nhớ đệm mặt đất, cây, tiếng, trùm, chuyển động); thời gian tải thế giới 2048; test tải bản lưu cũ qua từng đời (save 1 → mới nhất) không hỏng.
 
 ## 1. Công cụ dev (làm đầu tiên)
 
@@ -54,8 +58,20 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 - [x] Giai đoạn 0: nền tảng vẽ ở độ phân giải màn hình (`internal/client/hd.go`, `HD_ART.md`).
 - [x] Giai đoạn 1: nhân vật (8 khung đi, giáp, đấm, bơi, ngủ, màn hình tạo nhân vật) và mặt đất (cả hai kiểu: cỏ xanh và đất ấm; `SetGroundStyle`, lưu trong cài đặt).
 - [x] Giai đoạn 2: cây, cỏ, hoa, đá, công trình (vẽ lại ở HD). Còn tinh chỉnh tự động, cần vẽ tay sau: quặng, lò nung, lều, cây ăn thịt, chông, kim tự tháp. Lửa, thuyền, icon vẫn hình cũ.
-- [ ] Giai đoạn 3: khủng long và các sinh vật. **Xong phần khủng long** (16 loài vẽ từ PNG, 8 khung đi/chạy, 8 khung vỗ cánh, lấy đà trước đòn — hình HD tạo tự động từ hình cũ, chưa vẽ tay). Còn: thú vẽ bằng code (thỏ, rắn, cua, cá sấu, voi ma mút, hổ răng kiếm, gấu, nhện, thổ dân, khỉ, bọ cạp, cá, giun), quái biển, 6 trùm; và sim phải trì hoãn đòn đánh để lấy đà là báo trước thật (hiện trúng đòn ngay khi bắt đầu lấy đà).
+- [x] Giai đoạn 3: khủng long và các sinh vật. 16 loài khủng long và Ankylosaurus vẽ tay lại ở HD (`internal/dinopaint`, mắt mở, đùi chuyển động theo chân), voi ma mút, hổ răng kiếm, quái biển và trùm vẽ HD. Còn thú nhỏ và thổ dân: xem dòng dưới.
 - [ ] Giai đoạn 4: icon, giao diện, hiệu ứng (có thể lấy hiệu ứng từ pixelfx, giấy phép MIT).
+  - [ ] **Biểu tượng**: mới 20 / ~150 món vẽ HD (`iconhd.go`); còn lại chia nhóm vẽ tiếp.
+  - [ ] **Giao diện HD** (đang làm): thanh máu, ô đồ, túi, rương, chế tạo, nấu ăn, bản đồ nhỏ, thanh trùm, menu vẽ ở độ phân giải thật; phông chữ vector có đủ dấu tiếng Việt (giấy phép OFL); khung kiểu da thuộc, gỗ, đá, xương; chữ nổi trong thế giới nhỏ gọn, chỉ hiện khi trỏ chuột.
+  - [ ] **Đồ cầm tay HD** (đang làm): rìu, cuốc, giáo, dao, kiếm, đuốc, cần câu, bát… vẽ HD, xoay mượt khi vung.
+  - [ ] **Lửa, đuốc, hiệu ứng** từ pixelfx (làm chung với Cảm giác đánh nhau); thuyền vẽ lại.
+  - [ ] **Bộ lọc ánh sáng bật mặc định ở mức nhẹ** (`postfx.go`), gộp với kết quả thử tông màu COMFY52 (đang thử 3 bản: hiện tại / chỉnh màu theo COMFY52 / ép đúng 52 màu).
+- [ ] **Thú nhỏ, thổ dân và làng HD**: thỏ, cua, cá, khỉ, nhện, giun, rắn, bọ cạp, người và nhà thổ dân vẽ lại cho ngang khủng long.
+- [ ] **Cây cỏ và mặt đất** (đang làm): mỗi loại 4–6 kiểu, mọc thành đám, lá rụng và rêu dưới tán, cỏ lay theo gió và rạp khi đi qua, màu theo mùa, vẽ lại thân cây tuế, bớt giun.
+- [ ] **Biển và vách đá**: san hô thành cụm gọn, sóng biển sâu vẽ HD, vách đá cao có khối như tranh mẫu.
+- [ ] **Quặng đá lửa** ở đồi đá bớt dày (giữ đá lửa vẫn là quặng nhiều nhất).
+- [ ] **Chuyển động nhân vật**: làm lại dáng chạy (chúi người, tay vung, chân đá ngược, nhún) và đi bộ (đang làm); hết lộ chân khi bơi ở nước sâu (đang làm); cưỡi thú nhìn từ trước và sau (phải vẽ thêm góc nhìn cho thú cưỡi, chờ quyết).
+- [ ] **Xoay hướng đồ xây dựng**: phím R hoặc lăn chuột khi đặt, hình mờ hiện đúng hướng, hướng lưu trong game; cửa, giường, lều, hàng rào, tường, bàn ghế, đồ nấu ăn, bàn chế tạo, rương; cả bảng xây tự do của dev.
+- [ ] **Hang mới** (đang làm): mỗi đảo một hệ hang, khoang lớn nối đường hầm rộng 3–6 ô, hai tầng, khoang theo chủ đề (pha lê, hồ ngầm, nấm, ổ nhện, hang gấu, hoá thạch, tranh vách) và theo đảo phía trên (rễ cây, sa thạch và lăng mộ, ống dung nham, hang băng, hang ngập nước).
 
 ### Tỉ lệ và hoạt ảnh
 
@@ -92,7 +108,9 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Quần đảo thiết kế: đảo nhà ở giữa (đồng cỏ, một ngọn đồi, vịnh kín), quanh đó các đảo lớn mỗi đảo một tính cách (rừng rậm, châu thổ đầm lầy, đảo khỉ có núi đá, dãy núi tuyết có vịnh hẹp, sa mạc cao nguyên, núi lửa), đảo vừa, đảo nhỏ, một đảo san hô vòng có phá bên trong; bờ có vịnh, mũi đất, bán đảo, eo biển giữa các đảo.
   - Ô mới: **biển nông** (bơi và đi thuyền được; rạn san hô, phá, bãi cạn), **sông** (bơi qua), **chỗ lội** (đi bộ qua), **thác**, **vách đá**. Mỗi ô có thêm một byte địa hình: tầng cao 0–3, biến thể (đồng hoa, trảng rừng, rừng dày / thưa, mỏm đá, cồn cát, đá vụn, bãi bùn, bãi đá tảng, dốc lên, …), mép mềm, đất ẩm.
   - Vách đá giữa các tầng, có dốc lên đủ để đi khắp mỗi đảo; sông từ chỗ cao chảy ra biển, có thác, hồ, châu thổ. Hình vẽ hiện là tạm (`client/terrainfeatures.go`), chờ vẽ đẹp.
-- [ ] **Thời gian**: ngày chậm lại, mỗi ngày 15–20 phút; 1 năm 50 ngày; độ dài ngày và đêm khác nhau theo mùa.
+- [x] **Thời gian**: ngày chậm lại, mỗi ngày 15–20 phút; 1 năm 50 ngày; độ dài ngày và đêm khác nhau theo mùa. (Đã làm: ngày 16 phút, mùa 12 ngày, ngày và đêm theo mùa.)
+- [ ] **Camera**: lia theo người mượt, phóng to thu nhỏ mượt, rung màn hình khi có sự kiện lớn (gầm của bạo chúa, trùm, đòn mạnh).
+- [ ] **Mưa và đêm đẹp hơn**: hạt mưa, vũng nước, ánh chớp; ban đêm có ánh trăng, bóng tối mềm quanh nguồn sáng.
 - [ ] **Thời tiết theo vùng** (hiện thời tiết chung cho cả thế giới):
   - Sa mạc: không mưa, không tuyết; có bão cát (che tầm nhìn, đi chậm), nắng nóng ban ngày (khát nhanh), đêm lạnh.
   - Vùng tuyết: tuyết và bão tuyết quanh năm, lạnh hơn.
@@ -192,6 +210,14 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Đánh: kẹp hai càng (giữ người lại, siết máu), chích đuôi (độc nặng, mất máu lâu), phun độc thành vũng trên sàn, chui xuống cát rồi trồi lên dưới chân người chơi, gọi bọ cạp con. Vỏ cứng: phải đánh vào đuôi hoặc lúc nó ngóc lên mới trúng mạnh.
   - Chiến lợi phẩm huyền thoại gợi ý: **Giáp vỏ bọ cạp** (miễn độc, phản lại một phần sát thương) hoặc **Dao đuôi bọ cạp** (mỗi đòn làm thú trúng độc).
   - Đưa vào màn hình "Phá đảo!" và các ô bóng trùm trong đĩa bay.
+
+## 12. Âm thanh
+
+- [x] **Tiếng thú thật** (`realvoice.go`, `assets/voices/SOURCES.md`): mỗi loài một giọng ghép từ bản thu thú thật (tài sản công, CC0, 2 file CC BY ghi trong `CREDITS.md`).
+- [ ] **Bước chân theo mặt đất**: cỏ, cát, đá, nước, tuyết, bùn, gỗ (sàn nhà); thú to bước nặng.
+- [ ] **Âm thanh nền theo vùng**: gió, chim, côn trùng ban đêm, sóng biển, mưa, suối và thác, tiếng vọng trong hang; đổi theo giờ và thời tiết.
+- [ ] **Tiếng nhân vật**: thở khi chạy, kêu khi bị đánh, tiếng ăn, uống, ngáp khi ngủ dậy.
+- [ ] **Tiếng giao diện**: mở túi, chế tạo xong, nhặt đồ, đặt công trình, thông báo.
 
 ## 10. Đồ trang trí (sau demo)
 
