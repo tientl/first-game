@@ -151,16 +151,16 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 	}
 
 	// In a gale: streaks of foam blown down the wind, broken and drifting.
-	if r > 0.3 {
+	if r > 0.42 {
 		a := p - wind*t*14.0
 		along := dot(a, wind) / length(wind)
 		across := dot(a, vec2(-wind.y, wind.x)) / length(wind)
 		s := noise(vec2(along*0.006, across*0.11))
 		s2 := noise(vec2(along*0.03, across*0.3) + 5.0)
 		if s > 0.74 && s2 > 0.42 {
-			foam = max(foam, (r-0.3)*0.9*min(1.0, (s-0.74)/0.08)*(0.6+0.4*s2))
+			foam = max(foam, (r-0.42)*1.1*min(1.0, (s-0.74)/0.08)*(0.6+0.4*s2))
 		}
-		dark += 0.12 * (r - 0.3) // a grey, heavy sea
+		dark += 0.14 * (r - 0.42) // a grey, heavy sea
 	}
 
 	dark = clamp(dark*k, 0.0, 0.6)
