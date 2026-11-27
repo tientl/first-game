@@ -373,17 +373,13 @@ func (w *World) shove(p *Player, x, y, d float64) {
 	if l < 1e-6 {
 		dx, dy, l = 1, 0, 1
 	}
-	dx, dy = dx/l*0.1, dy/l*0.1
-	can := w.standable
-	if w.style >= StyleSeas {
-		can = w.swimmable
+	if p.guard.up && p.guard.at == w.tick {
+		d *= GuardKnock // taken on a raised shield; see shield.go
 	}
-	for s := 0.0; s < d; s += 0.1 {
-		if !can(p.X+dx, p.Y+dy) {
-			break
-		}
-		p.X, p.Y = p.X+dx, p.Y+dy
-	}
+	// Eased: most of the way now, the rest over the next ticks; see knock.go.
+	p.knockX += dx / l * d
+	p.knockY += dy / l * d
+	w.knockMove(p, KnockFirst)
 }
 
 // bossLetGo releases whoever c holds in its coils.

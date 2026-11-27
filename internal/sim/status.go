@@ -130,3 +130,7 @@ func (w *World) breakFree(p *Player, c *Creature) {
 
 // clearStatus takes every status off p: they died or came back.
 func (p *Player) clearStatus() { p.status = playerStatus{} }
+
+// onShield reports whether a blow on p this tick was taken on their raised
+// shield (shield.go): it hurt less, and leaves nothing more on them.
+func (p *Player) onShield(tick uint64) bool { return p.guard.up && p.guard.at == tick }

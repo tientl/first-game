@@ -128,7 +128,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	cw, ch := (sw+scale-1)/scale, (sh+scale-1)/scale
 	canvas := screen
-	if postFX && !g.demo {
+	frozen := g.frozen() && !g.demo // a hit-stop: the world as it was at the blow; see feel.go
+	if (postFX || g.stop.capture) && !g.demo {
 		if g.worldHi == nil || g.worldHi.Bounds() != screen.Bounds() {
 			if g.worldHi != nil {
 				g.worldHi.Deallocate()
@@ -156,7 +157,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	if !g.demo {
 		cx, cy = g.introCamera(cx, cy) // a boss waking: see bossintro.go
-		sx, sy := shake(g.frame)       // a tyrant roaring close by; see rexroar.go
+		sx, sy := shake(g.frame)       // heavy blows, roars, stomps; see feel.go
 		cx, cy = cx+sx, cy+sy
 	}
 	sub := 1
@@ -171,6 +172,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	target, far := g.target()
 	g.hudTarget = target
 
+	if frozen {
+		g.drawStopped(screen, scale)
+	} else {
+		g.drawWorld(screen, canvas, cam, scale, cw, ch, alpha, target)
+	}
+	g.drawAfterWorld(screen, cam, scale, sw, sh, alpha, target, far)
+}
+
+// drawWorld draws the world on canvas, and that on screen if it is not.
+func (g *Game) drawWorld(screen, canvas *ebiten.Image, cam camera, scale, cw, ch int, alpha float64, target targetView) {
 	w := g.world
 	w.begin(canvas, scale, cw, ch, cam)
 	for _, stage := range []func(){
@@ -178,15 +189,18 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		func() { g.drawLairWater(w, cam, alpha) }, // the shark's deep: see lairrender.go
 		func() { g.drawFish(w, cam, alpha) },
 		func() { g.drawUndergrowth(w, cam) },
-		func() { g.drawHDTest(w, cam) }, // the HD trial stones; see hdtest.go
+		func() { g.drawFX(w, cam, true, false) }, // dust on the ground; see fx.go
+		func() { g.drawHDTest(w, cam) },          // the HD trial stones; see hdtest.go
 		func() { g.drawSprites(w, cam, alpha, target) },
 		func() { g.drawLines(w, cam, alpha) },
-		func() { g.drawCookFX(w, cam) },         // steam and smoke; see cookrender.go
-		func() { g.drawSky(w, cam, alpha) },     // flying reptiles overhead
-		func() { g.drawLairSky(w, cam) },        // birds startled near a lair
-		func() { g.drawHearts(w, cam) },         // beasts being fed; see ride.go
-		func() { g.drawSnowfall(w, cam) },       // over the frozen north; see iceart.go
-		func() { g.drawWeather(w, cam, alpha) }, // rain, snow, wind, tornadoes, webs; see tribalrender.go
+		func() { g.drawFX(w, cam, false, false) }, // splashes, dust, leaves
+		func() { g.drawCookFX(w, cam) },           // steam and smoke; see cookrender.go
+		func() { g.drawFireSmoke(w, cam) },        // see fireart.go
+		func() { g.drawSky(w, cam, alpha) },       // flying reptiles overhead
+		func() { g.drawLairSky(w, cam) },          // birds startled near a lair
+		func() { g.drawHearts(w, cam) },           // beasts being fed; see ride.go
+		func() { g.drawSnowfall(w, cam) },         // over the frozen north; see iceart.go
+		func() { g.drawWeather(w, cam, alpha) },   // rain, snow, wind, tornadoes, webs; see tribalrender.go
 		func() { g.drawClouds(w, cam) },
 		func() { g.drawLighting(w, cam) },
 		func() { g.drawGlowMasks(w, cam, g.darknessNow()) },
@@ -195,6 +209,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		func() { g.drawCaveBats(w, cam) },                         // bats flitting over their roost; see caveprops.go
 		func() { g.drawLightning(w, cam) },
 		func() { g.drawEmbers(w, cam) },
+		func() { g.drawFX(w, cam, false, true) }, // sparks and slashes, bright at night
 		func() { g.drawFireflies(w, cam) },
 		func() {
 			if !g.demo {
@@ -207,8 +222,18 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	w.end()
 	if canvas != screen {
-		screen.DrawImage(g.applyPost(canvas, scale), nil) // see postfx.go
+		img := canvas
+		if postFX {
+			img = g.applyPost(canvas, scale) // see postfx.go
+		}
+		screen.DrawImage(img, nil)
+		g.keepStop(img) // the picture a hit-stop holds; see feel.go
 	}
+}
+
+// drawAfterWorld draws what goes over the world: the vignette, labels and
+// the interface.
+func (g *Game) drawAfterWorld(screen *ebiten.Image, cam camera, scale, sw, sh int, alpha float64, target, far targetView) {
 
 	vop := &ebiten.DrawImageOptions{}
 	vb := g.art.vignette.Bounds()
@@ -759,14 +784,14 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		drawSwaying(dst, s, d.sx, d.sy, sway)
 	}
 	if e.Kind == sim.EntityCampfire {
-		if e.Fuel > 0 {
+		if e.Fuel > 0 && !g.drawFireOf(dst, e, campFire(e.Fuel), d.sx, d.sy+1) { // see fireart.go
 			size := 0.6 + 0.4*min(1, float64(e.Fuel)/sim.FireStartFuel)
 			f := g.art.flames[(g.frame/5+int(e.ID))%flameFrames]
 			drawAt(dst, f, d.sx, d.sy+1, size, size, 0, nil)
 		}
 		drawAt(dst, g.art.campFront, d.sx, d.sy, 1, 1, 0, nil)
 	}
-	if e.Kind == sim.EntityFurnace && e.Fuel > 0 {
+	if e.Kind == sim.EntityFurnace && e.Fuel > 0 && !g.drawFireOf(dst, e, fireMouth, d.sx, d.sy-1) {
 		f := g.art.flames[(g.frame/4+int(e.ID))%flameFrames]
 		drawAt(dst, f, d.sx, d.sy-1, 0.45, 0.4, 0, nil) // in its mouth
 	}
@@ -974,8 +999,13 @@ func (g *Game) drawClouds(dst drawTarget, cam camera) {
 }
 
 // drawEmbers draws sparks rising from every burning campfire. They are a
-// pure function of time, so there is no particle state to keep.
+// pure function of time, so there is no particle state to keep. At HD the
+// fires have their own (drawFireFX in fireart.go).
 func (g *Game) drawEmbers(dst drawTarget, cam camera) {
+	if fireHD {
+		g.drawFireFX(dst, cam)
+		return
+	}
 	t := float64(g.frame)
 	for _, e := range g.curr.Entities {
 		if e.Kind != sim.EntityCampfire || e.Fuel <= 0 {

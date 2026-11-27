@@ -637,6 +637,9 @@ func (g *Game) contextHint() (key, s string, c color.Color) {
 	if cmd, _ := rightClickUse(held, g.hotSel, g.useContextNow()); cmd.Kind != sim.CmdNone {
 		return "Chuột phải:", useLabel(cmd, held), colGood
 	}
+	if g.curr.Self.Inv.Count(sim.ItemShield) > 0 { // see shieldart.go
+		return "Chuột phải / Q:", "giữ để giơ khiên đỡ đòn", colGood
+	}
 	return "F1:", "xem các phím", colMuted
 }
 

@@ -665,6 +665,16 @@ func (w *World) packLeader(c *Creature) bool {
 	return others > 0
 }
 
+// hasMates reports whether another of c's kind, wild, is within r tiles.
+func (w *World) hasMates(c *Creature, r float64) bool {
+	for _, o := range w.fauna.creatures {
+		if o != c && o.Kind == c.Kind && !o.gone && !o.Tamed() && math.Hypot(o.X-c.X, o.Y-c.Y) <= r {
+			return true
+		}
+	}
+	return false
+}
+
 // foodNear is whether p holds food, or food lies on the ground by them.
 func (w *World) foodNear(p *Player) bool {
 	if p.Held().Edible() {
@@ -712,6 +722,9 @@ func (w *World) ready(c *Creature, i int, d *SkillDef, p *Player, dist float64) 
 	case NeedHit:
 		if !s.call {
 			return false
+		}
+		if d.Fx&FxCall != 0 && !w.hasMates(c, CallDist) {
+			return false // alone: nobody to call
 		}
 	case NeedCalm:
 		if c.rage > 0 {
@@ -853,6 +866,9 @@ func (w *World) stepSkills(c *Creature) bool {
 	if s.hitT > 0 {
 		s.hitT--
 	}
+	if s.id != SkillNone && c.riposte > 0 {
+		c.riposte-- // its riposte runs out in the middle of a move too
+	}
 	if s.id == SkillNone {
 		return false
 	}
@@ -928,6 +944,14 @@ func (w *World) windStep(c *Creature, d *SkillDef, p *Player) {
 		if dist := math.Hypot(p.X-c.X, p.Y-c.Y); dist > 0.3 {
 			step := min(dist-0.3, c.Kind.def().run*1.6)
 			w.moveCreature(c, (p.X-c.X)/dist*step, (p.Y-c.Y)/dist*step)
+		}
+	}
+	if c.riposte > 0 && d.Motion == MoveStill && d.Shape == ZoneCone && !d.Behind {
+		// Struck and coming back at them (riposte.go): it follows its foe
+		// in as it winds up, till its aim locks; so a blow and a step back
+		// is no free blow, but a step aside at the last moment still is.
+		if dist, reach := math.Hypot(p.X-c.X, p.Y-c.Y), d.Reach*0.6; dist > reach {
+			w.lunge(c, p, dist, min(max(c.Kind.def().run*riposteRunK, PlayerSpeed*RiposteSpeed), dist-reach))
 		}
 	}
 	w.aimSkill(c, d, p)
@@ -1046,10 +1070,13 @@ func (w *World) skillHit(c *Creature, d *SkillDef, p *Player, fx, fy float64) {
 		return
 	}
 	if d.Knock > 0 {
-		if fx == c.X && fy == c.Y || d.Shape != ZoneCircle {
+		if d.Shape != ZoneCircle {
 			fx, fy = c.X, c.Y
 		}
 		w.shove(p, fx, fy, d.Knock)
+	}
+	if d.Damage > 0 && p.onShield(w.tick) {
+		return // taken on a raised shield: no stun, bleeding, venom or pin (shield.go)
 	}
 	p.stunFor(d.Stun)
 	p.bleedFor(d.Bleed)

@@ -109,7 +109,7 @@ func (g *Game) drawHeldAt(dst drawTarget, k sim.ItemKind, dir sim.Dir, hx, hy fl
 		switch k {
 		case sim.ItemTorch:
 			fx, fy := heldPoint(hx, hy, th, side, 0, torchFlameV)
-			drawTorchFlame(dst, (g.frame/5)%torchFlameN, fx, fy)
+			drawTorchFlame(dst, g.frame/fireStep+int(heldBy.id)*3, fx, fy)
 			g.markHeld(func(m *heldMark) { m.flame, m.fx, m.fy = true, fx, fy })
 		case sim.ItemRod:
 			tx, ty := heldPoint(hx, hy, th, side, rodTipU, rodTipV)

@@ -162,8 +162,9 @@ func (m *mixer) Read(p []byte) (int, error) {
 type audioSettings struct {
 	Music   float64 `json:"music"`
 	Effects float64 `json:"effects"`
-	Zoom    int     `json:"zoom,omitempty"`   // the view's zoom; see render.go
-	Ground  string  `json:"ground,omitempty"` // the look of the ground: "" (green) or "warm"; see groundhd.go
+	Zoom    int     `json:"zoom,omitempty"`    // the view's zoom; see render.go
+	Ground  string  `json:"ground,omitempty"`  // the look of the ground: "" (green) or "warm"; see groundhd.go
+	NoShake bool    `json:"noshake,omitempty"` // screen shake turned off; see feel.go
 }
 
 // --- sound system -----------------------------------------------------------
@@ -230,6 +231,8 @@ func InitAudio(settingsPath string) {
 			if s.settings.Ground = st.Ground; st.Ground == "warm" {
 				groundStyle = GroundWarm
 			}
+			s.settings.NoShake = st.NoShake
+			screenShake = !st.NoShake
 		}
 	}
 
@@ -457,6 +460,15 @@ func (s *soundSystem) saveGround(g GroundStyle) {
 		return
 	}
 	s.settings.Ground = name
+	s.saveSettings()
+}
+
+// saveShake keeps the screen shake setting with the settings.
+func (s *soundSystem) saveShake(on bool) {
+	if s == nil || s.settings.NoShake == !on {
+		return
+	}
+	s.settings.NoShake = !on
 	s.saveSettings()
 }
 

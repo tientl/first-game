@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 49
+const Version = 51
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -231,6 +231,14 @@ type PlayerView struct {
 	// is under it (sim.ResolveTarget), so others' swings are drawn right.
 	Aim        bool
 	AimX, AimY float32
+
+	// The shield (see sim/shield.go): carried on the back, raised before
+	// them; GuardSeq goes up with every blow taken on it (Parry: the last
+	// was a parry), for the spark and the knock of it.
+	Shield   bool
+	Guard    bool
+	GuardSeq uint8
+	Parry    bool
 }
 
 // EntityView is what clients see of a world entity.

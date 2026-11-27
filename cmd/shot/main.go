@@ -140,6 +140,8 @@ func main() {
 	freeBuild := flag.Bool("freebuild", false, "dev mode with free build on: the DEV · XÂY TỰ DO tag, every recipe lit with a DEV badge; -overlay palette opens the build palette (see internal/sim/devbuild.go)")
 	devBase := flag.Bool("devbase", false, "build a small base round the player through free build's own commands: the ground cleared, then walls, a door, floors, a bed, fires, a farm, flowers (implies -freebuild; see dev.go)")
 	devPiece := flag.Int("devpiece", -1, "a piece of the build palette in hand, by its number (free build): its ghost under -aim")
+	combatSheet := flag.String("combatsheet", "", "write the combat sheets into this folder instead of a frame: the shield on the figure in every facing, and every effect frame by frame (see internal/client/combatsheet.go)")
+	combatLive := flag.String("combat", "", "play a real fight and write it as <o>.gif: feel (blows with hit-stop, flash, knockback, shake) or shield (raise, block, parry); see combat.go")
 	heldSheet := flag.String("heldsheet", "", "write the held-item sheets into this folder instead of a frame: every held item in the hand old and new, and a GIF of the swings (see internal/client/heldsheet.go)")
 	heldHD := flag.Bool("heldhd", true, "the HD held items, painted at the figure's density and turned cleanly (false: the old density-1 sprites; see internal/client/heldhd.go)")
 	flag.Parse()
@@ -161,6 +163,10 @@ func main() {
 	client.SetBossAge(*bossAge)
 	if *skillsFlag != "" {
 		runSkills(*skillsFlag, filepath.Dir(*out), *seed, *size, *winW, *winH)
+		return
+	}
+	if *combatLive != "" {
+		runCombat(*combatLive, *out, *seed, *winW, *winH, *dayFrac)
 		return
 	}
 	if *encounterFlag != "" {
@@ -1030,6 +1036,9 @@ func main() {
 	if *iconSheet {
 		g.icons = game
 	}
+	if *combatSheet != "" {
+		g.combat, g.combatDir = game, *combatSheet
+	}
 	if *heldSheet != "" {
 		g.held, g.heldDir = game, *heldSheet
 	}
@@ -1077,6 +1086,8 @@ type shooter struct {
 	motions   *client.Game // write its motion sheets into motionDir instead of the frame
 	motionDir string
 	held      *client.Game // write its held-item sheets into heldDir instead of the frame
+	combat    *client.Game // write its combat sheets into combatDir instead of the frame
+	combatDir string
 	heldDir   string
 	icons     *client.Game // write its icon sheet instead of the frame
 	tents     *client.Game // write the leaf tent's sheet and GIF into tentDir instead of the frame
@@ -1137,6 +1148,13 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 		s.err, s.done = s.motions.MotionSheets(s.motionDir), true
 		if s.err == nil {
 			log.Printf("wrote the motion sheets in %s", s.motionDir)
+		}
+		return
+	}
+	if s.combat != nil {
+		s.err, s.done = s.combat.CombatSheets(s.combatDir), true
+		if s.err == nil {
+			log.Printf("wrote the combat sheets in %s", s.combatDir)
 		}
 		return
 	}

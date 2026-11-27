@@ -90,10 +90,10 @@ func (g *Game) drawCookEntity(dst drawTarget, e protocol.EntityView, d drawable)
 	}
 	drawAt(dst, g.art.campBack, d.sx, d.sy, 1, 1, 0, nil)
 	drawAt(dst, back, d.sx, d.sy, 1, 1, 0, nil)
-	if e.Fuel > 0 {
+	if e.Fuel > 0 && !g.drawFireOf(dst, e, fireCook, d.sx, d.sy+1) { // kept low, under what cooks; see fireart.go
 		size := 0.6 + 0.4*min(1, float64(e.Fuel)/sim.FireStartFuel)
 		f := g.art.flames[(g.frame/5+int(e.ID))%flameFrames]
-		drawAt(dst, f, d.sx, d.sy+1, size, size*0.8, 0, nil) // kept low, under what cooks
+		drawAt(dst, f, d.sx, d.sy+1, size, size*0.8, 0, nil)
 	}
 	drawAt(dst, front, d.sx, d.sy, 1, 1, 0, nil)
 	drawAt(dst, g.art.campFront, d.sx, d.sy, 1, 1, 0, nil)
@@ -103,6 +103,9 @@ func (g *Game) drawCookEntity(dst drawTarget, e protocol.EntityView, d drawable)
 // drawOvenFire is the fire in a lit oven's mouth.
 func (g *Game) drawOvenFire(dst drawTarget, e protocol.EntityView, d drawable) {
 	if e.Kind != sim.EntityOven || e.Fuel <= 0 {
+		return
+	}
+	if g.drawFireOf(dst, e, fireMouth, d.sx-1.5, d.sy-0.5) { // see fireart.go
 		return
 	}
 	f := g.art.flames[(g.frame/4+int(e.ID))%flameFrames]

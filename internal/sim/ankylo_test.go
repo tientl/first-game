@@ -141,6 +141,7 @@ func TestTheClubIsWoundUpThenSwungHard(t *testing.T) {
 	if CreatureKind(p.NoticeArg) != CreatureAnkylo || p.Notice != NoticeBitten {
 		t.Errorf("notice %d (%d): the player should be told what hit them", p.Notice, p.NoticeArg)
 	}
+	stepN(w, 4) // the throw is eased over a few ticks: see knock.go
 	if p.X > x0-AnkyloClubKnock*0.8 {
 		t.Errorf("thrown from %.2f to %.2f: the club should throw a player %.1f tiles", x0, p.X, AnkyloClubKnock)
 	}

@@ -319,11 +319,17 @@ func (g *Game) drawTribalEntity(dst drawTarget, e protocol.EntityView, d drawabl
 		return true
 	case sim.EntityTorchStand:
 		drawAt(dst, a.torchStick, d.sx, d.sy, 1, 1, 0, nil)
+		if g.drawFireOf(dst, e, fireTorch, d.sx, d.sy-a.torchStick.ay+4) { // see fireart.go
+			return true
+		}
 		f := g.art.flames[(g.frame/4+int(e.ID))%flameFrames]
 		drawAt(dst, f, d.sx, d.sy-a.torchStick.ay+4, 0.42, 0.5, 0, nil)
 		return true
 	case sim.EntityBonfire:
 		drawAt(dst, a.bonfire, d.sx, d.sy, 1, 1, 0, nil)
+		if g.drawFireOf(dst, e, fireBonfire, d.sx, d.sy+1) {
+			return true
+		}
 		f := g.art.flames[(g.frame/4+int(e.ID))%flameFrames]
 		drawAt(dst, f, d.sx, d.sy+1, 1.35, 1.5, 0, nil)
 		f2 := g.art.flames[(g.frame/5+int(e.ID)+3)%flameFrames]

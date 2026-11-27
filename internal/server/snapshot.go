@@ -108,6 +108,10 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Aim:       aim,
 			AimX:      float32(ax),
 			AimY:      float32(ay),
+			Shield:    p.HasShield(),
+			Guard:     p.Guarding(),
+			GuardSeq:  p.GuardSeq(),
+			Parry:     p.Parried(),
 		})
 	}
 
