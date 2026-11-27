@@ -10,7 +10,7 @@ import (
 // Combat and world effects, drawn at the canvas's own resolution (one image
 // pixel to a screen pixel at 1080p, as the HD art): sparks, slashes, claw
 // marks, splashes, dust and leaves. Their recipes follow pixelfx
-// (github.com/patch-gg/pixelfx, MIT; see CREDITS.md and LICENSES/): the
+// (github.com/patch-gg/pixelfx, MIT; see CREDITS.md and LICENSE-pixelfx.txt): the
 // timings, shapes and palettes of its impacts/hit-spark, impacts/crit-hit,
 // impacts/hit-flash, impacts/parry, melee/claw-swipe, melee/thrust,
 // melee/spear-sweep, melee/heavy-cleave and water/splash, scaled from its

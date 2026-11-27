@@ -150,7 +150,7 @@ func (g *Game) drawCleave(dst drawTarget, p protocol.PlayerView, d drawable, bob
 		if landed > 0 {
 			fade = 1 - landed/8
 		}
-		const tail = 2.4 // radians of sweep behind the head
+		const tail = 2.4                         // radians of sweep behind the head
 		if heldDefOf(sim.ItemBattleAxe) != nil { // at the canvas's own resolution; see heldhd.go
 			swingArc(dst, gx, gy, side, a, ps.back, 1, tail, battleAxeHead-4.5, battleAxeHead+5.2, mix(iiJade[4], colWhite, 0.4), fade*0.9)
 		}

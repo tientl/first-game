@@ -717,7 +717,6 @@ func (g *Game) drawHelp(screen *uiDst, sw, sh int) {
 		} else {
 			lines = append(lines, line{"Chuột phải", "dùng món đang cầm: ăn, nướng, cắm đuốc, gieo hạt…", colMuted})
 		}
-		lines = append(lines, line{"Q (giữ)", "giơ khiên đỡ đòn (cần Khiên gỗ tròn); chuột phải cũng được khi tay không dùng nó", colMuted})
 	}
 	interact, ic := "nhặt đồ · mở rương · cưỡi thú · lên thuyền", color.Color(colMuted)
 	if verb, ok := g.boatHint(); ok { // see searender.go

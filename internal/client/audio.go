@@ -162,8 +162,8 @@ func (m *mixer) Read(p []byte) (int, error) {
 type audioSettings struct {
 	Music   float64 `json:"music"`
 	Effects float64 `json:"effects"`
-	Zoom    int     `json:"zoom,omitempty"`   // the view's zoom; see render.go
-	Ground  string  `json:"ground,omitempty"` // the look of the ground: "" (green) or "warm"; see groundhd.go
+	Zoom    int     `json:"zoom,omitempty"`    // the view's zoom; see render.go
+	Ground  string  `json:"ground,omitempty"`  // the look of the ground: "" (green) or "warm"; see groundhd.go
 	NoShake bool    `json:"noshake,omitempty"` // screen shake turned off; see feel.go
 }
 

@@ -14,7 +14,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Icon túi đồ, giao diện, hiệu ứng (lửa, chém, va chạm, nước…).
   - **Chuẩn chất lượng**: mỗi nhóm (nhân vật, mặt đất, cây, từng nhóm sinh vật, icon) làm xong thì gửi ảnh so sánh để duyệt; chưa đạt thì làm lại trước khi sang nhóm khác.
   - Nếu thiếu lượt dùng: **bớt số loài thú trong demo chứ không hạ chất lượng** (ưu tiên các loài ở đảo đầu tiên, rừng rậm, biển).
-- [ ] **Cảm giác đánh nhau** (mục 7): khựng lúc trúng đòn, thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh (hiệu ứng chém, va chạm lấy từ pixelfx); **giơ khiên đỡ**; thú **báo trước đòn** (lấy đà rõ ràng trước khi cắn, quất đuôi, lao).
+- [x] **Cảm giác đánh nhau** (mục 7): khựng lúc trúng đòn, thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh (hiệu ứng chém, va chạm lấy từ pixelfx); **giơ khiên đỡ**; thú **báo trước đòn** (lấy đà rõ ràng trước khi cắn, quất đuôi, lao). ✅ Xem mục 7 (báo trước đòn đã có từ `telegraph.go`; bộ chiêu riêng từng loài là mục dưới).
 - [x] **Chế độ dev** (mục 1) — để test nhanh trước khi phát hành.
 - [x] **Giao diện** (mục 3): HUD gọn, bỏ ô hướng dẫn (F1), túi 30 ô, rương có ô đồ, chuột phải cắm đuốc.
 - [x] **Sửa phân bố quặng** (mục 4): đá lửa đủ nhiều, ngọc bích và than bớt; chưa cần kim cương.
@@ -63,7 +63,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - [ ] **Biểu tượng**: mới 20 / ~150 món vẽ HD (`iconhd.go`); còn lại chia nhóm vẽ tiếp.
   - [ ] **Giao diện HD** (đang làm): thanh máu, ô đồ, túi, rương, chế tạo, nấu ăn, bản đồ nhỏ, thanh trùm, menu vẽ ở độ phân giải thật; phông chữ vector có đủ dấu tiếng Việt (giấy phép OFL); khung kiểu da thuộc, gỗ, đá, xương; chữ nổi trong thế giới nhỏ gọn, chỉ hiện khi trỏ chuột.
   - [ ] **Đồ cầm tay HD** (đang làm): rìu, cuốc, giáo, dao, kiếm, đuốc, cần câu, bát… vẽ HD, xoay mượt khi vung.
-  - [ ] **Lửa, đuốc, hiệu ứng** từ pixelfx (làm chung với Cảm giác đánh nhau); thuyền vẽ lại.
+  - [x] **Lửa, đuốc, hiệu ứng** từ pixelfx (làm chung với Cảm giác đánh nhau); thuyền vẽ lại. ✅ Lửa HD (`fireart.go`, theo `fire/campfire`, `fire/torch` của pixelfx): lửa trại (cháy to / cháy nhỏ), lửa nấu dưới nồi, lửa làng, đuốc cắm và đuốc cầm tay (cùng một ngọn), miệng lò nung và lò nướng; nhiều lưỡi lửa chồng lớp, mỗi lưỡi nghiêng, bùng, chập chờn theo nhịp riêng, 12 khung lặp; than hồng bay lên, tia lửa nổ lách tách, khói bay theo gió, mặt đất ấm sáng quanh lửa; ánh sáng chập chờn theo ngọn lửa. Hiệu ứng HD (`fx.go`): xem mục 7. Thuyền vẽ lại ở HD (`boathd.go`): bè gỗ (khúc gỗ tròn, vỏ nứt, đầu gỗ có vân, dây buộc xoắn), thuyền độc mộc buồm da (ván khâu, sườn, mắt vẽ ở mũi, buồm khâu nhiều mảnh vẽ mặt trời), bọt sóng ở mép nước, vệt sóng hình chữ V sau thuyền. Bảng so sánh: `go run ./cmd/shot -exact -w 1920 -h 1080 -combatsheet dir` (`fire_compare.png`, `boat_compare.png`, `fx_sheet.png`, `shield_sheet.png`).
   - [ ] **Bộ lọc ánh sáng bật mặc định ở mức nhẹ** (`postfx.go`), gộp với kết quả thử tông màu COMFY52 (đang thử 3 bản: hiện tại / chỉnh màu theo COMFY52 / ép đúng 52 màu).
 - [ ] **Thú nhỏ, thổ dân và làng HD**: thỏ, cua, cá, khỉ, nhện, giun, rắn, bọ cạp, người và nhà thổ dân vẽ lại cho ngang khủng long.
 - [ ] **Cây cỏ và mặt đất** (đang làm): mỗi loại 4–6 kiểu, mọc thành đám, lá rụng và rêu dưới tán, cỏ lay theo gió và rạp khi đi qua, màu theo mùa, vẽ lại thân cây tuế, bớt giun.
@@ -109,7 +109,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Ô mới: **biển nông** (bơi và đi thuyền được; rạn san hô, phá, bãi cạn), **sông** (bơi qua), **chỗ lội** (đi bộ qua), **thác**, **vách đá**. Mỗi ô có thêm một byte địa hình: tầng cao 0–3, biến thể (đồng hoa, trảng rừng, rừng dày / thưa, mỏm đá, cồn cát, đá vụn, bãi bùn, bãi đá tảng, dốc lên, …), mép mềm, đất ẩm.
   - Vách đá giữa các tầng, có dốc lên đủ để đi khắp mỗi đảo; sông từ chỗ cao chảy ra biển, có thác, hồ, châu thổ. Hình vẽ hiện là tạm (`client/terrainfeatures.go`), chờ vẽ đẹp.
 - [x] **Thời gian**: ngày chậm lại, mỗi ngày 15–20 phút; 1 năm 50 ngày; độ dài ngày và đêm khác nhau theo mùa. (Đã làm: ngày 16 phút, mùa 12 ngày, ngày và đêm theo mùa.)
-- [ ] **Camera**: lia theo người mượt, phóng to thu nhỏ mượt, rung màn hình khi có sự kiện lớn (gầm của bạo chúa, trùm, đòn mạnh).
+- [ ] **Camera**: lia theo người mượt, phóng to thu nhỏ mượt, rung màn hình khi có sự kiện lớn (gầm của bạo chúa, trùm, đòn mạnh). ✅ Rung màn hình (theo "trauma", `feel.go`; tắt được, xem mục 7).
 - [ ] **Mưa và đêm đẹp hơn**: hạt mưa, vũng nước, ánh chớp; ban đêm có ánh trăng, bóng tối mềm quanh nguồn sáng.
 - [ ] **Thời tiết theo vùng** (hiện thời tiết chung cho cả thế giới):
   - Sa mạc: không mưa, không tuyết; có bão cát (che tầm nhìn, đi chậm), nắng nóng ban ngày (khát nhanh), đêm lạnh.
@@ -170,7 +170,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - **Độ bền**: mòn khi bị đánh, sửa bằng nguyên liệu ở bàn chế tạo.
   - **Chỉ số**: Giáp (đỡ đòn), Ấm (tuyết, đêm đông), Mát (sa mạc, khát chậm hơn), Chống mưa, Tốc độ (đồ nặng đi chậm).
   - **Đồ theo vùng**: áo choàng / mũ / ủng lông (tuyết); khăn trùm, áo vải lanh, dép (sa mạc); áo tơi lá (mưa); giày da cá sấu (đi nhanh ở đầm lầy); áo ngụy trang lá (thú để ý muộn).
-  - **Túi đeo lưng**: thêm ô túi đồ. **Khiên tròn Viking**: giơ lên đỡ đòn. **Mũ sắt Viking**: đỡ đòn vào đầu.
+  - **Túi đeo lưng**: thêm ô túi đồ. **Khiên tròn Viking**: giơ lên đỡ đòn (✅ bản đầu: Khiên gỗ tròn, xem mục 7; chưa có ô trang bị). **Mũ sắt Viking**: đỡ đòn vào đầu.
   - Để sau: **nhuộm màu áo** (màu từ hoa, quả); **bộ đồ đủ món** có thêm hiệu ứng (ví dụ đủ bộ da bạo chúa thì thú nhỏ sợ).
 
 ## 6. Sinh vật và thuần thú
@@ -190,7 +190,14 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 
 ## 7. Chiến đấu và sự kiện
 
-- [ ] **Cảm giác đánh nhau** (trong demo): khựng lúc trúng đòn (hit-stop), thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh hoặc chí mạng; hiệu ứng từ pixelfx: `melee/claw-swipe` (vết cào) cho raptor, gấu, hổ răng kiếm, khỉ, vượn chúa; `melee/sword-slash`, `thrust`, `spear-sweep`, `heavy-cleave` cho kiếm, giáo, rìu; `impacts/hit-spark`, `crit-hit`, `hit-flash` khi trúng đòn và chí mạng; `water/splash` cho Megalodon; giơ khiên đỡ đòn; thú báo trước đòn để người chơi đọc và né; chặn mẹo đánh một đòn rồi lùi.
+- [x] **Cảm giác đánh nhau** (trong demo): khựng lúc trúng đòn (hit-stop), thú bật lùi, chớp trắng, rung màn hình khi đòn mạnh hoặc chí mạng; hiệu ứng từ pixelfx: `melee/claw-swipe` (vết cào) cho raptor, gấu, hổ răng kiếm, khỉ, vượn chúa; `melee/sword-slash`, `thrust`, `spear-sweep`, `heavy-cleave` cho kiếm, giáo, rìu; `impacts/hit-spark`, `crit-hit`, `hit-flash` khi trúng đòn và chí mạng; `water/splash` cho Megalodon; giơ khiên đỡ đòn; thú báo trước đòn để người chơi đọc và né; chặn mẹo đánh một đòn rồi lùi.
+  - ✅ **Khựng (hit-stop)** (`feel.go`): đòn trúng làm hình khựng 2–5 khung (đòn mạnh, chí mạng, vũ khí nặng, đòn kết liễu lâu hơn; bị đánh, đỡ khiên cũng khựng). Chỉ ở client: giữ lại hình lúc trúng đòn và chiếu lại, client vẫn gửi phím và nhận ảnh chụp, server không chờ (test `TestHitStopLeavesTheSimAlone` chơi cùng một trận có và không có client xem, so kết quả).
+  - ✅ **Bật lùi** (`sim/knock.go`): mọi cú hất đều êm (đi phần lớn ngay, phần còn lại trong vài tick); đòn của người chơi hất thú lùi (rìu chiến xa nhất, giáo, dao, nắm đấm), thú càng to càng ít lùi, trùm không lùi.
+  - ✅ **Chớp** (`feel.go`): thú bị đánh chớp trắng rồi đỏ; người chơi bị đánh chớp trắng, ửng đỏ (dùng chung một hàm).
+  - ✅ **Rung màn hình** theo "trauma" (cộng dồn, giảm dần, độ rung bằng bình phương): đòn nặng, chí mạng, đòn của thú to trúng mình, dậm đất, tiếng gầm. Có biến cài đặt "rung màn hình" (`SetScreenShake`, mặc định bật, lưu trong file cài đặt `noshake`), chờ menu cài đặt đưa ra.
+  - ✅ **Hiệu ứng HD** (`fx.go`, theo pixelfx, giấy phép MIT trong `CREDITS.md`): tia lửa trúng đòn, chí mạng (sao gai, vòng vỡ, lóe ngang), vạch quanh người bị đánh, vết cào 3 móng (raptor, gấu, hổ răng kiếm, khỉ…), vệt kiếm hình lưỡi liềm nhiều dải màu, đâm giáo (vệt và sao lóe), quét giáo ngà (lưỡi liềm sát đất, bụi), bổ rìu chiến (cung than hồng, bụi tung, mảnh vụn), nước bắn (Megalodon, thương long, đòn trong nước), bụi khi thú to lao tới, vòng bụi khi dậm, lá rụng khi đánh trong rừng, tia đỏ nhỏ (không máu me), bụi chân trên cát, đỡ khiên (tia vàng, dăm gỗ) và gạt đòn (chữ X sáng, vòng, tia vàng). Bảng: `go run ./cmd/shot -exact -w 1920 -h 1080 -combatsheet dir`; trận thật: `-combat feel` / `-combat shield` (ghi GIF).
+  - ✅ **Khiên gỗ tròn** (`sim/shield.go`, `client/shieldart.go`): 4 gỗ, 1 da thú, 1 dây thừng; có trong túi là đeo sau lưng. Giữ **Q** (luôn được) hoặc **chuột phải** (khi tay cầm vũ khí, dụng cụ hay tay không, tức là chuột phải không có việc khác: cắm đuốc, ăn, cho thú ăn, thả thuyền vẫn như cũ) để giơ khiên: đòn từ phía trước mất 75%, không giật người, chỉ lùi nhẹ; giơ trong ¼ giây trước khi trúng là **gạt đòn**: đòn thú nhỏ mất hết và thú loạng choạng 1 giây (thú to, trùm chỉ bị đỡ); giơ khiên thì đi chậm (55%), giữ hướng nhìn để lùi lại, không đánh được. Vẽ trên người có khớp ở cả 4 hướng, đeo sau lưng và giơ lên (`moGuard`); tiếng đỡ và tiếng gạt. Giao thức 50.
+  - ✅ **Chặn mẹo đánh rồi lùi** (`sim/riposte.go`): thú biết đánh bị người chơi đánh (chưa bị thương nặng) thì sau khi khựng sẽ lao lại nhanh hơn người đi bộ trong 1,5 giây và vồ theo khi ra đòn, nên đánh một cái rồi lùi không còn an toàn (test `TestStrikeAndStepBackIsAnswered`). Đứng đánh tay đôi không đổi; bảng cân bằng `TestCombatBalance` giữ nguyên.
 - [ ] **Cung tên**: cung, tên thường, tên độc, tên lửa.
 - [ ] **Đêm trăng máu, khủng long tấn công trại**:
   - Vài ngày một lần, đêm đỏ rực và bầy raptor hoặc Troodon kéo tới căn cứ.
