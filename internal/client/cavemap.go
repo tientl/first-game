@@ -5,7 +5,6 @@ import (
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -138,7 +137,7 @@ func (g *Game) rememberCaveMarks(s protocol.Snapshot) {
 
 // drawCaveMarks draws the ways up and down seen on rows r0 to r0+rows of
 // the map, at(x, y) placing a point of the world.
-func (g *Game) drawCaveMarks(dst *ebiten.Image, at func(x, y float64) (float32, float32), r0, rows float64) {
+func (g *Game) drawCaveMarks(dst drawTarget, at func(x, y float64) (float32, float32), r0, rows float64) {
 	for _, m := range g.caveMarks {
 		if float64(m.ty) < r0 || float64(m.ty) >= r0+rows {
 			continue
@@ -150,22 +149,22 @@ func (g *Game) drawCaveMarks(dst *ebiten.Image, at func(x, y float64) (float32, 
 
 // drawCaveMark draws a way up (a sun: daylight) or a rope (a dark hole with
 // an arrow, up or down) centred on (x, y).
-func drawCaveMark(dst *ebiten.Image, k sim.EntityKind, x, y float32) {
+func drawCaveMark(dst drawTarget, k sim.EntityKind, x, y float32) {
 	switch k {
 	case sim.EntityCaveExit:
-		vector.FillCircle(dst, x, y, 6, colInk, true)
-		vector.FillCircle(dst, x, y, 5, hex(0xffe28a), true)
-		vector.FillCircle(dst, x-1, y-1, 2, hex(0xfffbe2), true)
+		fillCircle(dst, x, y, 6, colInk, true)
+		fillCircle(dst, x, y, 5, hex(0xffe28a), true)
+		fillCircle(dst, x-1, y-1, 2, hex(0xfffbe2), true)
 	default:
-		vector.FillCircle(dst, x, y, 6, hex(0xe0c890), true)
-		vector.FillCircle(dst, x, y, 4.5, colInk, true)
+		fillCircle(dst, x, y, 6, hex(0xe0c890), true)
+		fillCircle(dst, x, y, 4.5, colInk, true)
 		s := float32(1)
 		if k == sim.EntityCaveUp {
 			s = -1
 		}
-		vector.StrokeLine(dst, x, y-3*s, x, y+3*s, 1.5, hex(0xe0c890), true)
-		vector.StrokeLine(dst, x-2.5, y+0.5*s, x, y+3*s, 1.5, hex(0xe0c890), true)
-		vector.StrokeLine(dst, x+2.5, y+0.5*s, x, y+3*s, 1.5, hex(0xe0c890), true)
+		strokeLine(dst, x, y-3*s, x, y+3*s, 1.5, hex(0xe0c890), true)
+		strokeLine(dst, x-2.5, y+0.5*s, x, y+3*s, 1.5, hex(0xe0c890), true)
+		strokeLine(dst, x+2.5, y+0.5*s, x, y+3*s, 1.5, hex(0xe0c890), true)
 	}
 }
 

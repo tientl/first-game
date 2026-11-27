@@ -22,14 +22,10 @@ import (
 // at 16 or less the old icon is drawn (it was made for 16). Every HD icon is
 // baked ahead on another goroutine at the sizes of the screen's UI scale.
 //
-// The interface is drawn on a canvas uiScaleNow times coarser than the
-// screen (uiscale.go). An HD icon drawn there is not put on that canvas:
-// it waits in uiFine, with what has to cover it (a stack's count, a key
-// badge, a bar: drawn on overIcons) on a second canvas, uiTop. uiBreak puts
-// the three on the screen in order (the canvas, the icons, uiTop), and is
-// called where what comes next must cover them: a dimmed screen, the
-// notices, endUI. So the order things are drawn in is kept, at the price of
-// one more pass over the screen for each break that has icons waiting.
+// The interface is drawn at the screen's own resolution (uiscale.go), so an
+// HD icon goes straight on the screen in its place, in the order it is
+// drawn: what covers it (a stack's count, a key badge) is simply drawn
+// after it.
 //
 // Items without a painter keep their old icon, scaled up as before: HD
 // icons can be added one item at a time. To add one, see HD_ART.md ("Item
@@ -146,17 +142,13 @@ func warmIcons(s int) {
 var iconWarmedAt int
 
 // drawItem draws item k's icon size UI pixels across with its top-left at
-// (x, y) on dst: the UI canvas from beginUI, or the screen. At 16 screen
-// pixels or less (a recipe's ingredients at 720p) the old icon is drawn
-// even if there is an HD one: it was made for that size, one of its pixels
-// to one of the screen's, and a shrunk HD icon is softer.
-func (g *Game) drawItem(dst *ebiten.Image, k sim.ItemKind, x, y, size float64, alpha float32) {
-	s := 1.0
-	fine := dst == uiLayer && uiScreen != nil
-	if fine {
-		s = float64(uiScaleNow)
-	}
-	if si := int(s); si != iconWarmedAt && iconHD {
+// (x, y) on dst. At 16 screen pixels or less (a recipe's ingredients at
+// 720p) the old icon is drawn even if there is an HD one: it was made for
+// that size, one of its pixels to one of the screen's, and a shrunk HD icon
+// is softer.
+func (g *Game) drawItem(dst *uiDst, k sim.ItemKind, x, y, size float64, alpha float32) {
+	s := dst.k
+	if si := int(math.Round(s)); si != iconWarmedAt && iconHD {
 		iconWarmedAt = si
 		warmIcons(si)
 	}
@@ -164,14 +156,10 @@ func (g *Game) drawItem(dst *ebiten.Image, k sim.ItemKind, x, y, size float64, a
 	px := int(math.Round(size * s))
 	if px > iconOldPx || old == nil {
 		if img := hdIcon(k, px); img != nil {
-			if fine {
-				uiFine = append(uiFine, fineIcon{img, math.Round(x * s), math.Round(y * s), alpha})
-				return
-			}
 			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(math.Round(x), math.Round(y))
+			op.GeoM.Translate(math.Round(dst.X(x)), math.Round(dst.Y(y)))
 			op.ColorScale.ScaleAlpha(alpha)
-			dst.DrawImage(img, op)
+			dst.img.DrawImage(img, op)
 			return
 		}
 	}
@@ -187,81 +175,3 @@ func (g *Game) drawItem(dst *ebiten.Image, k sim.ItemKind, x, y, size float64, a
 
 // iconOldPx is the size the old icons were drawn for.
 const iconOldPx = 16
-
-// fineIcon is an HD icon waiting to go on the screen, at (x, y) in screen
-// pixels.
-type fineIcon struct {
-	img  *ebiten.Image
-	x, y float64
-	a    float32
-}
-
-var (
-	uiScreen  *ebiten.Image // the screen the UI canvas goes on, between beginUI and endUI (nil at scale 1)
-	uiFine    []fineIcon    // HD icons drawn on the UI canvas since the last break
-	uiTop     *ebiten.Image // what covers them, on a canvas like the UI's
-	uiTopUsed bool
-)
-
-// overIcons is the image to draw what covers an item's icon on (a count, a
-// key badge, a bar) when the icon went on dst: uiTop for the UI canvas,
-// else dst itself.
-func overIcons(dst *ebiten.Image) *ebiten.Image {
-	if dst != uiLayer || uiScreen == nil {
-		return dst
-	}
-	b := uiLayer.Bounds()
-	if uiTop == nil || uiTop.Bounds() != b {
-		if uiTop != nil {
-			uiTop.Deallocate()
-		}
-		uiTop = ebiten.NewImage(b.Dx(), b.Dy())
-	}
-	uiTopUsed = true
-	return uiTop
-}
-
-// uiBreak puts what the interface has drawn so far on the screen, so that
-// what is drawn next covers it, HD icons and all. It does nothing when no
-// HD icon is waiting.
-func uiBreak() { uiFlush(false) }
-
-// uiFlush puts the UI canvas, the HD icons drawn on it and what covers
-// them on the screen, and empties them; final is for endUI, which puts the
-// canvas on the screen even with no icons.
-func uiFlush(final bool) {
-	if uiScreen == nil || uiLayer == nil || (!final && len(uiFine) == 0 && !uiTopUsed) {
-		return
-	}
-	s := float64(uiScaleNow)
-	up := &ebiten.DrawImageOptions{}
-	up.GeoM.Scale(s, s)
-	up.Filter = ebiten.FilterNearest
-	uiScreen.DrawImage(uiLayer, up)
-	if !final {
-		uiLayer.Clear()
-	}
-	for _, f := range uiFine {
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(f.x, f.y)
-		op.ColorScale.ScaleAlpha(f.a)
-		uiScreen.DrawImage(f.img, op)
-	}
-	clear(uiFine)
-	uiFine = uiFine[:0]
-	if uiTopUsed {
-		uiScreen.DrawImage(uiTop, up)
-		uiTop.Clear()
-		uiTopUsed = false
-	}
-}
-
-// uiStart readies the HD icons' layers for a new pass of the interface.
-func uiStart() {
-	if uiTopUsed && uiTop != nil {
-		uiTop.Clear() // left over from a pass that did not end
-	}
-	uiScreen, uiTopUsed = nil, false
-	clear(uiFine)
-	uiFine = uiFine[:0]
-}

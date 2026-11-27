@@ -7,7 +7,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/sim"
 )
@@ -130,8 +129,8 @@ func (g *Game) drawBossIntro(screen *ebiten.Image, sw, sh int) {
 	in := &g.lair.intro
 	bars := smooth(clamp01(t/0.1)) * smooth(clamp01((1-t)/0.12))
 	bh := float32(float64(sh) * 0.115 * bars)
-	vector.FillRect(screen, 0, 0, float32(sw), bh, color.RGBA{0, 0, 0, 255}, false)
-	vector.FillRect(screen, 0, float32(sh)-bh, float32(sw), bh, color.RGBA{0, 0, 0, 255}, false)
+	fillRect(screen, 0, 0, float32(sw), bh, color.RGBA{0, 0, 0, 255}, false)
+	fillRect(screen, 0, float32(sh)-bh, float32(sw), bh, color.RGBA{0, 0, 0, 255}, false)
 
 	vop := &ebiten.DrawImageOptions{} // the edges close in
 	vb := g.art.vignette.Bounds()
@@ -153,10 +152,11 @@ func (g *Game) drawBossIntro(screen *ebiten.Image, sw, sh int) {
 	spaced := strings.Join(strings.Split(name, ""), " ")
 	nw := textWidth(spaced, ns)
 	cx := float64(sw) / 2
-	vector.FillRect(screen, 0, float32(y-18*u), float32(sw), float32(190*u), color.RGBA{0, 0, 0, uint8(120 * show)}, false)
-	g.text(screen, spaced, cx, y, color.RGBA{uint8(int(246) * int(a) / 255), uint8(int(226) * int(a) / 255), uint8(int(170) * int(a) / 255), a}, text.AlignCenter, ns)
+	fillRect(screen, 0, float32(y-18*u), float32(sw), float32(190*u), color.RGBA{0, 0, 0, uint8(120 * show)}, false)
+	sd := screenDst(screen)
+	uiTextW(sd, spaced, cx, y, color.RGBA{uint8(int(246) * int(a) / 255), uint8(int(226) * int(a) / 255), uint8(int(170) * int(a) / 255), a}, text.AlignCenter, ns, wTitle+60, fxOutline)
 	ly := float32(y + 108*u)
 	grow := float32(smooth(clamp01((t - 0.2) / 0.16)))
-	vector.FillRect(screen, float32(cx)-float32(nw)/2*grow, ly, float32(nw)*grow, float32(math.Max(2, 3*u)), color.RGBA{uint8(200 * show), uint8(60 * show), uint8(40 * show), a}, false)
-	g.text(screen, "— "+epithet+" —", cx, y+122*u, color.RGBA{a, a, a, a}, text.AlignCenter, 3*u)
+	fillRect(screen, float32(cx)-float32(nw)/2*grow, ly, float32(nw)*grow, float32(math.Max(2, 3*u)), color.RGBA{uint8(200 * show), uint8(60 * show), uint8(40 * show), a}, false)
+	uiTextW(sd, "— "+epithet+" —", cx, y+122*u, color.RGBA{a, a, a, a}, text.AlignCenter, 3*u, 800, fxOutline)
 }
