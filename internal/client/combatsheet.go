@@ -28,6 +28,9 @@ func (g *Game) CombatSheets(dir string) error {
 	if err := g.FireSheet(dir); err != nil {
 		return err
 	}
+	if err := g.BoatSheet(dir); err != nil {
+		return err
+	}
 	return g.fxSheet(filepath.Join(dir, "fx_sheet.png"))
 }
 
@@ -205,4 +208,41 @@ func (g *Game) FireSheet(dir string) error {
 	}
 	g.curr.Entities = nil
 	return sheetPNG(filepath.Join(dir, "fire_compare.png"), sheet)
+}
+
+// BoatSheet writes boat_compare.png into dir: the raft and the sailing boat
+// with its sail slack, half full and full, old (above) and new (below),
+// twice 1080p, the new with its wake.
+func (g *Game) BoatSheet(dir string) error {
+	old, hd := seaBoats(false), seaBoats(true)
+	const fw, fh = 96, 72
+	const z = 2
+	cw, ch := fw*HDDensity*z, fh*HDDensity*z
+	sheet := image.NewRGBA(image.Rect(0, 0, 4*cw, 2*ch+24))
+	draw.Draw(sheet, sheet.Bounds(), &image.Uniform{color.RGBA{28, 30, 28, 255}}, image.Point{}, draw.Src)
+	buf := newFineBuf(fw, fh)
+	for row, a := range []seaArt{old, hd} {
+		for col := 0; col < 4; col++ {
+			buf.img.Fill(color.RGBA{36, 104, 138, 255})
+			sx, sy := float64(fw/2+4), float64(fh-22)
+			raft := col == 0
+			if row == 1 {
+				drawBoatWake(buf, sx, sy, 0, 0.08, float64(col)*0.3, raft)
+			}
+			back, front := a.raftBack, a.raftFront
+			if !raft {
+				back, front = a.sailBack, a.sailFront
+			}
+			drawAt(buf, back, sx, sy, 1, 1, 0, nil)
+			if !raft {
+				drawAt(buf, a.sail[col-1], sx+mastX, sy+mastY, 1, 1, 0, nil)
+			}
+			drawAt(buf, front, sx, sy, 1, 1, 0, nil)
+			img := image.NewRGBA(buf.img.Bounds())
+			buf.img.ReadPixels(img.Pix)
+			blowUp(sheet, img, col*cw, 24+row*ch, z)
+		}
+	}
+	label(sheet, 6, 6, "old (above) and new (below): raft, sail slack, half, full")
+	return sheetPNG(filepath.Join(dir, "boat_compare.png"), sheet)
 }
