@@ -216,7 +216,7 @@ func (p *diffPicker) draw(screen *uiDst) {
 	tab(b, float64(r.Min.X), float64(r.Min.Y), diffBackW, diffBackH, 12, st)
 	by := float64(r.Min.Y) + (diffBackH-lineUI*1.55)/2
 	if p.sel == diffBack {
-		uiText(b, "›", float64(r.Min.X)+18, by, colAmber, text.AlignStart, 1.55, fxShadow)
+		drawPointer(b, float64(r.Min.X)+16, float64(r.Min.Y)+diffBackH/2, 1, 6, colAmber)
 	}
 	uiText(b, "Quay lại", diffW/2, by, colBoneText, text.AlignCenter, 1.55, fxShadow)
 	p.drawSize(b)

@@ -60,8 +60,8 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 	c := Paper
 	c *= 0.9 + 0.16*vnoise(q/26.0) + 0.06*vnoise(q/6.0) + 0.04*(hash(floor(dstPos.xy))-0.5)
 	// Faint hatching, as on an old map where nobody has been.
-	h := abs(fract((q.x+q.y)/7.0)-0.5) * 2.0
-	c = mix(c, Ink, 0.16*(1.0-smoothstep(0.0, 0.16, h))*vnoise(q/40.0+3.0))
+	h := abs(fract((q.x+q.y)/6.0)-0.5) * 2.0
+	c = mix(c, Ink, 0.3*(1.0-smoothstep(0.0, 0.12, h))*smoothstep(0.25, 0.75, vnoise(q/34.0+3.0)))
 	// Darker towards where the known land begins.
 	c *= 0.82 + 0.18*a
 	return vec4(c*a, a)

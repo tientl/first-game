@@ -42,7 +42,7 @@ var panelLooks = [...]panelLook{
 	psHide:      {color.RGBA{40, 31, 25, 238}, color.RGBA{92, 64, 42, 255}, color.RGBA{}, 3, color.RGBA{196, 156, 102, 125}},
 	psWood:      {color.RGBA{33, 26, 21, 242}, color.RGBA{128, 88, 54, 255}, color.RGBA{226, 214, 184, 255}, 5.5, color.RGBA{176, 136, 88, 95}},
 	psParchment: {color.RGBA{232, 214, 172, 246}, color.RGBA{120, 84, 50, 255}, color.RGBA{160, 120, 70, 255}, 1.5, color.RGBA{}},
-	psStone:     {color.RGBA{86, 82, 76, 250}, color.RGBA{132, 126, 116, 255}, color.RGBA{214, 200, 166, 255}, 4, color.RGBA{}},
+	psStone:     {color.RGBA{74, 70, 64, 250}, color.RGBA{132, 126, 116, 255}, color.RGBA{214, 200, 166, 255}, 4, color.RGBA{}},
 	psWell:      {color.RGBA{20, 16, 13, 235}, color.RGBA{96, 78, 60, 255}, color.RGBA{0, 0, 0, 0}, 1, color.RGBA{}},
 	psPlate:     {color.RGBA{22, 18, 15, 205}, color.RGBA{0, 0, 0, 0}, color.RGBA{0, 0, 0, 0}, 0, color.RGBA{}},
 	psLeather:   {color.RGBA{58, 43, 31, 240}, color.RGBA{104, 74, 48, 255}, color.RGBA{}, 1.5, color.RGBA{196, 156, 102, 70}},
@@ -198,13 +198,22 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 		col.rgb = mix(col.rgb, Rim.rgb, 0.55*(1.0-smoothstep(0.0, 7.0*K, ragged)))
 		col.rgb *= 1.0 - 0.5*(1.0-smoothstep(0.0, 1.0*K, depth))
 	} else if Style < 3.5 {
-		// Stone: flat faces, chisel marks, a bevel lit from the top left.
-		face := vnoise(pos/(9.0*K)) - 0.5
-		chip := step(0.82, vnoise(pos/(2.2*K)+vec2(9.0, 4.0)))
-		col.rgb *= 1.0 + face*0.22 + grain*0.07 - chip*0.12
+		// Stone: broad faces, the strokes of a chisel slanting across them,
+		// chips, a bevel lit from the top left, and a groove carved round
+		// inside the edge.
+		face := fbm(pos/(14.0*K)) - 0.5
+		stroke := vnoise(vec2((pos.x+pos.y)/(2.2*K), (pos.x-pos.y)/(16.0*K))) - 0.5
+		chip := step(0.8, vnoise(pos/(2.6*K)+vec2(9.0, 4.0)))
+		col.rgb *= 1.0 + face*0.42 + stroke*0.12 + grain*0.08 - chip*0.16
 		if depth < RimW {
 			t := 1.0 - depth/RimW
-			col.rgb *= 1.0 + 0.45*light*t
+			col.rgb *= 1.0 + 0.5*light*t
+		}
+		groove := depth - (RimW + 3.0*K)
+		if abs(groove) < 0.8*K {
+			col.rgb *= 0.62 // the cut
+		} else if groove > 0.8*K && groove < 1.8*K {
+			col.rgb *= 1.12 // its lit far lip
 		}
 		col.rgb *= 1.0 - 0.6*(1.0-smoothstep(0.0, 1.0*K, depth))
 	} else if Style < 4.5 {
@@ -260,6 +269,15 @@ func drawPanel(d *uiDst, ps panelStyle, x, y, w, h, r float64) {
 
 // drawPanelLook is drawPanel in look l, its shadow shadow dark (0 to 1).
 func drawPanelLook(d *uiDst, ps panelStyle, l panelLook, x, y, w, h, r, shadow float64) {
+	drawPanelAlpha(d, ps, l, x, y, w, h, r, shadow, 1)
+}
+
+// drawPanelAlpha is drawPanelLook shown at alpha a: what fades or pulses is
+// baked once and drawn fainter, not baked again at each strength.
+func drawPanelAlpha(d *uiDst, ps panelStyle, l panelLook, x, y, w, h, r, shadow, a float64) {
+	if a <= 0.004 {
+		return
+	}
 	if w <= 0 || h <= 0 {
 		return
 	}
@@ -279,6 +297,7 @@ func drawPanelLook(d *uiDst, ps panelStyle, l panelLook, x, y, w, h, r, shadow f
 	b.used = uiFrame
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(X0-b.margin, Y0-b.margin)
+	op.ColorScale.ScaleAlpha(float32(min(1, a)))
 	d.img.DrawImage(b.img, op)
 }
 

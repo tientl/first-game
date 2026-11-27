@@ -6,6 +6,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 // The interface's pieces, each in the look of uipanel.go: panels, frames,
@@ -47,9 +48,7 @@ func plateA(dst *uiDst, x, y, w, h, r, a float64) {
 	if a <= 0.01 {
 		return
 	}
-	l := panelLooks[psPlate]
-	l.body.A = uint8(float64(l.body.A) * a)
-	drawPanelLook(dst, psPlate, l, x, y, w, h, r, 0.35*a)
+	drawPanelAlpha(dst, psPlate, panelLooks[psPlate], x, y, w, h, r, 0.35, a)
 	noteBox(dst, x, y, w, h)
 }
 
@@ -100,8 +99,8 @@ func glow(dst *uiDst, x, y, w, h, r float64, c color.RGBA, strength float64) {
 	if strength <= 0.01 {
 		return
 	}
-	l := panelLook{body: color.RGBA{c.R, c.G, c.B, uint8(255 * min(1, strength))}}
-	drawPanelLook(dst, psGlow, l, x, y, w, h, r, 0)
+	l := panelLook{body: color.RGBA{c.R, c.G, c.B, 255}}
+	drawPanelAlpha(dst, psGlow, l, x, y, w, h, r, 0, strength)
 }
 
 // inkOf is the colour to ink text of colour c on parchment: the interface's
@@ -269,6 +268,24 @@ func (t *barTrail) step(f float64, now int) barFX {
 		flash = 1 - float64(since)/10
 	}
 	return barFX{trail: t.shown, flash: flash}
+}
+
+// drawPointer draws a small rounded triangle pointing left (dir -1) or
+// right (1), its middle at (x, y), size UI pixels across.
+func drawPointer(d *uiDst, x, y, dir, size float64, c color.RGBA) {
+	var p vector.Path
+	p.MoveTo(float32(x+dir*size*0.55), float32(y))
+	p.LineTo(float32(x-dir*size*0.45), float32(y-size*0.62))
+	p.LineTo(float32(x-dir*size*0.45), float32(y+size*0.62))
+	p.Close()
+	var sh vector.Path
+	sh.AddPath(&p, &vector.AddPathOptions{GeoM: func() ebiten.GeoM { var m ebiten.GeoM; m.Translate(0, 1); return m }()})
+	op := &vector.DrawPathOptions{AntiAlias: true}
+	op.ColorScale.ScaleWithColor(color.RGBA{0, 0, 0, 120})
+	fillPath(d, &sh, op)
+	op = &vector.DrawPathOptions{AntiAlias: true}
+	op.ColorScale.ScaleWithColor(c)
+	fillPath(d, &p, op)
 }
 
 // dimScreen darkens all of d with c: what was drawn is now under it, and no

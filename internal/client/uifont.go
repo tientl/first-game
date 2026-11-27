@@ -143,7 +143,7 @@ func bakeText(s string, px float64, w fontWeight, fx textFX) *textBake {
 	f := faceAt(px, w)
 	m := f.Metrics()
 	adv := text.Advance(s, f)
-	r := max(0.8, px*0.055) // the halo's reach
+	r := max(0.8, min(px*0.055, 2.6)) // the halo's reach: a soft edge, not a rim
 	if fx == fxOutline {
 		r = max(1.1, px*0.085)
 	}
@@ -159,7 +159,11 @@ func bakeText(s string, px float64, w fontWeight, fx textFX) *textBake {
 		op.ColorScale.Scale(0, 0, 0, a) // black, premultiplied
 		text.Draw(img, s, f, op)
 	}
-	ring := func(rad float64, n int, a float32) {
+	// A ring of copies, close enough together that big text gets a smooth
+	// halo, not ghosts of its letters.
+	ring := func(rad float64, n0 int, a float32) {
+		n := max(n0, int(math.Ceil(2*math.Pi*rad/1.1)))
+		a = 1 - float32(math.Pow(float64(1-a), float64(n0)/float64(n)))
 		for i := range n {
 			t := float64(i) * 2 * math.Pi / float64(n)
 			put(rad*math.Cos(t), rad*math.Sin(t), a)

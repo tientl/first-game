@@ -415,7 +415,7 @@ func (c *charCreator) drawRow(dst *uiDst, i int, r box) {
 	if value == "" { // a button
 		uiText(dst, label, r.x+r.w/2, ty, colBoneText, text.AlignCenter, ccText, fxShadow)
 		if focused {
-			uiText(dst, "›", r.x+18, ty, colAmber, text.AlignStart, ccText, fxShadow)
+			drawPointer(dst, r.x+16, r.y+ccRowH/2, 1, 6, colAmber)
 		}
 		return
 	}
@@ -426,8 +426,8 @@ func (c *charCreator) drawRow(dst *uiDst, i int, r box) {
 	if focused {
 		arrow = colAmber
 	}
-	uiText(dst, "‹", vx-88, ty, arrow, text.AlignCenter, ccText, fxShadow)
-	uiText(dst, "›", vx+88, ty, arrow, text.AlignCenter, ccText, fxShadow)
+	drawPointer(dst, vx-88, r.y+ccRowH/2, -1, 6, arrow)
+	drawPointer(dst, vx+88, r.y+ccRowH/2, 1, 6, arrow)
 
 	if !isColorRow(i) {
 		return
