@@ -215,17 +215,17 @@ func icFurCoat(p *icv) {
 		}
 		return pick(icFurR, l)
 	}
-	body := garment(p, 15.0, true, shFur)
+	body := garment(p, 14.4, true, shFur)
 	_ = body
-	p.on(sCap(8.0, 3.2, 8.2, 15.0, 0.16, 0.16), solidC(icFurR[0])) // where it closes
+	p.on(sCap(8.0, 3.2, 8.2, 14.2, 0.16, 0.16), solidC(icFurR[0])) // where it closes
 	for _, y := range []float64{5.4, 8.4, 11.4} {
 		p.fill(sCap(7.4, y, 8.8, y, 0.3, 0.28), shBulge(boneHD, 0.3, 0.1))
 	}
 	// The collar, a ruff of longer fur.
-	ruff := sRing(8.0, 2.0, 2.6, 1.9, 0.85).jag(0.5, 0.6, 2.0, 613)
+	ruff := sRing(8.0, 2.4, 2.3, 1.4, 0.6).jag(0.4, 0.6, 2.4, 613)
 	p.fill(ruff, shFur)
 	// Shaggy hem and cuffs.
-	furHem(p, icFurR, 3.2, 12.8, 14.8, 1.2, 614)
+	furHem(p, icFurR, 3.3, 12.7, 14.1, 1.0, 614)
 }
 
 // icTunic is a belted tunic of flax linen: short sleeves, a round neck,
@@ -434,8 +434,8 @@ func icPotion(p *icv) {
 // pale bottle of bone-white gourd, bound in hide, a bone bead on its cord,
 // its magenta draught brimming at the mouth.
 func icBigPotion(p *icv) {
-	cx, cy := 7.8, 9.2
-	b := bottle(p, icBoneR, cx, cy, 1.12)
+	cx, cy := 7.8, 9.0
+	b := bottle(p, icBoneR, cx, cy, 1.0)
 	p.on(b.and(sBelow(cy+1.4)).and(sAbove(cy+3.4)), func(f *ifrag) color.RGBA { // a band of hide
 		return pick(hideHD, bulge(f, 2.4)*0.8+0.1)
 	})
@@ -495,7 +495,7 @@ func icBandage(p *icv) {
 func icRaft(p *icv) {
 	ax, ay := 0.92, -0.38 // along a log
 	bx, by := 0.42, 0.9   // across the raft
-	at := func(s, t float64) (float64, float64) { return 1.6 + ax*s + bx*t, 7.4 + ay*s + by*t }
+	at := func(s, t float64) (float64, float64) { return 1.6 + ax*s + bx*t, 7.7 + ay*s + by*t }
 	for i := 0; i < 5; i++ {
 		t := float64(i) * 1.55
 		x0, y0 := at(0.2*float64(i%2), t)
@@ -515,7 +515,7 @@ func icRaft(p *icv) {
 	px1, py1 := at(9.6, -1.2)
 	pa := mkAxis(px0, py0, px1, py1)
 	p.fill(sCap(px0, py0, px1, py1, 0.36, 0.32), shRod(iiPale, pa, 0.36, 0.06, 1, 861))
-	bladeX, bladeY := at(10.4, -2.0)
+	bladeX, bladeY := at(10.2, -1.8)
 	p.fill(iEll(bladeX, bladeY, 1.8, 0.9, math.Atan2(pa.ey, pa.ex)), shBulge(iiPale, 0.6, 0.04))
 }
 
