@@ -48,7 +48,7 @@ func battleAxeSprite() sprite {
 
 // battleAxeHead is how far up the haft from the grip the head sits, in art
 // pixels.
-const battleAxeHead = 11.0
+const battleAxeHead = 12.0
 
 // drawBattleAxeHeld draws the axe at rest in the hand at (hx, hy), tipped
 // well out to the side or ahead, so the head stays clear of the face
@@ -151,7 +151,10 @@ func (g *Game) drawCleave(dst drawTarget, p protocol.PlayerView, d drawable, bob
 			fade = 1 - landed/8
 		}
 		const tail = 2.4 // radians of sweep behind the head
-		for s := 0.0; s <= 1; s += 1.0 / 72 {
+		if heldDefOf(sim.ItemBattleAxe) != nil { // at the canvas's own resolution; see heldhd.go
+			swingArc(dst, gx, gy, side, a, ps.back, 1, tail, battleAxeHead-4.5, battleAxeHead+5.2, mix(iiJade[4], colWhite, 0.4), fade*0.9)
+		}
+		for s := 0.0; s <= 1 && heldDefOf(sim.ItemBattleAxe) == nil; s += 1.0 / 72 {
 			b := a - tail*s
 			if b < ps.back {
 				break
@@ -164,7 +167,9 @@ func (g *Game) drawCleave(dst drawTarget, p protocol.PlayerView, d drawable, bob
 		}
 	}
 
-	drawAt(dst, battleAxeSprite(), gx, gy, side, 1, a*side, nil)
+	if !drawHeldHD(dst, sim.ItemBattleAxe, gx, gy, a, side, 1) { // see heldhd.go
+		drawAt(dst, battleAxeSprite(), gx, gy, side, 1, a*side, nil)
+	}
 
 	// Where it lands: a flash, chips flying up and out, dust along the ground.
 	if landed >= 0 && landed < 9 {

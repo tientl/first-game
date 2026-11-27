@@ -130,6 +130,12 @@ type figDraw struct {
 	// pair, if set, is drawn with item: what is held in both hands (a bowl),
 	// or in the other one, the hands at (hx, hy) and (ox, oy).
 	pair func(dst drawTarget, hx, hy, ox, oy float64)
+	// tool is set when item is a tool gripped in the fist: raised beside
+	// the head, seen from the side, it goes behind the head with the hand.
+	tool bool
+	// offHand puts item in the other hand: the hand that holds things is
+	// busy (reaching up for fruit).
+	offHand bool
 }
 
 // playerTop is how far above a player's feet their name goes, in art
@@ -197,18 +203,28 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 		put(u.layer[i], tint, true)
 	}
 	h := u.hand[0]
+	sideways := dir == sim.DirLeft || dir == sim.DirRight
+	back := heldBehind(dir) // drawn before the body
+	if f.offHand {
+		h = u.hand[1]
+		back = back || sideways // the far hand
+	}
+	// A hand raised sideways is behind the head (armGeo), and so is the tool
+	// in it, from the grip up; from behind, a tool raised over the head is
+	// beyond it.
+	behindHead := f.tool && ((sideways && !h.over && h.y < toolBehindHeadY && !f.offHand) || (dir == sim.DirUp && h.over))
 	item := func() {
 		if f.item != nil {
 			hx, hy := handPoint(h, ux, uy, skew)
 			f.item(dst, hx, hy, h.swing*side)
 		}
 		if f.pair != nil {
-			hx, hy := handPoint(h, ux, uy, skew)
+			hx, hy := handPoint(u.hand[0], ux, uy, skew)
 			ox, oy := handPoint(u.hand[1], ux, uy, skew)
 			f.pair(dst, hx, hy, ox, oy)
 		}
 	}
-	if !h.over && heldBehind(dir) {
+	if !h.over && back {
 		item()
 	}
 	layer(upFar)
@@ -226,20 +242,28 @@ func drawFig(dst drawTarget, f figDraw, x, y float64) (ux, uy, skew float64, u *
 		put(f.armor.whole[dir][0], nil, true)
 	}
 	layer(upArms)
+	if behindHead {
+		item()
+	}
 	layer(upTop)
 	if f.armor != nil {
 		put(f.armor.helmet[dir][0], nil, true)
 	}
-	if !h.over && !heldBehind(dir) {
+	if !h.over && !back && !behindHead {
 		item()
 	}
 	layer(upArmsOver)
-	if h.over {
+	if h.over && !behindHead {
 		item()
 	}
 	layer(upTopOver)
 	return ux, uy, skew, u
 }
+
+// toolBehindHeadY is how high a hand seen from the side has to be, art
+// pixels above the feet, for the tool in it to go behind the head: above
+// the shoulders, where the chop and the slash are wound up.
+const toolBehindHeadY = -21.5
 
 // handPoint is where hand h of a figure whose upper half is at (ux, uy),
 // leaning by skew, is on the screen.
@@ -355,14 +379,19 @@ func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, l
 	if armor > sim.TierStone {
 		f.armor = g.art.armor(armor, l.Female)
 	}
+	follow := 0.6 // how far a carried tool turns with the forearm
+	if up.anim == upRun {
+		follow = 0.35 // the arms pump: held steadier
+	}
 	carry := func(turn float64) func(drawTarget, float64, float64, float64) {
 		return func(dst drawTarget, hx, hy, swing float64) {
-			heldTurn = turn - 0.6*swing
+			heldTurn = turn - follow*swing
 			g.drawHeldAt(dst, p.Held, dir, hx, hy)
 			heldTurn = 0
 		}
 	}
 	gripped := func(draw func(d drawable)) func(drawTarget, float64, float64, float64) {
+		f.tool = true
 		return func(dst drawTarget, hx, hy, _ float64) {
 			limbGrip.on, limbGrip.x, limbGrip.y = true, hx, hy
 			draw(drawable{sx: x, sy: y})
@@ -370,6 +399,7 @@ func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, l
 		}
 	}
 	f.item = carry(0)
+	f.tool = heldDefOf(p.Held) != nil
 	age := float64(g.frame - g.swingAt[p.ID])
 	w := g.swingWhat[p.ID]
 	fp, punching := g.punchPose(p)
@@ -391,6 +421,17 @@ func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, l
 		pose(moHurt, moHurt.frameAt(float64(jolt)))
 	case gathering:
 		pose(gm, gf)
+		if gm == moReachUp && p.Held.Valid() { // the free hand takes it while the other reaches
+			f.offHand = true
+			f.item = func(dst drawTarget, hx, hy, swing float64) {
+				heldTurn = -0.6 * swing
+				if dir == sim.DirDown || dir == sim.DirUp {
+					heldFlip = -1 // in the hand on the left of the screen
+				}
+				g.drawHeldAt(dst, p.Held, dir, hx, hy)
+				heldTurn, heldFlip = 0, 1
+			}
+		}
 	case punching:
 		pose, anim := fp.hand, upPunch
 		if fp.off != poseRest {
@@ -455,7 +496,10 @@ func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, l
 			g.deedItems(dst, &f, p, m, fr)
 		}
 	}
+	_, onWorld := dst.(*worldDst) // where a torch's flame and a rod's tip go: see heldhd.go
+	heldBy.on, heldBy.id = onWorld, p.ID
 	ux, uy, skew, u := drawFig(dst, f, x, y)
+	heldBy.on = false
 	if punching && fp.spark >= 0 {
 		h := u.hand[fist]
 		hx, hy := handPoint(h, 0, 0, skew)

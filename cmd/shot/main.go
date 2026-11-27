@@ -134,6 +134,8 @@ func main() {
 	freeBuild := flag.Bool("freebuild", false, "dev mode with free build on: the DEV · XÂY TỰ DO tag, every recipe lit with a DEV badge; -overlay palette opens the build palette (see internal/sim/devbuild.go)")
 	devBase := flag.Bool("devbase", false, "build a small base round the player through free build's own commands: the ground cleared, then walls, a door, floors, a bed, fires, a farm, flowers (implies -freebuild; see dev.go)")
 	devPiece := flag.Int("devpiece", -1, "a piece of the build palette in hand, by its number (free build): its ghost under -aim")
+	heldSheet := flag.String("heldsheet", "", "write the held-item sheets into this folder instead of a frame: every held item in the hand old and new, and a GIF of the swings (see internal/client/heldsheet.go)")
+	heldHD := flag.Bool("heldhd", true, "the HD held items, painted at the figure's density and turned cleanly (false: the old density-1 sprites; see internal/client/heldhd.go)")
 	flag.Parse()
 	client.SetMeasureCanopy(*canopyFlag)
 	client.SetHeroHD(*herohd)
@@ -142,6 +144,7 @@ func main() {
 	client.SetEnvHD(*envHD)
 	client.SetCritterHD(*critterHD)
 	client.SetIconHD(*iconHD)
+	client.SetHeldHD(*heldHD)
 	client.SetSubPixel(*subPixel)
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
@@ -980,6 +983,9 @@ func main() {
 	if *iconSheet {
 		g.icons = game
 	}
+	if *heldSheet != "" {
+		g.held, g.heldDir = game, *heldSheet
+	}
 	if err := ebiten.RunGame(g); err != nil && !errors.Is(err, ebiten.Termination) {
 		log.Fatal(err)
 	}
@@ -1020,6 +1026,8 @@ type shooter struct {
 	trunks    *client.Game // write its trunk sheet instead of the frame
 	motions   *client.Game // write its motion sheets into motionDir instead of the frame
 	motionDir string
+	held      *client.Game // write its held-item sheets into heldDir instead of the frame
+	heldDir   string
 	icons     *client.Game // write its icon sheet instead of the frame
 	cost      bool         // print what the art has cost
 
@@ -1066,6 +1074,13 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 		s.err, s.done = s.motions.MotionSheets(s.motionDir), true
 		if s.err == nil {
 			log.Printf("wrote the motion sheets in %s", s.motionDir)
+		}
+		return
+	}
+	if s.held != nil {
+		s.err, s.done = s.held.HeldSheets(s.heldDir), true
+		if s.err == nil {
+			log.Printf("wrote the held-item sheets in %s", s.heldDir)
 		}
 		return
 	}
