@@ -116,6 +116,60 @@ func shPebbly(r ramp, cell, bias float64, seed uint32) ishader {
 	}
 }
 
+// leafShape is a leaf from its stalk at (x, y) out along ang, length long
+// and width wide at its widest: its half width at t (0 at the stalk, 1 at
+// the tip) is form(t) times width.
+func leafShape(x, y, length, width, ang float64, form func(t float64) float64) shape {
+	const n = 14
+	ex, ey := math.Cos(ang), math.Sin(ang)
+	px, py := -ey, ex
+	pts := make([]float64, 0, 4*(n+1))
+	for i := 0; i <= n; i++ {
+		t := float64(i) / n
+		w := form(t) * width
+		pts = append(pts, x+ex*t*length+px*w, y+ey*t*length+py*w)
+	}
+	for i := n; i >= 0; i-- {
+		t := float64(i) / n
+		w := form(t) * width
+		pts = append(pts, x+ex*t*length-px*w, y+ey*t*length-py*w)
+	}
+	return sPoly(pts...)
+}
+
+// Leaf outlines for leafShape.
+var (
+	formLance = func(t float64) float64 { return math.Pow(math.Sin(math.Pi*math.Min(1, t*1.05)), 0.75) * (1 - 0.2*t) }
+	formOval  = func(t float64) float64 { return math.Sqrt(math.Max(0, math.Sin(math.Pi*t))) }
+	formSaw   = func(t float64) float64 {
+		return math.Pow(math.Sin(math.Pi*math.Min(1, t*1.05)), 0.7) * (0.82 + 0.18*math.Abs(math.Sin(t*math.Pi*6)))
+	}
+)
+
+// leaf paints a leaf of ramp r (see leafShape): lit as a shallow fold along
+// its midrib, the far half darker, the midrib a line, veins off it if veins.
+func leaf(p *icv, r ramp, x, y, length, width, ang float64, form func(t float64) float64, veins bool, bias float64) {
+	s := leafShape(x, y, length, width, ang, form)
+	a := mkAxis(x, y, x+math.Cos(ang)*length, y+math.Sin(ang)*length)
+	cx, cy := a.across()
+	side := toward(cx, cy) // which half faces the light
+	p.fill(s, func(f *ifrag) color.RGBA {
+		u, v := a.uv(f.x, f.y)
+		l := 0.6 + bias + 0.1*clamp01(1+f.d/0.5)*toward(f.gx, f.gy)
+		if v*side > 0 {
+			l += 0.12
+		} else {
+			l -= 0.1
+		}
+		if math.Abs(v) < 0.09+0.04*(1-u/length) {
+			l -= 0.2
+		} else if veins && math.Abs(math.Mod(u-math.Abs(v)*0.9+20, 1.3)) < 0.12 {
+			l -= 0.12
+		}
+		return pick(r, l)
+	})
+}
+
 // shWet adds a wet sheen to sh: a band of light along the edges that face
 // the light.
 func shWet(sh ishader, r ramp, w float64) ishader {
