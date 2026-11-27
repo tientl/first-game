@@ -178,11 +178,11 @@ func (w *World) removeEntity(e *Entity) {
 }
 
 // standable reports whether a player's collision box centred at (x, y) lies
-// entirely on walkable tiles.
+// entirely on walkable tiles, clear of doors' posts (facing.go).
 func (w *World) standable(x, y float64) bool {
 	r := PlayerRadius
 	return w.walkableAt(x-r, y-r) && w.walkableAt(x+r, y-r) &&
-		w.walkableAt(x-r, y+r) && w.walkableAt(x+r, y+r)
+		w.walkableAt(x-r, y+r) && w.walkableAt(x+r, y+r) && w.jambsClear(x, y)
 }
 
 func (w *World) walkableAt(x, y float64) bool {

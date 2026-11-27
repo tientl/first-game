@@ -899,7 +899,7 @@ func (w *World) cookCommand(p *Player, cmd Command) {
 		p.cook.open = 0
 		delete(w.stations, e.ID)
 		if e.Kind == EntityCampfire {
-			e.Var, e.Cook = 0, 0
+			e.Var, e.Cook, e.Face = 0, 0, DirDown
 			if e.Fuel <= 0 {
 				w.removeEntity(e) // a dead fire with nothing on it is gone
 			}
@@ -945,9 +945,9 @@ func (w *World) spillStation(e *Entity) {
 // useCookItem is V with a piece of cooking gear in hand: a pot, grill or
 // pan goes on a campfire, a bowl or flask is filled at the water. It
 // reports whether held was such a thing.
-func (w *World) useCookItem(p *Player, held ItemKind, at bool, atX, atY int) bool {
+func (w *World) useCookItem(p *Player, held ItemKind, at bool, atX, atY int, face Dir) bool {
 	if g := GearOf(held); g != GearNone {
-		w.mountGear(p, g, at, atX, atY)
+		w.mountGear(p, g, at, atX, atY, face)
 		return true
 	}
 	if held == ItemClayBowl || held == ItemFlask {
@@ -958,8 +958,9 @@ func (w *World) useCookItem(p *Player, held ItemKind, at bool, atX, atY int) boo
 }
 
 // mountGear sets gear g on the bare campfire on tile (atX, atY) when at is
-// set, else on the nearest one in reach.
-func (w *World) mountGear(p *Player, g CookGear, at bool, atX, atY int) {
+// set, else on the nearest one in reach; a grill lies the way face says
+// (facing.go).
+func (w *World) mountGear(p *Player, g CookGear, at bool, atX, atY int, face Dir) {
 	var fire *Entity
 	bare := func(e *Entity) bool { return e != nil && e.Kind == EntityCampfire && e.Var == 0 }
 	if at {
@@ -988,6 +989,7 @@ func (w *World) mountGear(p *Player, g CookGear, at bool, atX, atY int) {
 		p.Inv.TakeSlot(p.Selected, 1)
 	}
 	fire.Var = uint8(g)
+	fire.face(face)
 	w.station(fire.ID)
 	p.Dir = dirToward(float64(fire.TX)+0.5-p.X, float64(fire.TY)+0.5-p.Y)
 	p.actedAt = w.tick

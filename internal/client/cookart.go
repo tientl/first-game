@@ -334,6 +334,50 @@ func genGrillCanvas(laden bool) (back, front *canvas) {
 	return back, front
 }
 
+// genGrillLong is the grill turned to run north–south: its rails on the
+// forked stakes go back up the screen either side of the fire, and the
+// green sticks lie across them from side to side, one behind another; the
+// far stakes stand behind the flames, the near ones before them.
+func genGrillLong(laden bool) (back, front *canvas) {
+	back, front = hdCanvas(gearW, gearH), hdCanvas(gearW, gearH)
+	var (
+		nearY = gearFY - 4*ck // the near and far ends of the rails, up on the stakes
+		farY  = gearFY - 11.5*ck
+		halfX = 8.6 * ck // the rails' distance from the middle
+		lift  = 7 * ck // how high they stand
+	)
+	fork := func(c *canvas, x, foot float64, lit float64, seed uint32) {
+		top := foot - lift
+		ckPole(c, x, foot, x, top+5, 3, trunkRamp, lit, seed)
+		ckPole(c, x, top+6, x-4, top-5, 1.9, trunkRamp, lit, seed+1)
+		ckPole(c, x, top+6, x+4, top-5, 1.9, trunkRamp, lit-0.1, seed+2)
+	}
+	fork(back, gearFX-halfX, farY+lift, 0.7, 3300)
+	fork(back, gearFX+halfX, farY+lift, 0.62, 3303)
+	back.outline(0.75)
+	// The rails, going back, and the sticks across them from the back.
+	for _, s := range []float64{-1, 1} {
+		ckPole(front, gearFX+s*halfX, farY-2, gearFX+s*halfX, nearY+2, 2.2, greenStick, 0.8-0.1*s, 3306)
+	}
+	const n = 9
+	for i := 0; i < n; i++ {
+		y := farY + 1 + (nearY-farY-2)*float64(i)/float64(n-1) + (hashf(i, 1, 3307)-0.5)*1.5
+		x0, x1 := gearFX-halfX-2-hashf(i, 2, 3307)*3, gearFX+halfX+2+hashf(i, 3, 3307)*3
+		ckPole(front, x0, y+0.5, x1, y-0.5, 1.4, greenStick, 0.62+float64(i%2)*0.12, 3308+uint32(i))
+	}
+	if laden {
+		roastHD(front, gearFX-3.4*ck, gearFY-11.4*ck, 10, 5.4, 3141)
+		grilledFishHD(front, gearFX+1.6*ck, gearFY-7.8*ck, 11, 3.4, 3142)
+	}
+	fork(front, gearFX-halfX, nearY+lift, 0.9, 3320)
+	fork(front, gearFX+halfX, nearY+lift, 0.78, 3323)
+	ckLash(front, gearFX-halfX, nearY-lift+3, 5, 3)
+	ckLash(front, gearFX+halfX, nearY-lift+3, 5, 3)
+	front.outline(0.75)
+	return back, front
+}
+
+
 // genPanCanvas is a flat slab of stone, hollowed a little, propped over the
 // fire on three stones; laden, an egg and a chop fry on it.
 func genPanCanvas(laden bool) (back, front *canvas) {
@@ -397,14 +441,21 @@ func genPanCanvas(laden bool) (back, front *canvas) {
 
 // genMortarCanvas is a mortar pecked out of a boulder, its pestle a stout
 // stick standing in it; full, crushed herbs show in it and lie about.
-func genMortarCanvas(full bool) (*canvas, float64, float64) {
+func genMortarCanvas(full bool) (*canvas, float64, float64) { return genMortarLean(full, false) }
+
+// genMortarLean is the mortar with its pestle leaning back over the rim to
+// the right (as it was drawn), or (front) leaning out over the near rim
+// towards the viewer, to the right: see cookFacedSprite.
+func genMortarLean(full, front bool) (*canvas, float64, float64) {
 	c := hdCanvas(22, 24)
 	var cx, top, foot = 11 * ck, 11.5 * ck, 21 * ck
-	// The pestle's upper part, behind the rim.
-	ckPole(c, cx+1.5*ck, top+1, cx+7.2*ck, 2*ck, 4, woodRamp, 0.95, 3170)
-	c.ellipse(cx+7.3*ck, 2*ck, 4.3, 3.6, func(x, y int, nx, ny float64) color.RGBA {
-		return woodRamp.pick(0.9-(nx*nx+ny*ny)*0.4, x, y)
-	})
+	if !front {
+		// The pestle's upper part, behind the rim.
+		ckPole(c, cx+1.5*ck, top+1, cx+7.2*ck, 2*ck, 4, woodRamp, 0.95, 3170)
+		c.ellipse(cx+7.3*ck, 2*ck, 4.3, 3.6, func(x, y int, nx, ny float64) color.RGBA {
+			return woodRamp.pick(0.9-(nx*nx+ny*ny)*0.4, x, y)
+		})
+	}
 	// The body: wide at the lip, drawn in to a foot, pecked all over.
 	for y := int(top); y <= int(foot); y++ {
 		f := float64(y-int(top)) / (foot - top)
@@ -434,8 +485,17 @@ func genMortarCanvas(full bool) (*canvas, float64, float64) {
 		}
 		return stoneRamp.pick(0.3+nx*0.14+ny*0.2+ckTex(x, y, 3175, 0.06, 0.1), x, y) // the worn hollow
 	})
-	// The pestle's foot, in the hollow.
-	ckPole(c, cx-0.3*ck, top+3, cx+2.6*ck, top-5*ck+2, 4.2, woodRamp, 0.95, 3170)
+	if front {
+		// The pestle from the hollow out over the near rim, its knob end
+		// resting below it to the right, in front.
+		ckPole(c, cx-2.4*ck, top-0.6*ck, cx+7.4*ck, top+6.2*ck, 4.2, woodRamp, 0.95, 3170)
+		c.ellipse(cx+7.6*ck, top+6.4*ck, 4.4, 3.8, func(x, y int, nx, ny float64) color.RGBA {
+			return woodRamp.pick(0.92-(nx*nx+ny*ny)*0.4-ny*0.1, x, y)
+		})
+	} else {
+		// The pestle's foot, in the hollow.
+		ckPole(c, cx-0.3*ck, top+3, cx+2.6*ck, top-5*ck+2, 4.2, woodRamp, 0.95, 3170)
+	}
 	if full {
 		for i := 0; i < 7; i++ {
 			a := hashf(i, 0, 3176) * math.Pi
@@ -459,19 +519,42 @@ func genMortarCanvas(full bool) (*canvas, float64, float64) {
 // stones, an arched mouth in front, a smoke hole in the crown and a peel
 // leaning against it. Lit, the mouth glows; loaf sets a loaf to cool on the
 // stone by the mouth.
-func genOvenCanvas(lit, loaf bool) (*canvas, float64, float64) {
+func genOvenCanvas(lit, loaf bool) (*canvas, float64, float64) { return genOvenFacing(lit, loaf, ovenMouthFront) }
+
+// Where an oven's mouth is, as seen: see cookFacedSprite.
+const (
+	ovenMouthFront = iota // towards the viewer, as it was drawn
+	ovenMouthSide         // on the right flank, foreshortened (facing east; west is it mirrored)
+	ovenMouthBack         // round the back, out of sight
+)
+
+// genOvenFacing is genOvenCanvas with its mouth where mouth says: on the
+// flank the arch is narrowed as the dome turns away and the peel leans on
+// the other shoulder; round the back only the soot on the crown and the
+// glow over it show where it is.
+func genOvenFacing(lit, loaf bool, mouth int) (*canvas, float64, float64) {
 	c := hdCanvas(42, 38)
 	var cx, base, rx, h = 19 * ck, 33 * ck, 15.5 * ck, 23 * ck
-	// The peel, leaning on the dome's right shoulder.
-	ckPole(c, cx+19*ck, base+1*ck, cx+14.6*ck, base-19*ck, 2.2, woodRamp, 0.8, 3180)
+	// The peel, leaning on the dome's right shoulder (on the left one with
+	// the mouth on the right).
+	ps := 1.0
+	if mouth == ovenMouthSide {
+		ps = -1
+	}
+	ckPole(c, cx+ps*19*ck, base+1*ck, cx+ps*14.6*ck, base-19*ck, 2.2, woodRamp, 0.8, 3180)
 	for y := 0; y < 20; y++ {
 		f := float64(y) / (6.5 * ck) // 0 at the blade's tip
 		half := 2.6 * ck * min(1, 0.55+f*1.6) * min(1, 0.7+(1-f)*1.2)
-		mx := cx + 13.5*ck + f*1.3*ck // it leans with the handle
+		mx := cx + ps*(13.5*ck+f*1.3*ck) // it leans with the handle
 		for x := int(mx - half); x <= int(mx+half); x++ {
 			u := (float64(x) + 0.5 - mx) / half
 			c.put(x, int(base-25.2*ck)+y, grainHD(woodRamp, x, y, 0.84-(u+1)/2*0.38-f*0.08, true, 3181))
 		}
+	}
+	// The mouth's middle and size, as seen.
+	var mx, my, mw, mh = cx - 1.5*ck, base - 0.6*ck, 6.6 * ck, 9.6 * ck
+	if mouth == ovenMouthSide {
+		mx, mw = cx+rx*0.72, mw*0.5
 	}
 	// The dome.
 	for y := int(base - h); y <= int(base); y++ {
@@ -491,9 +574,15 @@ func genOvenCanvas(lit, loaf bool) (*canvas, float64, float64) {
 				l += 0.2 // a straw in the daub
 			}
 			col := ovenRamp.pick(l, x, y)
-			// Soot above the mouth and round the smoke hole.
-			mx, my := (float64(x)+0.5-(cx-1.5*ck))/(8.5*ck), (float64(y)+0.5-(base-11.5*ck))/(8*ck)
-			if s := 1 - (mx*mx + my*my*0.8); s > 0 && my < 0.3 {
+			// Soot above the mouth (over the crown, with the mouth behind).
+			sx, sy, sw := mx, base-11.5*ck, 8.5*ck
+			if mouth == ovenMouthBack {
+				sx, sy, sw = cx-1.5*ck, base-h+3*ck, 9*ck
+			} else if mouth == ovenMouthSide {
+				sw = 5.5 * ck
+			}
+			ux, uy := (float64(x)+0.5-sx)/sw, (float64(y)+0.5-sy)/(8*ck)
+			if s := 1 - (ux*ux + uy*uy*0.8); s > 0 && (uy < 0.3 || mouth == ovenMouthBack) {
 				col = mix(col, ashRamp.pick(l*0.6, x, y), min(0.8, s*1.1))
 			}
 			c.put(x, y, col)
@@ -507,58 +596,75 @@ func genOvenCanvas(lit, loaf bool) (*canvas, float64, float64) {
 	c.ellipse(hx, hy+0.5, 2.3*ck, 1*ck, func(x, y int, nx, ny float64) color.RGBA {
 		return mix(hex(0x120a08), ashRamp[1], max(0, ny)*0.6)
 	})
+	if lit && mouth == ovenMouthBack { // the fire's glow on the smoke over the crown
+		c.ellipse(hx, hy-1, 1.6*ck, 0.6*ck, func(x, y int, nx, ny float64) color.RGBA {
+			return fireRamp.pick(0.7-ny*0.2, x, y)
+		})
+	}
 	// The stones it stands on.
 	for i := 0; i < 10; i++ {
 		f := float64(i)/9*2 - 1
 		lift := (1 - math.Sqrt(max(0, 1-f*f))) * 2.6 * ck
 		stoneHD(c, cx+f*(rx-1*ck), base+0.6*ck-lift, (2.3+hashf(i, 0, 3186)*0.5)*ck, (1.7+hashf(i, 1, 3186)*0.3)*ck, 1-float64(i)*0.035, stoneRamp, 3187+uint32(i))
 	}
-	// The mouth: an arch lined with a lip of paler clay.
-	var mx, my, mw, mh = cx - 1.5*ck, base - 0.6*ck, 6.6 * ck, 9.6 * ck
-	arch := func(x, y int, w, hh float64) (bool, float64, float64) {
-		ax, ay := (float64(x)+0.5-mx)/w, (float64(y)+0.5-my)/hh
-		return ay <= 0 && ax*ax+ay*ay <= 1, ax, ay
-	}
-	for y := int(my - mh - 5); y <= int(my); y++ {
-		for x := int(mx - mw - 5); x <= int(mx+mw+5); x++ {
-			in, ax, ay := arch(x, y, mw, mh)
-			if lip, lx, _ := arch(x, y, mw+4, mh+4); lip && !in {
-				c.put(x, y, ovenRamp.pick(0.86-(lx+1)/2*0.4+ckTex(x, y, 3195, 0.1, 0.1), x, y))
-				continue
-			}
-			if !in {
-				continue
-			}
-			d := math.Sqrt(ax*ax + ay*ay)
-			col := mix(hex(0x0e0706), ashRamp[2], max(0, d-0.55)*1.1)
-			if lit {
-				g := 0.95 + ay*0.55 - math.Abs(ax)*0.3 + (vnoise(float64(x)*0.2, float64(y)*0.2, 3196)-0.5)*0.4
-				col = fireRamp.pick(g, x, y)
-				if d > 0.82 {
-					col = mix(col, fireRamp[0], 0.6)
-				}
-			} else if ay > -0.16 && hashf(x/2, y, 3197) < 0.35 {
-				col = ashRamp.at(1 + x%2) // cold ash on the floor
-			}
-			c.put(x, y, col)
+	if mouth != ovenMouthBack {
+		// The mouth: an arch lined with a lip of paler clay.
+		if mouth == ovenMouthSide {
+			my -= 2.4 * ck // round the flank it stands higher on the stones
 		}
-	}
-	if lit { // the glow thrown on the lip and the stones in front
-		for y := int(my - mh - 5); y <= int(my+2*ck); y++ {
-			for x := int(mx - mw - 7); x <= int(mx+mw+7); x++ {
-				if in, _, _ := arch(x, y, mw, mh); in || !c.opaque(x, y) {
+		lipW := 4.0
+		if mouth == ovenMouthSide {
+			lipW = 2.5
+		}
+		arch := func(x, y int, w, hh float64) (bool, float64, float64) {
+			ax, ay := (float64(x)+0.5-mx)/w, (float64(y)+0.5-my)/hh
+			return ay <= 0 && ax*ax+ay*ay <= 1, ax, ay
+		}
+		for y := int(my - mh - 5); y <= int(my); y++ {
+			for x := int(mx - mw - 5); x <= int(mx+mw+5); x++ {
+				in, ax, ay := arch(x, y, mw, mh)
+				if lip, lx, _ := arch(x, y, mw+lipW, mh+4); lip && !in {
+					c.put(x, y, ovenRamp.pick(0.86-(lx+1)/2*0.4+ckTex(x, y, 3195, 0.1, 0.1), x, y))
 					continue
 				}
-				ax, ay := (float64(x)+0.5-mx)/(mw+7), (float64(y)+0.5-(my-mh*0.4))/(mh+5)
-				if g := 1 - (ax*ax + ay*ay); g > 0 {
-					c.put(x, y, mix(c.at(x, y), hex(0xff9a2c), g*0.5))
+				if !in {
+					continue
+				}
+				d := math.Sqrt(ax*ax + ay*ay)
+				col := mix(hex(0x0e0706), ashRamp[2], max(0, d-0.55)*1.1)
+				if lit {
+					g := 0.95 + ay*0.55 - math.Abs(ax)*0.3 + (vnoise(float64(x)*0.2, float64(y)*0.2, 3196)-0.5)*0.4
+					col = fireRamp.pick(g, x, y)
+					if d > 0.82 {
+						col = mix(col, fireRamp[0], 0.6)
+					}
+				} else if ay > -0.16 && hashf(x/2, y, 3197) < 0.35 {
+					col = ashRamp.at(1 + x%2) // cold ash on the floor
+				}
+				c.put(x, y, col)
+			}
+		}
+		if lit { // the glow thrown on the lip and the stones in front
+			for y := int(my - mh - 5); y <= int(my+2*ck); y++ {
+				for x := int(mx - mw - 7); x <= int(mx+mw+7); x++ {
+					if in, _, _ := arch(x, y, mw, mh); in || !c.opaque(x, y) {
+						continue
+					}
+					ax, ay := (float64(x)+0.5-mx)/(mw+7), (float64(y)+0.5-(my-mh*0.4))/(mh+5)
+					if g := 1 - (ax*ax + ay*ay); g > 0 {
+						c.put(x, y, mix(c.at(x, y), hex(0xff9a2c), g*0.5))
+					}
 				}
 			}
 		}
 	}
 	if loaf {
-		// A flat stone to the left of the mouth, and the loaf on it.
+		// A flat stone by the mouth (to its left, or before the flank), and
+		// the loaf on it.
 		lx, ly := cx-14*ck, base+1.4*ck
+		if mouth == ovenMouthSide {
+			lx, ly = cx+12*ck, base+3.2*ck
+		}
 		stoneHD(c, lx, ly+1.5, 5*ck, 1.9*ck, 1, stoneRamp, 3198)
 		loafHD(c, lx, ly-1.3*ck, 4.3*ck, 2.6*ck, 3199)
 	}
@@ -586,7 +692,12 @@ func loafHD(c *canvas, x, y, rx, ry float64, seed uint32) {
 // their crooks and a second lower down. look says what is on it: 0 nothing,
 // 1 strips of raw meat, 2 fish hung by the tail, 3 a shelf of bowls of
 // brine drying to salt, 4 dried strips.
-func genRackCanvas(look int) (*canvas, float64, float64) {
+func genRackCanvas(look int) (*canvas, float64, float64) { return genRackSide(look, false) }
+
+// genRackSide is genRackCanvas with the low pole (or the shelf) on the
+// side towards the viewer (lowFront), carried by the near legs: the rack
+// turned about, facing north.
+func genRackSide(look int, lowFront bool) (*canvas, float64, float64) {
 	c := hdCanvas(34, 36)
 	var cx, base, topY = 17 * ck, 32 * ck, 6.5 * ck
 	var half = 12.5 * ck
@@ -595,18 +706,29 @@ func genRackCanvas(look int) (*canvas, float64, float64) {
 		ex := cx + s*half
 		ckPole(c, ex+3.2*ck, base-2.5*ck, ex-2*ck, topY-2.5*ck, 3, trunkRamp, 0.66-float64(i)*0.06, 3200+uint32(i)*4)
 	}
-	// The low pole at the back, which the far legs carry.
+	// The low pole at the back, which the far legs carry (in front, the near).
 	lowY := 17.5 * ck
-	if look == 3 {
-		// A shelf of split poles instead, with the bowls on it.
-		for j := 0; j < 3; j++ {
-			y := lowY + float64(j)*2.6 - 1
-			ckPole(c, cx-half-2*ck, y+1, cx+half+2*ck, y, 2.1, woodRamp, 0.9-float64(j)*0.12, 3210+uint32(j))
-		}
-	} else {
-		ckPole(c, cx-half-0.5*ck, lowY+1, cx+half+2.5*ck, lowY, 2.2, trunkRamp, 0.72, 3214)
+	if lowFront {
+		lowY += 3.2 * ck
 	}
-	// What hangs from the top pole, or stands on the shelf.
+	low := func() {
+		if look == 3 {
+			// A shelf of split poles instead, with the bowls on it.
+			for j := 0; j < 3; j++ {
+				y := lowY + float64(j)*2.6 - 1
+				ckPole(c, cx-half-2*ck, y+1, cx+half+2*ck, y, 2.1, woodRamp, 0.9-float64(j)*0.12, 3210+uint32(j))
+			}
+			for i := 0; i < 3; i++ {
+				brineHD(c, cx-8*ck+float64(i)*8*ck, lowY-1.2*ck, i, 3240+uint32(i))
+			}
+		} else {
+			ckPole(c, cx-half-0.5*ck, lowY+1, cx+half+2.5*ck, lowY, 2.2, trunkRamp, 0.72, 3214)
+		}
+	}
+	if !lowFront {
+		low()
+	}
+	// What hangs from the top pole.
 	switch look {
 	case 1, 4:
 		for i := 0; i < 6; i++ {
@@ -618,15 +740,14 @@ func genRackCanvas(look int) (*canvas, float64, float64) {
 			x := cx - half + 3.6*ck + float64(i)*4.7*ck
 			hungFishHD(c, x, topY+2, (8.6+hashf(i, 1, 3230)*1.6)*ck, 3231+uint32(i))
 		}
-	case 3:
-		for i := 0; i < 3; i++ {
-			brineHD(c, cx-8*ck+float64(i)*8*ck, lowY-1.2*ck, i, 3240+uint32(i))
-		}
 	}
 	// The near legs, the top pole in the crooks, and the lashings.
 	for i, s := range []float64{-1, 1} {
 		ex := cx + s*half
 		ckPole(c, ex-3.2*ck, base, ex+2*ck, topY-3*ck, 3.3, trunkRamp, 0.92-float64(i)*0.1, 3202+uint32(i)*4)
+	}
+	if lowFront {
+		low()
 	}
 	ckPole(c, cx-half-3*ck, topY+1, cx+half+3*ck, topY, 2.6, trunkRamp, 0.9, 3216)
 	for _, s := range []float64{-1, 1} {
@@ -649,6 +770,58 @@ func genRackCanvas(look int) (*canvas, float64, float64) {
 	}
 	c.outline(0.75)
 	return c, cx, base - 1.2*ck
+}
+
+// genRackLong is the drying rack turned to run north–south, facing east,
+// seen end on: its two pairs of crossed legs one behind the other, the top
+// pole going back up the screen between their crooks, the low pole (or the
+// shelf of bowls) going back on the west side, and what hangs from the top
+// pole in a row going back, seen edgeways.
+func genRackLong(look int) (*canvas, float64, float64) {
+	c := hdCanvas(30, 52)
+	var cx, base, rise = 15 * ck, 47 * ck, 25.5 * ck // rise: the top pole's height
+	const depth = 15.0 * ck                           // from the front pair to the back, on the screen
+	pair := func(foot float64, lit float64, seed uint32) {
+		top := foot - rise
+		ckPole(c, cx+5.2*ck, foot-1.2*ck, cx-2*ck, top-1.5*ck, 3, trunkRamp, lit-0.18, seed)
+		ckPole(c, cx-5.2*ck, foot, cx+2*ck, top-2*ck, 3.3, trunkRamp, lit, seed+1)
+		ckLash(c, cx, top+2, 6, 4)
+	}
+	backFoot := base - depth
+	pair(backFoot, 0.8, 3250)
+	// The low pole, on the west side going back; or the shelf with the bowls.
+	lowRise := 13.5 * ck
+	if look == 3 {
+		for j := 0; j < 3; j++ {
+			x := cx - 3.2*ck + float64(j)*3.1*ck
+			ckPole(c, x, backFoot-lowRise, x+0.2*ck, base-lowRise, 2.1, woodRamp, 0.9-float64(j)*0.12, 3255+uint32(j))
+		}
+		for i := 0; i < 3; i++ {
+			brineHD(c, cx, backFoot-lowRise+float64(i)*depth/3+2*ck, i, 3260+uint32(i))
+		}
+	} else {
+		ckPole(c, cx-3.6*ck, backFoot-lowRise, cx-3.6*ck, base-lowRise, 2.2, trunkRamp, 0.72, 3256)
+	}
+	// The top pole, going back between the crooks.
+	ckPole(c, cx, backFoot-rise-2, cx, base-rise, 2.6, trunkRamp, 0.9, 3257)
+	// What hangs from it, back to front, staggered a little either side.
+	switch look {
+	case 1, 4:
+		for i := 0; i < 5; i++ {
+			y := backFoot - rise + 2 + float64(i)*depth/5 + 2*ck
+			x := cx + (float64(i%2)-0.5)*1.6*ck
+			stripHD(c, x, y, (7+hashf(i, 1, 3262)*3)*ck, look == 4, 3263+uint32(i))
+		}
+	case 2:
+		for i := 0; i < 4; i++ {
+			y := backFoot - rise + 2 + float64(i)*depth/4 + 2*ck
+			x := cx + (float64(i%2)-0.5)*2*ck
+			hungFishHD(c, x, y, (8.2+hashf(i, 1, 3270)*1.4)*ck, 3271+uint32(i))
+		}
+	}
+	pair(base, 0.92, 3252)
+	c.outline(0.75)
+	return c, cx, base - depth/2
 }
 
 // stripHD is a strip of meat hung from (x, y), l pixels long: raw and red,

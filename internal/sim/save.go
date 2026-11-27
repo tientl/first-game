@@ -71,7 +71,12 @@ import (
 //     the ores where the flint no longer lies. Nothing older changes, but an
 //     older game would make the wrong world of such a save, so it must
 //     refuse it.
-const SaveVersion = 27
+//   - 28: built things face a way (Entity.Face; facing.go): doors, beds,
+//     tents, chests, furnaces, ovens, mortars, drying racks, walls and
+//     fences, a grill on a fire, a head on a post. What an older save
+//     holds faces south, as everything was drawn; an older game would
+//     lose the facings.
+const SaveVersion = 28
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -360,6 +365,7 @@ func Load(d SaveData) (*World, error) {
 		case EntityOven:
 			e.Fuel = min(max(e.Fuel, 0), OvenMaxFuel)
 		}
+		e.Face = FacingOf(e.Kind, e.Var, e.Face) // older saves face south: see facing.go
 		ent := e
 		w.entities[e.ID] = &ent
 		w.occ[e.TY*w.width+e.TX] = e.ID

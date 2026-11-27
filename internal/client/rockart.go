@@ -1226,11 +1226,24 @@ var (
 // furnaceScene is the furnace: a dome of fieldstones bedded in clay, an
 // arched mouth to the front, dark or full of fire (lit), a lintel over it,
 // a hearth stone before it and a short chimney of stones on its crown.
-func furnaceScene(lit bool) *rkScene {
+func furnaceScene(lit bool) *rkScene { return furnaceSceneYaw(lit, 0) }
+
+// furnaceSceneYaw is the furnace turned yaw radians about its middle, seen
+// from above: π/2 has its mouth to the east (the right), π to the back,
+// -π/2 to the west. The stones round the back are laid only where they
+// will be seen.
+func furnaceSceneYaw(lit bool, yaw float64) *rkScene {
 	s := &rkScene{seed: 1500}
 	rng := rand.New(rand.NewPCG(1500, 0xf0))
 	const a, b, c, cy = 9.5, 8.0, 12.0, 2.0
 	const mw, mh = 3.4, 6.4 // the mouth: half its width, its height
+	cosY, sinY := math.Cos(yaw), math.Sin(yaw)
+	// turn rotates a direction by yaw; unturn back.
+	turn := func(v rkVec) rkVec { return rkVec{v[0]*cosY - v[1]*sinY, v[0]*sinY + v[1]*cosY, v[2]} }
+	unturn := func(v rkVec) rkVec { return rkVec{v[0]*cosY + v[1]*sinY, -v[0]*sinY + v[1]*cosY, v[2]} }
+	pivot := rkVec{0, cy, 0}
+	// local is a point of the fitted scene where it was laid out, unturned.
+	local := func(p rkVec) rkVec { return unturn(s.design(p).add(pivot.mul(-1))).add(pivot) }
 	inMouth := func(x, z float64) bool {
 		if math.Abs(x) >= mw {
 			return false
@@ -1242,7 +1255,7 @@ func furnaceScene(lit bool) *rkScene {
 	}
 	// Firelight on the stones round the mouth.
 	glow := func(p, n rkVec, l float64, pt *rkPart) (ramp, float64, bool) {
-		p = s.design(p)
+		p, n = local(p), unturn(n)
 		d := math.Hypot(p[0]/1.3, p[2]-mh*0.4)
 		if !lit || n[1] > 0.1 || d > mw+3.5 {
 			return nil, 0, false
@@ -1254,7 +1267,7 @@ func furnaceScene(lit bool) *rkScene {
 	core.pl = append(core.pl, rkPlane{rkDown, 0})
 	core.mat = rkClayMat
 	core.decor = func(p, n rkVec, l float64, pt *rkPart) (ramp, float64, bool) {
-		p = s.design(p)
+		p = local(p)
 		if p[1] > cy || !inMouth(p[0], p[2]) {
 			return nil, 0, false
 		}
@@ -1286,18 +1299,21 @@ func furnaceScene(lit bool) *rkScene {
 		hgt := 1.15 * (1 - float64(k)*0.06)
 		for i := 0; i < n; i++ {
 			th := (float64(i) + 0.5*float64(k%2) + (rng.Float64()-0.5)*0.2) * 2 * math.Pi / float64(n)
-			if math.Sin(th) > 0.6 {
-				continue // round the back, unseen
-			}
+			unseen := math.Sin(th+yaw) > 0.6 // round the back, as it will stand
 			p := rkVec{a * math.Cos(phi) * math.Cos(th), cy + b*math.Cos(phi)*math.Sin(th), c * math.Sin(phi)}
-			if p[1] < cy && inMouth(p[0]*0.9, p[2]-0.7) {
-				continue
+			skip := unseen || p[1] < cy && inMouth(p[0]*0.9, p[2]-0.7)
+			if skip && yaw == 0 {
+				continue // as it always was drawn: the same stones, from the same draws
 			}
 			nrm := rkVec{math.Cos(phi) * math.Cos(th) / a, math.Cos(phi) * math.Sin(th) / b, math.Sin(phi) / c}.unit()
 			e1 := rkVec{-math.Sin(th) * a, math.Cos(th) * b, 0}.unit()
 			e2 := nrm.cross(e1)
 			ln := circ / float64(n) / 2 * (0.82 + rng.Float64()*0.12)
-			stone(rkBlock(rng, p.add(nrm.mul(0.25)), e1, e2, nrm, ln, hgt*(0.9+rng.Float64()*0.15), 0.9, 0.4))
+			blk := rkBlock(rng, p.add(nrm.mul(0.25)), e1, e2, nrm, ln, hgt*(0.9+rng.Float64()*0.15), 0.9, 0.4)
+			if skip {
+				continue // turned: drawn and left out, so each facing keeps its stones
+			}
+			stone(blk)
 		}
 	}
 	// The lintel over the mouth, and the hearth stone before it.
@@ -1321,6 +1337,18 @@ func furnaceScene(lit bool) *rkScene {
 			e1 := rkVec{-math.Sin(th), math.Cos(th), 0}
 			p := top.add(out.mul(2.3)).add(rkVec{0, 0, 0.9 + float64(k)*1.7})
 			stone(rkBlock(rng, p, e1, rkTop, out, 1.25, 0.82, 0.75, 0.35))
+		}
+	}
+	if yaw != 0 {
+		// Turn it all about its middle.
+		for i := range s.parts {
+			pt := &s.parts[i]
+			for j, pl := range pt.pl {
+				n := turn(pl.n)
+				pt.pl[j] = rkPlane{n, pl.d - pl.n.dot(pivot) + n.dot(pivot)}
+			}
+			pt.c = turn(pt.c.add(pivot.mul(-1))).add(pivot)
+			pt.corners()
 		}
 	}
 	s.fit(24.33-0.33, 0.5)

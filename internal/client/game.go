@@ -138,6 +138,7 @@ type Game struct {
 	palette paletteView // the build palette, in free build; see buildpalette.go
 	ptr     pointer     // the mouse in play; see mouse.go
 	build   buildMode   // a structure chosen to build, waiting for a tile
+	turn    turnState   // which way what is being placed faces; see facing.go
 	wmap    worldMap
 	fires   map[sim.EntityID]knownFire
 
@@ -610,7 +611,7 @@ func (g *Game) updateKeys(dead bool) {
 	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
 		g.command(sim.Command{Kind: sim.CmdInteract}) // pick up, open, get on or off; see sim/aim.go
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyR) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyR) && !g.turnKey() { // R turns what is being placed; see facing.go
 		g.command(sim.Command{Kind: sim.CmdRide}) // as E for beasts and boats; see ride.go
 	}
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
@@ -618,7 +619,7 @@ func (g *Game) updateKeys(dead bool) {
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyV) { // the keyboard's way to set down what is held
 		ctx := g.useContextNow()
-		c := sim.Command{Kind: sim.CmdPlace}
+		c := sim.Command{Kind: sim.CmdPlace, Face: ctx.face}
 		if ctx.spot.ok && ctx.spot.valid {
 			c.At, c.TX, c.TY = true, int16(ctx.spot.tx), int16(ctx.spot.ty)
 		}
@@ -648,7 +649,7 @@ func (g *Game) updateHotbar() {
 	if i, ok := hotbarKey(); ok {
 		sel = i
 	}
-	if g.overlay == overlayNone && !ctrlHeld() { // Ctrl and the wheel zoom instead
+	if g.overlay == overlayNone && !ctrlHeld() && !g.wheelTurns() { // Ctrl and the wheel zoom instead; with a ghost up it turns it (facing.go)
 		// A wheel notch is 1; touchpads send many small amounts, so they add
 		// up to a step.
 		_, dy := ebiten.Wheel()

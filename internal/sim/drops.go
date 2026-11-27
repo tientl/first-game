@@ -331,14 +331,15 @@ func lowerFirst(s string) string {
 }
 
 // placeTrophy puts the head held in slot i on a post in front of p.
-func (w *World) placeHeld(p *Player) { w.placeHeldAt(p, false, 0, 0) }
+func (w *World) placeHeld(p *Player) { w.placeHeldAt(p, false, 0, 0, DirDown) }
 
 // placeHeldAt is placeHeld; with at set, a torch, head or seed goes on tile
 // (atX, atY) if it passes BuildSpot, and dung on the growing thing there;
-// a boat is still launched in front. See aim.go.
-func (w *World) placeHeldAt(p *Player, at bool, atX, atY int) {
+// a boat is still launched in front. What turns (a tent, a head, a grill on
+// a fire) faces face: see facing.go. See aim.go.
+func (w *World) placeHeldAt(p *Player, at bool, atX, atY int, face Dir) {
 	held := p.Held()
-	if w.useCookItem(p, held, at, atX, atY) { // a pot onto the fire, a bowl into the sea; see cooking.go
+	if w.useCookItem(p, held, at, atX, atY, face) { // a pot onto the fire, a bowl into the sea; see cooking.go
 		return
 	}
 	if at {
@@ -362,7 +363,9 @@ func (w *World) placeHeldAt(p *Player, at bool, atX, atY int) {
 		if !w.freeBuild(p) { // free build uses nothing up: see devbuild.go
 			p.Inv.TakeSlot(p.Selected, 1)
 		}
-		return w.addEntity(kind, tx, ty)
+		e := w.addEntity(kind, tx, ty)
+		e.face(face)
+		return e
 	}
 	if c, isHead := HeadOf(held); isHead {
 		if e := place(EntityTrophy); e != nil {

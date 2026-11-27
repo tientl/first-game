@@ -243,7 +243,7 @@ func BuildSpotWithin(reach, px, py float64, tx, ty int, k EntityKind, soft bool,
 	case k == EntityLeafTent && !TentGround(t):
 		return false, NoticeHardGround // see tent.go
 	}
-	if blocksPlayers(k) {
+	if blocksPlayers(k) || k == EntityDoor { // a door's posts would close on whoever stands there: see facing.go
 		for _, s := range standers {
 			r := PlayerRadius
 			if s[0]+r > float64(tx) && s[0]-r < float64(tx+1) && s[1]+r > float64(ty) && s[1]-r < float64(ty+1) {

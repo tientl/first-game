@@ -576,10 +576,23 @@ func (g *Game) drawHotbar(screen *uiDst, sw, sh int) {
 		hy := ny - 24
 		kw := g.textWidth(key)
 		tw := kw + 8 + g.textWidth(s)
+		// Something that turns being placed: R and the wheel, after a dot.
+		tkey, ts, turns := g.turnHint() // see facing.go
+		tkw, gap := 0.0, 18.0
+		if turns {
+			tkw = g.textWidth(tkey)
+			tw += gap + tkw + 8 + g.textWidth(ts)
+		}
 		hx := float64(sw)/2 - tw/2
 		plateA(screen, hx-12, hy-2.5, tw+24, 21, 10.5, 0.62)
 		g.text(screen, key, hx, hy, colKey, text.AlignStart, 1)
 		g.text(screen, s, hx+kw+8, hy, c, text.AlignStart, 1)
+		if turns {
+			tx := hx + kw + 8 + g.textWidth(s) + gap
+			fillCircle(screen, float32(tx-gap/2), float32(hy+8), 1.6, colMuted, true)
+			g.text(screen, tkey, tx, hy, colKey, text.AlignStart, 1)
+			g.text(screen, ts, tx+tkw+8, hy, colGood, text.AlignStart, 1)
+		}
 	}
 }
 
