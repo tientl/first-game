@@ -64,6 +64,10 @@ type Player struct {
 	travelCD  int        // ticks before a cave mouth takes p again
 	cook      cookPlayer // the cooking station open, and the buffs of dishes; see cooking.go
 	dev       devPlayer  // dev mode: god mode and speed, never saved, and free build, kept in a dev save; see dev.go, devbuild.go
+
+	guard          guard    // the shield raised; see shield.go
+	src            *blowSrc // the world's striker: who a blow on p comes from
+	knockX, knockY float64  // tiles of a throw still to go; see knock.go
 }
 
 // Acting reports whether the player did an action recently enough to show
@@ -135,7 +139,7 @@ func (w *World) AddPlayerWithLook(name string, l Look) PlayerID {
 	if name == "" {
 		name = "Người chơi " + strconv.Itoa(int(id))
 	}
-	p := &Player{ID: id, Name: name, Look: l.Sanitized()}
+	p := &Player{ID: id, Name: name, Look: l.Sanitized(), src: &w.striker}
 	p.harm = w.difficulty.tune().harm
 	p.reset(w.spawnX, w.spawnY)
 	p.explored = NewExplored(w.width, w.height)
@@ -281,6 +285,10 @@ func (w *World) stepPlayer(p *Player) {
 	if p.mount != 0 && (p.Dead || p.Asleep) {
 		w.dismount(p)
 	}
+	if p.Dead || p.Asleep {
+		p.guard.up = false
+		p.knockX, p.knockY = 0, 0
+	}
 	if p.Dead {
 		return
 	}
@@ -288,6 +296,8 @@ func (w *World) stepPlayer(p *Player) {
 		w.stepAsleep(p)
 		return
 	}
+	w.stepGuard(p) // the shield, up or down; see shield.go
+	w.stepKnock(p) // thrown back by a blow; see knock.go
 
 	moving := p.input.MoveX != 0 || p.input.MoveY != 0
 	swims := w.style >= StyleSeas // in an archipelago anyone can swim
@@ -300,6 +310,9 @@ func (w *World) stepPlayer(p *Player) {
 		sp := PlayerSpeed * w.speedAt(p.X, p.Y) * p.dev.speedFactor() * p.buffSpeed()
 		if p.webbed > 0 {
 			sp *= WebSlow
+		}
+		if p.guard.up {
+			sp *= GuardSlow // behind a raised shield; see shield.go
 		}
 		if swims && w.inWater(p.X, p.Y) {
 			sp = PlayerSpeed * SwimSpeed * swimBoost(&p.Inv) * p.dev.speedFactor() // see legendary.go
@@ -316,7 +329,9 @@ func (w *World) stepPlayer(p *Player) {
 		if can(p.X, p.Y+dy) {
 			p.Y += dy
 		}
-		p.Dir = dirToward(mx, my)
+		if !p.guard.up { // behind a shield they back off still facing the foe
+			p.Dir = dirToward(mx, my)
+		}
 	}
 	w.travel(p) // through a cave mouth; see underground.go
 	p.explored.Reveal(p.X, p.Y)
@@ -328,7 +343,7 @@ func (w *World) stepPlayer(p *Player) {
 	}
 	if p.line.state != CastNone {
 		w.stepLine(p, pressed, moving) // fishing: Action strikes instead
-	} else if (p.input.Action || pressed) && p.actionCD == 0 && !w.Swimming(p) { // a swimmer's hands are busy
+	} else if (p.input.Action || pressed) && p.actionCD == 0 && !w.Swimming(p) && !p.guard.up { // a swimmer's hands are busy, and so are a shield's
 		acted, found, cd := w.act(p) // see aim.go
 		if found {
 			if acted {

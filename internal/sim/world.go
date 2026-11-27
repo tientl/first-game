@@ -60,6 +60,8 @@ type World struct {
 	woods woodsPlan // where the woods' trees stand, which they grow back to; see regrow.go
 
 	dev devWorld // dev mode's overrides, never saved; see dev.go
+
+	striker blowSrc // the beast stepping now, whose blows a shield may stop; see shield.go
 }
 
 func newWorld(width, height int) *World {
