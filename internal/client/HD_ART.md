@@ -424,8 +424,16 @@ chamber, rock and whether the main route runs over it):
   `caveprops.go` (crystals, giant mushrooms, webs, egg sacs, bones, the
   fossil, the paintings, the tomb's coffin, jars and pillars, roots,
   icicles, obsidian, the roost and its bats). The flat ones are drawn under
-  everything (`drawCaveGround`); crystals and mushrooms light the dark
-  (`caveGlows`, `cavelights.go`).
+  everything (`drawCaveGround`); crystals and mushrooms light the dark.
+- The light (`cavedark.go`): away from any light the caves are near black
+  (`caveAmbient`, about 7% of full light, a little blue), at every hour.
+  Each frame a light map at art-pixel resolution starts from that and
+  adds every lamp with a soft edge (`caveLamps`: the held torch, torch
+  stands, fires, crystals and glowing mushrooms, glowing plants, the
+  daylight down the ways up, and lava from a tile mask); the scene is
+  multiplied by it, then a little haze is added round the lamps. The
+  eyes of spiders, bears and bats shine where it is dark
+  (`drawCaveEyes`). The "Độ sáng hang" setting raises the dark.
 - The map bakes each level as its own layer (`cavemap.go`).
 
 `go test ./internal/client -bench BakeCaveChunk` times a cave chunk. Look at
@@ -433,6 +441,10 @@ a chamber with `go run ./cmd/shot -open -size 1024 -at cavezone:crystal`
 (or lake, mushroom, nest, den, roost, fossil, paintings, tomb, lava,
 frozen, flooded, stream), `-at caverock:limestone`, `-at caveprop:fossil`,
 `-at cavein|cavedown|caveup`; the map with `-overlay map -reveal -mapzoom 3`.
+For the dark, add `-nofire` (no campfire by the player), `-held 13` (a
+torch in hand), `-cavelight 1|2` (the brightness setting), and `-frames 240`:
+the cave fades in over the frames drawn, and a short run can be caught
+before it has.
 
 ## The bosses and sea monsters
 

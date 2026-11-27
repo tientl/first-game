@@ -67,6 +67,9 @@ type Settings struct {
 	PostFX  bool   `json:"postfx"`            // the lighting shaders: glow and grading; see postfx.go
 	Grade   string `json:"grade,omitempty"`   // a colour grade of the world: "" (the game's own) or "comfy"
 	Ground  string `json:"ground,omitempty"`  // the look of the ground: "" (green) or "warm"; see groundhd.go
+	// CaveLight is how dark the caves are away from any light: 0 dark (a
+	// torch is needed), 1 dim, 2 light; see cavedark.go.
+	CaveLight int `json:"caveLight,omitempty"`
 }
 
 // The choices the settings screen offers.
@@ -163,6 +166,7 @@ func (s Settings) valid() Settings {
 	if s.Ground != "warm" {
 		s.Ground = ""
 	}
+	s.CaveLight = max(0, min(len(caveBrightness)-1, s.CaveLight))
 	if !gradeKnown(s.Grade) {
 		s.Grade = ""
 	}

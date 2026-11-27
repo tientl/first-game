@@ -76,6 +76,7 @@ const (
 	rowPostFX
 	rowGrade
 	rowGround
+	rowCaveLight
 )
 
 // setRowKind is the control a row has.
@@ -121,7 +122,7 @@ func setRows(t int) []setRow {
 		if len(colourGrades) > 0 {
 			rows = append(rows, setRow{rowGrade, kindChoice, "Tông màu", ""})
 		}
-		return append(rows, setRow{rowGround, kindChoice, "Kiểu mặt đất", ""})
+		return append(rows, setRow{rowGround, kindChoice, "Kiểu mặt đất", ""}, setRow{rowCaveLight, kindChoice, "Độ sáng hang", ""})
 	}
 	return nil
 }
@@ -265,6 +266,10 @@ func (s *settingsScreen) choices(id setRowID) []setChoice {
 		out = append(out,
 			setChoice{label: "Cỏ xanh", on: cur.Ground != "warm", put: func(st *Settings) { st.Ground = "" }},
 			setChoice{label: "Đất ấm", on: cur.Ground == "warm", put: func(st *Settings) { st.Ground = "warm" }})
+	case rowCaveLight:
+		for i, name := range [...]string{"Tối (cần đuốc)", "Mờ", "Sáng"} {
+			out = append(out, setChoice{label: name, on: cur.CaveLight == i, put: func(st *Settings) { st.CaveLight = i }})
+		}
 	}
 	return out
 }
@@ -731,6 +736,8 @@ func (s *settingsScreen) help() string {
 		return "Tông màu của thế giới."
 	case rowGround:
 		return "Cỏ xanh mướt, hoặc đất vàng ấm lốm đốm cỏ."
+	case rowCaveLight:
+		return "Chỗ không có đèn trong hang tối đến đâu. Tối: phải cầm đuốc mới thấy đường."
 	}
 	return ""
 }

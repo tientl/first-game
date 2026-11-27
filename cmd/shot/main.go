@@ -147,6 +147,8 @@ func main() {
 	combatLive := flag.String("combat", "", "play a real fight and write it as <o>.gif: feel (blows with hit-stop, flash, knockback, shake) or shield (raise, block, parry); see combat.go")
 	heldSheet := flag.String("heldsheet", "", "write the held-item sheets into this folder instead of a frame: every held item in the hand old and new, and a GIF of the swings (see internal/client/heldsheet.go)")
 	heldHD := flag.Bool("heldhd", true, "the HD held items, painted at the figure's density and turned cleanly (false: the old density-1 sprites; see internal/client/heldhd.go)")
+	noFire := flag.Bool("nofire", false, "leave out the campfire put next to the player (to see the dark of the caves with no light but the player's own)")
+	caveLight := flag.Int("cavelight", 0, "the cave brightness setting: 0 dark (a torch is needed), 1 dim, 2 light (see internal/client/cavedark.go)")
 	flag.Parse()
 	client.SetMeasureCanopy(*canopyFlag)
 	client.SetHeroHD(*herohd)
@@ -159,7 +161,7 @@ func main() {
 	client.SetSubPixel(*subPixel)
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
-	client.OverrideSettings(func(s *client.Settings) { s.Quality = *quality })
+	client.OverrideSettings(func(s *client.Settings) { s.Quality, s.CaveLight = *quality, *caveLight })
 	if *uiScale > 0 {
 		client.SetUIScale(*uiScale)
 	}
@@ -895,7 +897,7 @@ func main() {
 
 	// A campfire next to the spawn, so lighting is visible at night; not
 	// in the base built by -devbase, which has its own.
-	if !*sea && !*devBase {
+	if !*sea && !*devBase && !*noFire {
 		snap.Entities = append(snap.Entities, protocol.EntityView{
 			ID: 1 << 30, Kind: sim.EntityCampfire, TX: int16(cx + 2), TY: int16(cy), Ready: true,
 			Fuel: sim.FireStartFuel,
