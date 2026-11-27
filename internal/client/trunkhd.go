@@ -27,6 +27,7 @@ const (
 	barkRinged                   // palms: the rings of old leaf bases
 	barkShaggy                   // tree ferns: a mat of fibres and the scars of fronds
 	barkDead                     // a snag: bleached, split along its length
+	barkCycad                    // cycads: diamond scars of old leaf bases in crossing spirals
 )
 
 // The barks' colours, dark to light.
@@ -42,13 +43,14 @@ var (
 	barkSnag      = mkRamp(0x38342f, 0x524d45, 0x6c665b, 0x878074, 0xa29b8d, 0xbab4a6, 0xd0cabd)
 	crumbRamp     = mkRamp(0x1d150e, 0x2c2016, 0x3d2d1f, 0x51402c)
 	mudRamp       = mkRamp(0x1a1810, 0x272418, 0x353122, 0x45402e)
+	barkCycadRamp = mkRamp(0x21180f, 0x312418, 0x443320, 0x58442a, 0x6e5734, 0x856b41, 0x9d8152, 0xb59966)
 )
 
 // barkOf is the bark each colour of a trunk belongs to: what tells wood
 // from leaves (isTrunk), and what a trunk's pixel is darkened with.
 var barkOf = func() map[color.RGBA]ramp {
 	m := map[color.RGBA]ramp{}
-	for _, r := range []ramp{trunkRamp, barkOak, barkGrey, barkPine, barkAraucaria, barkRedwood, barkPalm, barkFern, barkCypress, barkSnag} {
+	for _, r := range []ramp{trunkRamp, barkOak, barkGrey, barkPine, barkAraucaria, barkRedwood, barkPalm, barkFern, barkCypress, barkSnag, barkCycadRamp} {
 		for _, c := range r {
 			if _, ok := m[c]; !ok {
 				m[c] = r
@@ -242,6 +244,8 @@ func (t trunkHD) barkL(sx, y, u, w float64, x, yi int) float64 {
 			l -= 0.3
 		}
 		return l
+	case barkCycad:
+		return cycadScar(sx, y, k, sd)
 	case barkDead:
 		f := vnoise(sx*0.1, y*0.011, sd) - 0.5
 		if math.Abs(f) < 0.025 {
@@ -453,5 +457,52 @@ func (t trunkHD) mossSide(c *canvas, amount float64) {
 				c.put(x, y, mossRamp.pick(lt, x, y))
 			}
 		}
+	}
+}
+
+// cycadScar is the bark of a cycad at (sx across it, unrolled, and y), in
+// image pixels k to an art pixel: the bases of fallen leaves cover it in
+// crossing spirals, each a raised diamond lit on its upper left, a dark
+// scar across its middle where the leaf broke off with a pale lip under it,
+// and dark seams between them.
+func cycadScar(sx, y, k float64, seed uint32) float64 {
+	dw, dh := 3.6*k, 2.5*k // a diamond's width and height
+	a, b := sx/dw+y/dh, sx/dw-y/dh
+	ca, cb := math.Floor(a)+0.5, math.Floor(b)+0.5
+	lx := (sx - (ca+cb)/2*dw) / (dw / 2) // -1 to 1 across the diamond
+	ly := (y - (ca-cb)/2*dh) / (dh / 2)  // -1 at its top corner to 1
+	id := int(ca)*131 + int(cb)
+	e := math.Abs(lx) + math.Abs(ly)
+	if e > 0.84 {
+		return -0.36 + 0.1*hashf(id, 0, seed) // the seam
+	}
+	// A low pyramid: its faces lit by where they look, softened.
+	sxn, syn := math.Copysign(1, lx), math.Copysign(1, ly)
+	l := 0.6*(-0.12*sxn-0.17*syn) + 0.4*(-0.14*lx-0.18*ly)
+	l += (hashf(id, 1, seed) - 0.5) * 0.14 // no two alike
+	switch {
+	case math.Abs(lx) < 0.42 && ly > -0.12 && ly < 0.14:
+		l -= 0.38 // the scar of the leaf
+	case math.Abs(lx) < 0.36 && ly >= 0.14 && ly < 0.3:
+		l += 0.12 // the lip under it
+	case e > 0.68:
+		l -= 0.1 // the rim falling to the seam
+	}
+	return l + (hashf(int(sx), int(y/2), seed+3)-0.5)*0.06
+}
+
+// cycadCollar is the top of a cycad's trunk where the crown comes out: a
+// ring of young, woolly leaf bases, lit from the upper left.
+func cycadCollar(c *canvas, t trunkHD, s float64) {
+	cx, w := t.at(t.ty)
+	for i := range 11 {
+		f := (float64(i) + 0.5) / 11
+		a := math.Pi * (1.05 - 1.1*f)
+		x := cx + math.Cos(a)*w*0.85
+		y := t.ty + 0.6*s - math.Sin(a)*w*0.3
+		l := 0.55 + 0.3*math.Cos(a+0.6) - 0.15*math.Sin(a)
+		c.ellipse(x, y, 0.75*s, 1.15*s, func(px, py int, nx, ny float64) color.RGBA {
+			return barkPick(barkCycadRamp, l+lum(nx, ny)*0.25-0.3+(hashf(px, py, 71)-0.5)*0.2, px, py, t.seed+70)
+		})
 	}
 }

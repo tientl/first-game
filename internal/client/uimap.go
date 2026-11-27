@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"image/color"
 	"math"
 
@@ -200,6 +201,7 @@ func (g *Game) drawMinimap(screen *uiDst, x0 float64) {
 		x, y := at(float64(f.tx)+0.5, float64(f.ty)+0.5)
 		drawFireMark(view, x, y)
 	}
+	g.drawCaveMarks(view, at, 0, float64(g.height)) // the ways up and down: see cavemap.go
 	for _, p := range g.curr.Players {
 		if p.ID == g.myID || p.Dead {
 			continue
@@ -245,6 +247,14 @@ func (g *Game) drawMinimap(screen *uiDst, x0 float64) {
 	pulse := float64(g.frame%70) / 70
 	strokeCircle(screen, float32(pcx), float32(pcy), float32(6+pulse*9), float32(1.2), color.RGBA{255, 246, 224, uint8(170 * (1 - pulse))}, true)
 	drawMapArrow(screen, pcx, pcy, dirAngle(dir), 6.5, playerColors[int(g.myID)%len(playerColors)])
+
+	// Underground, which level of the caves.
+	if k, ok := g.caveLevel(); ok {
+		s := fmt.Sprintf("Hang · tầng %d", k+1)
+		w := textWidthW(s, 0.8, wHeavy)
+		plateA(screen, mx+5, my+5, w+12, 15, 7.5, 0.8)
+		uiTextW(screen, s, mx+11, my+12.5-lineUI*0.8/2, colBoneText, text.AlignStart, 0.8, wHeavy, fxShadow)
+	}
 
 	// M opens the map.
 	kx, ky := mx+miniW-17, my+miniH-17

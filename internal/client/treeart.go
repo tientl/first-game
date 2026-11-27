@@ -940,7 +940,14 @@ func genCycad(s float64, seed uint64) sprite {
 	if c.hd() {
 		foot = half * 0.3 // its foot is round, not cut off
 	}
-	for y := int(by - h); y <= int(by+foot); y++ {
+	var tk trunkHD
+	if c.hd() { // diamond scars of old leaf bases, round and lit like every trunk: see trunkhd.go
+		tk = trunkHD{bx: bx, by: by, tx: bx + r(-0.6, 0.6)*s, ty: by - h, w0: half * 0.96, w1: half * 0.86,
+			bend: r(-0.5, 0.5) * s, flare: 0.3, bark: barkCycad, rp: barkCycadRamp, seed: uint32(seed)*5 + 37}
+		tk.draw(c, 0, 0) // no roots: the trunk swells into the ground
+		h = -1           // the old trunk below is not drawn
+	}
+	for y := int(by - h); y <= int(by+foot) && h > 0; y++ {
 		hw := half
 		if c.hd() { // the foot swells out over the ground
 			hw *= 1 + 0.4*math.Exp(-math.Max(0, by-float64(y))/(half*0.7))
@@ -978,6 +985,10 @@ func genCycad(s float64, seed uint64) sprite {
 		}
 	}
 	tx, ty := bx, by-h
+	if c.hd() {
+		tx, ty = tk.tx, tk.ty
+		cycadCollar(c, tk, s)
+	}
 	n := 9 + rng.IntN(3)
 	for i := range n {
 		a := -math.Pi + 0.5 + (math.Pi-1.0)*float64(i)/float64(n-1) + r(-0.1, 0.1)
@@ -985,7 +996,7 @@ func genCycad(s float64, seed uint64) sprite {
 	}
 	c.outline(0.6)
 	if c.hd() {
-		dressFoot(c, trunkHD{bx: bx, by: by, tx: bx, ty: by - h, w0: half, w1: half, seed: uint32(seed) + 37}, half*0.8, groundGrass)
+		dressFoot(c, tk, half*0.8, groundGrass)
 	}
 	return trimmed(c, bx, by)
 }

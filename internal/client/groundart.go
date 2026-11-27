@@ -294,15 +294,24 @@ func grassGround(hx, hy int, u, v float64) color.RGBA {
 	t := 0.42 + (n-0.5)*1.3 + (vnoise(u*1.7, v*2.2, 32)-0.5)*0.35
 	clump := vnoise(u*6.3, v*8.1, 37)
 	t += (clump - 0.5) * 0.14
+	sward := coverSward(u, v) // thick and dark here, thin and light there: see coverground.go
+	t -= sward * 0.06
 	meadow := fbm2(u*0.16+40, v*0.2, 34, 2)
-	dens := 0.004
-	if meadow > 0.6 {
-		dens = 0.1
+	dens := 0.003
+	if meadow > 0.62 {
+		dens = 0.03
 	}
 	if c, ok := flower(hx, hy, 35, dens); ok {
 		return c
 	}
-	c := turf(grassHD, t, hx, hy, 33, clamp01((clump-0.35)*2.2))
+	patch, pw := coverPatch(hx, hy, u, v) // clover, moss, worn earth: see coverground.go
+	if pw >= 1 {
+		return patch
+	}
+	c := turf(grassHD, t, hx, hy, 33, clamp01((clump-0.35)*2.2+sward*0.4))
+	if pw > 0 {
+		c = mix(c, patch, pw)
+	}
 	// The meadow is not all one green: sunnier here, deeper there.
 	if hue := fbm2(u*0.45+7, v*0.55, 38, 2); hue > 0.55 {
 		c = mix(c, hex(0x9bb548), math.Min(0.22, (hue-0.55)*1.2))
@@ -316,9 +325,12 @@ func forestGround(hx, hy int, u, v float64) color.RGBA {
 	n := fbm2(u*0.3, v*0.4, 41, 3)
 	moss := vnoise(u*4.7, v*5.9, 44)
 	t := 0.45 + (n-0.5)*1.2 + (moss-0.5)*0.2
-	// Fallen leaves, each a pixel or three with a lit end.
+	if c, ok := forestPatch(hx, hy, u, v); ok { // moss and bare duff: see coverground.go
+		return c
+	}
+	// Fallen leaves, each a pixel or three with a lit end, in drifts.
 	cx, cy := fdiv(hx, 6), fdiv(hy+int(hashf(fdiv(hx, 6), 3, 42)*5), 5)
-	if h := hash2(int32(cx), int32(cy), 42); h&0xff < 46 {
+	if h := hash2(int32(cx), int32(cy), 42); float64(h&0xff) < 46*litterThick(u, v) {
 		dx := hx - (cx*6 + 1 + int(h>>8&3))
 		dy := hy + int(hashf(cx, 3, 42)*5) - (cy*5 + 1 + int(h>>10&3)%3)
 		long := 2 + int(h>>12&1)

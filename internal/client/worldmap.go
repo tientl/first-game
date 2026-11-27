@@ -68,9 +68,10 @@ func mapRamp(t sim.Tile) ramp {
 }
 
 type mapResult struct {
-	gen  int
-	w, h int
-	data []byte
+	gen   int
+	w, h  int
+	data  []byte
+	layer int // 0: the map, or the surface over natural caves; k+1: their level k (see cavemap.go)
 }
 
 // worldMap holds the baked map image, or is waiting for it, and the fog
@@ -78,6 +79,7 @@ type mapResult struct {
 type worldMap struct {
 	gen     int
 	img     *ebiten.Image
+	layers  [sim.CaveLevels]*ebiten.Image // the natural caves' levels, baked on their own: see cavemap.go
 	results chan mapResult
 
 	explored *sim.Explored   // what this player has seen, kept up to date
@@ -111,13 +113,23 @@ func (m *worldMap) reset(terr *terrain, explored *sim.Explored) {
 		m.img.Deallocate()
 		m.img = nil
 	}
+	for k, l := range m.layers {
+		if l != nil {
+			l.Deallocate()
+			m.layers[k] = nil
+		}
+	}
 	if m.results == nil {
 		m.results = make(chan mapResult, 4)
 	}
 	gen, out := m.gen, m.results
 	go func() {
+		if terr.cave.cells != nil {
+			terr.bakeCaveMaps(gen, out) // the surface and each level of the caves: see cavemap.go
+			return
+		}
 		w, h, data := terr.bakeMap()
-		out <- mapResult{gen, w, h, data}
+		out <- mapResult{gen: gen, w: w, h: h, data: data}
 	}()
 }
 
@@ -129,8 +141,13 @@ func (m *worldMap) collect() {
 			if r.gen != m.gen {
 				continue
 			}
-			m.img = ebiten.NewImage(r.w, r.h)
-			m.img.WritePixels(r.data)
+			img := ebiten.NewImage(r.w, r.h)
+			img.WritePixels(r.data)
+			if r.layer > 0 {
+				m.layers[r.layer-1] = img
+			} else {
+				m.img = img
+			}
 		default:
 			return
 		}
@@ -154,6 +171,9 @@ func (t *terrain) bakeMap() (w, h int, data []byte) {
 
 // mapPixel colours the map at (u, v) in tiles; (px, py) only drives dithering.
 func (t *terrain) mapPixel(u, v float64, px, py int) color.RGBA {
+	if t.cave.cells != nil && int(v) >= t.cave.from {
+		return t.caveMapPixel(u, v, px, py) // the natural caves: see cavemap.go
+	}
 	s := t.coast(u, v)
 	if s < 0 {
 		if s > -0.12 {
@@ -239,6 +259,7 @@ func (g *Game) mapSnapshot(s protocol.Snapshot) {
 		}
 	}
 	g.rememberFires(s)
+	g.rememberCaveMarks(s) // see cavemap.go
 }
 
 // --- remembered campfires ---------------------------------------------------
@@ -282,7 +303,11 @@ const maxMapZoom = 6
 func (g *Game) drawMap(screen *uiDst, sw, sh int) {
 	full := screen
 	g.dim(screen, sw, sh, 0.65)
-	drawTitle(screen, "Bản đồ", float64(sw)/2, 16, 2, colBoneText, color.RGBA{60, 36, 20, 255})
+	title := "Bản đồ"
+	if k, ok := g.caveLevel(); ok { // the natural caves: see cavelights.go
+		title = fmt.Sprintf("Bản đồ — hang, tầng %d", k+1)
+	}
+	drawTitle(screen, title, float64(sw)/2, 16, 2, colBoneText, color.RGBA{60, 36, 20, 255})
 
 	// Fit the map between the title and the legend, keeping its shape.
 	const top, bottom, side = 60.0, 74.0, 28.0
@@ -315,7 +340,7 @@ func (g *Game) drawMap(screen *uiDst, sw, sh int) {
 	}
 
 	fog := g.mapLayer(g.wmap.fogImage(), r0, rh)
-	if img := g.mapLayer(g.wmap.img, r0, rh); img != nil && fog != nil {
+	if img := g.mapImage(r0, rh); img != nil && fog != nil { // see cavemap.go
 		b := img.Bounds()
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(dw/float64(b.Dx()), dh/float64(b.Dy()))
@@ -345,7 +370,8 @@ func (g *Game) drawMap(screen *uiDst, sw, sh int) {
 		drawFireMark(screen, fx, fy)
 	}
 
-	g.drawBossMarks(screen, at, r0) // see bossui.go
+	g.drawBossMarks(screen, at, r0)     // see bossui.go
+	g.drawCaveMarks(screen, at, r0, rh) // see cavemap.go
 
 	alpha := g.alpha()
 	for _, p := range g.curr.Players {
@@ -452,6 +478,9 @@ func (g *Game) drawMapLegend(screen *uiDst, cx, y float64) {
 func (g *Game) mapRows() (r0, rows float64) {
 	if g.surfaceH <= 0 {
 		return 0, float64(g.height)
+	}
+	if k, ok := g.caveLevel(); ok { // the natural caves: see cavelights.go
+		return float64(sim.CaveBandTop(g.surfaceH, k)), float64(g.surfaceH)
 	}
 	for _, p := range g.curr.Players {
 		if p.ID == g.myID && int(p.Y) >= g.surfaceH {

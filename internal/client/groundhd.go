@@ -201,6 +201,9 @@ func (t *terrain) bakeChunk(k chunkKey) (ground, shore, roof []byte) {
 // bakeChunkAll is bakeChunk, and the chunk's water map for the moving
 // water drawn over it (nil when it has none; see terrainanim.go).
 func (t *terrain) bakeChunkAll(k chunkKey) (ground, shore, roof, water []byte) {
+	if t.caveChunk(k) {
+		return t.bakeCaveChunk(k), nil, nil, nil // the natural caves: see cavebake.go
+	}
 	b := t.newBake(k)
 	var wm []byte
 	wet := false
