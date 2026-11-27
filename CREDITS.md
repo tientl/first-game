@@ -23,3 +23,8 @@ used under the SIL Open Font License, Version 1.1. The variable font is embedded
 [internal/client/fonts/Nunito-Variable.ttf](internal/client/fonts/Nunito-Variable.ttf) (renamed
 from `Nunito[wght].ttf`), with the licence beside it in
 [internal/client/fonts/OFL.txt](internal/client/fonts/OFL.txt).
+
+The few signs Nunito has not got (arrows such as → and ↔) are drawn from **Go Bold**, one of
+the Go fonts by Bigelow & Holmes Inc. (<https://go.dev/blog/go-fonts>), under the BSD 3-Clause
+licence of the Go project; it comes with the `golang.org/x/image` module and is not copied into
+the repository.
