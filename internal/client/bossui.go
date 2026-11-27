@@ -37,7 +37,7 @@ var (
 // a bar with a mark at half (where it flies into its rage), and behind the
 // health left a paler stretch of what the last blows took, which holds a
 // moment and then drains. It is half as big again on a Full HD screen.
-func (g *Game) drawBossBar(screen *ebiten.Image, sw int) {
+func (g *Game) drawBossBar(screen *uiDst, sw int) {
 	b := g.curr.Boss
 	u := &g.boss
 	if !b.Kind.Boss() || b.MaxHP <= 0 || g.curr.Self.Dead {
@@ -87,8 +87,8 @@ func (g *Game) drawBossBar(screen *ebiten.Image, sw int) {
 	}
 	if fw := w * float32(f); fw > 1 {
 		fillRoundRect(screen, x, by, fw, bh, 4*k, fill)
-		vector.DrawFilledRect(screen, x+3*k, by+2*k, max(0, fw-6*k), 3*k, lighten(fill, 46), false)
-		vector.DrawFilledRect(screen, x+3*k, by+bh-4*k, max(0, fw-6*k), 2*k, color.RGBA{fill.R / 2, fill.G / 2, fill.B / 2, 255}, false)
+		fillRect(screen, x+3*k, by+2*k, max(0, fw-6*k), 3*k, lighten(fill, 46), false)
+		fillRect(screen, x+3*k, by+bh-4*k, max(0, fw-6*k), 2*k, color.RGBA{fill.R / 2, fill.G / 2, fill.B / 2, 255}, false)
 	}
 	// The mark at half.
 	mx := x + w/2
@@ -96,7 +96,7 @@ func (g *Game) drawBossBar(screen *ebiten.Image, sw int) {
 	if f < 0.5 {
 		mark = color.RGBA{150, 124, 60, 255} // passed
 	}
-	vector.DrawFilledRect(screen, mx-k, by-3*k, 2*k, bh+6*k, mark, false)
+	fillRect(screen, mx-k, by-3*k, 2*k, bh+6*k, mark, false)
 	var d vector.Path
 	d.MoveTo(mx, by-8*k)
 	d.LineTo(mx+4*k, by-3*k)
@@ -168,7 +168,7 @@ func (g *Game) updateVictory() bool {
 }
 
 // drawVictory draws the game-beaten screen.
-func (g *Game) drawVictory(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawVictory(screen *uiDst, sw, sh int) {
 	if !g.victoryShowing() {
 		return
 	}
@@ -202,8 +202,8 @@ func (g *Game) drawVictory(screen *ebiten.Image, sw, sh int) {
 		drawSprite(dst, s, op)
 		// Struck off: a red cross.
 		ax, ay := float32(x+cw/2), float32(y+8+50)
-		vector.StrokeLine(dst, ax-26, ay-26, ax+26, ay+26, 5, color.RGBA{220, 30, 30, 220}, true)
-		vector.StrokeLine(dst, ax+26, ay-26, ax-26, ay+26, 5, color.RGBA{220, 30, 30, 220}, true)
+		strokeLine(dst, ax-26, ay-26, ax+26, ay+26, 5, color.RGBA{220, 30, 30, 220}, true)
+		strokeLine(dst, ax+26, ay-26, ax-26, ay+26, 5, color.RGBA{220, 30, 30, 220}, true)
 		g.text(screen, k.Name(), x+cw/2, y+104, colGold, text.AlignCenter, 1)
 		g.text(screen, sim.BossEpithet(k), x+cw/2, y+120, colMuted, text.AlignCenter, 1)
 	}
@@ -212,7 +212,7 @@ func (g *Game) drawVictory(screen *ebiten.Image, sw, sh int) {
 }
 
 // drawBossMarks draws the lairs this player has seen on the world map.
-func (g *Game) drawBossMarks(dst *ebiten.Image, at func(x, y float64) (float32, float32), r0 float64) {
+func (g *Game) drawBossMarks(dst *uiDst, at func(x, y float64) (float32, float32), r0 float64) {
 	if r0 != 0 {
 		return // the map shows the caves
 	}
@@ -222,8 +222,8 @@ func (g *Game) drawBossMarks(dst *ebiten.Image, at func(x, y float64) (float32, 
 		if m.Defeated {
 			bg = color.RGBA{90, 90, 96, 255}
 		}
-		vector.FillCircle(dst, x, y, 13, colInk, true)
-		vector.FillCircle(dst, x, y, 11.5, bg, true)
+		fillCircle(dst, x, y, 13, colInk, true)
+		fillCircle(dst, x, y, 11.5, bg, true)
 		if h, ok := g.art.heads[m.Kind]; ok {
 			hw, hh := h.w(), h.h()
 			k := 18 / max(hw, hh)
@@ -234,8 +234,8 @@ func (g *Game) drawBossMarks(dst *ebiten.Image, at func(x, y float64) (float32, 
 			drawSprite(dst, h, op)
 		}
 		if m.Defeated {
-			vector.StrokeLine(dst, x-10, y-10, x+10, y+10, 3, color.RGBA{230, 40, 40, 255}, true)
-			vector.StrokeLine(dst, x+10, y-10, x-10, y+10, 3, color.RGBA{230, 40, 40, 255}, true)
+			strokeLine(dst, x-10, y-10, x+10, y+10, 3, color.RGBA{230, 40, 40, 255}, true)
+			strokeLine(dst, x+10, y-10, x-10, y+10, 3, color.RGBA{230, 40, 40, 255}, true)
 		}
 		g.text(dst, m.Kind.Name(), float64(x), float64(y)+14, colWhite, text.AlignCenter, 1)
 	}

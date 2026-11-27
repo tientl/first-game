@@ -9,7 +9,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -196,14 +195,14 @@ func (m *Menu) Draw(real *ebiten.Image) {
 		m.bg.Draw(real)
 	}
 	screen, sw, sh := beginUI(real) // see uiscale.go
-	defer endUI(real, screen)
+	defer endUI(screen)
 	if m.creating {
 		m.create.draw(screen)
 		defer m.create.drawPreview(real, uiScaleNow) // after the interface: at the screen's own resolution
 		return
 	}
 	// Darken towards the middle column so the text reads over the island.
-	vector.FillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{6, 8, 16, 90}, false)
+	fillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{6, 8, 16, 90}, false)
 	cx := float64(sw) / 2
 
 	ty, listY := float64(sh)*0.2-30, float64(sh)*0.2+124
@@ -223,7 +222,7 @@ func (m *Menu) Draw(real *ebiten.Image) {
 	drawText(screen, "W/S hoặc chuột để chọn · Enter để xác nhận · A/D chỉnh âm lượng · F11 toàn màn hình", cx, float64(sh)-24, colMuted, text.AlignCenter, 1)
 
 	if m.confirm {
-		vector.FillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, 150}, false)
+		fillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, 150}, false)
 		pw, ph := float32(480), float32(230)
 		px, py := float32(cx)-pw/2, float32(sh)/2-ph/2
 		fillRoundRect(screen, px-2, py-2, pw+4, ph+4, 12, color.RGBA{0, 0, 0, 120})
@@ -242,7 +241,7 @@ func (m *Menu) Draw(real *ebiten.Image) {
 	}
 
 	if m.busy != "" {
-		vector.FillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, 170}, false)
+		fillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, 170}, false)
 		dots := strings.Repeat(".", 1+int(time.Now().UnixMilli()/400)%3)
 		drawText(screen, m.busy+dots, cx, float64(sh)/2-16, colWhite, text.AlignCenter, 2)
 	}
@@ -351,19 +350,9 @@ func abs(v float64) float64 {
 	return v
 }
 
-// drawTitle draws the game's name large. The bitmap font squeezes the two
-// accents of "ồ" into an unreadable blob at this size, so the grave accent
-// is drawn by hand beside the circumflex, as Vietnamese type sets it.
-func drawTitle(dst *ebiten.Image, title string, cx, y, scale float64, fg, shadow color.RGBA) {
-	x := cx - textWidth(title, scale)/2
-	for _, pass := range []struct {
-		d float64
-		c color.RGBA
-	}{{scale * 0.7, shadow}, {0, fg}} {
-		op := &text.DrawOptions{}
-		op.GeoM.Scale(scale, scale)
-		op.GeoM.Translate(x+pass.d, y+pass.d)
-		op.ColorScale.ScaleWithColor(pass.c)
-		text.Draw(dst, title, uiFace, op)
-	}
+// drawTitle draws a title large, centred on cx, in the heaviest weight: a
+// deep shadow of colour shadow under letters of colour fg, both rimmed dark.
+func drawTitle(dst *uiDst, title string, cx, y, scale float64, fg, shadow color.RGBA) {
+	uiTextW(dst, title, cx, y+scale*0.9, shadow, text.AlignCenter, scale, wTitle+50, fxOutline)
+	uiTextW(dst, title, cx, y, fg, text.AlignCenter, scale, wTitle+50, fxOutline)
 }

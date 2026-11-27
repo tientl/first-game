@@ -45,7 +45,7 @@ func (p *diffPicker) sizeKeys(x, y float64, click bool) bool {
 func (p *diffPicker) worldSize() int { return worldSizes[p.size%len(worldSizes)].size }
 
 // drawSize draws the size button on the panel.
-func (p *diffPicker) drawSize(b *ebiten.Image) {
+func (p *diffPicker) drawSize(b *uiDst) {
 	r := diffSizeRect()
 	x, y, w, h := float32(r.Min.X), float32(r.Min.Y), float32(r.Dx()), float32(r.Dy())
 	fillRoundRect(b, x-2, y-2, w+4, h+4, 10, color.RGBA{0, 0, 0, 90})

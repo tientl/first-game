@@ -8,7 +8,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -186,12 +185,11 @@ func (g *Game) onDev(r protocol.DevReply) {
 }
 
 // drawDev draws the DEV tag and, when open, the console.
-func (g *Game) drawDev(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawDev(screen *uiDst, sw, sh int) {
 	d := g.dev
 	if d == nil {
 		return
 	}
-	uiBreak() // over the hotbar's HD icons: see iconhd.go
 	tag := "DEV"
 	if g.freeBuild() {
 		tag = "DEV · XÂY TỰ DO" // see buildpalette.go
@@ -205,8 +203,8 @@ func (g *Game) drawDev(screen *ebiten.Image, sw, sh int) {
 	n := min(devShowLines, len(d.out))
 	h := float32((n+1)*devLineH + 14)
 	y0 := float32(sh) - h - 8
-	vector.FillRect(screen, 8, y0, float32(sw-16), h, colDevBack, false)
-	vector.StrokeRect(screen, 8, y0, float32(sw-16), h, 1, colDevTag, false)
+	fillRect(screen, 8, y0, float32(sw-16), h, colDevBack, false)
+	strokeRect(screen, 8, y0, float32(sw-16), h, 1, colDevTag, false)
 	y := float64(y0) + 6
 	for _, l := range d.out[len(d.out)-n:] {
 		g.text(screen, l.s, 16, y, l.col, text.AlignStart, 1)

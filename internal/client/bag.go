@@ -10,7 +10,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -89,13 +88,13 @@ const (
 )
 
 // drawSlot draws one inventory slot and what is in it.
-func (g *Game) drawSlot(dst *ebiten.Image, s sim.Slot, x, y float64, st slotStyle) {
+func (g *Game) drawSlot(dst *uiDst, s sim.Slot, x, y float64, st slotStyle) {
 	g.drawSlotSized(dst, s, x, y, slotPx, st)
 }
 
 // drawSlotSized draws a slot px across: a sunken well with a lit lower
 // edge, its item's icon as big as fits in whole pixels, and the count.
-func (g *Game) drawSlotSized(dst *ebiten.Image, s sim.Slot, x, y float64, px int, st slotStyle) {
+func (g *Game) drawSlotSized(dst *uiDst, s sim.Slot, x, y float64, px int, st slotStyle) {
 	fx, fy, p := float32(x), float32(y), float32(px)
 	switch st {
 	case slotHeld, slotFocus:
@@ -120,7 +119,7 @@ func (g *Game) drawSlotSized(dst *ebiten.Image, s sim.Slot, x, y float64, px int
 	is := float64(16 * max(1, (px-8)/16))
 	g.drawItem(dst, s.Item, x+(float64(px)-is)/2, y+(float64(px)-is)/2, is, a) // see iconhd.go
 	if s.Item.MaxCount() > 1 {
-		g.text(overIcons(dst), fmt.Sprintf("%d", s.Count), x+float64(px)-5, y+float64(px)-17, colWhite, text.AlignEnd, 1)
+		g.text(dst, fmt.Sprintf("%d", s.Count), x+float64(px)-5, y+float64(px)-17, colWhite, text.AlignEnd, 1)
 	}
 }
 
@@ -401,7 +400,7 @@ func (g *Game) bagMouse(x, y float64, moved, press, release, shift bool) {
 	}
 }
 
-func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawBag(screen *uiDst, sw, sh int) {
 	g.dim(screen, sw, sh, 0.55)
 	b := &g.bag
 	inv := &g.curr.Self.Inv
@@ -432,7 +431,7 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 	// Slots: the bag, then the hotbar under it.
 	b.gridX, b.gridY = px+(pw-gridW)/2, py+44
 	b.hotY = b.gridY + gridH + 24
-	vector.FillRect(screen, float32(b.gridX), float32(b.hotY)-21, float32(gridW), 1, fade(colKey, 50), false)
+	fillRect(screen, float32(b.gridX), float32(b.hotY)-21, float32(gridW), 1, fade(colKey, 50), false)
 	g.text(screen, "Ô nhanh — chọn bằng phím 1-0, món ở ô viền vàng là món đang cầm", b.gridX, b.hotY-18, colMuted, text.AlignStart, 1)
 	for i := range sim.NumSlots {
 		x, y := b.slotXY(i)
@@ -445,7 +444,7 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 		}
 		g.drawSlot(screen, inv[i], x, y, st)
 		if sim.IsHotbar(i) {
-			g.drawKeyBadge(overIcons(screen), hotbarLabel(i), x-3, y-3, i == g.hotSel)
+			g.drawKeyBadge(screen, hotbarLabel(i), x-3, y-3, i == g.hotSel)
 			if i == g.hotSel {
 				fillRoundRect(screen, float32(x)+14, float32(y)+slotPx+4, slotPx-28, 3, 1.5, colKey)
 			}
@@ -465,9 +464,9 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 			x, y := float64(b.lastMX)-24, float64(b.lastMY)-24
 			g.drawItem(screen, s.Item, x, y, 48, 0.9)
 			if s.Item.MaxCount() > 1 {
-				g.text(overIcons(screen), fmt.Sprintf("%d", s.Count), x+51, y+33, colWhite, text.AlignEnd, 1)
+				g.text(screen, fmt.Sprintf("%d", s.Count), x+51, y+33, colWhite, text.AlignEnd, 1)
 			}
-			g.drawTossHint(overIcons(screen), x+24, y+24)
+			g.drawTossHint(screen, x+24, y+24)
 			return
 		}
 		x, y := b.slotXY(b.cursor)
@@ -510,7 +509,7 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 
 	// The recipes related to the item last clicked, a few to a row.
 	sy := dy + 72
-	vector.FillRect(screen, float32(px)+20, float32(sy)-10, float32(pw)-40, 1, fade(colWhite, 40), false)
+	fillRect(screen, float32(px)+20, float32(sy)-10, float32(pw)-40, 1, fade(colWhite, 40), false)
 	b.cardX, b.cardY, b.cardW = px+16, sy+20, (pw-32-12*(cardCols-1))/cardCols
 	switch {
 	case !b.focus.Valid():
@@ -542,7 +541,7 @@ func (g *Game) drawBag(screen *ebiten.Image, sw, sh int) {
 	b.drawn = true
 }
 
-func (g *Game) drawRecipeCard(screen *ebiten.Image, r sim.Recipe, x, y, w float64, hover bool) {
+func (g *Game) drawRecipeCard(screen *uiDst, r sim.Recipe, x, y, w float64, hover bool) {
 	inv := &g.curr.Self.Inv
 	bg := color.RGBA{0, 0, 0, 90}
 	if hover {

@@ -108,7 +108,7 @@ func (g *Game) drawFishingLabels(screen *ebiten.Image, cam camera, scale float64
 }
 
 // drawFishingMessage says on the interface what the line is doing.
-func (g *Game) drawFishingMessage(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawFishingMessage(screen *uiDst, sw, sh int) {
 	blink := (g.frame/6)%2 == 0
 
 	me, ok := g.me()

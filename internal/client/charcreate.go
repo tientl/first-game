@@ -10,7 +10,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/sim"
 )
@@ -293,7 +292,7 @@ const (
 // previewDirs is the order the preview turns through.
 var previewDirs = [4]sim.Dir{sim.DirDown, sim.DirLeft, sim.DirUp, sim.DirRight}
 
-func (c *charCreator) draw(dst *ebiten.Image) {
+func (c *charCreator) draw(dst *uiDst) {
 	sw, sh := float64(dst.Bounds().Dx()), float64(dst.Bounds().Dy())
 	ccRowH, ccGap, ccSwatchH = 44, 10, 40
 	titleY, below := max(12, sh*0.08-24), 56.0
@@ -301,7 +300,7 @@ func (c *charCreator) draw(dst *ebiten.Image) {
 		ccRowH, ccGap, ccSwatchH = 38, 6, 34
 		titleY, below = 10, 48
 	}
-	vector.FillRect(dst, 0, 0, float32(sw), float32(sh), color.RGBA{6, 8, 16, 150}, false)
+	fillRect(dst, 0, 0, float32(sw), float32(sh), color.RGBA{6, 8, 16, 150}, false)
 	cx := sw / 2
 	drawText(dst, "Tạo nhân vật", cx, titleY, color.RGBA{250, 214, 110, 255}, text.AlignCenter, 3)
 
@@ -385,7 +384,7 @@ func (c *charCreator) drawPreview(dst *ebiten.Image, k int) {
 	}
 }
 
-func (c *charCreator) drawRow(dst *ebiten.Image, i int, r box) {
+func (c *charCreator) drawRow(dst *uiDst, i int, r box) {
 	focused := i == c.focus
 	bg, edge := color.RGBA{14, 16, 26, 200}, color.RGBA{0, 0, 0, 90}
 	if focused {
@@ -449,13 +448,13 @@ func (c *charCreator) drawRow(dst *ebiten.Image, i int, r box) {
 		fillRoundRect(dst, float32(b.x-1), float32(b.y-1), float32(b.w+2), float32(b.h+2), 6, color.RGBA{220, 222, 232, 110})
 		fillRoundRect(dst, float32(b.x), float32(b.y), float32(b.w), float32(b.h), 5, sh[1])
 		fillRoundRect(dst, float32(b.x+3), float32(b.y+3), float32(b.w-9), float32(b.h-12), 4, sh[2])
-		vector.FillRect(dst, float32(b.x+6), float32(b.y+6), 6, 3, sh[3], false)
+		fillRect(dst, float32(b.x+6), float32(b.y+6), 6, 3, sh[3], false)
 	}
 }
 
 // drawName draws the name row: a label and a text box with a blinking caret.
 // Left blank, it shows what the server will call the player.
-func (c *charCreator) drawName(dst *ebiten.Image, r box, focused bool) {
+func (c *charCreator) drawName(dst *uiDst, r box, focused bool) {
 	drawText(dst, "Tên", r.x+18, r.y+10, colMuted, text.AlignStart, 2)
 	bx, bw := r.x+82, r.w-82-10
 	fillRoundRect(dst, float32(bx), float32(r.y+6), float32(bw), float32(r.h-12), 5, color.RGBA{0, 0, 0, 120})
@@ -468,6 +467,6 @@ func (c *charCreator) drawName(dst *ebiten.Image, r box, focused bool) {
 	drawText(dst, name, tx, r.y+10, colWhite, text.AlignStart, 2)
 	if focused && (c.frame/30)%2 == 0 {
 		x := float32(tx + textWidth(name, 2) + 2)
-		vector.FillRect(dst, x, float32(r.y+11), 2, float32(r.h-22), colKey, false)
+		fillRect(dst, x, float32(r.y+11), 2, float32(r.h-22), colKey, false)
 	}
 }

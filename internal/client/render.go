@@ -260,7 +260,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if g.paused {
 		g.drawPause(ui, uw, uh)
 	}
-	endUI(screen, ui)
+	endUI(ui)
 }
 
 func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target targetView) {

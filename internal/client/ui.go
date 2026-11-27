@@ -6,16 +6,13 @@ import (
 	"math"
 	"time"
 
-	"github.com/hajimehoshi/bitmapfont/v4"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 )
 
-// Shared pieces of the menus: the font, the art (built once), and a vertical
-// list of buttons driven by keyboard or mouse.
-
-var uiFace = text.NewGoXFace(bitmapfont.Face)
+// Shared pieces of the menus: the art (built once), and a vertical list of
+// buttons driven by keyboard or mouse. The type is in uifont.go.
 
 var sharedArt *art
 
@@ -34,27 +31,6 @@ func getArt() *art {
 // Layout is the screen layout every scene uses: the window size in pixels.
 func Layout(outsideWidth, outsideHeight int) (int, int) {
 	return max(outsideWidth, 320), max(outsideHeight, 240)
-}
-
-// drawText draws s with a drop shadow. For AlignCenter and AlignEnd, x is
-// the centre or the right edge.
-func drawText(dst *ebiten.Image, s string, x, y float64, clr color.Color, align text.Align, scale float64) {
-	for _, pass := range []struct {
-		dx, dy float64
-		c      color.Color
-	}{{scale, scale, color.RGBA{0, 0, 0, 200}}, {0, 0, clr}} {
-		op := &text.DrawOptions{}
-		op.GeoM.Scale(scale, scale)
-		op.GeoM.Translate(x+pass.dx, y+pass.dy)
-		op.ColorScale.ScaleWithColor(pass.c)
-		op.PrimaryAlign = align
-		text.Draw(dst, s, uiFace, op)
-	}
-}
-
-func textWidth(s string, scale float64) float64 {
-	w, _ := text.Measure(s, uiFace, 0)
-	return w * scale
 }
 
 type button struct {
@@ -190,7 +166,7 @@ func (b *buttonList) handle() int {
 	return -1
 }
 
-func (b *buttonList) draw(dst *ebiten.Image, x, y, w float64) {
+func (b *buttonList) draw(dst *uiDst, x, y, w float64) {
 	b.x, b.y, b.w, b.h, b.gap = x, y, w, 44, 10
 	for i, it := range b.items {
 		ry, rh := b.rowY(i), b.rowH(i)

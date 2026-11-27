@@ -202,7 +202,7 @@ func shiftHeld() bool { return ebiten.IsKeyPressed(ebiten.KeyShift) }
 
 // drawDevBadge draws the small DEV tag that marks what free build makes out
 // of nothing, with its right edge at x.
-func (g *Game) drawDevBadge(dst *ebiten.Image, x, y float64) {
+func (g *Game) drawDevBadge(dst *uiDst, x, y float64) {
 	w := g.textWidth("DEV") + 10
 	fillRoundRect(dst, float32(x-w), float32(y), float32(w), 15, 4, colDevTag)
 	g.text(dst, "DEV", x-w/2, y+1, color.RGBA{40, 18, 6, 255}, text.AlignCenter, 1)
@@ -211,7 +211,7 @@ func (g *Game) drawDevBadge(dst *ebiten.Image, x, y float64) {
 // pieceIcon draws piece pc's icon in a box size across with its top-left
 // at (x, y): the item's icon when it is an item in the hand, else the
 // structure's sprite, shrunk to fit.
-func (g *Game) pieceIcon(dst *ebiten.Image, pc sim.DevPiece, x, y, size float64) {
+func (g *Game) pieceIcon(dst *uiDst, pc sim.DevPiece, x, y, size float64) {
 	if pc.Item.Valid() {
 		g.drawItem(dst, pc.Item, x, y, size, 1)
 		return
@@ -246,7 +246,7 @@ func (g *Game) pieceSprite(e protocol.EntityView) sprite {
 }
 
 // drawPalette draws the build palette.
-func (g *Game) drawPalette(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawPalette(screen *uiDst, sw, sh int) {
 	g.dim(screen, sw, sh, 0.55)
 	p := &g.palette
 	cols := max(4, min(palMaxCols, int((float64(sw)-16-40+palGap)/(palTileW+palGap))))
@@ -308,7 +308,7 @@ func (g *Game) drawPalette(screen *ebiten.Image, sw, sh int) {
 }
 
 // drawPaletteTile draws piece pc, palette index i, in its tile at (x, y).
-func (g *Game) drawPaletteTile(screen *ebiten.Image, pc sim.DevPiece, i int, x, y float64) {
+func (g *Game) drawPaletteTile(screen *uiDst, pc sim.DevPiece, i int, x, y float64) {
 	held := g.build.on && g.build.dev && g.build.piece == i
 	bg := color.RGBA{0, 0, 0, 90}
 	switch {
@@ -346,7 +346,7 @@ func (g *Game) drawPaletteTile(screen *ebiten.Image, pc sim.DevPiece, i int, x, 
 		col = colKey
 	}
 	for _, l := range lines {
-		g.text(overIcons(screen), l, x+palTileW/2, ty, col, text.AlignCenter, 1)
+		g.text(screen, l, x+palTileW/2, ty, col, text.AlignCenter, 1)
 		ty += 13
 	}
 }

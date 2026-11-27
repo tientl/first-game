@@ -103,6 +103,9 @@ func drawImageD(dst drawTarget, img *ebiten.Image, op *ebiten.DrawImageOptions, 
 	case *fineBuf:
 		d.drawFine(img, &o)
 		return
+	case *uiDst:
+		d.drawFine(img, &o)
+		return
 	}
 	pickFilter(&o, op.Filter)
 	dst.DrawImage(img, &o)
@@ -545,6 +548,9 @@ func fillRect(dst drawTarget, x, y, w, h float32, clr color.Color, aa bool) {
 	switch d := dst.(type) {
 	case *ebiten.Image:
 		vector.FillRect(d, x, y, w, h, clr, aa)
+	case *uiDst:
+		k := float32(d.k)
+		vector.FillRect(d.img, float32(d.X(float64(x))), float32(d.Y(float64(y))), w*k, h*k, clr, aa)
 	case *fineBuf:
 		X, Y := snapRect(x, y, aa)
 		d.vec(func(img *ebiten.Image, k float32) { vector.FillRect(img, X*k, Y*k, w*k, h*k, clr, aa) })
@@ -560,6 +566,9 @@ func strokeRect(dst drawTarget, x, y, w, h, sw float32, clr color.Color, aa bool
 	switch d := dst.(type) {
 	case *ebiten.Image:
 		vector.StrokeRect(d, x, y, w, h, sw, clr, aa)
+	case *uiDst:
+		k := float32(d.k)
+		vector.StrokeRect(d.img, float32(d.X(float64(x))), float32(d.Y(float64(y))), w*k, h*k, sw*k, clr, aa)
 	case *fineBuf:
 		X, Y := snapRect(x, y, aa)
 		d.vec(func(img *ebiten.Image, k float32) { vector.StrokeRect(img, X*k, Y*k, w*k, h*k, sw*k, clr, aa) })
@@ -575,6 +584,8 @@ func strokeLine(dst drawTarget, x0, y0, x1, y1, sw float32, clr color.Color, aa 
 	switch d := dst.(type) {
 	case *ebiten.Image:
 		vector.StrokeLine(d, x0, y0, x1, y1, sw, clr, aa)
+	case *uiDst:
+		vector.StrokeLine(d.img, float32(d.X(float64(x0))), float32(d.Y(float64(y0))), float32(d.X(float64(x1))), float32(d.Y(float64(y1))), sw*float32(d.k), clr, aa)
 	case *fineBuf:
 		d.vec(func(img *ebiten.Image, k float32) { vector.StrokeLine(img, x0*k, y0*k, x1*k, y1*k, sw*k, clr, aa) })
 	case *worldDst:
@@ -588,6 +599,8 @@ func fillCircle(dst drawTarget, cx, cy, r float32, clr color.Color, aa bool) {
 	switch d := dst.(type) {
 	case *ebiten.Image:
 		vector.FillCircle(d, cx, cy, r, clr, aa)
+	case *uiDst:
+		vector.FillCircle(d.img, float32(d.X(float64(cx))), float32(d.Y(float64(cy))), r*float32(d.k), clr, aa)
 	case *fineBuf:
 		d.vec(func(img *ebiten.Image, k float32) { vector.FillCircle(img, cx*k, cy*k, r*k, clr, aa) })
 	case *worldDst:
@@ -601,6 +614,9 @@ func strokeCircle(dst drawTarget, cx, cy, r, sw float32, clr color.Color, aa boo
 	switch d := dst.(type) {
 	case *ebiten.Image:
 		vector.StrokeCircle(d, cx, cy, r, sw, clr, aa)
+	case *uiDst:
+		k := float32(d.k)
+		vector.StrokeCircle(d.img, float32(d.X(float64(cx))), float32(d.Y(float64(cy))), r*k, sw*k, clr, aa)
 	case *fineBuf:
 		d.vec(func(img *ebiten.Image, k float32) { vector.StrokeCircle(img, cx*k, cy*k, r*k, sw*k, clr, aa) })
 	case *worldDst:
@@ -624,6 +640,10 @@ func drawColorM(dst drawTarget, img *ebiten.Image, cm colorm.ColorM, op *colorm.
 	switch d := dst.(type) {
 	case *ebiten.Image:
 		colorm.DrawImage(d, img, cm, op)
+	case *uiDst:
+		o := *op
+		o.GeoM.Concat(d.geoM())
+		colorm.DrawImage(d.img, img, cm, &o)
 	case *fineBuf:
 		o := *op
 		snapGeoM(&o.GeoM, o.Filter)

@@ -161,7 +161,7 @@ func (g *Game) craftMouse(x, y float64, press bool) {
 	}
 }
 
-func (g *Game) drawCraft(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawCraft(screen *uiDst, sw, sh int) {
 	g.dim(screen, sw, sh, 0.55)
 	c := &g.craft
 	rs := c.shown()
@@ -236,7 +236,7 @@ func (g *Game) drawCraft(screen *ebiten.Image, sw, sh int) {
 }
 
 // strokeRoundRect outlines a rounded box.
-func strokeRoundRect(dst *ebiten.Image, x, y, w, h, r float32, clr color.Color) {
+func strokeRoundRect(dst drawTarget, x, y, w, h, r float32, clr color.Color) {
 	fillRoundRect(dst, x-1.5, y-1.5, w+3, h+3, r+1.5, clr)
 	fillRoundRect(dst, x, y, w, h, r, color.RGBA{14, 16, 26, 255})
 }

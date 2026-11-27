@@ -6,7 +6,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 // The minimap, under the clock in the top right corner, shows the ground
@@ -37,7 +36,7 @@ func miniOrigin(cx, cy float64) (ox, oy float64) {
 }
 
 // drawMinimap draws the minimap in the clock's block, whose left is x0.
-func (g *Game) drawMinimap(screen *ebiten.Image, x0 float64) {
+func (g *Game) drawMinimap(screen *uiDst, x0 float64) {
 	m := &g.wmap
 	if m.mini == nil {
 		m.mini = ebiten.NewImage(miniW, miniH)
@@ -72,7 +71,7 @@ func (g *Game) drawMinimap(screen *ebiten.Image, x0 float64) {
 			m.minis.draw(c, ox, oy, g.frame)
 		}
 	} else if fog != nil {
-		vector.FillRect(c, float32(ox), float32(oy), float32(mw), float32(mh), colWaterBG, false)
+		fillRect(c, float32(ox), float32(oy), float32(mw), float32(mh), colWaterBG, false)
 	}
 	if fog != nil {
 		b := fog.Bounds()
@@ -96,14 +95,14 @@ func (g *Game) drawMinimap(screen *ebiten.Image, x0 float64) {
 		g.drawHeadMark(c, x, y, 1, playerColors[int(p.ID)%len(playerColors)], p.Look)
 	}
 	pulse := float32(g.frame%60) / 60
-	vector.StrokeCircle(c, miniW/2, miniH/2, 9+pulse*8, 1.5, color.RGBA{255, 255, 255, uint8(180 * (1 - pulse))}, true)
+	strokeCircle(c, miniW/2, miniH/2, 9+pulse*8, 1.5, color.RGBA{255, 255, 255, uint8(180 * (1 - pulse))}, true)
 	g.drawHeadMark(c, miniW/2, miniH/2, 1, playerColors[int(g.myID)%len(playerColors)], g.myLook())
 
 	// The frame, then the canvas in it, with the key for the full map.
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(x0+miniPad, miniTop+miniPad)
 	screen.DrawImage(c, op)
-	vector.StrokeRect(screen, float32(x0+miniPad), miniTop+miniPad, miniW, miniH, 1, color.RGBA{0, 0, 0, 120}, false)
+	strokeRect(screen, float32(x0+miniPad), miniTop+miniPad, miniW, miniH, 1, color.RGBA{0, 0, 0, 120}, false)
 	kx, ky := float32(x0+miniPad+miniW-19), float32(miniTop+miniPad+miniH-19)
 	fillRoundRect(screen, kx, ky, 15, 15, 4, color.RGBA{14, 16, 26, 230})
 	g.text(screen, "M", float64(kx)+7.5, float64(ky), colKey, text.AlignCenter, 1)

@@ -74,7 +74,7 @@ func (g *Game) bagRightClick(x, y float64) {
 
 // drawTossHint tells, under a stack carried out of the bag's window, that
 // letting go throws it on the ground.
-func (g *Game) drawTossHint(dst *ebiten.Image, x, y float64) {
+func (g *Game) drawTossHint(dst *uiDst, x, y float64) {
 	if g.bag.outsideBag(x, y) {
 		g.text(dst, "thả ra: vứt xuống đất", x, y+28, colHunger, text.AlignCenter, 1)
 	}

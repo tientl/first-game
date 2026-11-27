@@ -7,7 +7,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -146,7 +145,7 @@ func (c *chestView) layout(sw, sh int) (px, py, pw, ph float64) {
 	return px, py, pw, ph
 }
 
-func (g *Game) drawChest(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawChest(screen *uiDst, sw, sh int) {
 	g.dim(screen, sw, sh, 0.55)
 	c := &g.chest
 	contents, inv := &g.curr.Self.ChestSlots, &g.curr.Self.Inv
@@ -172,7 +171,7 @@ func (g *Game) drawChest(screen *ebiten.Image, sw, sh int) {
 		g.drawSlotSized(screen, contents[i], x, y, chestPx, style(i))
 	}
 
-	vector.FillRect(screen, float32(c.chestX), float32(c.invY)-21, float32(gridW), 1, fade(colKey, 50), false)
+	fillRect(screen, float32(c.chestX), float32(c.invY)-21, float32(gridW), 1, fade(colKey, 50), false)
 	g.text(screen, "Túi đồ", c.chestX, c.invY-18, colKey, text.AlignStart, 1)
 	for i := range sim.NumSlots {
 		x, y := c.invSlotXY(i)

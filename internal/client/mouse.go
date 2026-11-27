@@ -9,7 +9,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -656,8 +655,8 @@ func (g *Game) targetBox(tg targetView, cam camera) (x, y, w, h float64, ok bool
 func drawBrackets(dst *ebiten.Image, x, y, w, h float64, col color.RGBA) {
 	l := max(6, min(16, math.Min(w, h)/3))
 	corner := func(cx, cy, dx, dy float64, c color.RGBA, width float32) {
-		vector.StrokeLine(dst, float32(cx), float32(cy), float32(cx+dx*l), float32(cy), width, c, true)
-		vector.StrokeLine(dst, float32(cx), float32(cy), float32(cx), float32(cy+dy*l), width, c, true)
+		strokeLine(dst, float32(cx), float32(cy), float32(cx+dx*l), float32(cy), width, c, true)
+		strokeLine(dst, float32(cx), float32(cy), float32(cx), float32(cy+dy*l), width, c, true)
 	}
 	shadow := color.RGBA{0, 0, 0, 150}
 	for _, pass := range []struct {

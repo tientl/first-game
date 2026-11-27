@@ -8,7 +8,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -221,7 +220,7 @@ func (g *Game) drawKrakenArms(dst drawTarget, c protocol.CreatureView, d drawabl
 
 // drawSeaHUD draws, under the health bars, the boat's state and the wind
 // while aboard, or a swimmer's strength.
-func (g *Game) drawSeaHUD(screen *ebiten.Image) {
+func (g *Game) drawSeaHUD(screen *uiDst) {
 	self := g.curr.Self
 	y := float32(122)
 	if self.Boat != 0 {
@@ -238,13 +237,13 @@ func (g *Game) drawSeaHUD(screen *ebiten.Image) {
 			g.text(screen, fmt.Sprintf("%d/%d", max32i(b.HP), max), 170, float64(y)+26, colMuted, text.AlignStart, 1)
 			// The wind: an arrow the way it blows.
 			cx, cy := float32(212), y+20
-			vector.StrokeCircle(screen, cx, cy, 14, 1, color.RGBA{255, 255, 255, 60}, true)
+			strokeCircle(screen, cx, cy, 14, 1, color.RGBA{255, 255, 255, 60}, true)
 			wd := float64(g.curr.WindDir)
 			l := float32(8 + 5*g.curr.Wind)
 			tx, ty := cx+float32(math.Cos(wd))*l, cy+float32(math.Sin(wd))*l
-			vector.StrokeLine(screen, cx-float32(math.Cos(wd))*l, cy-float32(math.Sin(wd))*l, tx, ty, 2, colKey, true)
+			strokeLine(screen, cx-float32(math.Cos(wd))*l, cy-float32(math.Sin(wd))*l, tx, ty, 2, colKey, true)
 			for _, s := range []float64{2.6, -2.6} {
-				vector.StrokeLine(screen, tx, ty, tx+float32(math.Cos(wd+s))*5, ty+float32(math.Sin(wd+s))*5, 2, colKey, true)
+				strokeLine(screen, tx, ty, tx+float32(math.Cos(wd+s))*5, ty+float32(math.Sin(wd+s))*5, 2, colKey, true)
 			}
 			g.text(screen, "gió", float64(cx), float64(cy)+16, colMuted, text.AlignCenter, 1)
 			if b.Held {
