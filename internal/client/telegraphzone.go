@@ -197,6 +197,30 @@ func (g *Game) drawDust(dst drawTarget, cam camera) {
 	}
 }
 
+var dazedStarS sprite
+
+// dazedStar is a little four-pointed star, at HD.
+func dazedStar() sprite {
+	if dazedStarS.img != nil {
+		return dazedStarS
+	}
+	c := newCanvas(15, 15)
+	c.dens = HDDensity
+	for y := range 15 {
+		for x := range 15 {
+			dx, dy := math.Abs(float64(x)-7), math.Abs(float64(y)-7)
+			if d := dx*dy*0.9 + (dx+dy)*0.55; d < 4.2 {
+				l := 1 - d/4.2
+				c.px[y*15+x] = color.RGBA{uint8(220 + 35*l), uint8(170 + 80*l), uint8(40 + 160*l*l), 255}
+			} else if d < 5 {
+				c.px[y*15+x] = color.RGBA{90, 60, 10, 255}
+			}
+		}
+	}
+	dazedStarS = mk(c, 7.5, 7.5)
+	return dazedStarS
+}
+
 // drawDazed circles a stunned player's head with little stars.
 func (g *Game) drawDazed(dst drawTarget, p protocol.PlayerView, sx, sy float64) {
 	if !p.Stunned || p.Dead {
@@ -205,10 +229,11 @@ func (g *Game) drawDazed(dst drawTarget, p protocol.PlayerView, sx, sy float64) 
 	for i := range 3 {
 		a := float64(g.frame)*0.12 + 2*math.Pi*float64(i)/3
 		x, y := sx+math.Cos(a)*7, sy-34+math.Sin(a)*2.2
-		c := color.RGBA{255, 236, 120, 255}
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(math.Round(x*3)/3-dazedStar().ax, math.Round(y*3)/3-dazedStar().ay)
 		if math.Sin(a) < 0 {
-			c = color.RGBA{200, 180, 90, 220}
+			op.ColorScale.Scale(0.75, 0.7, 0.55, 1) // behind the head: dimmer
 		}
-		fillCircle(dst, float32(x), float32(y), 1.3, c, true)
+		drawSprite(dst, dazedStar(), op)
 	}
 }
