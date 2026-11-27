@@ -437,7 +437,7 @@ func (w *World) creatureFits(k CreatureKind, x, y float64) bool {
 			}
 			tx := int(math.Floor(x - r + 2*r*float64(i)/float64(n)))
 			ty := int(math.Floor(y - r + 2*r*float64(j)/float64(n)))
-			land := (w.landAt(tx, ty) || d.pads && w.padAt(tx, ty)) && !w.beastBlocked(tx, ty)
+			land := (w.landAt(tx, ty) || d.pads && w.padAt(tx, ty) || k == CreatureTitanoboa && w.titanPoolAt(tx, ty)) && !w.beastBlocked(tx, ty) // the snake lies in its pool: see temple.go
 			switch {
 			case d.deep && w.TileAt(tx, ty) != TileWater:
 				return false

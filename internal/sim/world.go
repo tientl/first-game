@@ -51,7 +51,10 @@ type World struct {
 	pyramidPlanned bool
 	difficulty     Difficulty // see difficulty.go
 
-	bosses bossWorld // the six bosses; see bosses.go
+	bosses    bossWorld // the six bosses; see bosses.go
+	hz        hazards   // what the bosses' fights leave on the ground for a while; see lairsite.go
+	spears    []*Spear  // spears in the air; see throw.go
+	nextSpear SpearID
 
 	genH     int                 // the height the generator was asked for: what a save keeps
 	surfaceH int                 // rows above ground, when the caves lie below; see underground.go
@@ -90,7 +93,14 @@ func (w *World) Tick() uint64 { return w.tick }
 func (w *World) Spawn() (x, y float64) { return w.spawnX, w.spawnY }
 
 // Tiles returns a copy of the tile map, row-major.
-func (w *World) Tiles() []Tile { return slices.Clone(w.tiles) }
+func (w *World) Tiles() []Tile {
+	t := slices.Clone(w.tiles)
+	w.reefWhole(t) // a reef broken for a while is told as it will be again: see atoll.go
+	return t
+}
+
+// Style is the generator that made the world.
+func (w *World) Style() WorldStyle { return w.style }
 
 func (w *World) inBounds(tx, ty int) bool {
 	return tx >= 0 && ty >= 0 && tx < w.width && ty < w.height

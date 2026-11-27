@@ -491,6 +491,9 @@ const (
 	NoticeFossil     // Arg: ItemKind dug out of a great skeleton in the rock
 
 	NoticeStolen // Arg: ItemKind a flying reptile snatched; see skills.go
+
+	// The bosses' lairs since StyleLairs: see throw.go, sharkfight.go.
+	NoticeSpearHit // Arg: CreatureKind a thrown spear struck
 )
 
 // CommandKind is a discrete player request, as opposed to held input.
@@ -521,6 +524,7 @@ const (
 	CmdFeed                      // give the held food to the beast pointed at, or the nearest that eats it; see aim.go
 	CmdDevBuild                  // free build: put build palette piece Slot on tile (TX, TY) when At, else in front; see devbuild.go
 	CmdDevRemove                 // free build: take the structure on tile (TX, TY) away when At, else the one in front
+	CmdThrow                     // throw the spear held at where the player points; see throw.go
 )
 
 // Command is a discrete player request. Fields not used by Kind are ignored.
@@ -548,11 +552,15 @@ type Input struct {
 	// Guard holds a shield up while it is set (right button or Q): see
 	// shield.go.
 	Guard bool
+	// Draw holds a spear drawn back to throw (the button held down with a
+	// spear in hand): the player faces where they aim; CmdThrow lets it go.
+	// See throw.go.
+	Draw bool
 }
 
 func (in Input) sanitized() Input {
 	clamp := func(v int8) int8 { return max(-1, min(1, v)) }
-	out := Input{MoveX: clamp(in.MoveX), MoveY: clamp(in.MoveY), Action: in.Action, Guard: in.Guard}
+	out := Input{MoveX: clamp(in.MoveX), MoveY: clamp(in.MoveY), Action: in.Action, Guard: in.Guard, Draw: in.Draw}
 	if in.Aim && finite(float64(in.AimX), float64(in.AimY)) { // aim from the network may be anything
 		out.Aim, out.AimX, out.AimY = true, in.AimX, in.AimY
 	}

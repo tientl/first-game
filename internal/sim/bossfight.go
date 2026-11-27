@@ -86,6 +86,14 @@ func (w *World) stepBoss(c *Creature) {
 	}
 	wounded := c.HP < l.hp
 	l.hp = c.HP
+	switch l.site.layout {
+	case LayoutTemple:
+		w.stepTemple(c, l, wounded) // see titanfight.go
+		return
+	case LayoutAtoll:
+		w.stepAtoll(c, l, wounded) // see sharkfight.go
+		return
+	}
 	switch c.Kind {
 	case CreatureTitanoboa:
 		w.stepTitanoboa(c, l, wounded)
@@ -116,6 +124,9 @@ func (w *World) bossCanFight(c *Creature, l *bossLair, p *Player) bool {
 		return false
 	}
 	onWater := p.boat != 0 || w.inWater(p.X, p.Y)
+	if l.site.layout == LayoutAtoll {
+		return onWater || l.onAtoll(p) // on its reef too: it cannot reach dry land, but it keeps after them
+	}
 	switch c.Kind {
 	case CreatureMegalodon:
 		return onWater
@@ -129,6 +140,9 @@ func (w *World) bossCanFight(c *Creature, l *bossLair, p *Player) bool {
 // has while they stay in sight, else the nearest it can see. A blow wakes
 // it to whoever is close.
 func (w *World) bossFoe(c *Creature, l *bossLair, wounded bool) (*Player, float64) {
+	if l.site.layout != LayoutHollow {
+		return w.arenaFoe(c, l, wounded)
+	}
 	sight := bossTuneOf(c.Kind).sight
 	if l.awake {
 		sight = max(sight*1.6, 12)
@@ -152,6 +166,39 @@ func (w *World) bossFoe(c *Creature, l *bossLair, wounded bool) (*Player, float6
 			continue
 		}
 		if d := math.Hypot(p.X-c.X, p.Y-c.Y); d <= bestD {
+			best, bestD = p, d
+		}
+	}
+	if best == nil {
+		return nil, math.Inf(1)
+	}
+	l.foe = best.ID
+	return best, bestD
+}
+
+// arenaFoe is bossFoe at a lair of StyleLairs: asleep, the boss wakes for
+// whoever comes into its arena (the courtyard, the atoll) or wounds it;
+// awake, it keeps after its foe anywhere in it, and turns on the nearest
+// other when it loses them.
+func (w *World) arenaFoe(c *Creature, l *bossLair, wounded bool) (*Player, float64) {
+	r := l.arenaR(c.Kind) - 0.5
+	if l.awake {
+		r += 4
+	}
+	in := func(p *Player) bool {
+		return w.bossCanFight(c, l, p) && math.Hypot(p.X-l.x, p.Y-l.y) <= r
+	}
+	if p := w.players[l.foe]; l.awake && p != nil && in(p) {
+		return p, math.Hypot(p.X-c.X, p.Y-c.Y)
+	}
+	var best *Player
+	bestD := math.Inf(1)
+	for _, id := range w.playerOrder {
+		p := w.players[id]
+		if !in(p) && !(wounded && w.bossCanFight(c, l, p) && math.Hypot(p.X-c.X, p.Y-c.Y) <= bossWoundWake) {
+			continue
+		}
+		if d := math.Hypot(p.X-c.X, p.Y-c.Y); d < bestD {
 			best, bestD = p, d
 		}
 	}

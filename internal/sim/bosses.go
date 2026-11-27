@@ -209,6 +209,8 @@ type bossLair struct {
 	huntT      int        // ticks it will keep after it
 	bar        bool       // the Megalodon: a sandbar was raised near by...
 	barX, barY int        // ...its middle tile
+
+	site lairSite // its layout since StyleLairs, kept when it is raised again: see lairsite.go
 }
 
 // placeBosses looks for a lair for each boss and raises it there. A world
@@ -225,6 +227,9 @@ func (w *World) placeBosses() {
 		if !bossActive(BossKind(i)) {
 			continue // not in the demo: see demo.go
 		}
+		if w.style >= StyleLairs && w.placeNewLair(i) {
+			continue // the temple or the atoll: see lairsite.go
+		}
 		l.x, l.y, l.ok = w.bossLairSite(BossKind(i))
 		if l.ok {
 			w.raiseBoss(i)
@@ -234,6 +239,7 @@ func (w *World) placeBosses() {
 		}
 	}
 	w.dressLairs()
+	w.keepOffLairs()
 }
 
 // raiseBoss puts boss i at its lair, asleep and whole.
@@ -246,7 +252,7 @@ func (w *World) raiseBoss(i int) {
 	if k == CreatureSpino || k == CreatureMegalodon {
 		c.State = CreatureLurk
 	}
-	*l = bossLair{x: l.x, y: l.y, ok: true, c: c, hp: c.HP, bar: l.bar, barX: l.barX, barY: l.barY}
+	*l = bossLair{x: l.x, y: l.y, ok: true, c: c, hp: c.HP, bar: l.bar, barX: l.barX, barY: l.barY, site: l.site}
 	if k == CreatureMammothKing { // its herd grazes round it
 		for _, o := range [][2]float64{{-3.2, 1.6}, {3.0, 2.2}, {0.5, -3.4}} {
 			if x, y := l.x+o[0], l.y+o[1]; w.creatureFits(CreatureMammoth, x, y) {
@@ -422,8 +428,73 @@ func (w *World) stepBosses() {
 		}
 		w.stepArena(l, BossKind(i)) // see lair.go
 	}
+	w.stepHazards() // see lairsite.go
+	w.stepSpears()  // see throw.go
 	if w.tick%10 == 0 {
 		w.noteBossesSeen()
+	}
+}
+
+// placeNewLair finds boss i's lair in a world made since StyleLairs, builds
+// it (the temple, the atoll) and raises the boss there. It reports whether
+// it did; if not, the boss is placed as in older worlds.
+func (w *World) placeNewLair(i int) bool {
+	l := &w.bosses.lairs[i]
+	switch BossKind(i) {
+	case CreatureTitanoboa:
+		x, y, r, ok := w.templeSite() // see temple.go
+		if !ok {
+			return false
+		}
+		l.x, l.y, l.ok = x, y, true
+		w.buildTemple(l, r)
+	case CreatureMegalodon:
+		x, y, ok := w.wildsLairSite(CreatureMegalodon)
+		if !ok {
+			return false
+		}
+		l.x, l.y, l.ok = x, y, true
+		w.buildAtoll(l) // see atoll.go
+	default:
+		return false
+	}
+	w.raiseBoss(i)
+	return true
+}
+
+// keepOffLairs takes the ground of the lairs of StyleLairs out of where
+// the animals may appear: nothing more comes to live there.
+func (w *World) keepOffLairs() {
+	var mask []bool
+	for i := range w.bosses.lairs {
+		l := &w.bosses.lairs[i]
+		if !l.ok || l.site.layout == LayoutHollow {
+			continue
+		}
+		if mask == nil {
+			mask = make([]bool, len(w.tiles))
+		}
+		for _, at := range [][3]float64{{l.x, l.y, l.site.r + 1.5}, {l.site.campX, l.site.campY, campRoom + 1}} {
+			if at[2] <= 0 || at == [3]float64{0, 0, campRoom + 1} {
+				continue
+			}
+			R := int(math.Ceil(at[2]))
+			for ty := int(at[1]) - R; ty <= int(at[1])+R; ty++ {
+				for tx := int(at[0]) - R; tx <= int(at[0])+R; tx++ {
+					if w.inBounds(tx, ty) && math.Hypot(float64(tx)+0.5-at[0], float64(ty)+0.5-at[1]) <= at[2] {
+						mask[ty*w.width+tx] = true
+					}
+				}
+			}
+		}
+	}
+	if mask == nil {
+		return
+	}
+	for k := range w.fauna.spawnAt {
+		if spots := w.fauna.spawnAt[k]; len(spots) > 0 {
+			w.fauna.spawnAt[k] = slices.DeleteFunc(slices.Clone(spots), func(t int32) bool { return mask[t] })
+		}
 	}
 }
 
@@ -435,6 +506,9 @@ func (w *World) bossFell(i int) {
 	c := l.c
 	w.bossLetGo(c, l)
 	l.c, l.defeated, l.awake, l.arena = nil, true, false, false
+	if l.site.layout != LayoutHollow {
+		w.clearHazards(l.x, l.y, l.site.r+2) // the flood drains, the reef settles: the way out is open
+	}
 	w.dropAt(c.X, c.Y, []Ingredient{{Item: LegendaryItem(c.Kind), Count: 1}})
 	for _, o := range b.lairs {
 		if o.ok && !o.defeated {
@@ -483,15 +557,22 @@ type BossStatus struct {
 	Enraged      bool
 	Defeated     bool
 	Holds        PlayerID // the player in its coils, if any
+	Camp         bool     // its lair has a camp (since StyleLairs)...
+	CampX, CampY float64  // ...here
+	Stage        int      // the stage of its fight (see SkillStage): its moves and its music change
 }
 
 func (w *World) bossStatus(i int) BossStatus {
 	l := &w.bosses.lairs[i]
 	k := BossKind(i)
-	s := BossStatus{Kind: k, X: l.x, Y: l.y, LairX: l.x, LairY: l.y, MaxHP: k.MaxHP(), Defeated: l.defeated}
+	s := BossStatus{Kind: k, X: l.x, Y: l.y, LairX: l.x, LairY: l.y, MaxHP: k.MaxHP(), Defeated: l.defeated, Camp: l.site.camp, CampX: l.site.campX, CampY: l.site.campY}
 	if c := l.c; c != nil && !c.gone {
 		s.ID, s.X, s.Y, s.HP = c.ID, c.X, c.Y, c.HP
 		s.Awake, s.Enraged, s.Holds = l.awake, l.enraged, l.held
+		if l.site.layout != LayoutHollow && c.sk.pin != 0 {
+			s.Holds = c.sk.pin // in its coils: see titanfight.go
+		}
+		s.Stage = c.SkillStage()
 	}
 	return s
 }

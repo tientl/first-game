@@ -50,6 +50,7 @@ const (
 	DevCave                    // inside the caves, by the nearest cave mouth
 	DevPyramid                 // the pyramid's doorway
 	DevBoss                    // a boss's lair (with its number)
+	DevCamp                    // the camp by a boss's lair (with its number), since StyleLairs
 )
 
 func (w *World) devPlayer(id PlayerID) *Player { return w.players[id] }
@@ -169,8 +170,26 @@ func (w *World) DevFind(id PlayerID, place DevPlace, n int) (x, y float64, ok bo
 		}
 		for _, b := range w.Bosses() {
 			if b.Kind == BossKind(n-1) {
+				switch s := &w.bosses.lairs[n-1].site; s.layout {
+				case LayoutTemple: // at the courtyard's gate, the temple before them
+					x, y := b.LairX, b.LairY+s.r+1.5
+					if s.camp {
+						a := math.Atan2(s.campY-b.LairY, s.campX-b.LairX)
+						x, y = b.LairX+math.Cos(a)*(s.r+1.5), b.LairY+math.Sin(a)*(s.r+1.5)
+					}
+					return w.devLanding(x, y, 0)
+				case LayoutAtoll: // on the reef, by the lagoon
+					return w.devLanding(b.LairX, b.LairY+AtollLagoon+1.2, 0)
+				}
 				return w.devLanding(b.LairX, b.LairY, 7)
 			}
+		}
+	case DevCamp:
+		if !w.bosses.placed {
+			w.placeBosses()
+		}
+		if l := &w.bosses.lairs[n-1]; l.ok && l.site.camp {
+			return w.devLanding(l.site.campX, l.site.campY, 0)
 		}
 	}
 	return 0, 0, false

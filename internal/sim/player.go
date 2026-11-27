@@ -268,6 +268,8 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 		w.victorySeen(p) // see bosses.go
 	case CmdToss:
 		w.toss(p, int(cmd.Slot), int(cmd.Count)) // see toss.go
+	case CmdThrow:
+		w.throwSpear(p) // see throw.go
 	case CmdDevBuild:
 		if !p.Dead && !p.Asleep {
 			w.devBuild(p, int(cmd.Slot), cmd.At, int(cmd.TX), int(cmd.TY)) // free build only; see devbuild.go

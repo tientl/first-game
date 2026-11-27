@@ -400,7 +400,7 @@ func (g *Game) onMessage(m protocol.ServerMsg) {
 			return
 		}
 		g.myID, g.width, g.height, g.tiles = w.PlayerID, w.Width, w.Height, w.Tiles
-		g.pondMask = sim.PondMask(w.Width, w.Height, w.Tiles)
+		g.pondMask = sim.PondMaskFor(w.Style, w.Width, w.Height, w.Tiles)
 		g.surfaceH = w.SurfaceH
 		g.difficulty = w.Difficulty
 		g.relief = w.Relief
