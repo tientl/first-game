@@ -270,3 +270,13 @@ func (t *barTrail) step(f float64, now int) barFX {
 	}
 	return barFX{trail: t.shown, flash: flash}
 }
+
+// dimScreen darkens all of d with c: what was drawn is now under it, and no
+// longer holds text for uiProbe.
+func dimScreen(d *uiDst, c color.RGBA) {
+	b := d.Bounds()
+	fillRect(d, float32(b.Min.X), float32(b.Min.Y), float32(b.Dx()), float32(b.Dy()), c, false)
+	if uiProbe != nil {
+		uiProbe.texts, uiProbe.boxes = uiProbe.texts[:0], uiProbe.boxes[:0]
+	}
+}

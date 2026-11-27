@@ -538,7 +538,7 @@ func (g *Game) drawBag(screen *uiDst, sw, sh int) {
 				}
 			}
 			if len(uses) > 0 {
-				g.text(screen, "Dùng để làm: "+strings.Join(uses, ", "), dx, dy+52, colWhite, text.AlignStart, 1)
+				g.text(screen, fitText("Dùng để làm: "+strings.Join(uses, ", "), px+pw-24-dx, 1), dx, dy+52, colWhite, text.AlignStart, 1)
 			}
 		}
 	}

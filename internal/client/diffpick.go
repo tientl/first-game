@@ -197,7 +197,7 @@ func diffFit(sw, sh int) (scale, ox, oy float64) {
 
 func (p *diffPicker) draw(screen *uiDst) {
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
-	fillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, 150}, false)
+	dimScreen(screen, color.RGBA{0, 0, 0, 150})
 	// The panel is laid out at its own size, diffW by diffH, and drawn
 	// shrunk to fit a short screen.
 	p.scale, p.ox, p.oy = diffFit(sw, sh)

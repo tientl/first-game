@@ -226,7 +226,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawFishingLabels(screen, cam, float64(scale))
 	g.drawBossIntro(screen, sw, sh) // letterbox and title card; see bossintro.go
 
-	// The interface, on its own canvas scaled to the screen; see uiscale.go.
+	g.drawInterface(screen)
+}
+
+// drawInterface draws the interface over the world, at the screen's own
+// resolution in UI pixels; see uiscale.go.
+func (g *Game) drawInterface(screen *ebiten.Image) {
 	ui, uw, uh := beginUI(screen)
 	g.lastScreenH, g.lastScreenW = uh, uw
 	g.drawFishingMessage(ui, uw, uh)

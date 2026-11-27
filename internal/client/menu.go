@@ -202,7 +202,7 @@ func (m *Menu) Draw(real *ebiten.Image) {
 		return
 	}
 	// Darken towards the middle column so the text reads over the island.
-	fillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{6, 8, 16, 90}, false)
+	fillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{10, 8, 6, 90}, false)
 	cx := float64(sw) / 2
 
 	ty, listY := float64(sh)*0.2-30, float64(sh)*0.2+124
@@ -221,7 +221,7 @@ func (m *Menu) Draw(real *ebiten.Image) {
 	drawText(screen, "W/S hoặc chuột để chọn · Enter để xác nhận · A/D chỉnh âm lượng · F11 toàn màn hình", cx, float64(sh)-24, colMuted, text.AlignCenter, 1)
 
 	if m.confirm {
-		fillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, 150}, false)
+		dimScreen(screen, color.RGBA{0, 0, 0, 150})
 		pw, ph := float32(480), float32(230)
 		px, py := float32(cx)-pw/2, float32(sh)/2-ph/2
 		drawFrame(screen, px, py, pw, ph)
@@ -239,7 +239,7 @@ func (m *Menu) Draw(real *ebiten.Image) {
 	}
 
 	if m.busy != "" {
-		fillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, 170}, false)
+		dimScreen(screen, color.RGBA{0, 0, 0, 170})
 		dots := strings.Repeat(".", 1+int(time.Now().UnixMilli()/400)%3)
 		drawText(screen, m.busy+dots, cx, float64(sh)/2-16, colWhite, text.AlignCenter, 2)
 	}

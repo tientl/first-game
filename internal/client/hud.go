@@ -44,7 +44,7 @@ func (g *Game) text(dst drawTarget, s string, x, y float64, clr color.Color, ali
 func (g *Game) textWidth(s string) float64 { return textWidth(s, 1) }
 
 func (g *Game) dim(dst *uiDst, sw, sh int, alpha float64) {
-	fillRect(dst, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, uint8(alpha * 255)}, false)
+	dimScreen(dst, color.RGBA{0, 0, 0, uint8(alpha * 255)})
 }
 
 func fillRoundRect(dst drawTarget, x, y, w, h, r float32, clr color.Color) {
@@ -355,13 +355,17 @@ func (g *Game) drawNotice(screen *uiDst, sw int) {
 	w := g.textWidth(g.notice) + 32
 	x := float64(sw)/2 - w/2
 	if a < 1 {
-		plateA(screen, x, 96, w, 28, 8, a)
-		g.text(screen, g.notice, float64(sw)/2, 102, fade(colWhite, uint8(255*a)), text.AlignCenter, 1)
+		plateA(screen, x, noticeY, w, 28, 8, a)
+		g.text(screen, g.notice, float64(sw)/2, noticeY+6, fade(colWhite, uint8(255*a)), text.AlignCenter, 1)
 		return
 	}
-	parchment(screen, x, 96, w, 28)
-	ink(screen, g.notice, float64(sw)/2, 102, colWhite, text.AlignCenter, 1)
+	parchment(screen, x, noticeY, w, 28)
+	ink(screen, g.notice, float64(sw)/2, noticeY+6, colWhite, text.AlignCenter, 1)
 }
+
+// noticeY is the top of the notice: under the vitals' status line, which can
+// run on to the middle of the screen.
+const noticeY = float64(vitalY+10+2*vitalRow) + 6 + chipH + 10
 
 // --- the clock and minimap, top right -------------------------------------------------
 

@@ -248,6 +248,7 @@ type widthKey struct {
 	s     string
 	scale float32
 	w     fontWeight
+	k     int
 }
 
 var textWidths = map[widthKey]float64{}
@@ -262,13 +263,15 @@ func textWidthW(s string, scale float64, w fontWeight) float64 {
 	if s == "" {
 		return 0
 	}
-	k := widthKey{s, float32(scale), w}
+	k := widthKey{s, float32(scale), w, uiScaleNow}
 	if v, ok := textWidths[k]; ok {
 		return v
 	}
-	// Measured at 4 times the size: the advances scale with it, and the
-	// shaper rounds to a 64th of a pixel.
-	v := text.Advance(s, faceAt(sizeUI*scale*4, w)) / 4
+	// Measured at the size it is drawn at on the screen now: glyphs are
+	// placed on whole pixels, so small text is a little wider than its
+	// size alone says.
+	u := float64(max(1, uiScaleNow))
+	v := text.Advance(s, faceAt(sizeUI*scale*u, w)) / u
 	textWidths[k] = v
 	return v
 }
