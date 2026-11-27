@@ -81,7 +81,7 @@ func Generate(cfg GenConfig) (*World, error) {
 			w.carvePaths(trng, sx, sy)
 		}
 		if cfg.Style >= StyleSeas {
-			w.addUnderground(seed) // see underground.go
+			w.caveUnderground(seed) // see underground.go and cavesys.go
 		}
 		woods := cfg.Style >= StyleWoods // trees spaced by their crowns: see woods.go
 		if woods {
@@ -105,9 +105,11 @@ func Generate(cfg GenConfig) (*World, error) {
 			w.buildVillages(prng)
 			if cfg.Style >= StyleSeas {
 				w.raisePyramid(prng)
-				w.digCaveMouths(prng) // after the pyramid, which clears its ground
+				w.caveMouths(prng) // after the pyramid, which clears its ground
 			}
-			w.placeTreasure(prng)
+			if !w.naturalCaves() {
+				w.placeTreasure(prng) // the natural caves lay their own: see cavedress.go
+			}
 		}
 		w.spawnX, w.spawnY = float64(sx)+0.5, float64(sy)+0.5
 		w.growGiants(rand.New(rand.NewPCG(cfg.Seed, 0x6a17))) // see jungle.go
@@ -136,6 +138,9 @@ func Generate(cfg GenConfig) (*World, error) {
 			w.unblockIslands()
 		}
 		w.planWoods(seed) // what the woods grow back to: see regrow.go
+		if w.naturalCaves() {
+			w.finishCaves() // their waters, what lies in them and what lives there: see cavedress.go
+		}
 		return w, nil
 	}
 

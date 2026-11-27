@@ -192,6 +192,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		func() { g.drawGlowMasks(w, cam, g.darknessNow()) },
 		func() { g.drawToadGlow(w, cam, g.darknessNow()) },        // see toadart.go
 		func() { g.drawEyeshine(w, cam, alpha, g.darknessNow()) }, // the night hunters' eyes; see troodon.go
+		func() { g.drawCaveBats(w, cam) },                         // bats flitting over their roost; see caveprops.go
 		func() { g.drawLightning(w, cam) },
 		func() { g.drawEmbers(w, cam) },
 		func() { g.drawFireflies(w, cam) },
@@ -334,6 +335,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 	g.drawSoil(dst, list)
 	g.drawFloors(dst, cam) // see tribalrender.go
 	g.drawLairGround(dst, cam)
+	g.drawCaveGround(dst, cam) // see caveprops.go
 	g.drawDigSpot(dst, cam)
 	// Each thing is drawn on the art-pixel grid through its own ground
 	// point, so a moving one keeps its pixel art whole between art pixels;
@@ -453,6 +455,9 @@ func (g *Game) shadowWidth(e protocol.EntityView) float64 {
 		return w
 	}
 	if w, ok := lairShadow(e); ok {
+		return w
+	}
+	if w, ok := caveShadow(e); ok { // see cavethings.go
 		return w
 	}
 	if w, ok := tribalShadow(e); ok {
@@ -704,6 +709,8 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		return // its player is still falling; see motiondraw.go
 	case e.Kind == sim.EntityLairProp:
 		g.drawLairProp(dst, e, d) // see lairrender.go
+		return
+	case g.drawCaveThing(dst, e, d): // see cavethings.go
 		return
 	case g.floraHidden(e):
 		return // under the ice

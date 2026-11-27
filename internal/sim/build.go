@@ -41,7 +41,7 @@ const (
 func blocksPlayers(k EntityKind) bool {
 	switch k {
 	case EntityWall, EntityStoneWall, EntitySpikes, EntityHut, EntityTotem, EntityPyramid, EntityPyramidStone, EntityCaveRock,
-		EntityGiantTree, EntityGiantRoot:
+		EntityGiantTree, EntityGiantRoot, EntityStalagmite:
 		return true
 	}
 	return false

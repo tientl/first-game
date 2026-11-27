@@ -363,6 +363,42 @@ go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
   and with someone asleep in it; `shot -tentsheet dir` the sheet with the
   bag icon and a GIF of going to bed in it; `shot -tent -tentsleep` a camp.
 
+## The natural caves
+
+Worlds made since `sim.StyleCaves` have a cave system under each island
+(`sim/cavesys.go`). Their chunks are baked by `cavebake.go` instead of the
+ground bake, from the tiles and the cave cells the server sends (each tile's
+chamber, rock and whether the main route runs over it):
+
+- The rock's edge is the tiles' eased and pushed about by noise. Rock with
+  floor below it shows a face `caveFaceH` (34 art pixels) tall inside its own
+  tiles, built of facets lit from the upper left (`facePixel`): each rock
+  (`caveMats`, COMFY52 tones) has its own, limestone with flowstone, mossy
+  stone, sandstone in courses, basalt in columns, ice, mud. Above the faces
+  the rock is the void of the roof with a thin rim (`topPixel`). Rock far
+  from any cave is a cheap flat dark chunk (`deepRockChunk`).
+- The floor (`floorPixel`): slabs, grit, pebbles with their shadows, damp
+  patches and small puddles, shade by the walls and at the foot of faces,
+  the worn main route.
+- `cavezones.go` adds the themes: water, lava, ice and fords with their
+  shores (`liquidPixel`, `shore`), each chamber's floor (`zoneFloor`,
+  `tombFloor`) and the walls' accents (`faceAccent`: roots, icicles,
+  crystals, veins of fire).
+- What stands in the caves is drawn the first time it is wanted:
+  `cavethings.go` (the hole down, the rope up, stalagmites by rock) and
+  `caveprops.go` (crystals, giant mushrooms, webs, egg sacs, bones, the
+  fossil, the paintings, the tomb's coffin, jars and pillars, roots,
+  icicles, obsidian, the roost and its bats). The flat ones are drawn under
+  everything (`drawCaveGround`); crystals and mushrooms light the dark
+  (`caveGlows`, `cavelights.go`).
+- The map bakes each level as its own layer (`cavemap.go`).
+
+`go test ./internal/client -bench BakeCaveChunk` times a cave chunk. Look at
+a chamber with `go run ./cmd/shot -open -size 1024 -at cavezone:crystal`
+(or lake, mushroom, nest, den, roost, fossil, paintings, tomb, lava,
+frozen, flooded, stream), `-at caverock:limestone`, `-at caveprop:fossil`,
+`-at cavein|cavedown|caveup`; the map with `-overlay map -reveal -mapzoom 3`.
+
 ## The bosses and sea monsters
 
 Titanoboa, the Megalodon, the Mosasaurus and the giant squid are drawn at

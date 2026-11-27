@@ -32,8 +32,8 @@ func (g *Game) updateCave() {
 				continue
 			}
 			x, y, _ := g.lerpPlayer(p, g.alpha())
-			if g.tileAt(int(math.Floor(x)), int(math.Floor(y))) == sim.TileCave {
-				in = 1
+			if g.tileAt(int(math.Floor(x)), int(math.Floor(y))) == sim.TileCave || g.naturalCaves() && int(y) >= g.surfaceH {
+				in = 1 // in the natural caves, in water or on ice too
 			}
 		}
 	}
@@ -63,6 +63,9 @@ type crystalLight struct{ sx, sy float64 }
 // crystals lists the crystal clusters in view, at the foot of tunnel walls,
 // the same spots crystalPixel draws.
 func (g *Game) crystals(cam camera, w, h int) []crystalLight {
+	if g.naturalCaves() {
+		return nil // their crystals stand on the floor: see cavelights.go
+	}
 	var out []crystalLight
 	tx0, ty0 := int(math.Floor(cam.ox/TileW))-2, int(math.Floor(cam.oy/TileH))-2
 	for ty := ty0; ty <= ty0+h/TileH+4; ty++ {
@@ -83,6 +86,9 @@ func (g *Game) caveDarkness() float64 {
 	d := caveInsideDark
 	if g.underground() {
 		d = caveDeepDark // the deep caves: no light gets in at all
+		if k, ok := g.caveLevel(); ok {
+			d = naturalDark[k] // see cavelights.go
+		}
 	}
 	return d * smooth(g.caveIn())
 }
@@ -99,6 +105,10 @@ const ownLightRadius = 1.9
 func (g *Game) crystalLights(dst drawTarget, cam camera, punch bool) {
 	in := g.caveIn()
 	if in <= 0 {
+		return
+	}
+	if g.naturalCaves() {
+		g.caveLights(dst, cam, punch, in) // see cavelights.go
 		return
 	}
 	w, h := dst.Bounds().Dx(), dst.Bounds().Dy()
