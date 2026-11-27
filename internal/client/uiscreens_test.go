@@ -17,7 +17,7 @@ import (
 	"survivalgame/internal/sim"
 )
 
-// The interface's screens, drawn at 720p, 1080p and 4K through the game's
+// The interface's screens, drawn at 720p, 1080p, 1440p and 4K through the game's
 // own drawing (drawInterface, the menu's Draw): none may panic, and every
 // string must lie inside the box drawn to hold it (or on the screen, for
 // one drawn on its own), and not run over another in the same box.
@@ -89,7 +89,7 @@ func TestInterfaceScreens(t *testing.T) {
 var uiTestSizes = []struct {
 	name string
 	w, h int
-}{{"720p", 1280, 720}, {"1080p", 1920, 1080}, {"4K", 3840, 2160}}
+}{{"720p", 1280, 720}, {"1080p", 1920, 1080}, {"1440p", 2560, 1440}, {"4K", 3840, 2160}} // 1440p: a fractional UI scale, 2.5
 
 // uiTestGame is a game in the world, with things in its bag and on its
 // hotbar, ready to draw its interface.
@@ -169,6 +169,8 @@ var uiScreens = []uiScreen{
 		g.curr.Boss = protocol.BossView{Kind: sim.CreatureTitanoboa, HP: 6600, MaxHP: 16500, Enraged: true, Holds: true}
 	}},
 	{"pause", func(g *Game) { g.paused = true }},
+	{"pause-settings", func(g *Game) { g.ShowSettings("display") }}, // see settingsui.go
+	{"pause-settings-controls", func(g *Game) { g.ShowSettings("controls") }},
 	{"dead", func(g *Game) { g.curr.Self.Dead = true }},
 	{"victory", func(g *Game) {
 		g.curr.Victory = protocol.VictoryView{Show: true, Day: 42, Beaten: []sim.CreatureKind{sim.CreatureTitanoboa, sim.CreatureMegalodon}}
@@ -260,6 +262,9 @@ func menuScreensAtEverySize(t *testing.T) {
 		{"difficulty", func(m *Menu) { m.picking = true }},
 		{"create", func(m *Menu) { m.creating = true; m.create.name = []rune("Tiến Ự") }},
 		{"busy", func(m *Menu) { m.busy = "Đang tạo thế giới" }},
+		{"settings-audio", func(m *Menu) { m.ShowSettings("audio") }},
+		{"settings-display", func(m *Menu) { m.ShowSettings("display"); m.settings.line = 1 }}, // on the resolution: its "nét nhất"
+		{"settings-controls", func(m *Menu) { m.ShowSettings("controls") }},
 	}
 	for _, sz := range uiTestSizes {
 		img := ebiten.NewImage(sz.w, sz.h)

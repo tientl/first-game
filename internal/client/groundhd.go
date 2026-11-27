@@ -43,11 +43,11 @@ var groundStyle GroundStyle
 // SetGroundStyle picks the look of the ground and keeps it with the
 // settings. The ground in view is baked again in the new look.
 func SetGroundStyle(s GroundStyle) {
-	if s != GroundWarm {
-		s = GroundGreen
+	name := ""
+	if s == GroundWarm {
+		name = "warm"
 	}
-	groundStyle = s
-	snd.saveGround(s)
+	changeSettings(func(st *Settings) { st.Ground = name }) // sets groundStyle: see settings.go
 }
 
 // CurrentGroundStyle is the look of the ground now.

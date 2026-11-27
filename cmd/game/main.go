@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -29,6 +30,15 @@ func main() {
 	// On by default until the other four bosses have lairs of their own like
 	// these two (PLAN.md group 8); -demo=false raises all six.
 	demo := flag.Bool("demo", true, "the demo: only two bosses, Titanoboa and Megalodon, each in a lair; -demo=false raises all six")
+	// The settings for this session only, over those kept in settings.json
+	// (which the settings screen changes and saves); see internal/client/settings.go.
+	window := flag.String("window", "", "window mode for this session: fullscreen, borderless or windowed")
+	res := flag.String("res", "", "resolution for this session, WxH: a window's size, or the size the game is drawn at in fullscreen")
+	quality := flag.Int("quality", 100, "render quality for this session: the world drawn at 100, 75 or 50 percent of the screen")
+	uiSize := flag.Int("ui", 0, "interface size for this session in percent (100, 125, 150, 200...), 0 automatic")
+	fps := flag.Int("fps", 0, "frame cap for this session: 30, 60 or 120 frames a second, 0 for none")
+	vsync := flag.Bool("vsync", true, "wait for the screen's refresh, for this session")
+	postFX := flag.Bool("postfx", false, "the lighting shaders (glow, grading) for this session")
 	flag.Parse()
 	sim.SetDemo(*demo)
 
@@ -43,7 +53,20 @@ func main() {
 		*savePath = p
 	}
 	log.Printf("save file: %s", *savePath)
-	client.InitAudio(filepath.Join(filepath.Dir(*savePath), "settings.json"))
+	settingsPath := filepath.Join(filepath.Dir(*savePath), "settings.json")
+	if err := client.LoadSettings(settingsPath); err != nil {
+		log.Printf("settings: %v", err)
+	}
+	overrideSettings(map[string]func(s *client.Settings){
+		"window":  func(s *client.Settings) { s.Window = client.WindowMode(*window) },
+		"res":     func(s *client.Settings) { fmt.Sscanf(*res, "%dx%d", &s.Width, &s.Height) },
+		"quality": func(s *client.Settings) { s.Quality = *quality },
+		"ui":      func(s *client.Settings) { s.UIScale = *uiSize },
+		"fps":     func(s *client.Settings) { s.FPS = *fps },
+		"vsync":   func(s *client.Settings) { s.VSync = *vsync },
+		"postfx":  func(s *client.Settings) { s.PostFX = *postFX },
+	})
+	client.InitAudio(settingsPath)
 
 	a := &app{seed: *seed, name: *name, size: *size, savePath: *savePath, dev: *dev}
 	a.openMenu()
@@ -53,9 +76,8 @@ func main() {
 
 	ebiten.SetWindowTitle("Dino Isles: Survival")
 	ebiten.SetWindowIcon(client.GameIcons())
-	ebiten.SetWindowSize(1280, 720)
-	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowClosingHandled(true)
+	client.ApplyDisplay() // the window mode, its size, vsync: as the settings say
 	err := ebiten.RunGame(a)
 	a.endSession() // saves, if a game is running
 	if err != nil && !errors.Is(err, ebiten.Termination) {
@@ -174,6 +196,7 @@ func (a *app) Update() error {
 }
 
 func (a *app) Draw(screen *ebiten.Image) {
+	client.PaceFrame() // the frame cap: see internal/client/display.go
 	if a.sess != nil {
 		a.sess.game.Draw(screen)
 		return
@@ -252,4 +275,14 @@ func (a *app) openMenu() {
 	a.menu = client.NewMenu(info)
 	a.menu.SetDefaultName(a.name)
 	a.savedName = info.Name
+}
+
+// overrideSettings puts in force, for this session only, the settings whose
+// flags were given on the command line.
+func overrideSettings(by map[string]func(s *client.Settings)) {
+	flag.Visit(func(f *flag.Flag) {
+		if set, ok := by[f.Name]; ok {
+			client.OverrideSettings(set)
+		}
+	})
 }

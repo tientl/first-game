@@ -499,8 +499,12 @@ and moving a few numbers; a bake costs 1 to 8 ms at 96 pixels.
 
 The interface is laid out in UI pixels, as it always was, and drawn at
 the screen's own resolution (`uiscale.go`): `beginUI` hands out a
-`uiDst`, the screen seen in UI pixels, `k` screen pixels to a UI pixel (1
-at 720p, 2 at 1080p and 1440p, 4 at 4K, or the UI-size setting). Layout,
+`uiDst`, the screen seen in UI pixels, `k` screen pixels to a UI pixel
+(automatic: the screen's height over 540 in quarters, so 1.25 at 720p, 2
+at 1080p, 2.5 at 1440p, 4 at 4K; or the "Cỡ giao diện" setting, 100% to
+400%). `k` need not be whole: panels and bars are baked at the size they
+land at, put on whole screen pixels, and text is set at its true size, so
+250% is as sharp as 200%. Layout,
 slot sizes and the mouse (`uiCursor`) stay in UI pixels; only the drawing
 is finer. A `uiDst` is a `drawTarget`, so `fillRect`, `strokeLine`,
 `fillCircle`, `fillPath`, `drawSprite`, `drawAt` draw on it in UI pixels;

@@ -33,10 +33,10 @@ import (
 // screenShake is the "screen shake" setting: on unless turned off.
 var screenShake = true
 
-// SetScreenShake turns screen shake on or off, and keeps the choice.
+// SetScreenShake turns screen shake on or off, and keeps the choice with
+// the settings ("Rung màn hình"; settings.go sets screenShake).
 func SetScreenShake(on bool) {
-	screenShake = on
-	snd.saveShake(on)
+	changeSettings(func(s *Settings) { s.NoShake = !on })
 }
 
 // ScreenShakeOn reports the screen shake setting.

@@ -90,7 +90,15 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 - `internal/client/tribesound.go`: tiếng người của thổ dân, tổng hợp từ một giọng người (dây thanh rung, ba formant đổi theo nguyên âm, hơi thở), mỗi chiến binh một giọng cao thấp riêng. Thấy người lạ là hét xung trận (6 kiểu: "Ha-yaaa!", "Ooo-aaa!", "Hây-ya-haaa!", tiếng lưỡi "ay-ay-ay-ay" rền, "Hựh! Haaa!", "Yaaa!"; không bao giờ lặp lại kiểu vừa hét); tối đa 3 người đứng gần (trong 10 ô) lần lượt hô đáp lại ("Hô!", "Hai!", "Hup! Hup!"…) cách nhau chừng nửa giây. Một trận chỉ hét một lần: mất dấu rồi thấy lại trong 8 giây thì thôi. Đuổi theo thú để săn thì chỉ hô một tiếng ngắn. Đâm giáo thì gằn "hựh", bị đánh thì kêu đau, ngã xuống thì kêu một tiếng dài lịm dần.
 - `internal/client/creaturevoice.go`: tiếng các loài còn thiếu, con càng to giọng càng trầm và dài. Gấu hang gầm gừ khi đi lang thang và gầm vang khi thấy người; nhện rít lách tách; bọ cạp kêu lách cách, chích thì vút một tiếng; khỉ "hu-hu-ha-ha" và thét lên khi hoảng; thỏ kêu chít chít khi bỏ chạy; Thescelosaurus kêu "quác" trầm qua mũi; thằn lằn biển Mosasaurus rền trầm dưới nước, nổi lên thì ùm và rền, thỉnh thoảng nghe tiếng rền từ đáy biển; Kraken rên ướt, ùng ục khi quấn thuyền. Thú bị đánh thì kêu đau (thú ăn cỏ lớn rống ngắn vỡ giọng, raptor kêu thét, chim và thằn lằn bay kêu khàn…), cả đàn ăn cỏ gần đó rống báo động một tiếng; thú chết thì rên một tiếng dài trầm dần. Tiếng nào cũng đặt đúng chỗ trong thế giới (xa thì nhỏ, lệch trái phải), và có giới hạn cho từng con lẫn từng loại tiếng để cả bầy không kêu loạn xạ. Các tiếng này tạo song song với các hiệu ứng khác nên gần như không làm chậm lúc mở game.
 
-Âm lượng nhạc và hiệu ứng chỉnh trong menu chính hoặc menu Esc (A/D hoặc phím mũi tên), lưu ở `%AppData%\SinhTon\settings.json`.
+## Cài đặt
+
+"Cài đặt" ở menu chính và menu tạm dừng (Esc), lưu ở `%AppData%\SinhTon\settings.json` (`internal/client/settings.go`, `settingsui.go`, `display.go`); đổi là có hiệu lực ngay. W/S chọn dòng, A/D chỉnh, Q/E đổi thẻ, Enter bật/tắt, Esc xong; chuột kéo được thanh trượt.
+
+- **Âm thanh**: âm lượng chung, nhạc, hiệu ứng, tiếng thú (tiếng gầm, tiếng kêu đi kênh riêng); tắt tiếng khi chuyển sang cửa sổ khác.
+- **Hiển thị**: chế độ màn hình (toàn màn hình / toàn màn hình không viền / cửa sổ), độ phân giải (cỡ cửa sổ, hoặc cỡ vẽ khi toàn màn hình; nét nhất ở 1920×1080 và 3840×2160), chất lượng vẽ (Cao / Trung bình / Thấp: thế giới vẽ nhỏ hơn rồi phóng lên, giao diện vẫn nét), cỡ giao diện, giới hạn khung hình và VSync, thu phóng, rung màn hình, ánh sáng và chỉnh màu, kiểu mặt đất.
+- **Điều khiển**: bảng phím.
+
+Lần đầu chạy: toàn màn hình theo độ phân giải màn hình, chất lượng Cao, cỡ giao diện Tự động, VSync bật. Game vẽ theo điểm ảnh thật của màn hình, cả khi Windows phóng to 125–150%. Cờ dòng lệnh chỉ dùng cho lần chạy đó, không lưu: `-window fullscreen|borderless|windowed`, `-res 1600x900`, `-quality 75`, `-ui 150`, `-fps 60`, `-vsync=false`, `-postfx`.
 
 ## Điều khiển
 
@@ -112,11 +120,11 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 | V | Như chuột phải với đuốc, đầu thú, hạt giống, phân, thuyền (đuốc cắm trước mặt; món khác đặt vào ô dưới con trỏ hoặc trước mặt) — cho người quen dùng bàn phím |
 | G | Vứt 1 món đang cầm xuống đất ngay trước mặt; Shift+G (hoặc Ctrl+G) vứt cả chồng. Xem "Vứt đồ ra khỏi túi" bên dưới |
 | = / − (hoặc Ctrl + lăn chuột) | Thu phóng: nhìn gần hơn hoặc xa hơn; lưu trong settings.json. Khi mở bản đồ (M): lăn chuột hoặc = / − để phóng to bản đồ quanh chỗ bạn |
-| Esc | Đang xây thì thôi xây; đang mở bảng nào thì đóng bảng đó; không thì tạm dừng: tiếp tục, lưu game, chỉnh âm lượng, về menu, thoát |
+| Esc | Đang xây thì thôi xây; đang mở bảng nào thì đóng bảng đó; không thì tạm dừng: tiếp tục, lưu game, cài đặt, về menu, thoát |
 | F1 | Hiện / ẩn bảng phím tắt đầy đủ (góc dưới bên trái); mặc định ẩn |
-| F11 | Toàn màn hình |
+| F11 / Alt+Enter | Toàn màn hình hoặc cửa sổ (lưu trong cài đặt) |
 
-**Giao diện** (`internal/client/hud.go`, `uiscale.go`): giao diện (HUD, túi đồ, rương, bảng chế tạo, bản đồ, menu, màn tạo nhân vật, bảng tạm dừng) vẽ trên một khung riêng rồi phóng lên theo độ phân giải với điểm ảnh sắc nét: tự động 1 lần ở 720p, 2 lần ở 1080p và 1440p (khung 960×540), 4 lần ở 4K (chiều cao màn hình chia 540). Chuột được quy đổi theo đúng tỉ lệ đó nên nhấp đâu trúng đó. Chữ trên đầu thú, số sát thương, tên người chơi vẫn nằm trong thế giới nhưng to theo cùng tỉ lệ. Mã có sẵn `client.SetUIScale` (0 là tự động) cho phần cài đặt sau này.
+**Giao diện** (`internal/client/hud.go`, `uiscale.go`): giao diện (HUD, túi đồ, rương, bảng chế tạo, bản đồ, menu, màn tạo nhân vật, bảng tạm dừng) vẽ thẳng ở độ phân giải màn hình, bố cục tính theo điểm UI: tự động chiều cao màn hình chia 540, làm tròn xuống từng phần tư (1,25 ở 720p, 2 ở 1080p với khung 960×540, 2,5 ở 1440p, 4 ở 4K), hoặc theo "Cỡ giao diện" trong cài đặt. Tỉ lệ lẻ vẫn nét: khung, thanh, biểu tượng vẽ đúng cỡ trên màn hình, chữ đặt đúng cỡ. Chuột được quy đổi theo đúng tỉ lệ đó nên nhấp đâu trúng đó. Chữ trên đầu thú, số sát thương, tên người chơi vẫn nằm trong thế giới nhưng to theo cùng tỉ lệ.
 
 - Góc trên bên trái: thanh **Máu** và **No bụng** có icon, số dạng "72/100" nằm gọn trong thanh (sẵn chỗ cho thanh Khát sau này). Dưới đó là các ô **trạng thái** nhỏ có icon và chữ ngắn: Lạnh, Trúng độc, Dính tơ, Đói, Chết đói, Ong đốt. Câu nhắc dài (ví dụ "Tuyết lạnh cóng! Mặc Áo lông…") chỉ hiện vài giây lúc mới bị.
 - Góc trên bên phải: một khối gồm **đồng hồ** (ngày, buổi, mùa, thời tiết kèm icon thời tiết, thanh ngày có mặt trời / mặt trăng) và **bản đồ nhỏ** ngay dưới.

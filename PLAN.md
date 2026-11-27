@@ -28,13 +28,13 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - **Đấu trường**: khi trận bắt đầu, lối ra bị chắn (rễ, dây leo; với Megalodon là vùng nước xoáy) cho tới khi hạ trùm hoặc người chơi chạy thật xa.
   - Lúc không đánh, trùm có hoạt động: Titanoboa săn thú quanh hang, cuộn ngủ; Megalodon lượn vòng, đớp cá.
 - [ ] **Hướng dẫn chơi** vài phút đầu.
-- [ ] **Menu cài đặt**: âm lượng nhạc / tiếng, và phần **Hiển thị**:
-  - Chế độ màn hình: Toàn màn hình / Toàn màn hình không viền / Cửa sổ (hiện chỉ có F11).
+- [x] **Menu cài đặt** ("Cài đặt" ở menu chính và menu tạm dừng; `settings.go`, `settingsui.go`, `display.go`): thẻ **Âm thanh** (âm lượng chung, nhạc, hiệu ứng, tiếng thú; tắt tiếng khi chuyển cửa sổ), **Hiển thị** và **Điều khiển** (bảng phím, chỉ xem). Đổi là có hiệu lực ngay và lưu vào `settings.json` (file cũ vẫn đọc được); "Mặc định" đặt lại từng thẻ; cờ dòng lệnh (`-window`, `-res`, `-quality`, `-ui`, `-fps`, `-vsync`, `-postfx`) chỉ dùng cho lần chạy đó. Phần **Hiển thị**:
+  - Chế độ màn hình: Toàn màn hình / Toàn màn hình không viền / Cửa sổ (F11 hoặc Alt+Enter đổi nhanh); không viền là cửa sổ không khung to bằng màn hình, Alt+Tab nhanh. Vẽ theo điểm ảnh thật của màn hình (cả khi Windows phóng 125–150%).
   - Độ phân giải: danh sách theo màn hình (1280×720, 1600×900, 1920×1080, 2560×1440…). Sắc nét nhất ở 1080p và các mức gấp nguyên lần (4K).
-  - Chất lượng vẽ: Cao (100%) / Trung bình (75%) / Thấp (50%) cho máy yếu.
-  - Cỡ giao diện: Tự động / 100% / 150% / 200%.
+  - Chất lượng vẽ: Cao (100%) / Trung bình (75%) / Thấp (50%) cho máy yếu: thế giới vẽ nhỏ hơn rồi phóng lên, chữ và giao diện vẫn nét.
+  - Cỡ giao diện: Tự động / 100% / 125% / 150% / 200% / 250%… (chỉ hiện mức vừa màn hình). Tự động chọn cả mức lẻ: 1,25 ở 720p, 2 ở 1080p, 2,5 ở 1440p, 4 ở 4K.
   - Giới hạn khung hình: 30 / 60 / 120 / không giới hạn, kèm VSync.
-  - Thu phóng camera (đã có phím = / −) đưa vào menu.
+  - Thu phóng camera (đã có phím = / −) đưa vào menu; thêm rung màn hình, ánh sáng và chỉnh màu, kiểu mặt đất. Tông màu COMFY52 chờ nhánh `claude/palette-test` (dòng ẩn, móc sẵn trong `settings.go`).
   - Mặc định tự động: độ phân giải màn hình, toàn màn hình, chất lượng Cao, cỡ giao diện Tự động. Cài đặt được lưu lại.
 - [x] **Bộ chiêu tấn công cho từng loài** (mục 7): mỗi loài 2–4 chiêu, chiêu nào cũng có lấy đà rõ (đòn nhẹ 0,4–0,5 giây, đòn mạnh 0,8–1 giây, đòn đặc biệt 1,2–1,5 giây kèm vùng đỏ dưới đất), sát thương chỉ tính lúc ra đòn, đánh xong khựng 0,5–1 giây cho người chơi phản công. ✅ `sim/skills.go` (bảng chiêu của 17 loài, vùng đánh hình quạt/tròn/đường, hồi chiêu, bầy thay phiên, đòn mạnh làm khựng thú nhỏ), `sim/skillai.go`, `sim/status.go` (choáng, chảy máu, chậm, bị đè: bấm đánh liên tục để vùng ra), `client/dinoskills.go`, `client/critskills.go` (dáng lấy đà, ra đòn, hồi), `client/telegraphzone.go` (vùng đỏ tạm), `client/skillsound.go`; dev: `fight <thú>`, `skill <thú> [chiêu]`; `cmd/shot -skills` quay GIF từng loài. Giao thức 51.
 - [ ] **Trận trùm Titanoboa và Megalodon**: chiêu báo trước, đổi đòn theo giai đoạn máu.

@@ -1,9 +1,7 @@
 package client
 
 import (
-	"fmt"
 	"image/color"
-	"math"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -29,34 +27,10 @@ func getArt() *art {
 	return sharedArt
 }
 
-// Layout is the screen layout every scene uses: the window size in pixels.
-func Layout(outsideWidth, outsideHeight int) (int, int) {
-	return max(outsideWidth, 320), max(outsideHeight, 240)
-}
-
 type button struct {
 	label    string
 	sub      string // optional second line
 	disabled bool
-	volume   volumeKind // if set, the button is a volume control
-}
-
-type volumeKind uint8
-
-const (
-	volNone volumeKind = iota
-	volMusic
-	volEffects
-)
-
-func (k volumeKind) get() float64 { return snd.volume(k == volMusic) }
-
-// set changes a volume and lets the player hear the new level.
-func (k volumeKind) set(v float64) {
-	snd.setVolume(k == volMusic, v)
-	if k == volEffects {
-		snd.play("ui_select", 0.5, 0, 1)
-	}
 }
 
 // buttonList is a column of buttons centred on x.
@@ -101,21 +75,11 @@ func (b *buttonList) fix() {
 }
 
 // update handles input and returns the index of the chosen button, or -1.
-// Volume buttons are handled here and never returned.
 func (b *buttonList) update() int {
 	prev := b.sel
 	i := b.handle()
 	if b.sel != prev {
 		snd.ui("ui_move")
-	}
-	if i >= 0 && b.items[i].volume != volNone {
-		k := b.items[i].volume
-		v := k.get() + 0.2
-		if v > 1.05 {
-			v = 0
-		}
-		k.set(v)
-		return -1
 	}
 	if i >= 0 {
 		snd.ui("ui_select")
@@ -125,23 +89,13 @@ func (b *buttonList) update() int {
 
 func (b *buttonList) handle() int {
 	b.fix()
-	if k := b.items[b.sel].volume; k != volNone && snd != nil {
-		left := inpututil.IsKeyJustPressed(ebiten.KeyArrowLeft) || inpututil.IsKeyJustPressed(ebiten.KeyA)
-		right := inpututil.IsKeyJustPressed(ebiten.KeyArrowRight) || inpututil.IsKeyJustPressed(ebiten.KeyD)
-		switch {
-		case left:
-			k.set(k.get() - 0.1)
-		case right:
-			k.set(k.get() + 0.1)
-		}
-	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) || inpututil.IsKeyJustPressed(ebiten.KeyS) || inpututil.IsKeyJustPressed(ebiten.KeyTab) {
 		b.move(1)
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) || inpututil.IsKeyJustPressed(ebiten.KeyW) {
 		b.move(-1)
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsKeyJustPressed(ebiten.KeyNumpadEnter) {
+	if (inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsKeyJustPressed(ebiten.KeyNumpadEnter)) && !altHeld() { // Alt+Enter is fullscreen
 		return b.sel
 	}
 	if b.w == 0 {
@@ -182,17 +136,6 @@ func (b *buttonList) draw(dst *uiDst, x, y, w float64) {
 		}
 		tab(dst, left, ry, w, rh, 12, st)
 		label := it.label
-		if it.volume != volNone {
-			pct := int(math.Round(it.volume.get() * 100))
-			switch {
-			case snd == nil:
-				label += ": không có"
-			case i == b.sel:
-				label = fmt.Sprintf("‹ %s: %d%% ›", label, pct)
-			default:
-				label = fmt.Sprintf("%s: %d%%", label, pct)
-			}
-		}
 		const ls = 1.55 // the label's size
 		ly := ry + (b.h-lineUI*ls)/2
 		uiText(dst, label, x, ly, fg, text.AlignCenter, ls, fxShadow)

@@ -15,12 +15,12 @@ import (
 // colour, shadows leaning cool, highlights warm, and the whole picture
 // tinted by the hour, golden at dawn and dusk, blue by night.
 //
-// It is off unless SetPostFX turns it on.
+// It is off unless the settings (Settings.PostFX) or SetPostFX turn it on.
 
 var postFX bool
 
-// SetPostFX turns the shaders on or off.
-func SetPostFX(on bool) { postFX = on }
+// SetPostFX turns the shaders on or off for this session, without saving it.
+func SetPostFX(on bool) { OverrideSettings(func(s *Settings) { s.PostFX = on }) }
 
 // brightBlurSrc keeps what is bright and blurs it along Dir.
 const brightBlurSrc = `//kage:unit pixels
