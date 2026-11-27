@@ -6,6 +6,8 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -84,7 +86,7 @@ func BenchmarkBakeIcon(b *testing.B) {
 //
 //	ICON_DUMP=dir go test ./internal/client -run DumpIcons -v
 //
-// ICON_ONLY=<item number> keeps one item.
+// ICON_ONLY keeps some items: item numbers and ranges, "31,40-50".
 func TestDumpIcons(t *testing.T) {
 	dir := os.Getenv("ICON_DUMP")
 	if dir == "" {
@@ -92,7 +94,7 @@ func TestDumpIcons(t *testing.T) {
 	}
 	var items []sim.ItemKind
 	for _, k := range iconSheetItems() {
-		if only := os.Getenv("ICON_ONLY"); only == "" || only == itoa(int(k)) {
+		if iconOnly(os.Getenv("ICON_ONLY"), int(k)) {
 			items = append(items, k)
 		}
 	}
@@ -158,4 +160,29 @@ func itoa(v int) string {
 		b = append([]byte{byte('0' + v%10)}, b...)
 	}
 	return string(b)
+}
+
+// iconOnly reports whether item k is in the list only ("31,40-50"); an
+// empty list keeps every item.
+func iconOnly(only string, k int) bool {
+	if only == "" {
+		return true
+	}
+	for _, part := range strings.Split(only, ",") {
+		lo, hi, ok := strings.Cut(strings.TrimSpace(part), "-")
+		a, err := strconv.Atoi(lo)
+		if err != nil {
+			continue
+		}
+		b := a
+		if ok {
+			if b, err = strconv.Atoi(hi); err != nil {
+				continue
+			}
+		}
+		if k >= a && k <= b {
+			return true
+		}
+	}
+	return false
 }

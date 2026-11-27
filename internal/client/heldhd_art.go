@@ -78,6 +78,10 @@ func (m heldMat) face(h *hpv, f *ifrag, u, v, nu, nv, lift, cu, cv float64, seed
 		nx, ny = lerpf(nx, f.gx, t), lerpf(ny, f.gy, t)
 	}
 	l := litOf(nx, ny) + lift
+	if h.icon {
+		// Big in a slot, a face lit full is a flat pale field: a step deeper.
+		l -= 0.1
+	}
 	ridge := false
 	if m.knap > 0 && edge < 0.9 {
 		l, ridge = h.knapAt(u, v, l, m.knap, seed)
@@ -98,7 +102,7 @@ func (m heldMat) face(h *hpv, f *ifrag, u, v, nu, nv, lift, cu, cv float64, seed
 		// face that does only brightens, or a carried blade would flash white.
 		r := mirror(nx, ny)
 		switch {
-		case r > 0.985-0.02*m.gloss && (edge > 0.25 || ridge):
+		case r > 0.985-0.02*m.gloss && (edge > 0.25 || ridge && !h.icon):
 			return m.glint
 		case r > 0.9:
 			l += 0.12 * m.gloss

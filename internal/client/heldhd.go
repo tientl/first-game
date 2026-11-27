@@ -85,21 +85,35 @@ type hpv struct {
 	*icv
 	cs, sn float64 // the turn
 	ox, oy float64 // the grip on the canvas, art pixels
+	flip   bool    // mirrored across its axis before it is turned: an icon's edge to the light
+	icon   bool    // painted as a bag icon (iconhd_tools.go): deeper tones, glints only on edges
 }
 
 // at is item point (u, v) on the canvas.
 func (h *hpv) at(u, v float64) (float64, float64) {
+	if h.flip {
+		u = -u
+	}
 	return h.ox + u*h.cs - v*h.sn, h.oy + u*h.sn + v*h.cs
 }
 
 // loc is canvas point (x, y) in the item's frame.
 func (h *hpv) loc(x, y float64) (u, v float64) {
 	dx, dy := x-h.ox, y-h.oy
-	return dx*h.cs + dy*h.sn, -dx*h.sn + dy*h.cs
+	u, v = dx*h.cs+dy*h.sn, -dx*h.sn+dy*h.cs
+	if h.flip {
+		u = -u
+	}
+	return u, v
 }
 
 // dir turns a direction of the item's frame onto the canvas.
-func (h *hpv) dir(u, v float64) (float64, float64) { return u*h.cs - v*h.sn, u*h.sn + v*h.cs }
+func (h *hpv) dir(u, v float64) (float64, float64) {
+	if h.flip {
+		u = -u
+	}
+	return u*h.cs - v*h.sn, u*h.sn + v*h.cs
+}
 
 // lit is the light on a surface whose normal leans (u, v) in the item's
 // frame out of the picture's plane, as litOf.
