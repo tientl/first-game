@@ -83,7 +83,9 @@ const (
 	RecipeLegWraps = RecipeMantle + 1
 	RecipeBoots    = RecipeLegWraps + 1
 
-	NumRecipes = RecipeBoots + 1
+	RecipeLeafTent = RecipeBoots + 1 // see tent.go
+
+	NumRecipes = RecipeLeafTent + 1
 )
 
 // Recipe turns ingredients into either a structure placed in front of the
@@ -410,7 +412,7 @@ const (
 	NoticeNeedBait                 // Arg: ItemKind used up as bait
 	NoticeBitten                   // Arg: CreatureKind that bit the player
 	NoticeNeedFire                 // Arg: RecipeID that must be made by a burning campfire
-	NoticeNotTired                 // a bed by day: sleep comes only in the evening and at night
+	NoticeNotTired                 // a bed by day: sleep comes only in the evening and at night; Arg: its EntityKind
 	NoticeTooEarly                 // Arg: CreatureKind scared off by striking before the bite
 	NoticeBaitStolen               // Arg: ItemKind of the bait a fish took
 	NoticeCaught                   // Arg: ItemKind landed on the line
@@ -440,7 +442,7 @@ const (
 	NoticeTornado   // caught in a tornado
 	NoticeWebbed    // tangled in a spider's web
 	NoticeTreasure  // an old chest opened
-	NoticeHomeSet   // this bed is where you will come back
+	NoticeHomeSet   // this bed is where you will come back; Arg: its EntityKind (a bed or a tent)
 
 	// The open sea: see boats.go. Arg: BoatKind unless noted.
 	NoticeLaunched  // a boat set on the water
@@ -477,6 +479,8 @@ const (
 	NoticeCured      // Arg: ItemKind that drew the poison out
 
 	NoticeArmoured // Arg: CreatureKind whose armour took half the blow; see ankylo.go
+
+	NoticeHardGround // Arg: EntityKind whose stakes do not go into rock or a ford; see tent.go
 )
 
 // CommandKind is a discrete player request, as opposed to held input.

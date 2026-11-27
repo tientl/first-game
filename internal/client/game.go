@@ -719,7 +719,12 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 		}
 		return "Cần " + k.Def().Name
 	case sim.NoticeNotTired:
-		return "Chưa buồn ngủ — giường chỉ dùng được lúc chạng vạng và ban đêm"
+		if sim.EntityKind(arg) == sim.EntityLeafTent {
+			return "Chưa buồn ngủ — lều chỉ ngủ được lúc chạng vạng và ban đêm · cầm rìu trên tay để dỡ"
+		}
+		return "Chưa buồn ngủ — giường chỉ dùng được lúc chạng vạng và ban đêm · cầm rìu trên tay để dỡ"
+	case sim.NoticeHardGround:
+		return "Đất cứng quá — cọc lều không cắm vào đá hay chỗ lội được (cần đất, cát hoặc tuyết)"
 	case sim.NoticeTooEarly:
 		return "Giật sớm quá — cá sợ bỏ đi (đợi phao chìm rồi mới nhấp chuột)"
 	case sim.NoticeBaitStolen:
@@ -839,6 +844,9 @@ func noticeText(kind sim.NoticeKind, arg uint8) string {
 	case sim.NoticeNothingToFeed:
 		return "Trỏ vào cây non, luống đất hoặc cây đang mọc lại ở gần rồi nhấp chuột phải để bón phân"
 	case sim.NoticeHomeSet:
+		if sim.EntityKind(arg) == sim.EntityLeafTent {
+			return "Đây là nơi bạn sẽ hồi sinh: cạnh lều lá này"
+		}
 		return "Đây là nơi bạn sẽ hồi sinh"
 	case sim.NoticeLaunched:
 		return "Đã thả " + sim.BoatKind(arg).Name() + " xuống nước — E để lên thuyền"

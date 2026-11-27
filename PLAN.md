@@ -142,6 +142,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - Món nấu có hiệu ứng tạm thời: canh thịt rau (hồi máu nhanh), súp nóng (chống lạnh), cá nướng thảo mộc (chạy nhanh), thịt hầm khủng long (no lâu, thêm sức đánh), trà thảo dược (giải độc), nước dừa / nước ép quả (đỡ khát, thêm chút máu).
   - **Muối**: phơi nước biển trên giàn ở bờ biển; ướp thịt để được lâu, nấu món ngon hơn.
   - **Đồ ăn ôi thiu** (để sau, chỉ ở độ khó Thành thạo và Chúa tể): thịt, cá sống để lâu thì hỏng; thịt khô, muối, hun khói giữ được lâu.
+- [x] **Lều lá**: khung chữ A bằng cành, lợp lá to (dương xỉ trên cỏ, lá rộng trong rừng và đầm lầy, tàu dừa trên cát và sa mạc, cành thông phủ tuyết trên tuyết); làm bằng tay từ 6 cành cây, 4 cỏ khô, 2 sợi lanh, mang trong túi, cầm trên tay rồi dựng (không dựng trên đá hay chỗ lội). Dùng như giường: ngủ qua đêm, làm nơi hồi sinh, rừng không mọc lại sát bên; người ngủ nằm trong lều, lá và khung che lên đầu và chân. Ban ngày cầm rìu thì dỡ được lều (và cả giường), lấy lại một nửa vật liệu.
 - [ ] **Quần áo và trang bị** (hiện giáp chỉ cần nằm trong túi, game tự chọn bộ tốt nhất; áo lông trong túi thì chống lạnh; không có ô mặc đồ). Làm trước: ô trang bị + hiện trên người, chỉ số Ấm / Mát / Giáp, túi đeo lưng, khiên tròn:
   - **6 ô trang bị**: Mũ, Áo, Quần, Giày, Áo choàng, Đeo thêm (vòng cổ, túi đeo). Mặc gì thì hiện đúng trên nhân vật Viking (mũ sắt có thanh che mũi, áo choàng lông, ủng…).
   - **Độ bền**: mòn khi bị đánh, sửa bằng nguyên liệu ở bàn chế tạo.

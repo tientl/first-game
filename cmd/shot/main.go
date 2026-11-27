@@ -908,6 +908,7 @@ func main() {
 		snap.Players[0].HurtSeq++
 	}
 	cookScene(&snap, sx, sy)   // see cook.go
+	tentScene(&snap, sx, sy)   // see tent.go
 	thinEntities(&snap, *thin) // see terrain.go
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}
 
@@ -965,6 +966,9 @@ func main() {
 	if *iconSheet {
 		g.icons = game
 	}
+	if *tentSheetFlag != "" {
+		g.tents, g.tentDir = game, *tentSheetFlag
+	}
 	if err := ebiten.RunGame(g); err != nil && !errors.Is(err, ebiten.Termination) {
 		log.Fatal(err)
 	}
@@ -1006,6 +1010,8 @@ type shooter struct {
 	motions   *client.Game // write its motion sheets into motionDir instead of the frame
 	motionDir string
 	icons     *client.Game // write its icon sheet instead of the frame
+	tents     *client.Game // write the leaf tent's sheet and GIF into tentDir instead of the frame
+	tentDir   string       // the folder they go in
 	cost      bool         // print what the art has cost
 
 	gifN, gifStep int           // -gif: frames to keep, and game frames between them
@@ -1046,6 +1052,13 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 			return
 		}
 		log.Printf("wrote %s", gifPath(s.out))
+	}
+	if s.tents != nil {
+		s.err, s.done = s.tents.TentSheets(s.tentDir), true
+		if s.err == nil {
+			log.Printf("wrote the tent sheets in %s", s.tentDir)
+		}
+		return
 	}
 	if s.motions != nil {
 		s.err, s.done = s.motions.MotionSheets(s.motionDir), true

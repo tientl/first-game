@@ -43,6 +43,8 @@ func aimBox(k EntityKind) (halfW, height float64) {
 	switch k {
 	case EntityGiantTree:
 		return 1.6, 5.5
+	case EntityLeafTent:
+		return 0.95, 2.4 // two tiles wide and a little taller than a player: see tent.go
 	case EntityTree, EntityFigTree, EntityGinkgoTree, EntityPalm, EntityBananaTree:
 		return 0.6, 2.6
 	case EntityBoulder, EntityBerryBush, EntityCactus, EntityWall, EntityStoneWall, EntityDoor,
@@ -201,6 +203,8 @@ func PlacedBy(held ItemKind) (k EntityKind, soft, ok bool) {
 	switch {
 	case held == ItemTorch:
 		return EntityTorchStand, false, true
+	case held == ItemLeafTent:
+		return EntityLeafTent, false, true // see tent.go
 	case IsSeed(held):
 		return EntitySapling, true, true
 	}
@@ -230,6 +234,8 @@ func BuildSpot(px, py float64, tx, ty int, k EntityKind, soft bool, tileAt func(
 		return false, NoticeNoSpace
 	case !t.Walkable() || (soft && !t.Soft()) || taken(tx, ty):
 		return false, NoticeNoSpace
+	case k == EntityLeafTent && !TentGround(t):
+		return false, NoticeHardGround // see tent.go
 	}
 	if blocksPlayers(k) {
 		for _, s := range standers {
@@ -410,7 +416,7 @@ func (w *World) interactKey(p *Player) {
 		switch e.Kind {
 		case EntityChest, EntityGrave, EntityTreasure:
 			return e.Kind != EntityTreasure || w.treasureLeft(e)
-		case EntityBed:
+		case EntityBed, EntityLeafTent:
 			return aimed // a bed only when pointed at: E by the bed is mostly for something else
 		}
 		return isStation(e) // see cooking.go

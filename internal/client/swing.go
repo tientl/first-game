@@ -150,6 +150,10 @@ func (g *Game) whatSwing(old protocol.Snapshot, oldAt map[[2]int]protocol.Entity
 			return tool(sim.ToolAxe, swingAxe, p.AxeTier)
 		case e.Kind == sim.EntityBoulder || e.Kind == sim.EntityStoneWall || e.Kind == sim.EntityCoal || isOre(e.Kind):
 			return tool(sim.ToolPickaxe, swingPick, sim.TierStone)
+		case sim.IsBedLike(e.Kind) && sim.PhaseOf(old.Tick) == sim.PhaseDay:
+			if c, _ := p.Held.ToolKind(); c == sim.ToolAxe { // taking it down; see sim/tent.go
+				return tool(sim.ToolAxe, swingAxe, p.AxeTier)
+			}
 		}
 	}
 	return swingInfo{kind: swingHand}

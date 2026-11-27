@@ -155,6 +155,8 @@ const (
 
 	ItemOsteoderm // a bony plate from an Ankylosaurus's armour: see ankylo.go
 
+	ItemLeafTent // a leaf tent rolled up, set down with V and slept in like a bed: see tent.go
+
 	itemsEnd // new items go above this line
 
 	// The head of each kind of beast, a trophy: HeadItem(k). They sit at a
