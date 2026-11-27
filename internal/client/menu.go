@@ -51,11 +51,11 @@ type Menu struct {
 	yesNo    buttonList
 	picking  bool // choosing the difficulty of the new world
 	diffs    diffPicker
-	diff     sim.Difficulty // the difficulty chosen for the new world
-	creating bool           // on the character screen, after the difficulty
-	create   *charCreator   // kept, so going back and forth keeps the choices
-	look     sim.Look       // the look made for the new game
-	busy     string         // shown over everything while a world is being made
+	diff     sim.Difficulty  // the difficulty chosen for the new world
+	creating bool            // on the character screen, after the difficulty
+	create   *charCreator    // kept, so going back and forth keeps the choices
+	look     sim.Look        // the look made for the new game
+	busy     string          // shown over everything while a world is being made
 	settings *settingsScreen // the settings screen, while open; see settingsui.go
 	status   string
 	bg       *Game

@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"math"
 	"os"
@@ -95,18 +96,17 @@ var (
 func CurrentSettings() Settings { return settings }
 
 // LoadSettings reads the settings kept at path (none there: the defaults)
-// and puts them in force; later changes are saved there. It does not touch
-// the window: ApplyDisplay does.
+// and puts them in force; later changes are saved there. A file that will
+// not read leaves the defaults in force, and the error says why. It does
+// not touch the window: ApplyDisplay does.
 func LoadSettings(path string) error {
 	settingsPath = path
 	s := DefaultSettings()
 	b, err := os.ReadFile(path)
 	switch {
 	case err == nil:
-		s, err = parseSettings(b)
-		if err != nil {
-			log.Printf("settings: %s: %v (using the defaults)", path, err)
-			s = DefaultSettings()
+		if s, err = parseSettings(b); err != nil {
+			err = fmt.Errorf("%s: %w (using the defaults)", path, err)
 		}
 	case os.IsNotExist(err):
 		err = nil
