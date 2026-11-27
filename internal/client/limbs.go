@@ -99,6 +99,8 @@ const (
 	upSwim            // paddling, four frames
 	upAsleep          // standing still with the eyes shut: laid in a bed
 	upFallen          // the eyes shut and one arm thrown up: laid on the ground, dead (bodyart.go)
+	upWalkHold        // upWalk with something in the hand that holds things: that arm held before the body
+	upRunHold         // and upRun so
 )
 
 // loAnim names what the legs do.
@@ -150,12 +152,22 @@ type gaitDef struct {
 	cycle, duty, lift  float64
 	crouch, bounce     float64 // the hips' drop, and how far it rises in the air, image pixels
 	arm, elbow, elbow1 float64 // the arms' swing, their bend, and how much more when forwards
-	lean               float64 // radians the body leans forwards
+	lean               float64 // radians the body leans forwards, skewed at draw
+	tilt               float64 // radians the trunk leans forwards, drawn bent (upperPose.tilt)
+	run                bool    // a running leg's swing (runSwing), and arms bent square
 }
 
+// The run (LPC's run, as a runner runs): the trunk leaning forwards about a
+// ninth of a turn, the head up; each foot down for a quarter of the stride,
+// coming down under the hips, then off the toe; the heel kicked up behind
+// towards the seat, the knee driven forwards and up with the foot under it,
+// so for a moment both feet are off the ground, the back one tucked, the
+// front one reaching; the hips lowest as a foot takes the weight, highest
+// in the air, five pixels between; the arms bent square, swinging from the
+// shoulder against the legs, the shoulder going forwards with its arm.
 var (
-	stepGait = gaitDef{cycle: 19, duty: 0.6, lift: 5, crouch: 1, bounce: -1, arm: 0.5, elbow: 0.15, elbow1: 0.3}
-	runGait  = gaitDef{cycle: 46, duty: 0.32, lift: 13, crouch: 3.5, bounce: 2.5, arm: 0.9, elbow: 1.3, elbow1: 0.25, lean: 0.12}
+	stepGait = gaitDef{cycle: 19, duty: 0.6, lift: 5, crouch: 1, bounce: -1, arm: 0.5, elbow: 0.2, elbow1: 0.3, tilt: 0.04}
+	runGait  = gaitDef{cycle: 46, duty: 0.26, crouch: 2.2, bounce: 2.6, arm: 0.72, elbow: 1.45, elbow1: 0.27, tilt: 0.24, run: true}
 )
 
 // half is how far ahead of the hip a foot comes down, in image pixels: it
@@ -189,6 +201,11 @@ func (gd gaitDef) leg(p float64) legJ {
 		s := p / gd.duty
 		l := legJ{f: a - 2*a*s}
 		switch {
+		case gd.run && s < 0.2: // landing nearly flat
+			l.pitch = runLand * (1 - s/0.2)
+		case gd.run && s > 0.55: // and off the toe
+			l.pitch = toeOff * (s - 0.55) / 0.45
+		case gd.run:
 		case s < 0.15: // on the heel
 			l.pitch = -0.3 * (1 - s/0.15)
 		case s > 0.75: // rolling onto the toe
@@ -198,8 +215,50 @@ func (gd gaitDef) leg(p float64) legJ {
 		return l
 	}
 	s := (p - gd.duty) / (1 - gd.duty)
+	if gd.run {
+		return runSwing(s, a)
+	}
 	pitch := toeOff - (toeOff+0.3)*s
 	return legJ{f: -a + 2*a*smooth(s), u: footLift(pitch) + gd.lift*math.Sin(math.Pi*s), pitch: pitch}
+}
+
+// runLand is the pitch of a running foot as it comes down: nearly flat,
+// the heel a touch first.
+const runLand = -0.12
+
+// runArmMid is where a running arm swings about: a little back, so the hand
+// goes back past the hip as far as it comes up to the chest.
+const runArmMid = -0.2
+
+// runSwing is a running leg s of the way through its swing (0 just off the
+// toe, 1 coming down), a being half its planted sweep: the heel kicks up
+// behind towards the seat (the shin about level as it passes under the
+// hip), the knee drives forwards and up with the foot hanging under it, and
+// the leg reaches down to land under the hips. A smooth curve through those
+// key poses.
+func runSwing(s, a float64) legJ {
+	type key struct{ s, f, u, pitch float64 }
+	keys := [...]key{
+		{0, -a, footLift(toeOff), toeOff},
+		{0.2, -a - 3, 25, 1.05},
+		{0.42, -10, 33, 1.2},
+		{0.66, 7, 25, 0.55},
+		{0.86, a + 2, 9, 0.05},
+		{1, a, footLift(runLand), runLand},
+	}
+	i := 0
+	for i < len(keys)-2 && s >= keys[i+1].s {
+		i++
+	}
+	k0, k1 := keys[max(0, i-1)], keys[i]
+	k2, k3 := keys[i+1], keys[min(len(keys)-1, i+2)]
+	t := (s - k1.s) / (k2.s - k1.s)
+	cr := func(p0, p1, p2, p3 float64) float64 { // Catmull-Rom through p1 and p2
+		return 0.5 * (2*p1 + (p2-p0)*t + (2*p0-5*p1+4*p2-p3)*t*t + (3*p1-p0-3*p2+p3)*t*t*t)
+	}
+	l := legJ{f: cr(k0.f, k1.f, k2.f, k3.f), u: cr(k0.u, k1.u, k2.u, k3.u), pitch: cr(k0.pitch, k1.pitch, k2.pitch, k3.pitch)}
+	l.u = math.Max(l.u, footLift(l.pitch))
+	return l
 }
 
 // stanceAt reports whether a leg p through its stride is on the ground.
@@ -232,9 +291,8 @@ func (gd gaitDef) arms(ph float64) (a [2]armJ) {
 		th := 2 * math.Pi * (ph + 0.5*float64(i) - gd.duty/2)
 		s := math.Sin(th)
 		a[i] = armJ{sh: gd.arm * s, el: gd.elbow + gd.elbow1*math.Max(0, s), ab: armOut}
-		if gd.elbow > 1 {
-			a[i].sh += 0.15
-			a[i].el = gd.elbow + gd.elbow1*s
+		if gd.run { // bent square, swinging from the shoulder: the hand from the hip to the chest
+			a[i] = armJ{sh: runArmMid + gd.arm*s, el: gd.elbow + gd.elbow1*s, ab: armOut + 0.04, out: 1.5 * s}
 		}
 	}
 	return a
@@ -300,6 +358,14 @@ func upperPoseOf(k upKey) upperPose {
 	stride := func(gd gaitDef, back float64) {
 		ph := (float64(k.frame) + 0.5) / upFrames
 		p.arm = gd.arms(ph)
+		p.tilt, p.nod = gd.tilt, -0.7*gd.tilt            // leaning in, the head up: the eyes level
+		if k.anim == upWalkHold || k.anim == upRunHold { // the hand that holds something held before the body
+			s := math.Sin(2 * math.Pi * (ph - gd.duty/2))
+			p.arm[0] = armJ{sh: 0.35 + 0.06*s, el: 0.95, ab: armOut}
+			if gd.run {
+				p.arm[0] = armJ{sh: 0.42 + 0.08*s, el: 1.3, ab: armOut + 0.04}
+			}
+		}
 		_, d0 := gd.legs(ph - 1.5/loFrames)
 		_, d1 := gd.legs(ph)
 		p.lagY = max(-2, min(2, d0-d1)) // where the body was a moment ago
@@ -310,9 +376,9 @@ func upperPoseOf(k upKey) upperPose {
 		}
 	}
 	switch k.anim {
-	case upWalk:
+	case upWalk, upWalkHold:
 		stride(stepGait, 1)
-	case upRun:
+	case upRun, upRunHold:
 		stride(runGait, 2)
 	case upPunch, upPunchOff, upThrust:
 		blow := armJ{sh: lerpf(-0.9, 1.45, u), el: lerpf(1.9, 0.08, u), out: 5 * u}
@@ -564,9 +630,9 @@ func skirtOf(k upKey, t float64) skirt {
 	switch {
 	case k.frame&upSit != 0:
 		p = lowerPoseOf(loKey{dir: k.dir, anim: loSit})
-	case k.anim == upWalk || k.anim == upRun:
+	case k.anim == upWalk || k.anim == upRun || k.anim == upWalkHold || k.anim == upRunHold:
 		gd := stepGait
-		if k.anim == upRun {
+		if k.anim == upRun || k.anim == upRunHold {
 			gd = runGait
 		}
 		p.leg, p.drop = gd.legs((float64(k.frame&^upSit) + 0.5) / upFrames)

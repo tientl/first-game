@@ -335,7 +335,7 @@ func (g *Game) drawHUD(screen *uiDst, sw, sh int) {
 		drawTitle(screen, "Bạn đã gục ngã", float64(sw/2), float64(sh/2-48), 3.2, color.RGBA{236, 104, 96, 255}, color.RGBA{70, 16, 12, 255})
 		where := "ở chỗ xuất phát"
 		if self.HomeBed {
-			where = "cạnh giường ngủ lần cuối"
+			where = "cạnh chỗ ngủ lần cuối (giường hoặc lều)"
 		}
 		cost := " (giữ nguyên đồ)"
 		if !g.difficulty.KeepsItems() {

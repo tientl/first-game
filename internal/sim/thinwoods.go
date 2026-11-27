@@ -43,7 +43,7 @@ func builtKind(k EntityKind, v uint8) bool {
 	switch k {
 	case EntityCampfire, EntityWall, EntityBed, EntityFarmland, EntityCrop, EntityFurnace, EntityStoneWall,
 		EntityChest, EntityDoor, EntityFloor, EntitySpikes, EntityTrap, EntityTorchStand, EntitySapling,
-		EntityTrophy, EntityGrave, EntityMortar, EntityOven, EntityDryRack:
+		EntityTrophy, EntityGrave, EntityMortar, EntityOven, EntityDryRack, EntityLeafTent:
 		return true
 	case EntityManEater:
 		return v == 1 // a planted guard

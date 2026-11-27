@@ -26,8 +26,14 @@ func armorTall(t sim.Tier, female bool, d sim.Dir) (body, helmet sprite) {
 
 // armorLayersTall draws the two layers of armorTall; d is not DirLeft.
 func armorLayersTall(t sim.Tier, female bool, d sim.Dir) (B, H *canvas) {
+	return armorLayersBent(t, female, d, nil)
+}
+
+// armorLayersBent is armorLayersTall on a figure bent by xf (motion.go).
+func armorLayersBent(t sim.Tier, female bool, d sim.Dir, xf []figMap) (B, H *canvas) {
 	g := newLimbGen(sim.Look{Female: female}, 0)
 	f := &g.f
+	f.xf = xf
 	P, T := g.S, g.T // the plate and what goes over everything
 	side := d == sim.DirRight
 	hide := hideHD

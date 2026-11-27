@@ -56,6 +56,9 @@ func (g *Game) drawLines(dst drawTarget, cam camera, alpha float64) {
 		wx, wy, _ := g.lerpPlayer(p, alpha)
 		px, py := cam.toScreenFine(wx, wy)
 		tx, ty := rodTip(p.Dir&3, px, py)
+		if m := g.heldMarkOf(p.ID); m != nil && m.tip { // the tip as drawn; see heldhd.go
+			tx, ty = m.tipX, m.tipY
+		}
 		fx, fy := g.floatAt(p, cam)
 
 		// The line sags between the tip and the float, more while slack.
@@ -64,6 +67,16 @@ func (g *Game) drawLines(dst drawTarget, cam camera, alpha float64) {
 			sag = 1 // pulled taut
 		}
 		n := 2*int(math.Hypot(fx-tx, fy-ty)+sag) + 2 // dense enough for no gaps
+		// With the HD held items, a thin line at the canvas's own resolution.
+		if heldHD {
+			pts := make([]float64, 0, 2*(n+1))
+			for i := 0; i <= n; i++ {
+				t := float64(i) / float64(n)
+				pts = append(pts, tx+(fx-tx)*t, ty+(fy-ty)*t+sag*4*t*(1-t))
+			}
+			fineStrip(dst, pts, 0.42, colLine)
+			n = -1
+		}
 		for i := 0; i <= n; i++ {
 			t := float64(i) / float64(n)
 			x := tx + (fx-tx)*t

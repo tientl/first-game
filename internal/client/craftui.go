@@ -38,7 +38,7 @@ func recipeTab(r sim.Recipe) craftTab {
 	switch {
 	case isCookRecipe(r): // pots, grills, ovens, racks; see cookrender.go
 		return tabCook
-	case !r.Gives.Valid() || isBoat(r.Gives):
+	case !r.Gives.Valid() || isBoat(r.Gives) || r.Gives == sim.ItemLeafTent:
 		return tabBuild
 	case r.NearFire || r.NearFurnace:
 		return tabCook

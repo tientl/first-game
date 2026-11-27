@@ -55,7 +55,10 @@ import (
 //     out by island and by distance from home (wilds.go). Nothing older
 //     changes, but an older game would make the wrong world of such a save,
 //     so it must refuse it.
-const SaveVersion = 23
+//   - 24: the leaf tent (tent.go): a save may hold one standing, rolled up in
+//     a bag or a chest, or as a player's home, which an older game would
+//     lose. Nothing older changes.
+const SaveVersion = 24
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -154,7 +157,7 @@ func (w *World) restorePlayer(p *Player, ps PlayerSave) {
 	p.explored = ExploredFrom(w.width, w.height, ps.Explored)
 	p.torchFuel = min(TorchBurnTicks, max(0, ps.TorchFuel))
 	loadBuffs(p, ps.Buffs)
-	if b := w.entities[ps.Home]; b != nil && b.Kind == EntityBed {
+	if b := w.entities[ps.Home]; b != nil && IsBedLike(b.Kind) {
 		p.home = ps.Home
 	}
 	if IsHotbar(ps.Selected) {
