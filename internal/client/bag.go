@@ -104,9 +104,11 @@ func (g *Game) drawSlotSized(dst *uiDst, s sim.Slot, x, y float64, px int, st sl
 		pulse := 0.5 + 0.5*math.Sin(float64(g.frame)*0.07)
 		glow(dst, x-1, y-1, p+2, p+2, r+1, colAmberGlow, 0.5+0.2*pulse)
 		well(dst, x, y, p, p, r)
-		fillRoundRect(dst, float32(x), float32(y), float32(p), float32(p), float32(r), color.RGBA{120, 72, 18, 70}) // a warm light in it
-		strokeRoundRectHair(dst, x-1, y-1, p+2, p+2, r+1, 1.5, colAmber)
-		strokeRoundRectHair(dst, x+0.5, y+0.5, p-1, p-1, r-0.5, dst.hair(), color.RGBA{255, 236, 180, 150})
+		drawBaked(dst, fmt.Sprintf("slot lit %d", px), x, y, p, p, 2, func(b *uiDst) {
+			fillRoundRect(b, 0, 0, float32(p), float32(p), float32(r), color.RGBA{120, 72, 18, 70}) // a warm light in it
+			strokeRoundRectHair(b, -1, -1, p+2, p+2, r+1, 1.5, colAmber)
+			strokeRoundRectHair(b, 0.5, 0.5, p-1, p-1, r-0.5, b.hair(), color.RGBA{255, 236, 180, 150})
+		})
 	case slotLifted:
 		well(dst, x, y, p, p, r)
 		strokeRoundRectHair(dst, x-1, y-1, p+2, p+2, r+1, 1, color.RGBA{236, 224, 196, 160})

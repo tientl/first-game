@@ -77,6 +77,7 @@ func beginUI(screen *ebiten.Image) (ui *uiDst, uw, uh int) {
 func endUI(ui *uiDst) {
 	sweepTextBakes()
 	sweepPanelBakes()
+	sweepPieceBakes()
 }
 
 // screenDst is the screen seen in its own pixels: for what is drawn in

@@ -215,6 +215,24 @@ func (g *Game) drawMinimap(screen *uiDst, x0 float64) {
 	mx, my := x0+miniPad, float64(miniTop+miniPad)
 	const r = 9.0
 	drawMasked(screen.img, c, math.Round(screen.X(mx)), math.Round(screen.Y(my)), r*k, k)
+	// The rim and north: a small bone tick on it, top middle; and the M
+	// that opens the map. Drawn once, kept.
+	drawBaked(screen, "minimap rim", mx, my, miniW, miniH, 6, func(b *uiDst) {
+		g.drawMiniRim(b, r)
+	})
+	g.drawMiniLevel(screen, mx, my)
+
+	// The player: an arrow the way they face, a ring pulsing out from it.
+	pcx, pcy := mx+miniW/2, my+miniH/2
+	pulse := float64(g.frame%70) / 70
+	strokeCircle(screen, float32(pcx), float32(pcy), float32(6+pulse*9), float32(1.2), color.RGBA{255, 246, 224, uint8(170 * (1 - pulse))}, true)
+	drawMapArrow(screen, pcx, pcy, dirAngle(dir), 6.5, playerColors[int(g.myID)%len(playerColors)])
+}
+
+// drawMiniRim draws the minimap's rim on b, the map's top-left at (0, 0): a
+// thin bronze edge, north, and the key to the full map.
+func (g *Game) drawMiniRim(b *uiDst, r float64) {
+	screen, mx, my := b, 0.0, 0.0
 	strokeRoundRectHair(screen, mx-0.75, my-0.75, miniW+1.5, miniH+1.5, r+0.75, 1.5, color.RGBA{150, 110, 64, 255})
 	strokeRoundRectHair(screen, mx-1.75, my-1.75, miniW+3.5, miniH+3.5, r+1.75, screen.hair(), color.RGBA{20, 14, 10, 220})
 	strokeRoundRectHair(screen, mx+0.25, my+0.25, miniW-0.5, miniH-0.5, r-0.25, screen.hair(), color.RGBA{255, 226, 170, 70})
@@ -242,25 +260,22 @@ func (g *Game) drawMinimap(screen *uiDst, x0 float64) {
 	fillPath(screen, &tick, op2)
 	uiTextW(screen, "B", float64(nx), float64(ny)+3.5, colBoneText, text.AlignCenter, 0.62, 900, fxOutline)
 
-	// The player: an arrow the way they face, a ring pulsing out from it.
-	pcx, pcy := mx+miniW/2, my+miniH/2
-	pulse := float64(g.frame%70) / 70
-	strokeCircle(screen, float32(pcx), float32(pcy), float32(6+pulse*9), float32(1.2), color.RGBA{255, 246, 224, uint8(170 * (1 - pulse))}, true)
-	drawMapArrow(screen, pcx, pcy, dirAngle(dir), 6.5, playerColors[int(g.myID)%len(playerColors)])
+	// M opens the map.
+	kx, ky := mx+miniW-17, my+miniH-17
+	fillRoundRect(screen, float32(kx), float32(ky), 13, 13, 4, color.RGBA{24, 19, 15, 220})
+	noteBox(screen, kx, ky, 13, 13)
+	uiTextW(screen, "M", kx+6.5, ky+6.5-lineUI*0.72/2, colKey, text.AlignCenter, 0.72, 900, fxPlain)
+}
 
-	// Underground, which level of the caves.
+// drawMiniLevel says, underground, which level of the caves the minimap
+// shows, at its top left (mx, my).
+func (g *Game) drawMiniLevel(screen *uiDst, mx, my float64) {
 	if k, ok := g.caveLevel(); ok {
 		s := fmt.Sprintf("Hang · tầng %d", k+1)
 		w := textWidthW(s, 0.8, wHeavy)
 		plateA(screen, mx+5, my+5, w+12, 15, 7.5, 0.8)
 		uiTextW(screen, s, mx+11, my+12.5-lineUI*0.8/2, colBoneText, text.AlignStart, 0.8, wHeavy, fxShadow)
 	}
-
-	// M opens the map.
-	kx, ky := mx+miniW-17, my+miniH-17
-	fillRoundRect(screen, float32(kx), float32(ky), 13, 13, 4, color.RGBA{24, 19, 15, 220})
-	noteBox(screen, kx, ky, 13, 13)
-	uiTextW(screen, "M", kx+6.5, ky+6.5-lineUI*0.72/2, colKey, text.AlignCenter, 0.72, 900, fxPlain)
 }
 
 // dirAngle is the screen angle a facing points at.

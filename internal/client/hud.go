@@ -390,7 +390,13 @@ func (g *Game) drawCorner(screen *uiDst, sw int, withMap bool) {
 	x, w := x0+miniPad+2, float32(cornerW-2*miniPad-4)
 
 	night := sim.PhaseOf(tick) == sim.PhaseNight
-	g.drawWeatherIcon(screen, g.curr.Weather, night, x+8, 27)
+	if g.curr.Weather == sim.WeatherTornado || g.curr.Weather == sim.WeatherClear && !night {
+		g.drawWeatherIcon(screen, g.curr.Weather, night, x+8, 27) // it moves
+	} else {
+		drawBaked(screen, fmt.Sprintf("weather %d %v", g.curr.Weather, night), float64(x)-4, 15, 24, 24, 2, func(b *uiDst) {
+			g.drawWeatherIcon(b, g.curr.Weather, night, 12, 12)
+		})
+	}
 	phase := map[sim.Phase]string{sim.PhaseDay: "Ban ngày", sim.PhaseDusk: "Chạng vạng", sim.PhaseNight: "Ban đêm"}[sim.PhaseOf(tick)]
 	uiTextW(screen, fmt.Sprintf("Ngày %d", sim.DayOf(tick)), float64(x)+22, 19, colWhite, text.AlignStart, 1.05, 860, fxShadow)
 	g.text(screen, phase, float64(x+w), 19, colMuted, text.AlignEnd, 1)
@@ -401,11 +407,14 @@ func (g *Game) drawCorner(screen *uiDst, sw int, withMap bool) {
 	// The day's bar, sunk in the hide: day, dusk and night, with a sun by
 	// day and a moon by night riding along it.
 	by, bh := float32(59), float32(8)
-	well(screen, float64(x)-1, float64(by)-1, float64(w)+2, float64(bh)+2, float64(bh)/2+1)
-	fillRoundRect(screen, x, by, w, bh, bh/2, mix(colNight, colHideDark, 0.2))
-	fillRoundRect(screen, x, by, w*float32(sim.NightAt(tick)), bh, bh/2, colDusk)
-	fillRoundRect(screen, x, by, w*float32(sim.DuskAt(tick)), bh, bh/2, colDay)
-	fillRect(screen, x+bh/2, by+1, w-bh, float32(screen.hair()), color.RGBA{255, 255, 255, 70}, true)
+	nightAt, duskAt := float32(sim.NightAt(tick)), float32(sim.DuskAt(tick))
+	drawBaked(screen, fmt.Sprintf("daybar %.0f %.3f %.3f", w, nightAt, duskAt), float64(x)-1, float64(by)-1, float64(w)+2, float64(bh)+2, 1, func(b *uiDst) {
+		well(b, 0, 0, float64(w)+2, float64(bh)+2, float64(bh)/2+1)
+		fillRoundRect(b, 1, 1, w, bh, bh/2, mix(colNight, colHideDark, 0.2))
+		fillRoundRect(b, 1, 1, w*nightAt, bh, bh/2, colDusk)
+		fillRoundRect(b, 1, 1, w*duskAt, bh, bh/2, colDay)
+		fillRect(b, 1+bh/2, 2, w-bh, float32(b.hair()), color.RGBA{255, 255, 255, 70}, true)
+	})
 	mx, my := x+float32(sim.DayFraction(tick))*w, by+bh/2
 	if !night {
 		glow(screen, float64(mx)-5, float64(my)-5, 10, 10, 5, color.RGBA{255, 214, 110, 255}, 0.7)
@@ -577,12 +586,14 @@ func (g *Game) drawKeyBadge(dst *uiDst, key string, x, y float64, held bool) {
 	if held {
 		bg, rim, fg = colAmber, color.RGBA{255, 232, 170, 255}, color.RGBA{48, 28, 8, 255}
 	}
-	fillRoundRect(dst, float32(x)-0.5, float32(y)-0.5, w+1, h+1, 5.5, color.RGBA{0, 0, 0, 120})
-	fillRoundRect(dst, float32(x), float32(y), w, h, 5, rim)
-	hair := float32(dst.hair())
-	fillRoundRect(dst, float32(x)+hair, float32(y)+hair, w-2*hair, h-2*hair, 5-hair, bg)
 	noteBox(dst, x, y, w, h)
-	uiTextW(dst, key, x+w/2, y+h/2-lineUI*0.85/2, fg, text.AlignCenter, 0.85, 900, fxPlain)
+	drawBaked(dst, fmt.Sprintf("badge %s %v", key, held), x, y, w, h, 1, func(b *uiDst) {
+		fillRoundRect(b, -0.5, -0.5, w+1, h+1, 5.5, color.RGBA{0, 0, 0, 120})
+		fillRoundRect(b, 0, 0, w, h, 5, rim)
+		hair := float32(b.hair())
+		fillRoundRect(b, hair, hair, w-2*hair, h-2*hair, 5-hair, bg)
+		uiTextW(b, key, w/2, h/2-lineUI*0.85/2, fg, text.AlignCenter, 0.85, 900, fxPlain)
+	})
 }
 
 // colBoneText is light bone, for small text on dark tabs.

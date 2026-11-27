@@ -361,3 +361,59 @@ func sweepPanelBakes() {
 		}
 	}
 }
+
+// A piece drawn with shapes and text that stays the same frame to frame (a
+// key badge, the minimap's rim, the weather's picture) is drawn once into
+// an image the size it is on the screen and kept like a panel.
+
+type pieceKey struct {
+	id     string
+	w, h   int
+	k      float32
+	fx, fy float32 // where the piece starts within an image pixel
+}
+
+var pieceBakes = map[pieceKey]*panelBake{}
+
+// drawBaked draws the piece id, w by h UI pixels with its top-left at
+// (x, y), with room of pad round it: paint draws it with (0, 0) at its
+// top-left, the first time, or whenever the probe of the interface's
+// tests is on (it must see the piece's text where it lands).
+func drawBaked(d *uiDst, id string, x, y, w, h, pad float64, paint func(b *uiDst)) {
+	if uiProbe != nil {
+		paint(d.view(x, y, 1))
+		return
+	}
+	X, Y := d.X(x), d.Y(y)
+	X0, Y0 := math.Floor(X), math.Floor(Y)
+	P := math.Ceil(pad * d.k)
+	key := pieceKey{id, int(math.Ceil(w*d.k)) + 1, int(math.Ceil(h*d.k)) + 1, float32(d.k), float32(X - X0), float32(Y - Y0)}
+	b := pieceBakes[key]
+	if b == nil {
+		iw, ih := key.w+2*int(P), key.h+2*int(P)
+		img := ebiten.NewImage(iw, ih)
+		paint(&uiDst{img: img, k: d.k, ox: P + X - X0, oy: P + Y - Y0})
+		artBytes.Add(int64(4 * iw * ih))
+		b = &panelBake{img: img, margin: P}
+		pieceBakes[key] = b
+	}
+	b.used = uiFrame
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(X0-b.margin, Y0-b.margin)
+	d.img.DrawImage(b.img, op)
+}
+
+// sweepPieceBakes lets go of the pieces not drawn for a few seconds.
+func sweepPieceBakes() {
+	if uiFrame%60 != 45 {
+		return
+	}
+	for k, b := range pieceBakes {
+		if uiFrame-b.used > 240 {
+			bw, bh := b.img.Bounds().Dx(), b.img.Bounds().Dy()
+			b.img.Deallocate()
+			artBytes.Add(-int64(4 * bw * bh))
+			delete(pieceBakes, k)
+		}
+	}
+}
