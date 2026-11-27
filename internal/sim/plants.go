@@ -253,7 +253,11 @@ func (w *World) scatterPlants(rng *rand.Rand, seed uint32) {
 			case TileGrass:
 				// Flowers grow in drifts of one colour.
 				patch := fbm(x/9+5, y/9+11, seed+71, 2)
-				if r < 0.012+0.05*smoothstep(clamp((patch-0.55)/0.15, 0, 1)) {
+				p := 0.012 + 0.05*smoothstep(clamp((patch-0.55)/0.15, 0, 1))
+				if w.style >= StyleGround {
+					p = flowerPatch(x, y, seed) // see groundcover.go
+				}
+				if r < p {
 					kind = EntityFlower
 					v = uint8(int(fbm(x/14+3, y/14+7, seed+72, 2)*float64(NumFlowers)*1.6) % int(NumFlowers))
 				}

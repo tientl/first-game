@@ -52,6 +52,7 @@ type woodsPlan struct {
 	at           []uint8 // per surface tile: planNone, planYoung or planGrown
 	stride       int     // the step the scan walks the tiles by, prime to their number
 	depth, thick []float32
+	cover        *coverField // since StyleGround, while the world is made: see groundcover.go
 }
 
 // planWoods notes where the trees stand when a world has been made: in a

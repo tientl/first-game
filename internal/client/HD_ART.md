@@ -237,6 +237,42 @@ in the settings file as `"ground": "warm"`; `shot -warm`). The shore image
 the surf shader reads stays at density 1, as shaders run at art-pixel
 resolution. `go test ./internal/client -bench BakeChunk` times a bake.
 
+## The small plants and the ground cover
+
+- **Drawings** (`coverart.go`): green grass, tall grass (the tufts that give
+  fibre) and its stubble, leafy clumps, ferns, wild flowers, broad leaves
+  and berry bushes, 4 to 6 drawings each, for each season (`coverPals`:
+  summer's tall grass a muted straw, spring's green, autumn's golden,
+  winter's bleached with snow on the tips; flowers open in spring, gone to
+  seed in autumn). `coverFinish` gives each a soft foot: no outline along
+  the bottom, the lowest pixels darker and fading into the ground round the
+  root, and a soft contact shadow under it, so nothing stands on the grass
+  like a sticker. A season's set is drawn the first time it is shown.
+- **Each plant** is drawn mirrored or not, 13% bigger or smaller and a
+  shade lighter, darker, warmer or cooler by where it grows, greener or
+  yellower with the meadow's own patches (`coverLookAt`, `drawCover`).
+- **Where they grow** (`undergrowth.go`, `plantChances`): noise fields, not
+  an even chance: grass in drifts, flowers in patches of one kind, ferns and
+  broad leaves under the trees (the shade of the trees in view, `noteShade`),
+  glades where little grows. The tall grass, bushes, twigs and flowers that
+  are things in the world are laid out the same way by the server in worlds
+  of `sim.StyleGround` (`sim/groundcover.go`).
+- **Life** (`coverlife.go`): the wind shears every plant about its foot in
+  gusts running across the land, harder in a wind or a storm (`windSkew`);
+  a plant bends away from whoever walks through it and springs back with a
+  wobble (`bender`); tall grass hides the feet of someone standing in it
+  (`drawFeetInGrass`); litter, needles or moss lie under each tree
+  (`drawLitter`). Nothing is baked again for any of it.
+- **The ground** (`coverground.go`, called from `grassGround` and
+  `forestGround`): the sward thick and dark in places and thin in others,
+  clover, moss, worn spots of earth showing through thinning grass, and in
+  the woods moss cushions, dark duff and drifts of fallen leaves. All of it
+  per pixel of the bake: the chunks cost what they did.
+- `COVER_DUMP=dir go test ./internal/client -run DumpCover` writes every
+  drawing three times as big on the ground it grows on (`cover_variants.png`)
+  and the seasons (`cover_seasons.png`). `shot -walk dx,dy -gif N` has the
+  player walk through the grass.
+
 ## The environment (trees, plants, rocks, buildings)
 
 `mkUp(c, ax, ay)` makes the sprite of a thing that stands in the world
@@ -281,7 +317,8 @@ go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
   a look at their size.
 - Trunks at HD go through `trunkHD` (`trunkhd.go`): a taper, a bow, a flared
   round foot, roots over the ground, a bark per kind (`barkKind`: furrowed,
-  smooth, plates, scales, fibre, rings, shaggy, dead) lit from the top left
+  smooth, plates, scales, fibre, rings, shaggy, dead, and the cycad's
+  diamond scars of fallen leaf bases, `cycadScar`) lit from the top left
   with a rim on the far edge, dead stubs, moss on the shaded side, and
   `dressFoot` laying grass, snow, sand or mud over the roots. Every bark
   ramp is in `barkOf`, which is how `isTrunk` tells wood from leaves.

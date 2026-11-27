@@ -90,6 +90,8 @@ type Game struct {
 	hearts        []heartFX      // floating up from beasts being fed; see ride.go
 	riders        []int          // scratch: players drawn on their mounts this frame
 	entAt         map[[2]int]int // tile -> index into curr.Entities
+	bend          bender         // the plants trodden down; see coverlife.go
+	shade         shadeGrid      // the tiles in view the trees shade; see coverlife.go
 
 	sentInput sim.Input
 

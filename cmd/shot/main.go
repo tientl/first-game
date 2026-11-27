@@ -117,6 +117,7 @@ func main() {
 	reveal := flag.Bool("reveal", false, "the whole map seen: no fog on the map (M) and the minimap")
 	gifN := flag.Int("gif", 0, "write a GIF of this many frames (with -crop: of that region, not enlarged) as <o>.gif, from the frame -frames picks")
 	gifStep := flag.Int("gifstep", 2, "with -gif: game frames between the GIF's frames")
+	walkFlag := flag.String("walk", "", "dx,dy: the player walks this many tiles a second the whole time (to see the grass bend round them; with -gif)")
 	benchN := flag.Int("bench", 0, "time this many frames before the capture, vsync off, and print what they took and the ground's memory")
 	motionSheet := flag.String("motionsheet", "", "write the player's motion sheet and GIFs into this folder instead of a frame (see internal/client/motionsheet.go)")
 	thin := flag.Float64("thin", 1, "keep about this share of the trees, bushes and rocks round the player (to see the ground)")
@@ -946,6 +947,10 @@ func main() {
 		inner = &menuGame{m}
 	}
 	g := &shooter{inner: inner, frames: *frames, out: *out, crop: *crop, cost: *costFlag, gifN: *gifN, gifStep: max(1, *gifStep), bench: *benchN}
+	var wdx, wdy float64
+	if n, _ := fmt.Sscanf(*walkFlag, "%g,%g", &wdx, &wdy); n == 2 {
+		g.walk = &walker{conn: conn, snap: snap, vx: float32(wdx / sim.TicksPerSecond), vy: float32(wdy / sim.TicksPerSecond)}
+	}
 	if *exact {
 		g.fixW, g.fixH = *winW, *winH
 	}
@@ -1015,6 +1020,7 @@ type shooter struct {
 	fixW, fixH    int           // -exact: the screen's size, whatever the window's
 	benchTimes    []time.Duration
 	benchLast     time.Time
+	walk          *walker // -walk: the player on the move; see walk.go
 }
 
 func (s *shooter) Update() error {
@@ -1022,6 +1028,9 @@ func (s *shooter) Update() error {
 		return ebiten.Termination
 	}
 	s.n++
+	if s.walk != nil {
+		s.walk.step(s.n)
+	}
 	return s.inner.Update()
 }
 

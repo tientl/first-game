@@ -55,7 +55,11 @@ import (
 //     out by island and by distance from home (wilds.go). Nothing older
 //     changes, but an older game would make the wrong world of such a save,
 //     so it must refuse it.
-const SaveVersion = 23
+//   - 24: worlds of StyleGround: tall grass, bushes, twigs and flowers in
+//     drifts and patches with glades between, worms on damp ground and after
+//     rain (groundcover.go). Nothing older changes, but an older game would
+//     make the wrong world of such a save, so it must refuse it.
+const SaveVersion = 24
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.

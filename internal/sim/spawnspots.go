@@ -84,6 +84,9 @@ func (w *World) spawnSpots(k CreatureKind, sx, sy int, offshore, fromHome []uint
 			if away > 0 && ty < len(fromHome)/w.width && int(fromHome[ty*w.width+tx]) < away {
 				continue // the home island's waters
 			}
+			if k == CreatureWorm && w.style >= StyleGround && !w.dampSoil(tx, ty) {
+				continue // worms keep to damp soil: see groundcover.go
+			}
 			if !w.creatureFits(k, float64(tx)+0.5, float64(ty)+0.5) {
 				continue
 			}

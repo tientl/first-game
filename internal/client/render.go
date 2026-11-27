@@ -387,8 +387,16 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 			continue
 		}
 		if d.isPlayer {
-			g.drawPlayer(dst, g.curr.Players[d.idx], d)
-			g.drawSwarm(dst, g.curr.Players[d.idx], d.sx, d.sy) // see jungleart.go
+			p := g.curr.Players[d.idx]
+			g.drawPlayer(dst, p, d)
+			if !p.Dead && !p.Swimming && !p.Asleep {
+				vx := 0.0
+				if q, ok := g.prevPlayers[p.ID]; ok {
+					vx = float64(p.X - q.X)
+				}
+				g.drawFeetInGrass(dst, d.wx, d.wy, d.sx, d.sy, 22, vx) // see coverlife.go
+			}
+			g.drawSwarm(dst, p, d.sx, d.sy) // see jungleart.go
 			continue
 		}
 		if d.creature {
@@ -401,6 +409,14 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 				}
 			}
 			g.drawCreature(dst, c, d)
+			if c.Kind != sim.CreatureWorm && c.State != sim.CreatureLurk {
+				wx, wy, _ := g.lerpCreature(c, g.alpha())
+				vx := 0.0
+				if q, ok := g.prevCreatures[c.ID]; ok {
+					vx = float64(c.X - q.X)
+				}
+				g.drawFeetInGrass(dst, wx, wy, d.sx, d.sy, max(14, creatureShadow(c.Kind)*0.9), vx) // see coverlife.go
+			}
 			if c.Ridden {
 				for _, i := range riders {
 					if p := g.curr.Players[i]; p.Mount == c.ID {
@@ -429,6 +445,9 @@ func (g *Game) shadowWidth(e protocol.EntityView) float64 {
 		return 14 * stumpScale[fruitStumpSize(e.Kind)]
 	}
 	if w, ok := woodsShadow(e); ok {
+		return w
+	}
+	if w, ok := coverShadow(e); ok { // see coverlife.go
 		return w
 	}
 	if w, ok := lairShadow(e); ok {
@@ -687,6 +706,9 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 	}
 	g.drawFloraUnder(dst, e, d)                                       // see florarender.go
 	if g.drawTribalEntity(dst, e, d) || g.drawCookEntity(dst, e, d) { // a pot on the fire; see cookrender.go
+		return
+	}
+	if g.drawCoverEntity(dst, e, d) { // tall grass, bushes, flowers: see coverlife.go
 		return
 	}
 	s, sway := g.entitySprite(e)
