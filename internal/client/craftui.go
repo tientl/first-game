@@ -161,7 +161,7 @@ func (g *Game) craftMouse(x, y float64, press bool) {
 	}
 }
 
-func (g *Game) drawCraft(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawCraft(screen *uiDst, sw, sh int) {
 	g.dim(screen, sw, sh, 0.55)
 	c := &g.craft
 	rs := c.shown()
@@ -173,7 +173,7 @@ func (g *Game) drawCraft(screen *ebiten.Image, sw, sh int) {
 	c.scrollBy(0)
 	ph := fixedH + float64(c.rowsShown)*(cardH+cardGap) - cardGap
 	px, py := float64(int((float64(sw)-pw)/2)), float64(int(max(8, (float64(sh)-ph)/2)))
-	panel(screen, float32(px), float32(py), float32(pw), float32(ph))
+	drawFrame(screen, float32(px), float32(py), float32(pw), float32(ph))
 
 	n := 0
 	for _, r := range recipes() {
@@ -196,15 +196,14 @@ func (g *Game) drawCraft(screen *ebiten.Image, sw, sh int) {
 		label := craftTabNames[t]
 		w := g.textWidth(label) + 24
 		c.tabX[t], c.tabW[t] = tx, w
-		bg := color.RGBA{0, 0, 0, 90}
-		col := colMuted
+		st, col := tabIdle, colMuted
 		switch {
 		case t == c.tab:
-			bg, col = color.RGBA{58, 46, 22, 230}, colKey
+			st, col = tabOn, colKey
 		case int(t) == c.hoverTab:
-			bg, col = color.RGBA{40, 40, 48, 200}, colWhite
+			st, col = tabHover, colWhite
 		}
-		fillRoundRect(screen, float32(tx), float32(c.tabY), float32(w), float32(c.tabH), 7, bg)
+		tab(screen, tx, c.tabY, w, c.tabH, 9, st)
 		g.text(screen, label, tx+w/2, c.tabY+6, col, text.AlignCenter, 1)
 		tx += w + 8
 	}
@@ -218,12 +217,9 @@ func (g *Game) drawCraft(screen *ebiten.Image, sw, sh int) {
 		}
 		x, y := c.cardXY(i)
 		lit := g.canCraft(r)
-		if lit {
-			strokeRoundRect(screen, float32(x), float32(y), float32(c.cardW), cardH, 8, color.RGBA{100, 156, 95, 170})
-		}
 		g.drawRecipeCard(screen, r, x, y, c.cardW, i == c.hover)
 		if !lit {
-			fillRoundRect(screen, float32(x), float32(y), float32(c.cardW), cardH, 8, color.RGBA{0, 0, 0, 95})
+			fillRoundRect(screen, float32(x), float32(y), float32(c.cardW), cardH, 8, color.RGBA{12, 9, 7, 110})
 		}
 	}
 
@@ -236,7 +232,7 @@ func (g *Game) drawCraft(screen *ebiten.Image, sw, sh int) {
 }
 
 // strokeRoundRect outlines a rounded box.
-func strokeRoundRect(dst *ebiten.Image, x, y, w, h, r float32, clr color.Color) {
+func strokeRoundRect(dst drawTarget, x, y, w, h, r float32, clr color.Color) {
 	fillRoundRect(dst, x-1.5, y-1.5, w+3, h+3, r+1.5, clr)
 	fillRoundRect(dst, x, y, w, h, r, color.RGBA{14, 16, 26, 255})
 }

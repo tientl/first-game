@@ -8,7 +8,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -221,7 +220,7 @@ func (g *Game) drawKrakenArms(dst drawTarget, c protocol.CreatureView, d drawabl
 
 // drawSeaHUD draws, under the health bars, the boat's state and the wind
 // while aboard, or a swimmer's strength.
-func (g *Game) drawSeaHUD(screen *ebiten.Image) {
+func (g *Game) drawSeaHUD(screen *uiDst) {
 	self := g.curr.Self
 	y := float32(122)
 	if self.Boat != 0 {
@@ -233,18 +232,18 @@ func (g *Game) drawSeaHUD(screen *ebiten.Image) {
 			panel(screen, 12, y, 230, 56)
 			g.text(screen, b.Kind.Name(), 24, float64(y)+6, colWhite, text.AlignStart, 1)
 			frac := float32(b.HP) / float32(max)
-			fillRoundRect(screen, 24, y+30, 140, 10, 4, color.RGBA{0, 0, 0, 150})
-			fillRoundRect(screen, 24, y+30, 140*max32(0, frac), 10, 4, color.RGBA{180, 130, 70, 255})
+			well(screen, 24, float64(y)+29, 140, 12, 6)
+			drawBarFill(screen, 25.5, float64(y)+30.5, 137, 9, float64(max32(0, frac)), color.RGBA{180, 130, 70, 255}, barFX{}, g.frame)
 			g.text(screen, fmt.Sprintf("%d/%d", max32i(b.HP), max), 170, float64(y)+26, colMuted, text.AlignStart, 1)
 			// The wind: an arrow the way it blows.
 			cx, cy := float32(212), y+20
-			vector.StrokeCircle(screen, cx, cy, 14, 1, color.RGBA{255, 255, 255, 60}, true)
+			strokeCircle(screen, cx, cy, 14, 1, color.RGBA{255, 255, 255, 60}, true)
 			wd := float64(g.curr.WindDir)
 			l := float32(8 + 5*g.curr.Wind)
 			tx, ty := cx+float32(math.Cos(wd))*l, cy+float32(math.Sin(wd))*l
-			vector.StrokeLine(screen, cx-float32(math.Cos(wd))*l, cy-float32(math.Sin(wd))*l, tx, ty, 2, colKey, true)
+			strokeLine(screen, cx-float32(math.Cos(wd))*l, cy-float32(math.Sin(wd))*l, tx, ty, 2, colKey, true)
 			for _, s := range []float64{2.6, -2.6} {
-				vector.StrokeLine(screen, tx, ty, tx+float32(math.Cos(wd+s))*5, ty+float32(math.Sin(wd+s))*5, 2, colKey, true)
+				strokeLine(screen, tx, ty, tx+float32(math.Cos(wd+s))*5, ty+float32(math.Sin(wd+s))*5, 2, colKey, true)
 			}
 			g.text(screen, "gió", float64(cx), float64(cy)+16, colMuted, text.AlignCenter, 1)
 			if b.Held {
@@ -262,12 +261,12 @@ func (g *Game) drawSeaHUD(screen *ebiten.Image) {
 	if (swimming || self.Breath > 0 && self.Breath < 0.999) && !self.Dead {
 		panel(screen, 12, y, 230, 34)
 		g.text(screen, "Sức bơi", 24, float64(y)+8, colWhite, text.AlignStart, 1)
-		fillRoundRect(screen, 90, y+12, 140, 10, 4, color.RGBA{0, 0, 0, 150})
+		well(screen, 90, float64(y)+11, 140, 12, 6)
 		col := color.RGBA{110, 190, 240, 255}
 		if self.Breath <= 0 {
 			col = colBad
 		}
-		fillRoundRect(screen, 90, y+12, 140*max32(0, self.Breath), 10, 4, col)
+		drawBarFill(screen, 91.5, float64(y)+12.5, 137, 9, float64(max32(0, self.Breath)), col, barFX{}, g.frame)
 	}
 }
 

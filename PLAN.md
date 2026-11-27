@@ -59,7 +59,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
 - [x] Giai đoạn 1: nhân vật (8 khung đi, giáp, đấm, bơi, ngủ, màn hình tạo nhân vật) và mặt đất (cả hai kiểu: cỏ xanh và đất ấm; `SetGroundStyle`, lưu trong cài đặt).
 - [x] Giai đoạn 2: cây, cỏ, hoa, đá, công trình (vẽ lại ở HD). Còn tinh chỉnh tự động, cần vẽ tay sau: quặng, lò nung, lều, cây ăn thịt, chông, kim tự tháp. Lửa, thuyền, icon vẫn hình cũ.
 - [x] Giai đoạn 3: khủng long và các sinh vật. 16 loài khủng long và Ankylosaurus vẽ tay lại ở HD (`internal/dinopaint`, mắt mở, đùi chuyển động theo chân), voi ma mút, hổ răng kiếm, quái biển và trùm vẽ HD. Còn thú nhỏ và thổ dân: xem dòng dưới.
-- [ ] Giai đoạn 4: icon, giao diện, hiệu ứng (có thể lấy hiệu ứng từ pixelfx, giấy phép MIT).
+- [ ] Giai đoạn 4: icon, giao diện, hiệu ứng (có thể lấy hiệu ứng từ pixelfx, giấy phép MIT). **Xong phần giao diện**: vẽ ở đúng độ phân giải màn hình (720p, 1080p, 1440p, 4K), chữ Nunito (giấy phép SIL OFL, đủ dấu tiếng Việt), khung da thú, gỗ, xương, đá, giấy da; thanh máu có vệt mất máu, chớp khi trúng đòn, sáng khi sắp hết; bản đồ nhỏ bo góc, chưa đi tới là giấy cũ gạch chéo; nhãn trên thế giới chỉ hiện cho thứ dưới con trỏ, mờ dần vào ra. Xem `HD_ART.md` ("The interface"). Còn: icon của các món chưa vẽ lại HD, hiệu ứng.
   - [ ] **Biểu tượng**: mới 20 / ~150 món vẽ HD (`iconhd.go`); còn lại chia nhóm vẽ tiếp.
   - [ ] **Giao diện HD** (đang làm): thanh máu, ô đồ, túi, rương, chế tạo, nấu ăn, bản đồ nhỏ, thanh trùm, menu vẽ ở độ phân giải thật; phông chữ vector có đủ dấu tiếng Việt (giấy phép OFL); khung kiểu da thuộc, gỗ, đá, xương; chữ nổi trong thế giới nhỏ gọn, chỉ hiện khi trỏ chuột.
   - [ ] **Đồ cầm tay HD** (đang làm): rìu, cuốc, giáo, dao, kiếm, đuốc, cần câu, bát… vẽ HD, xoay mượt khi vung.

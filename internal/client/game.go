@@ -109,6 +109,7 @@ type Game struct {
 	hudTarget targetView        // what Action works on, for the hint over the hotbar
 	statusOn  [numStatuses]bool // the status effects last drawn
 	statusAt  [numStatuses]int  // when each began, for its long line
+	hudFX     hudFX             // the bars' trails, the labels' fades; see uitheme.go, uilabels.go
 	wheel     float64           // mouse wheel travel not yet turned into a step
 
 	notice      string

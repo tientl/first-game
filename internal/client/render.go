@@ -227,7 +227,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawFishingLabels(screen, cam, float64(scale))
 	g.drawBossIntro(screen, sw, sh) // letterbox and title card; see bossintro.go
 
-	// The interface, on its own canvas scaled to the screen; see uiscale.go.
+	g.drawInterface(screen)
+}
+
+// drawInterface draws the interface over the world, at the screen's own
+// resolution in UI pixels; see uiscale.go.
+func (g *Game) drawInterface(screen *ebiten.Image) {
 	ui, uw, uh := beginUI(screen)
 	g.lastScreenH, g.lastScreenW = uh, uw
 	g.drawFishingMessage(ui, uw, uh)
@@ -261,7 +266,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if g.paused {
 		g.drawPause(ui, uw, uh)
 	}
-	endUI(screen, ui)
+	endUI(ui)
 }
 
 func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target targetView) {
@@ -1052,10 +1057,12 @@ func (g *Game) candidateAt(tx, ty int) (sim.TargetCandidate, bool) {
 const labelLift = 2.5 * playerArtH
 
 // drawWorldLabels draws, at full screen resolution, what must stay readable
-// at night: the target marker and other players' names.
+// at night: the name of what the pointer is on (see uilabels.go) and other
+// players' names.
 func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, tg targetView) {
 	alpha := g.alpha()
-	if tg.ok {
+	var cur floatLabel
+	if tg.ok && tg.aimed {
 		var sx, sy, top float64
 		var label string
 		col := colWhite
@@ -1145,19 +1152,11 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				label, col = g.tribalEntityLabel(e, label, col)
 			}
 		}
-		topArt := top - 9 + math.Round(1.5*math.Sin(float64(g.frame)*0.12))
-		// The name stays on the screen, however tall what it names.
-		topArt = max(topArt, (6+18*uiK())/scale)
-		if !tg.aimed { // what the pointer is on is bracketed instead; see drawAimCues
-			mb := g.art.marker.Bounds()
-			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(-float64(mb.Dx())/2, 0)
-			op.GeoM.Scale(scale, scale)
-			op.GeoM.Translate(sx*scale, topArt*scale)
-			screen.DrawImage(g.art.marker, op)
-		}
-		g.text(screen, label, sx*scale, topArt*scale-18*uiK(), col, text.AlignCenter, uiK())
+		// Over the thing's top, but on the screen however tall it is.
+		topArt := max(top-5, (6+18*uiK())/scale)
+		cur = floatLabel{ok: true, key: targetKey(tg), text: label, col: labelColor(col), x: sx * scale, y: topArt * scale}
 	}
+	g.showLabel(screen, cur)
 	for _, p := range g.curr.Players {
 		wx, wy, _ := g.lerpPlayer(p, alpha)
 		if g.hiddenInCave(wx, wy) {
@@ -1175,6 +1174,6 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 		if p.ID == g.myID {
 			continue
 		}
-		g.text(screen, p.Name, sx*scale, (sy-playerTop)*scale-14*uiK(), colWhite, text.AlignCenter, uiK())
+		nameTag(screen, p.Name, sx*scale, (sy-playerTop)*scale-5*uiK())
 	}
 }

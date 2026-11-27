@@ -14,21 +14,22 @@ import (
 	"survivalgame/internal/sim"
 )
 
-// The HUD, on the interface canvas (see uiscale.go): the vitals and status
-// chips top left, the clock with the minimap top right, the hotbar along the
-// bottom with the held item's name and one line of what to do here above
-// it. F1 shows the full list of keys.
+// The HUD, drawn at the screen's resolution in UI pixels (see uiscale.go)
+// in the look of uitheme.go: the vitals and status chips top left on hide,
+// the clock with the minimap top right, the hotbar along the bottom in its
+// wooden frame with the held item's name and one line of what to do here
+// above it. F1 shows the full list of keys.
 
 var (
-	colPanel     = color.RGBA{14, 16, 26, 205}
+	colPanel     = color.RGBA{36, 28, 22, 215}
 	colPanelEdge = color.RGBA{0, 0, 0, 90}
 	colSlot      = color.RGBA{0, 0, 0, 110}
-	colHealth    = color.RGBA{214, 62, 70, 255}
-	colHunger    = color.RGBA{232, 152, 52, 255}
+	colHealth    = color.RGBA{214, 56, 60, 255}
+	colHunger    = color.RGBA{232, 148, 46, 255}
 	colThirst    = color.RGBA{70, 150, 230, 255}
 	colGood      = color.RGBA{150, 230, 140, 255}
-	colMuted     = color.RGBA{176, 182, 196, 255}
-	colKey       = color.RGBA{246, 213, 92, 255}
+	colMuted     = color.RGBA{196, 184, 162, 255}
+	colKey       = color.RGBA{246, 206, 98, 255}
 	colColdTxt   = color.RGBA{150, 210, 255, 255}
 	colPoison    = color.RGBA{140, 230, 100, 255}
 	colDay       = color.RGBA{250, 214, 96, 255}
@@ -36,18 +37,17 @@ var (
 	colNight     = color.RGBA{52, 62, 132, 255}
 )
 
-func (g *Game) text(dst *ebiten.Image, s string, x, y float64, clr color.Color, align text.Align, scale float64) {
+func (g *Game) text(dst drawTarget, s string, x, y float64, clr color.Color, align text.Align, scale float64) {
 	drawText(dst, s, x, y, clr, align, scale)
 }
 
 func (g *Game) textWidth(s string) float64 { return textWidth(s, 1) }
 
-func (g *Game) dim(dst *ebiten.Image, sw, sh int, alpha float64) {
-	uiBreak() // what it covers goes on the screen first, HD icons and all: see iconhd.go
-	vector.FillRect(dst, 0, 0, float32(sw), float32(sh), color.RGBA{0, 0, 0, uint8(alpha * 255)}, false)
+func (g *Game) dim(dst *uiDst, sw, sh int, alpha float64) {
+	dimScreen(dst, color.RGBA{0, 0, 0, uint8(alpha * 255)})
 }
 
-func fillRoundRect(dst *ebiten.Image, x, y, w, h, r float32, clr color.Color) {
+func fillRoundRect(dst drawTarget, x, y, w, h, r float32, clr color.Color) {
 	if w <= 0 || h <= 0 {
 		return
 	}
@@ -65,13 +65,7 @@ func fillRoundRect(dst *ebiten.Image, x, y, w, h, r float32, clr color.Color) {
 	p.Close()
 	op := &vector.DrawPathOptions{AntiAlias: true}
 	op.ColorScale.ScaleWithColor(clr)
-	vector.FillPath(dst, &p, nil, op)
-}
-
-// panel draws the dark rounded backdrop every HUD element sits on.
-func panel(dst *ebiten.Image, x, y, w, h float32) {
-	fillRoundRect(dst, x-1, y-1, w+2, h+2, 9, colPanelEdge)
-	fillRoundRect(dst, x, y, w, h, 8, colPanel)
+	fillPath(dst, &p, op)
 }
 
 func lighten(c color.RGBA, d int) color.RGBA {
@@ -94,7 +88,7 @@ func fade(c color.RGBA, a uint8) color.RGBA {
 	return color.RGBA{k(c.R), k(c.G), k(c.B), a}
 }
 
-func drawIcon(dst *ebiten.Image, img *ebiten.Image, x, y, scale float64, alpha float32) {
+func drawIcon(dst drawTarget, img *ebiten.Image, x, y, scale float64, alpha float32) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(scale, scale)
 	op.GeoM.Translate(x, y)
@@ -106,7 +100,8 @@ func drawIcon(dst *ebiten.Image, img *ebiten.Image, x, y, scale float64, alpha f
 
 // vital is one bar top left: health, hunger, and later thirst.
 type vital struct {
-	icon     *ebiten.Image // nil: drawIcon draws a water drop
+	icon     uiIcon       // its picture, when item is none
+	item     sim.ItemKind // or an item's icon
 	cur, max float64
 	fill     color.RGBA
 }
@@ -121,50 +116,61 @@ const (
 	chipH          = 22
 )
 
+// hudFX is what the HUD remembers from frame to frame to animate: each
+// vital's trail, and the world labels' fades (uilabels.go).
+type hudFX struct {
+	vitals [3]barTrail
+	labels labelFX
+}
+
 // vitals are the bars shown, top to bottom. Thirst goes here once the sim
-// has it: {nil, self.Thirst, sim.MaxThirst, colThirst}.
+// has it: {uiThirst, 0, self.Thirst, sim.MaxThirst, colThirst}.
 func (g *Game) vitals() []vital {
 	self := g.curr.Self
 	return []vital{
-		{g.art.heart, float64(self.Health), sim.MaxHealth, colHealth},
-		{g.art.food, float64(self.Hunger), sim.MaxHunger, colHunger},
+		{uiHeart, sim.ItemNone, float64(self.Health), sim.MaxHealth, colHealth},
+		{uiHungry, sim.ItemNone, float64(self.Hunger), sim.MaxHunger, colHunger},
 	}
 }
 
 // vitalsBottom is the y just under the vitals panel.
 func vitalsBottom(n int) float32 { return vitalY + 10 + float32(n)*vitalRow }
 
-// drawVital draws one bar with its icon at (x, y), its value as "72/100"
-// inside it.
-func (g *Game) drawVital(dst *ebiten.Image, v vital, x, y float32) {
+// drawVital draws vital i, v, with its icon at (x, y), its value as
+// "72/100" inside it: a sunken track, the fill lit like something round,
+// what was just lost draining away pale, a flash at a blow, and a glow
+// round it when it runs low.
+func (g *Game) drawVital(dst *uiDst, i int, v vital, x, y float32) {
 	frac := 0.0
 	if v.max > 0 {
 		frac = max(0, min(1, v.cur/v.max))
 	}
-	if v.icon != nil {
-		b := v.icon.Bounds()
-		drawIcon(dst, v.icon, float64(x)+13-float64(b.Dx()), float64(y)+vitalBarH/2-float64(b.Dy()), 2, 1)
+	fx := g.hudFX.vitals[i%len(g.hudFX.vitals)].step(frac, g.frame)
+	ix, iy := float64(x)+13, float64(y)+vitalBarH/2
+	if v.item.Valid() {
+		g.drawItem(dst, v.item, ix-12, iy-12, 24, 1)
 	} else {
-		drawDrop(dst, x+13, y+vitalBarH/2+1, 8, v.fill)
+		beat := 1.0
+		if v.icon == uiHeart && frac < 0.35 {
+			beat += 0.08 * math.Max(0, math.Sin(float64(g.frame)*0.25)) // a heart that pounds
+		}
+		drawUIIcon(dst, v.icon, ix, iy, 24*beat, 1)
 	}
-	bx := x + 30
-	fillRoundRect(dst, bx, y, vitalBarW, vitalBarH, 6, color.RGBA{0, 0, 0, 170})
-	fill := v.fill
-	if frac < 0.25 && (g.frame/15)%2 == 0 {
-		fill = lighten(fill, 50) // flash when low
+	bx, by := float64(x)+30, float64(y)
+	if frac < 0.25 {
+		pulse := 0.5 + 0.5*math.Sin(float64(g.frame)*0.12)
+		glow(dst, bx, by, vitalBarW, vitalBarH, vitalBarH/2, v.fill, 0.35+0.4*pulse)
 	}
-	if fw := float32(frac * (vitalBarW - 4)); fw >= 2 {
-		fillRoundRect(dst, bx+2, y+2, fw, vitalBarH-4, 4, fill)
-		fillRoundRect(dst, bx+3, y+3, fw-2, 5, 2.5, fade(lighten(fill, 70), 110))
-		fillRoundRect(dst, bx+3, y+vitalBarH-7, fw-2, 4, 2, fade(lighten(fill, -60), 120))
-	}
+	well(dst, bx, by, vitalBarW, vitalBarH, vitalBarH/2)
+	noteBox(dst, bx, by, vitalBarW, vitalBarH)
+	drawBarFill(dst, bx+2.5, by+2.5, vitalBarW-5, vitalBarH-5, frac, v.fill, fx, g.frame)
 	value := fmt.Sprintf("%d/%d", int(math.Ceil(v.cur)), int(v.max))
-	g.text(dst, value, float64(bx)+vitalBarW/2, float64(y)+float64(vitalBarH)/2-8, colWhite, text.AlignCenter, 1)
+	uiTextW(dst, value, bx+vitalBarW/2, by+vitalBarH/2-lineUI*0.95/2, colWhite, text.AlignCenter, 0.95, wHeavy, fxOutline)
 }
 
 // drawDrop is a water drop centred on (x, y), r across.
-func drawDrop(dst *ebiten.Image, x, y, r float32, c color.RGBA) {
-	vector.FillCircle(dst, x, y+r*0.25, r*0.6, c, true)
+func drawDrop(dst drawTarget, x, y, r float32, c color.RGBA) {
+	fillCircle(dst, x, y+r*0.25, r*0.6, c, true)
 	var p vector.Path
 	p.MoveTo(x, y-r*0.85)
 	p.LineTo(x+r*0.55, y+r*0.1)
@@ -172,8 +178,8 @@ func drawDrop(dst *ebiten.Image, x, y, r float32, c color.RGBA) {
 	p.Close()
 	op := &vector.DrawPathOptions{AntiAlias: true}
 	op.ColorScale.ScaleWithColor(c)
-	vector.FillPath(dst, &p, nil, op)
-	vector.FillCircle(dst, x-r*0.2, y+r*0.1, r*0.15, color.RGBA{255, 255, 255, 170}, true)
+	fillPath(dst, &p, op)
+	fillCircle(dst, x-r*0.2, y+r*0.1, r*0.15, color.RGBA{255, 255, 255, 170}, true)
 }
 
 // --- status effects ------------------------------------------------------------------
@@ -256,86 +262,52 @@ func (g *Game) noteStatuses(now []status) {
 	g.statusOn = on
 }
 
-// drawStatusIcon draws status k's little picture centred on (x, y).
-func (g *Game) drawStatusIcon(dst *ebiten.Image, k statusKind, x, y float32, c color.RGBA) {
-	switch k {
-	case statusCold: // a snowflake
-		for i := range 3 {
-			a := float64(i) * math.Pi / 3
-			dx, dy := float32(math.Cos(a))*6, float32(math.Sin(a))*6
-			vector.StrokeLine(dst, x-dx, y-dy, x+dx, y+dy, 1.6, c, true)
-		}
-		vector.FillCircle(dst, x, y, 1.6, colWhite, true)
-	case statusPoison: // a green drop with a skull's eyes
-		drawDrop(dst, x, y, 13, c)
-		vector.FillCircle(dst, x-1.8, y+1.5, 1.2, color.RGBA{20, 40, 10, 255}, true)
-		vector.FillCircle(dst, x+1.8, y+1.5, 1.2, color.RGBA{20, 40, 10, 255}, true)
-	case statusWeb: // a web
-		for i := range 4 {
-			a := float64(i)*math.Pi/4 + 0.2
-			dx, dy := float32(math.Cos(a))*7, float32(math.Sin(a))*7
-			vector.StrokeLine(dst, x-dx, y-dy, x+dx, y+dy, 1, c, true)
-		}
-		vector.StrokeCircle(dst, x, y, 3, 1, c, true)
-		vector.StrokeCircle(dst, x, y, 6, 1, fade(c, 180), true)
-	case statusStarving, statusHungry:
-		b := g.art.food.Bounds()
-		drawIcon(dst, g.art.food, float64(x)-float64(b.Dx())/2, float64(y)-float64(b.Dy())/2, 1, 1)
-		if k == statusStarving {
-			vector.StrokeLine(dst, x-6, y+6, x+6, y-6, 2, colBad, true)
-		}
-	case statusBuff, statusBuff + 1, statusBuff + 2, statusBuff + 3, statusBuff + 4:
-		drawBuffIcon(dst, sim.BuffKind(k-statusBuff), x, y, c)
-	case statusStun, statusBleed, statusSlow, statusPinned:
-		drawSkillStatusIcon(dst, k, x, y, c) // see skillhud.go
-	case statusBees: // a bee
-		vector.FillCircle(dst, x-2, y-4, 3, color.RGBA{230, 240, 255, 200}, true)
-		vector.FillCircle(dst, x+2, y-4, 3, color.RGBA{230, 240, 255, 200}, true)
-		vector.FillCircle(dst, x, y+1, 5, color.RGBA{250, 200, 40, 255}, true)
-		vector.StrokeLine(dst, x-4, y, x+4, y, 1.6, color.RGBA{30, 24, 10, 255}, false)
-		vector.StrokeLine(dst, x-4, y+3, x+4, y+3, 1.6, color.RGBA{30, 24, 10, 255}, false)
-	}
-}
-
-// drawStatuses draws the chips from (x, y) rightwards, then, for a moment
-// after one starts, its long line.
-func (g *Game) drawStatuses(dst *ebiten.Image, list []status, x, y float32) {
+// drawStatuses draws the chips from (x, y) rightwards (a leather tab rimmed
+// in the status's colour, its HD picture and a short word), then, for a
+// moment after one starts, its long line.
+func (g *Game) drawStatuses(dst *uiDst, list []status, x, y float32) {
 	var shout *status
+	X, Y := float64(x), float64(y)
 	for i := range list {
 		s := &list[i]
 		since := g.frame - g.statusAt[s.kind]
 		if s.long != "" && since < statusShout && (shout == nil || g.statusAt[s.kind] > g.statusAt[shout.kind]) {
 			shout = s
 		}
-		w := float32(g.textWidth(s.label)) + 34
-		bg := color.RGBA{14, 16, 26, 215}
-		if since < statusShout && (g.frame/20)%2 == 0 {
-			bg = color.RGBA{60, 40, 30, 230}
+		w := g.textWidth(s.label) + 36
+		if since < statusShout {
+			pulse := 0.5 + 0.5*math.Cos(float64(since)*0.16)
+			glow(dst, X, Y, w, chipH, chipH/2, s.col, 0.45*pulse*(1-float64(since)/statusShout))
 		}
-		fillRoundRect(dst, x-1, y-1, w+2, chipH+2, 8, fade(s.col, 120))
-		fillRoundRect(dst, x, y, w, chipH, 7, bg)
-		g.drawStatusIcon(dst, s.kind, x+13, y+chipH/2, s.col)
-		g.text(dst, s.label, float64(x)+25, float64(y)+3, s.col, text.AlignStart, 1)
-		x += w + 6
+		l := panelLooks[psLeather]
+		l.body = color.RGBA{38, 29, 23, 236}
+		l.rim = mix(s.col, colHideDark, 0.35)
+		l.stitch = color.RGBA{}
+		l.rimW = 1.25
+		drawPanelLook(dst, psLeather, l, X, Y, w, chipH, chipH/2, 0.45)
+		noteBox(dst, X, Y, w, chipH)
+		drawUIIcon(dst, statusIcon(s.kind), X+13, Y+chipH/2, 19, 1)
+		g.text(dst, s.label, X+26, Y+3, s.col, text.AlignStart, 1)
+		X += w + 6
 	}
 	if shout != nil {
 		a := min(1, float64(statusShout-(g.frame-g.statusAt[shout.kind]))/40)
-		w := float32(g.textWidth(shout.long)) + 20
-		fillRoundRect(dst, x, y, w, chipH, 7, color.RGBA{14, 16, 26, uint8(205 * a)})
+		w := g.textWidth(shout.long) + 24
+		plateA(dst, X, Y, w, chipH, chipH/2, a)
 		c := fade(shout.col, uint8(255*a))
-		g.text(dst, shout.long, float64(x)+10, float64(y)+3, c, text.AlignStart, 1)
+		g.text(dst, shout.long, X+12, Y+3, c, text.AlignStart, 1)
 	}
 }
 
 // --- the HUD ----------------------------------------------------------------------------
 
-func (g *Game) drawHUD(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawHUD(screen *uiDst, sw, sh int) {
 	self := g.curr.Self
 
 	vs := g.vitals()
 	panel(screen, vitalX, vitalY, vitalPanelW, vitalsBottom(len(vs))-vitalY)
 	for i, v := range vs {
-		g.drawVital(screen, v, vitalX+10, vitalY+8+float32(i*vitalRow))
+		g.drawVital(screen, i, v, vitalX+10, vitalY+8+float32(i*vitalRow))
 	}
 	st := g.statuses()
 	g.noteStatuses(st)
@@ -351,21 +323,21 @@ func (g *Game) drawHUD(screen *ebiten.Image, sw, sh int) {
 	}
 
 	if since := time.Since(g.autosaved); since < 2500*time.Millisecond {
-		a := float32(1)
+		a := 1.0
 		if since > 1500*time.Millisecond {
-			a = float32(2500*time.Millisecond-since) / float32(time.Second)
+			a = float64(2500*time.Millisecond-since) / float64(time.Second)
 		}
 		msg := "Đã tự động lưu"
-		w := float32(g.textWidth(msg)) + 24
-		x := float32(sw) - w - 12
-		y := float32(cornerBottom(g.overlay == overlayNone)) + 8
-		fillRoundRect(screen, x, y, w, 24, 8, color.RGBA{14, 16, 26, uint8(205 * a)})
-		g.text(screen, msg, float64(x)+12, float64(y)+4, color.RGBA{150, 230, 140, uint8(255 * a)}, text.AlignStart, 1)
+		w := g.textWidth(msg) + 24
+		x := float64(sw) - w - 12
+		y := cornerBottom(g.overlay == overlayNone) + 8
+		plateA(screen, x, y, w, 24, 12, a)
+		g.text(screen, msg, x+12, y+4, fade(colGood, uint8(255*a)), text.AlignStart, 1)
 	}
 
 	if self.Dead {
 		g.dim(screen, sw, sh, 0.6)
-		g.text(screen, "Bạn đã gục ngã", float64(sw/2), float64(sh/2-40), color.RGBA{236, 110, 110, 255}, text.AlignCenter, 3)
+		drawTitle(screen, "Bạn đã gục ngã", float64(sw/2), float64(sh/2-48), 3.2, color.RGBA{236, 104, 96, 255}, color.RGBA{70, 16, 12, 255})
 		where := "ở chỗ xuất phát"
 		if self.HomeBed {
 			where = "cạnh chỗ ngủ lần cuối (giường hoặc lều)"
@@ -378,15 +350,27 @@ func (g *Game) drawHUD(screen *ebiten.Image, sw, sh int) {
 	}
 }
 
-func (g *Game) drawNotice(screen *ebiten.Image, sw int) {
+// drawNotice says the notice on a slip of parchment.
+func (g *Game) drawNotice(screen *uiDst, sw int) {
 	if g.notice == "" || !time.Now().Before(g.noticeUntil) {
 		return
 	}
-	uiBreak() // over the bag's HD icons: see iconhd.go
-	w := float32(g.textWidth(g.notice)) + 28
-	panel(screen, float32(sw)/2-w/2, 96, w, 28)
-	g.text(screen, g.notice, float64(sw/2), 102, colWhite, text.AlignCenter, 1)
+	left := time.Until(g.noticeUntil).Seconds()
+	a := min(1, left/0.35)
+	w := g.textWidth(g.notice) + 32
+	x := float64(sw)/2 - w/2
+	if a < 1 {
+		plateA(screen, x, noticeY, w, 28, 8, a)
+		g.text(screen, g.notice, float64(sw)/2, noticeY+6, fade(colWhite, uint8(255*a)), text.AlignCenter, 1)
+		return
+	}
+	parchment(screen, x, noticeY, w, 28)
+	ink(screen, g.notice, float64(sw)/2, noticeY+6, colWhite, text.AlignCenter, 1)
 }
+
+// noticeY is the top of the notice: under the vitals' status line, which can
+// run on to the middle of the screen.
+const noticeY = float64(vitalY+10+2*vitalRow) + 6 + chipH + 10
 
 // --- the clock and minimap, top right -------------------------------------------------
 
@@ -404,29 +388,44 @@ func cornerBottom(withMap bool) float64 {
 
 // drawCorner draws the clock (day, phase, season, weather with its icon,
 // and the day's bar) with the minimap under it, in one panel.
-func (g *Game) drawCorner(screen *ebiten.Image, sw int, withMap bool) {
+func (g *Game) drawCorner(screen *uiDst, sw int, withMap bool) {
 	tick := g.curr.Tick
 	x0 := float32(sw) - 12 - cornerW
 	panel(screen, x0, 12, cornerW, float32(cornerBottom(withMap))-12)
 	x, w := x0+miniPad+2, float32(cornerW-2*miniPad-4)
 
 	night := sim.PhaseOf(tick) == sim.PhaseNight
-	g.drawWeatherIcon(screen, g.curr.Weather, night, x+8, 27)
+	if g.curr.Weather == sim.WeatherTornado || g.curr.Weather == sim.WeatherClear && !night {
+		g.drawWeatherIcon(screen, g.curr.Weather, night, x+8, 27) // it moves
+	} else {
+		drawBaked(screen, fmt.Sprintf("weather %d %v", g.curr.Weather, night), float64(x)-4, 15, 24, 24, 2, func(b *uiDst) {
+			g.drawWeatherIcon(b, g.curr.Weather, night, 12, 12)
+		})
+	}
 	phase := map[sim.Phase]string{sim.PhaseDay: "Ban ngày", sim.PhaseDusk: "Chạng vạng", sim.PhaseNight: "Ban đêm"}[sim.PhaseOf(tick)]
-	g.text(screen, fmt.Sprintf("Ngày %d", sim.DayOf(tick)), float64(x)+22, 19, colWhite, text.AlignStart, 1)
+	uiTextW(screen, fmt.Sprintf("Ngày %d", sim.DayOf(tick)), float64(x)+22, 19, colWhite, text.AlignStart, 1.05, 860, fxShadow)
 	g.text(screen, phase, float64(x+w), 19, colMuted, text.AlignEnd, 1)
 	season := fmt.Sprintf("%s %d/%d", g.curr.Season.Name(), sim.SeasonDay(tick), sim.SeasonDays)
 	g.text(screen, season, float64(x), 38, seasonColors[g.curr.Season%sim.NumSeasons], text.AlignStart, 1)
 	g.text(screen, g.curr.Weather.Name(), float64(x+w), 38, colMuted, text.AlignEnd, 1)
 
-	// The day's bar, a sun by day and a moon by night riding along it.
-	by, bh := float32(60), float32(6)
-	fillRoundRect(screen, x, by, w, bh, 3, colNight)
-	fillRoundRect(screen, x, by, w*float32(sim.NightAt(tick)), bh, 3, colDusk)
-	fillRoundRect(screen, x, by, w*float32(sim.DuskAt(tick)), bh, 3, colDay)
+	// The day's bar, sunk in the hide: day, dusk and night, with a sun by
+	// day and a moon by night riding along it.
+	by, bh := float32(59), float32(8)
+	nightAt, duskAt := float32(sim.NightAt(tick)), float32(sim.DuskAt(tick))
+	drawBaked(screen, fmt.Sprintf("daybar %.0f %.3f %.3f", w, nightAt, duskAt), float64(x)-1, float64(by)-1, float64(w)+2, float64(bh)+2, 1, func(b *uiDst) {
+		well(b, 0, 0, float64(w)+2, float64(bh)+2, float64(bh)/2+1)
+		fillRoundRect(b, 1, 1, w, bh, bh/2, mix(colNight, colHideDark, 0.2))
+		fillRoundRect(b, 1, 1, w*nightAt, bh, bh/2, colDusk)
+		fillRoundRect(b, 1, 1, w*duskAt, bh, bh/2, colDay)
+		fillRect(b, 1+bh/2, 2, w-bh, float32(b.hair()), color.RGBA{255, 255, 255, 70}, true)
+	})
 	mx, my := x+float32(sim.DayFraction(tick))*w, by+bh/2
-	vector.FillCircle(screen, mx, my, 7, color.RGBA{14, 16, 26, 255}, true)
-	drawSunMoon(screen, mx, my, 5, night)
+	if !night {
+		glow(screen, float64(mx)-5, float64(my)-5, 10, 10, 5, color.RGBA{255, 214, 110, 255}, 0.7)
+	}
+	fillCircle(screen, mx, my, 7.5, colHideDark, true)
+	drawSunMoon(screen, mx, my, 5.5, night)
 
 	if withMap {
 		g.drawMinimap(screen, float64(x0))
@@ -434,29 +433,35 @@ func (g *Game) drawCorner(screen *ebiten.Image, sw int, withMap bool) {
 }
 
 // drawSunMoon draws a sun, or a moon at night, of radius r at (x, y).
-func drawSunMoon(dst *ebiten.Image, x, y, r float32, night bool) {
+func drawSunMoon(dst drawTarget, x, y, r float32, night bool) {
 	if night {
-		vector.FillCircle(dst, x, y, r, color.RGBA{226, 232, 248, 255}, true)
-		vector.FillCircle(dst, x+r*0.5, y-r*0.35, r*0.85, color.RGBA{14, 16, 26, 255}, true)
+		fillCircle(dst, x, y, r, color.RGBA{226, 232, 248, 255}, true)
+		fillCircle(dst, x+r*0.5, y-r*0.35, r*0.85, colHideDark, true)
 		return
 	}
-	vector.FillCircle(dst, x, y, r, color.RGBA{255, 226, 110, 255}, true)
-	vector.FillCircle(dst, x-r*0.25, y-r*0.25, r*0.4, color.RGBA{255, 246, 196, 255}, true)
+	fillCircle(dst, x, y, r, color.RGBA{255, 214, 96, 255}, true)
+	fillCircle(dst, x-r*0.12, y-r*0.12, r*0.72, color.RGBA{255, 232, 140, 255}, true)
+	fillCircle(dst, x-r*0.3, y-r*0.3, r*0.32, color.RGBA{255, 250, 220, 255}, true)
 }
 
 // drawWeatherIcon draws the weather's little picture centred on (x, y).
-func (g *Game) drawWeatherIcon(dst *ebiten.Image, w sim.Weather, night bool, x, y float32) {
+func (g *Game) drawWeatherIcon(dst drawTarget, w sim.Weather, night bool, x, y float32) {
 	cloud := func(c color.RGBA) {
-		vector.FillCircle(dst, x-4, y+1, 4, c, true)
-		vector.FillCircle(dst, x+1, y-2, 5, c, true)
-		vector.FillCircle(dst, x+5, y+1, 4, c, true)
-		vector.FillRect(dst, x-4, y+1, 9, 4, c, true)
+		shade := lighten(c, -46)
+		fillCircle(dst, x-4, y+1.6, 4, shade, true)
+		fillCircle(dst, x+1, y-1.4, 5, shade, true)
+		fillCircle(dst, x+5, y+1.6, 4, shade, true)
+		fillCircle(dst, x-4, y+1, 4, c, true)
+		fillCircle(dst, x+1, y-2, 5, c, true)
+		fillCircle(dst, x+5, y+1, 4, c, true)
+		fillRect(dst, x-4, y+1, 9, 4, c, true)
+		fillCircle(dst, x-0.5, y-3.4, 2, lighten(c, 30), true)
 	}
 	switch w {
 	case sim.WeatherRain:
 		for i := range 3 {
 			fx := x - 4 + float32(i)*4
-			vector.StrokeLine(dst, fx, y+5, fx-1.5, y+9, 1.3, color.RGBA{120, 180, 255, 255}, true)
+			strokeLine(dst, fx, y+5, fx-1.5, y+9, 1.3, color.RGBA{120, 180, 255, 255}, true)
 		}
 		cloud(color.RGBA{180, 190, 206, 255})
 	case sim.WeatherStorm:
@@ -471,36 +476,36 @@ func (g *Game) drawWeatherIcon(dst *ebiten.Image, w sim.Weather, night bool, x, 
 		p.Close()
 		op := &vector.DrawPathOptions{AntiAlias: true}
 		op.ColorScale.ScaleWithColor(colKey)
-		vector.FillPath(dst, &p, nil, op)
+		fillPath(dst, &p, op)
 	case sim.WeatherWind:
 		c := color.RGBA{220, 230, 240, 255}
-		vector.StrokeLine(dst, x-7, y-3, x+3, y-3, 1.5, c, true)
-		vector.StrokeCircle(dst, x+3, y-5, 2, 1.5, c, true)
-		vector.StrokeLine(dst, x-7, y+1, x+6, y+1, 1.5, c, true)
-		vector.StrokeLine(dst, x-5, y+5, x+2, y+5, 1.5, c, true)
-		vector.StrokeCircle(dst, x+2, y+7, 2, 1.5, c, true)
+		strokeLine(dst, x-7, y-3, x+3, y-3, 1.5, c, true)
+		strokeCircle(dst, x+3, y-5, 2, 1.5, c, true)
+		strokeLine(dst, x-7, y+1, x+6, y+1, 1.5, c, true)
+		strokeLine(dst, x-5, y+5, x+2, y+5, 1.5, c, true)
+		strokeCircle(dst, x+2, y+7, 2, 1.5, c, true)
 	case sim.WeatherTornado:
 		c := color.RGBA{190, 196, 210, 255}
 		for i := range 5 {
 			hw := 7 - float32(i)*1.4
 			fy := y - 6 + float32(i)*3
 			off := float32(math.Sin(float64(i)+float64(g.frame)/12)) * 1.2
-			vector.StrokeLine(dst, x-hw+off, fy, x+hw+off, fy, 1.6, c, true)
+			strokeLine(dst, x-hw+off, fy, x+hw+off, fy, 1.6, c, true)
 		}
 	case sim.WeatherSnow:
 		cloud(color.RGBA{210, 218, 230, 255})
 		for i := range 3 {
-			vector.FillCircle(dst, x-4+float32(i)*4, y+8+float32(i%2)*2, 1.3, colWhite, true)
+			fillCircle(dst, x-4+float32(i)*4, y+8+float32(i%2)*2, 1.3, colWhite, true)
 		}
 	default:
-		drawSunMoon(dst, x, y, 6, night)
 		if !night {
 			for i := range 8 {
-				a := float64(i) * math.Pi / 4
+				a := float64(i)*math.Pi/4 + float64(g.frame)*0.004
 				cx, cy := float32(math.Cos(a)), float32(math.Sin(a))
-				vector.StrokeLine(dst, x+cx*7.5, y+cy*7.5, x+cx*9.5, y+cy*9.5, 1.3, color.RGBA{255, 226, 110, 255}, true)
+				strokeLine(dst, x+cx*7.6, y+cy*7.6, x+cx*10, y+cy*10, 1.5, color.RGBA{255, 214, 110, 255}, true)
 			}
 		}
+		drawSunMoon(dst, x, y, 6, night)
 	}
 }
 
@@ -520,9 +525,10 @@ func hotbarX0(sw int) int {
 	return (sw - (sim.HotbarSlots*hotPx + (sim.HotbarSlots-1)*hotGap)) / 2
 }
 
-// drawHotbar draws the ten hotbar slots along the bottom, the held one
-// outlined with its name over it, and one line of what to do above that.
-func (g *Game) drawHotbar(screen *ebiten.Image, sw, sh int) {
+// drawHotbar draws the ten hotbar slots along the bottom in a wooden frame,
+// the held one lit warm with its name over it, and one line of what to do
+// above that.
+func (g *Game) drawHotbar(screen *uiDst, sw, sh int) {
 	const n = sim.HotbarSlots
 	total := n*hotPx + (n-1)*hotGap
 	x0, y := float64(hotbarX0(sw)), float64(hotbarY(sh))
@@ -535,13 +541,12 @@ func (g *Game) drawHotbar(screen *ebiten.Image, sw, sh int) {
 			st = slotHeld
 		}
 		g.drawSlotSized(screen, inv[i], x, y, hotPx, st)
-		top := overIcons(screen) // over the HD icons: see iconhd.go
-		g.drawKeyBadge(top, hotbarLabel(i), x-3, y-3, i == g.hotSel)
+		g.drawKeyBadge(screen, hotbarLabel(i), x-3, y-3, i == g.hotSel)
 		// How much of the burning torch is left.
 		if i == g.hotSel && inv[i].Item == sim.ItemTorch && g.curr.Self.TorchFuel > 0 {
-			f := float32(g.curr.Self.TorchFuel) / float32(sim.TorchBurnTicks)
-			fillRoundRect(top, float32(x)+6, float32(y)+hotPx-7, hotPx-12, 4, 2, color.RGBA{0, 0, 0, 160})
-			fillRoundRect(top, float32(x)+6, float32(y)+hotPx-7, (hotPx-12)*f, 4, 2, color.RGBA{255, 160, 60, 255})
+			f := float64(g.curr.Self.TorchFuel) / float64(sim.TorchBurnTicks)
+			well(screen, x+6, y+hotPx-8, hotPx-12, 5, 2.5)
+			drawBarFill(screen, x+6.5, y+hotPx-7.5, hotPx-13, 4, f, color.RGBA{255, 150, 50, 255}, barFX{}, g.frame)
 		}
 	}
 
@@ -553,12 +558,15 @@ func (g *Game) drawHotbar(screen *ebiten.Image, sw, sh int) {
 			name += fmt.Sprintf(" ×%d", s.Count)
 		}
 		c := colWhite
-		if time.Since(g.selChangedAt) < 1500*time.Millisecond {
+		fresh := time.Since(g.selChangedAt) < 1500*time.Millisecond
+		if fresh {
 			c = colKey
 		}
-		w := float32(g.textWidth(name)) + 24
-		fillRoundRect(screen, float32(sw)/2-w/2-1, float32(ny)-1, w+2, 26, 8, fade(colKey, 90))
-		fillRoundRect(screen, float32(sw)/2-w/2, float32(ny), w, 24, 7, color.RGBA{14, 16, 26, 225})
+		w := g.textWidth(name) + 28
+		if fresh {
+			glow(screen, float64(sw)/2-w/2, ny, w, 24, 12, colAmberGlow, 0.25)
+		}
+		plate(screen, float64(sw)/2-w/2, ny, w, 24, 12)
 		g.text(screen, name, float64(sw)/2, ny+4, c, text.AlignCenter, 1)
 	} else {
 		ny += 26 // no name: the hint comes down
@@ -569,31 +577,32 @@ func (g *Game) drawHotbar(screen *ebiten.Image, sw, sh int) {
 		kw := g.textWidth(key)
 		tw := kw + 8 + g.textWidth(s)
 		hx := float64(sw)/2 - tw/2
-		fillRoundRect(screen, float32(hx)-10, float32(hy)-2, float32(tw)+20, 21, 7, color.RGBA{14, 16, 26, 150})
+		plateA(screen, hx-12, hy-2.5, tw+24, 21, 10.5, 0.62)
 		g.text(screen, key, hx, hy, colKey, text.AlignStart, 1)
 		g.text(screen, s, hx+kw+8, hy, c, text.AlignStart, 1)
 	}
 }
 
-// drawKeyBadge is the number key of a hotbar slot, on a little tab at its
-// top left corner.
-func (g *Game) drawKeyBadge(dst *ebiten.Image, key string, x, y float64, held bool) {
-	bg, fg := color.RGBA{10, 12, 20, 235}, colKey
+// drawKeyBadge is the number key of a hotbar slot, on a little tab of bone
+// at its top left corner; amber on the held slot.
+func (g *Game) drawKeyBadge(dst *uiDst, key string, x, y float64, held bool) {
+	const w, h = 17.0, 17.0
+	bg, rim, fg := color.RGBA{30, 23, 18, 238}, color.RGBA{120, 92, 62, 255}, colBoneText
 	if held {
-		bg, fg = colKey, color.RGBA{30, 22, 8, 255}
+		bg, rim, fg = colAmber, color.RGBA{255, 232, 170, 255}, color.RGBA{48, 28, 8, 255}
 	}
-	fillRoundRect(dst, float32(x), float32(y), 17, 18, 5, bg)
-	drawTextPlain(dst, key, x+8.5, y+1, fg, text.AlignCenter)
+	noteBox(dst, x, y, w, h)
+	drawBaked(dst, fmt.Sprintf("badge %s %v", key, held), x, y, w, h, 1, func(b *uiDst) {
+		fillRoundRect(b, -0.5, -0.5, w+1, h+1, 5.5, color.RGBA{0, 0, 0, 120})
+		fillRoundRect(b, 0, 0, w, h, 5, rim)
+		hair := float32(b.hair())
+		fillRoundRect(b, hair, hair, w-2*hair, h-2*hair, 5-hair, bg)
+		uiTextW(b, key, w/2, h/2-lineUI*0.85/2, fg, text.AlignCenter, 0.85, 900, fxPlain)
+	})
 }
 
-// drawTextPlain draws s without a shadow.
-func drawTextPlain(dst *ebiten.Image, s string, x, y float64, clr color.Color, align text.Align) {
-	op := &text.DrawOptions{}
-	op.GeoM.Translate(x, y)
-	op.ColorScale.ScaleWithColor(clr)
-	op.PrimaryAlign = align
-	text.Draw(dst, s, uiFace, op)
-}
+// colBoneText is light bone, for small text on dark tabs.
+var colBoneText = color.RGBA{236, 224, 196, 255}
 
 // hotbarLabel is the key that picks hotbar slot i.
 func hotbarLabel(i int) string { return fmt.Sprintf("%d", (i+1)%10) }
@@ -684,8 +693,9 @@ func (g *Game) targetHint(tg targetView) (key, s string) {
 	return "", ""
 }
 
-// drawHelp is the full list of keys, bottom left, while F1 is on.
-func (g *Game) drawHelp(screen *ebiten.Image, sw, sh int) {
+// drawHelp is the full list of keys, bottom left, while F1 is on: a sheet
+// of parchment.
+func (g *Game) drawHelp(screen *uiDst, sw, sh int) {
 	type line struct {
 		key, s string
 		c      color.Color
@@ -749,28 +759,28 @@ func (g *Game) drawHelp(screen *ebiten.Image, sw, sh int) {
 	const rowH = 18
 	w, keyW := 0.0, 0.0
 	for _, l := range lines {
-		w = max(w, g.textWidth(l.s))
-		keyW = max(keyW, g.textWidth(l.key)+12)
+		w = max(w, textWidthW(l.s, 1, wText+40))
+		keyW = max(keyW, textWidthW(l.key, 1, wText+80)+12)
 	}
-	h := float64(rowH*len(lines)) + 14
+	h := float64(rowH*len(lines)) + 16
 	x, y := 12.0, float64(sh)-h-12
-	pw := w + keyW + 26
+	pw := w + keyW + 30
 	if hotX := float64(hotbarX0(sw)); x+pw > hotX-12 {
 		y = float64(hotbarY(sh)) - 72 - h // too wide to sit beside the hotbar: above it and its lines
 	}
-	panel(screen, float32(x), float32(y), float32(pw), float32(h))
+	parchment(screen, x, y, pw, h)
 	for i, l := range lines {
-		ly := y + 8 + float64(i*rowH)
-		g.text(screen, l.key, x+12, ly, colKey, text.AlignStart, 1)
-		g.text(screen, l.s, x+12+keyW, ly, l.c, text.AlignStart, 1)
+		ly := y + 9 + float64(i*rowH)
+		uiTextW(screen, l.key, x+14, ly, inkOf(colKey), text.AlignStart, 1, wText+80, fxPlain)
+		ink(screen, l.s, x+14+keyW, ly, l.c, text.AlignStart, 1)
 	}
 }
 
-func (g *Game) drawPause(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawPause(screen *uiDst, sw, sh int) {
 	g.dim(screen, sw, sh, 0.55)
 	cx := float64(sw) / 2
 	top := max(16, float64(sh)/2-215)
-	g.text(screen, "Tạm dừng", cx, top, colWhite, text.AlignCenter, 3)
+	drawTitle(screen, "Tạm dừng", cx, top, 3, colBoneText, color.RGBA{60, 36, 20, 255})
 	g.pause.draw(screen, cx, top+64, 340)
 	g.text(screen, "Game tự lưu mỗi phút và khi thoát", cx, g.pause.rowY(len(g.pause.items))+8, colMuted, text.AlignCenter, 1)
 }
@@ -778,19 +788,4 @@ func (g *Game) drawPause(screen *ebiten.Image, sw, sh int) {
 // seasonColors colour the season's name on the clock.
 var seasonColors = [sim.NumSeasons]color.RGBA{
 	{150, 230, 140, 255}, {255, 214, 100, 255}, {240, 150, 70, 255}, {190, 220, 255, 255},
-}
-
-// drawFrame is the bag's and the hotbar's frame: a dark panel with a warm
-// wooden rim, a thin gold inner line and little studs at the corners.
-func drawFrame(dst *ebiten.Image, x, y, w, h float32) {
-	fillRoundRect(dst, x-3, y-3, w+6, h+6, 12, color.RGBA{0, 0, 0, 110})
-	fillRoundRect(dst, x-2, y-2, w+4, h+4, 11, color.RGBA{92, 62, 34, 245})
-	fillRoundRect(dst, x-1, y-1, w+2, h+2, 10, color.RGBA{132, 92, 52, 255})
-	fillRoundRect(dst, x+1, y+1, w-2, h-2, 9, color.RGBA{58, 38, 22, 255})
-	fillRoundRect(dst, x+3, y+3, w-6, h-6, 7, color.RGBA{18, 20, 30, 240})
-	strokeRoundRect(dst, x+3.5, y+3.5, w-7, h-7, 7, fade(colKey, 70))
-	for _, c := range [][2]float32{{x + 2, y + 2}, {x + w - 2, y + 2}, {x + 2, y + h - 2}, {x + w - 2, y + h - 2}} {
-		vector.FillCircle(dst, c[0], c[1], 3, color.RGBA{70, 48, 26, 255}, true)
-		vector.FillCircle(dst, c[0], c[1], 2, color.RGBA{214, 176, 96, 255}, true)
-	}
 }

@@ -202,16 +202,18 @@ func shiftHeld() bool { return ebiten.IsKeyPressed(ebiten.KeyShift) }
 
 // drawDevBadge draws the small DEV tag that marks what free build makes out
 // of nothing, with its right edge at x.
-func (g *Game) drawDevBadge(dst *ebiten.Image, x, y float64) {
-	w := g.textWidth("DEV") + 10
+func (g *Game) drawDevBadge(dst *uiDst, x, y float64) {
+	w := textWidthW("DEV", 0.82, 900) + 10
+	fillRoundRect(dst, float32(x-w)-0.5, float32(y)-0.5, float32(w)+1, 16, 4.5, color.RGBA{60, 22, 6, 200})
 	fillRoundRect(dst, float32(x-w), float32(y), float32(w), 15, 4, colDevTag)
-	g.text(dst, "DEV", x-w/2, y+1, color.RGBA{40, 18, 6, 255}, text.AlignCenter, 1)
+	noteBox(dst, x-w, y, w, 15)
+	uiTextW(dst, "DEV", x-w/2, y+7.5-lineUI*0.82/2, color.RGBA{48, 20, 6, 255}, text.AlignCenter, 0.82, 900, fxPlain)
 }
 
 // pieceIcon draws piece pc's icon in a box size across with its top-left
 // at (x, y): the item's icon when it is an item in the hand, else the
 // structure's sprite, shrunk to fit.
-func (g *Game) pieceIcon(dst *ebiten.Image, pc sim.DevPiece, x, y, size float64) {
+func (g *Game) pieceIcon(dst *uiDst, pc sim.DevPiece, x, y, size float64) {
 	if pc.Item.Valid() {
 		g.drawItem(dst, pc.Item, x, y, size, 1)
 		return
@@ -246,7 +248,7 @@ func (g *Game) pieceSprite(e protocol.EntityView) sprite {
 }
 
 // drawPalette draws the build palette.
-func (g *Game) drawPalette(screen *ebiten.Image, sw, sh int) {
+func (g *Game) drawPalette(screen *uiDst, sw, sh int) {
 	g.dim(screen, sw, sh, 0.55)
 	p := &g.palette
 	cols := max(4, min(palMaxCols, int((float64(sw)-16-40+palGap)/(palTileW+palGap))))
@@ -276,7 +278,7 @@ func (g *Game) drawPalette(screen *ebiten.Image, sw, sh int) {
 	}
 	ph := topH + h + footH
 	px, py := math.Floor((float64(sw)-pw)/2), math.Floor(max(palTop, (float64(sh)-ph)/2))
-	panel(screen, float32(px), float32(py), float32(pw), float32(ph))
+	drawFrame(screen, float32(px), float32(py), float32(pw), float32(ph))
 
 	g.text(screen, "Bảng xây", px+20, py+10, colWhite, text.AlignStart, 2)
 	g.drawDevBadge(screen, px+20+g.textWidth("Bảng xây")*2+14+g.textWidth("DEV")+10, py+18)
@@ -308,28 +310,29 @@ func (g *Game) drawPalette(screen *ebiten.Image, sw, sh int) {
 }
 
 // drawPaletteTile draws piece pc, palette index i, in its tile at (x, y).
-func (g *Game) drawPaletteTile(screen *ebiten.Image, pc sim.DevPiece, i int, x, y float64) {
+func (g *Game) drawPaletteTile(screen *uiDst, pc sim.DevPiece, i int, x, y float64) {
 	held := g.build.on && g.build.dev && g.build.piece == i
-	bg := color.RGBA{0, 0, 0, 90}
+	st := tabIdle
 	switch {
 	case held:
-		fillRoundRect(screen, float32(x)-2, float32(y)-2, palTileW+4, palTileH+4, 9, colKey)
-		bg = color.RGBA{58, 46, 22, 255}
+		st = tabOn
 	case g.palette.hover == i:
-		bg = color.RGBA{58, 46, 22, 200}
+		st = tabHover
 	}
-	fillRoundRect(screen, float32(x), float32(y), palTileW, palTileH, 7, bg)
+	tab(screen, x, y, palTileW, palTileH, 8, st)
 	const icon = 28.0
 	g.pieceIcon(screen, pc, x+(palTileW-icon)/2, y+4, icon)
 
 	// The name, on two lines when one will not do.
 	lines := []string{pc.Name}
-	if g.textWidth(pc.Name) > palTileW-6 {
+	const ts = 0.86 // the names' size
+	w := func(s string) float64 { return textWidth(s, ts) }
+	if w(pc.Name) > palTileW-6 {
 		words := strings.Fields(pc.Name)
 		best := len(words) / 2
 		for k := 1; k < len(words); k++ {
 			a, b := strings.Join(words[:k], " "), strings.Join(words[k:], " ")
-			if max(g.textWidth(a), g.textWidth(b)) < max(g.textWidth(strings.Join(words[:best], " ")), g.textWidth(strings.Join(words[best:], " "))) {
+			if max(w(a), w(b)) < max(w(strings.Join(words[:best], " ")), w(strings.Join(words[best:], " "))) {
 				best = k
 			}
 		}
@@ -337,7 +340,7 @@ func (g *Game) drawPaletteTile(screen *ebiten.Image, pc sim.DevPiece, i int, x, 
 			lines = []string{strings.Join(words[:best], " "), strings.Join(words[best:], " ")}
 		}
 	}
-	ty := y + 33
+	ty := y + 31
 	if len(lines) == 1 {
 		ty += 6
 	}
@@ -346,7 +349,7 @@ func (g *Game) drawPaletteTile(screen *ebiten.Image, pc sim.DevPiece, i int, x, 
 		col = colKey
 	}
 	for _, l := range lines {
-		g.text(overIcons(screen), l, x+palTileW/2, ty, col, text.AlignCenter, 1)
-		ty += 13
+		g.text(screen, fitText(l, palTileW-4, ts), x+palTileW/2, ty, col, text.AlignCenter, ts)
+		ty += 12
 	}
 }
