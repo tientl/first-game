@@ -812,6 +812,7 @@ func main() {
 	}
 	putDinosA(&snap, sx, sy, *coast) // dinosa.go
 	putAnkylo(&snap, sx, sy)         // ankylo.go
+	putBeasts(&snap, sx, sy)         // beasts.go
 	if *eat {
 		for i := range snap.Creatures {
 			if c := &snap.Creatures[i]; c.State == sim.CreatureIdle && c.Kind.Feeds() {

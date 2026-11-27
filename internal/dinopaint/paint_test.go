@@ -33,16 +33,16 @@ func TestPaintings(t *testing.T) {
 		g := loadPNG(t, filepath.Join(dinos, name+".png"))
 		img, p := Paint(sp, g)
 		gb := g.Bounds()
-		if img.Bounds().Dx() != gb.Dx()*K || img.Bounds().Dy() != gb.Dy()*K {
-			t.Fatalf("%s: painted %v, want %dx%d", name, img.Bounds().Size(), gb.Dx()*K, gb.Dy()*K)
+		if w, h := Size(gb.Dx(), gb.Dy(), K); img.Bounds().Dx() != w || img.Bounds().Dy() != h {
+			t.Fatalf("%s: painted %v, want %dx%d", name, img.Bounds().Size(), w, h)
 		}
-		// The silhouettes agree: a guide pixel and the middle of its 3x3
-		// block are mostly both solid or both clear.
+		// The silhouettes agree: a guide pixel and the middle of its block
+		// are mostly both solid or both clear.
 		off := 0
 		for y := 0; y < gb.Dy(); y++ {
 			for x := 0; x < gb.Dx(); x++ {
 				_, _, _, a := g.At(gb.Min.X+x, gb.Min.Y+y).RGBA()
-				if (a >= 0x8000) != p.In[(y*K+1)*p.W+x*K+1] {
+				if (a >= 0x8000) != p.In[p.mid(x, y)] {
 					off++
 				}
 			}

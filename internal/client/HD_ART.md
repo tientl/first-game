@@ -308,7 +308,20 @@ go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
 
 - What stands in front of the player or a beast fades while they are
   behind it (`occlude.go`): any sprite of 30 art pixels or more gets a coarse
-  mask of its opaque pixels when its image is made (`noteCover`).
+  mask of its opaque pixels when its image is made (`noteCover`), and its
+  mirror the mirrored mask. A beast that tall fades the same way while a
+  player stands behind it (`seeThroughBeast`), but not for another beast,
+  so a herd of long-necks does not fade itself.
+- The beasts, in players: raptor 1.1, three-horn 1.7, plate-back 2.0,
+  mammoth 2.6, rex 2.9, long-neck 6.5 (`-scaleonly creatures`). A painted
+  dinosaur is made bigger by painting it finer over the same guide
+  (`Species.K` in `internal/dinopaint`, `dinoGrow` in `dinorig.go`, which
+  must agree): more scales and creases, not bigger pixels. Its rig, measured
+  on the guide, is scaled to the painting when it is drawn (`rigAsDrawn`),
+  and the seat, the shadow and the pet's heart through `beastScale`. The
+  mammoth is drawn in code a little bigger (`mammothGrow`). The sim's
+  hitboxes are unchanged. `shot -beasts "brachio,0,1.5;rex,4,2,left"` puts
+  beasts round the player to see them in the world.
 - The big tree sets are drawn when first wanted (`lazyart.go`): the common
   ones on a goroutine just after start-up, the snow's, the swamp's and the
   woods' once the snapshot holds one. `shot -cost` prints what the art

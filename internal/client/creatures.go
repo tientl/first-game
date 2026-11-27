@@ -929,6 +929,9 @@ func (g *Game) drawCreature(dst drawTarget, c protocol.CreatureView, d drawable)
 		op.ColorScale.Scale(0.72, 0.86, 0.95, 1) // wading: seen through the shallows
 	}
 	op.GeoM.Translate(x-s.ax, d.sy-bob-s.ay)
+	if solid := g.seeThroughBeast(c, s, d); solid < 1 { // a long-neck in front of a player fades as a tree does; see occlude.go
+		op.ColorScale.ScaleAlpha(solid)
+	}
 	drawSprite(dst, s, op)
 	if r, gg, b, a := g.beastFlash(c.ID); a > 0 {
 		drawFlash(dst, s, op, r, gg, b, a) // struck: white, then red; see feel.go

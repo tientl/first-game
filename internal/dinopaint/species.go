@@ -9,6 +9,12 @@ import "sort"
 type Species struct {
 	Name string // the drawing: dinos/<Name>.png
 
+	// K is how many image pixels the painting gives a pixel of the guide
+	// (0: Dens). More than Dens paints the animal bigger than its guide,
+	// with as much more detail, not enlarged: the game shows it K / Dens
+	// times as big (dinoGrow in internal/client/dinorig.go must agree).
+	K float64
+
 	// Materials are the colours of the hide. Each pixel of the guide is the
 	// material whose seed colours are nearest its own, so the regions and
 	// markings of the drawing are kept; the painting then lights each with

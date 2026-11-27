@@ -278,13 +278,13 @@ func smear(guide image.Image, m *Painter, shown, hidden []bool, ink float64) ima
 		for x := 0; x < w; x++ {
 			c := color.NRGBAModel.Convert(guide.At(b.Min.X+x, b.Min.Y+y)).(color.NRGBA)
 			out.SetNRGBA(x, y, c)
-			src[y*w+x] = shown[(y*K+K/2)*m.W+x*K+K/2] && c.A >= 128 && lum(c) >= ink
+			src[y*w+x] = shown[m.mid(x, y)] && c.A >= 128 && lum(c) >= ink
 		}
 	}
 	const reach = 12
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
-			if !hidden[(y*K+K/2)*m.W+x*K+K/2] {
+			if !hidden[m.mid(x, y)] {
 				continue
 			}
 			best, bx, by := reach*reach+1, -1, -1

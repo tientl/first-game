@@ -177,7 +177,7 @@ func (g *Game) scaleGroups() (names []string, groups [][]scaleEntry) {
 		s, _ := g.creatureSprite(protocol.CreatureView{Kind: k, State: sim.CreatureIdle}, false)
 		return scaleEntry{name: name, s: s, creature: true}
 	}
-	add("Creatures (not rescaled)",
+	add("Creatures",
 		beast("raptor", sim.CreatureRaptor),
 		beast("tribesman", sim.CreatureTribesman),
 		beast("sabre-tooth", sim.CreatureSabre),

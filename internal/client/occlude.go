@@ -31,8 +31,9 @@ const (
 
 // coverMask is which cells of a sprite's image are mostly opaque.
 type coverMask struct {
-	w, h int // in cells
-	on   []bool
+	w, h  int // in cells
+	flipW int // the image is the mirror of the one the mask was read from, this wide
+	on    []bool
 }
 
 var coverMasks sync.Map // *ebiten.Image -> *coverMask
@@ -61,8 +62,24 @@ func noteCover(img *ebiten.Image, c *canvas) {
 	coverMasks.Store(img, m)
 }
 
+// mirrorCover gives img, the mirror image of src (w image pixels wide),
+// the mirror of src's mask.
+func mirrorCover(src, img *ebiten.Image, w int) {
+	if v, ok := coverMasks.Load(src); ok {
+		m := *v.(*coverMask)
+		m.flipW = w
+		if v.(*coverMask).flipW > 0 {
+			m.flipW = 0 // mirrored back
+		}
+		coverMasks.Store(img, &m)
+	}
+}
+
 // at reports whether the mask is opaque at image pixel (x, y).
 func (m *coverMask) at(x, y float64) bool {
+	if m.flipW > 0 {
+		x = float64(m.flipW) - x
+	}
 	if x < 0 || y < 0 {
 		return false
 	}
@@ -76,6 +93,7 @@ type figure struct {
 	sx, sy, y float64
 	hw, h     float64
 	mine      bool
+	beast     bool // a beast, which a beast in front of it does not fade for
 }
 
 // noteFigures lists the players and the beasts of the draw list, for
@@ -90,14 +108,14 @@ func (g *Game) noteFigures(list []drawable) {
 			if p.Dead {
 				continue
 			}
-			g.figures = append(g.figures, figure{d.sx, d.sy, d.y, 5, playerArtH, p.ID == g.myID})
+			g.figures = append(g.figures, figure{d.sx, d.sy, d.y, 5, playerArtH, p.ID == g.myID, false})
 		case d.creature:
 			c := g.curr.Creatures[d.idx]
 			s, _ := g.creatureSprite(c, d.moving)
 			if s.img == nil || s.ay < 14 {
 				continue // small game is lost in the grass anyway
 			}
-			g.figures = append(g.figures, figure{d.sx, d.sy, d.y, s.w() * 0.3, s.ay * 0.9, false})
+			g.figures = append(g.figures, figure{d.sx, d.sy, d.y, s.w() * 0.3, s.ay * 0.9, false, true})
 		}
 	}
 }
@@ -105,6 +123,60 @@ func (g *Game) noteFigures(list []drawable) {
 // seeThrough is how solid entity e, drawn as s at d, is this frame: 1, or
 // less while it hides a figure standing behind it.
 func (g *Game) seeThrough(e protocol.EntityView, s sprite, d drawable) float32 {
+	cur, fading := g.fades[e.ID]
+	cur, keep := fadeTo(g.coverTarget(s, d, false), cur, fading)
+	if !keep {
+		delete(g.fades, e.ID)
+		return cur
+	}
+	if g.fades == nil {
+		g.fades = make(map[sim.EntityID]float32)
+	}
+	g.fades[e.ID] = cur
+	return cur
+}
+
+// beastFades is how solid each great beast fading in front of someone is.
+var beastFades = map[sim.CreatureID]float32{}
+
+// seeThroughBeast is seeThrough for a beast: a long-neck or a tyrant
+// standing between the camera and someone fades as a tree does.
+func (g *Game) seeThroughBeast(c protocol.CreatureView, s sprite, d drawable) float32 {
+	if c.ID == 0 {
+		return 1
+	}
+	cur, fading := beastFades[c.ID]
+	cur, keep := fadeTo(g.coverTarget(s, d, true), cur, fading)
+	if !keep {
+		delete(beastFades, c.ID)
+		return cur
+	}
+	if len(beastFades) > 256 {
+		clear(beastFades)
+	}
+	beastFades[c.ID] = cur
+	return cur
+}
+
+// fadeTo eases a fade at cur (fading: under way) towards target; keep is
+// false once it is solid again.
+func fadeTo(target, cur float32, fading bool) (float32, bool) {
+	if !fading {
+		if target == 1 {
+			return 1, false
+		}
+		cur = 1
+	}
+	cur += (target - cur) * fadeRate
+	if target == 1 && cur > 0.985 {
+		return 1, false
+	}
+	return cur, true
+}
+
+// coverTarget is how solid s, drawn at d, should be: less while it hides a
+// figure standing behind it; a beast (beast) fades only for a player.
+func (g *Game) coverTarget(s sprite, d drawable, beast bool) float32 {
 	target := float32(1)
 	if s.img != nil && s.ay >= 30 {
 		if v, ok := coverMasks.Load(s.img); ok {
@@ -112,7 +184,7 @@ func (g *Game) seeThrough(e protocol.EntityView, s sprite, d drawable) float32 {
 			k := float64(s.density())
 			left, top := d.sx-s.ax, d.sy-s.ay
 			for _, f := range g.figures {
-				if f.y >= d.y || f.sx+f.hw < left || f.sx-f.hw > left+s.w() || f.sy < top || f.sy-f.h > d.sy {
+				if f.y >= d.y || beast && f.beast || f.sx+f.hw < left || f.sx-f.hw > left+s.w() || f.sy < top || f.sy-f.h > d.sy {
 					continue // in front of it, or clear of it
 				}
 				hit := 0
@@ -139,21 +211,5 @@ func (g *Game) seeThrough(e protocol.EntityView, s sprite, d drawable) float32 {
 			}
 		}
 	}
-	cur, fading := g.fades[e.ID]
-	if !fading {
-		if target == 1 {
-			return 1
-		}
-		cur = 1
-	}
-	cur += (target - cur) * fadeRate
-	if target == 1 && cur > 0.985 {
-		delete(g.fades, e.ID)
-		return 1
-	}
-	if g.fades == nil {
-		g.fades = make(map[sim.EntityID]float32)
-	}
-	g.fades[e.ID] = cur
-	return cur
+	return target
 }

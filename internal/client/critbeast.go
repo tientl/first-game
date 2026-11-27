@@ -160,8 +160,12 @@ var (
 	trunkFeed = [6]float64{0.7, 0, -1.1, -2.3, -3.1, -3.7}
 )
 
+// mammothGrow is how much bigger than its old design the mammoth is drawn:
+// 2.6 players tall at the shoulder hump, a head over the plate-back.
+const mammothGrow = 1.075
+
 func mammothHD(pose, f int) (*canvas, float64, float64) {
-	q := newCritAt(134, 94, 2, 10)
+	q := newCritZoom(134, 94, 2, 10, mammothGrow) // drawn a little bigger than the old design
 	const gy = 79.6
 	g := gait{stride: 9, lift: 3, duty: 0.7, offs: walkOffs}
 	headA, swing := 0.0, 0.0
