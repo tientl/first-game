@@ -35,8 +35,9 @@ var seaStops = []struct {
 	{0.40, hex(0x52c1c5), 222},
 	{0.52, hex(0x3aa5bc), 210},
 	{0.62, hex(0x2a7cab), 192},
-	{0.76, hex(0x1e5792), 178},
-	{1.00, colDeep, 170},
+	{0.72, hex(0x22659f), 182},
+	{0.84, hex(0x1a4c86), 174},
+	{1.00, hex(0x0f3060), 168}, // the open ocean, darkest
 }
 
 // seaColor is the water at depth d (0 to 1).
@@ -57,7 +58,7 @@ func seaColor(d float64) color.RGBA {
 // Depths by the kind of water, in seaDepths.
 const (
 	depthShelf = 0.6  // the deep, where it meets the shallows
-	depthDeep  = 5.0  // tiles beyond the shallows it is deepest
+	depthDeep  = 14.0 // tiles beyond the shallows it is deepest
 	depthCliff = 0.55 // at the foot of a sea cliff, which drops straight into the deep
 )
 
@@ -126,7 +127,8 @@ func seaDepths(w, h int, tiles []sim.Tile, r []sim.Relief) []uint8 {
 			}
 			d[i] = float32(v)
 		case clsDeep:
-			d[i] = float32(depthShelf + (1-depthShelf)*clamp01((float64(toShelf[i])/chamferStep-0.5)/depthDeep))
+			x := clamp01((float64(toShelf[i])/chamferStep - 0.5) / depthDeep)
+			d[i] = float32(depthShelf + (1-depthShelf)*(1-(1-x)*(1-x))) // steep by the shelf, then on darker into the open ocean
 		case clsCliff:
 			d[i] = depthCliff
 		}

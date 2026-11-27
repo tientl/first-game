@@ -174,7 +174,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	w := g.world
 	w.begin(canvas, scale, cw, ch, cam)
 	for _, stage := range []func(){
-		func() { g.ground.draw(w, cam.ox, cam.oy, g.frame) },
+		func() { g.drawGround(w, cam) },
 		func() { g.drawLairWater(w, cam, alpha) }, // the shark's deep: see lairrender.go
 		func() { g.drawFish(w, cam, alpha) },
 		func() { g.drawUndergrowth(w, cam) },
