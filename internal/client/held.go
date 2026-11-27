@@ -91,6 +91,89 @@ func (g *Game) drawHeld(dst drawTarget, k sim.ItemKind, dir sim.Dir, sx, sy, bob
 	g.drawHeldAt(dst, k, dir, sx+hx, sy+hy-bob)
 }
 
+// heldEnds draws what goes on the end of k, drawn gripped at (hx, hy),
+// turned th towards side, foreshortened to q: a torch's flame; and notes
+// where the flame and a rod's tip are, for the light and the line.
+func (g *Game) heldEnds(dst drawTarget, k sim.ItemKind, d *heldDef, hx, hy, th, side, q float64) {
+	switch k {
+	case sim.ItemTorch:
+		fx, fy := heldPoint(d, hx, hy, th, side, 0, torchFlameV*q)
+		drawTorchFlame(dst, g.frame/fireStep+int(heldBy.id)*3, fx, fy)
+		g.markHeld(func(m *heldMark) { m.flame, m.fx, m.fy = true, fx, fy })
+	case sim.ItemRod:
+		tx, ty := heldPoint(d, hx, hy, th, side, rodTipU, rodTipV*q)
+		g.markHeld(func(m *heldMark) { m.tip, m.tipX, m.tipY = true, tx, ty })
+	}
+}
+
+// carryKind is how an item is carried by a figure walking, running or
+// standing (drawCarried).
+type carryKind uint8
+
+const (
+	carryHang  carryKind = iota // hanging from the hand, the head down and forward: axes, picks, hoes, knives
+	carryPole                   // along the body, the point forward and up: spears, the rod
+	carryTorch                  // held up and forward, the flame over the shoulder (upTorch)
+)
+
+// Carried, a hanging tool leans its head forward from straight down by
+// hangLean, and turns with the forearm by hangFollow of its swing; a pole
+// points poleUp from upright (30 degrees above level) and turns less.
+const (
+	hangLean   = 0.5
+	hangFollow = 0.45
+	poleUp     = 1.05
+)
+
+// carriedBehind reports whether item k, carried by a figure facing dir, is
+// drawn behind the body: seen from the front or the back a tool hangs or a
+// pole stands along the body's side, foreshortened, its head beside the hip.
+func carriedBehind(k sim.ItemKind, dir sim.Dir) bool {
+	d := heldDefOf(k)
+	return d != nil && d.carry != carryTorch && (dir == sim.DirDown || dir == sim.DirUp)
+}
+
+// drawCarried draws item k carried in a hand at (hx, hy) by a figure facing
+// dir that walks, runs or stands, its forearm turned swing towards the
+// facing (see carryKind). It reports false for an item that has no held
+// painter.
+func (g *Game) drawCarried(dst drawTarget, k sim.ItemKind, dir sim.Dir, hx, hy, swing float64) bool {
+	d := heldDefOf(k)
+	if d == nil {
+		return false
+	}
+	side := facingSide(dir) * heldFlip
+	sideways := dir == sim.DirLeft || dir == sim.DirRight
+	switch d.carry {
+	case carryHang:
+		// Mirrored, so that hanging head down its edge faces forward; seen
+		// from the front or the back it hangs outwards, foreshortened.
+		if sideways {
+			th := math.Pi + hangLean + hangFollow*swing
+			drawHeldDef(dst, d, hx, hy, th, -side, 1)
+		} else {
+			drawHeldLow(dst, d, hx, hy, math.Pi+0.35+0.25*swing, -side)
+		}
+	case carryPole:
+		th, q := poleUp-0.3*swing, 1.0
+		if sideways {
+			drawHeldDef(dst, d, hx, hy, th, side, 1)
+		} else { // upright at the side, beyond the body
+			th = 0.12
+			drawHeldDef(dst, d, hx, hy, th, side, 1)
+		}
+		g.heldEnds(dst, k, d, hx, hy, th, side, q)
+	case carryTorch:
+		th := 0.12
+		if sideways {
+			th = 0.3 - 0.2*swing
+		}
+		drawHeldDef(dst, d, hx, hy, th, side, 1)
+		g.heldEnds(dst, k, d, hx, hy, th, side, 1)
+	}
+	return true
+}
+
 // heldFlip mirrors what drawHeldAt draws: -1 for the hand on the left of
 // the screen of a figure seen from the front or the back.
 var heldFlip = 1.0
@@ -106,15 +189,7 @@ func (g *Game) drawHeldAt(dst drawTarget, k sim.ItemKind, dir sim.Dir, hx, hy fl
 	if d := heldDefOf(k); d != nil { // painted at HD and turned cleanly; see heldhd.go
 		th := heldCarry(k, dir) + heldTurn
 		drawHeldDef(dst, d, hx, hy, th, side, 1)
-		switch k {
-		case sim.ItemTorch:
-			fx, fy := heldPoint(hx, hy, th, side, 0, torchFlameV)
-			drawTorchFlame(dst, g.frame/fireStep+int(heldBy.id)*3, fx, fy)
-			g.markHeld(func(m *heldMark) { m.flame, m.fx, m.fy = true, fx, fy })
-		case sim.ItemRod:
-			tx, ty := heldPoint(hx, hy, th, side, rodTipU, rodTipV)
-			g.markHeld(func(m *heldMark) { m.tip, m.tipX, m.tipY = true, tx, ty })
-		}
+		g.heldEnds(dst, k, d, hx, hy, th, side, 1)
 		return
 	}
 
