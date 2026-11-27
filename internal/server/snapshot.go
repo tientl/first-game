@@ -44,6 +44,10 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			NoticeArg: self.NoticeArg,
 			NoticeSeq: self.NoticeSeq,
 			DevBuild:  s.world.DevFreeBuild(id), // only ever true in dev mode
+			Stunned:   self.Stunned(),
+			Bleeding:  self.Bleeding(),
+			Slowed:    self.Slowed(),
+			Pinned:    self.PinnedBy() != 0,
 		},
 	}
 	if id := self.OpenChest(); id != 0 {
@@ -89,6 +93,7 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Swimming:  s.world.Swimming(p),
 			Bees:      p.Swarmed(),
 			HurtSeq:   p.HurtSeq(),
+			Stunned:   p.Stunned(),
 			DeedSeq:   deedSeq,
 			Deed:      deed,
 			DeedItem:  deedItem,
@@ -170,6 +175,7 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			MaxHP:    int16(min(c.Kind.MaxHP(), 32767)),
 		})
 	})
+	s.skillViews(&snap, self.X, self.Y, r) // the beasts' moves: see skills.go
 	s.bossViews(&snap, id) // see bosses.go
 	return snap, true
 }

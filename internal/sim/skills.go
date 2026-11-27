@@ -215,7 +215,7 @@ const (
 	FlankTicks     = 3 * TicksPerSecond     // a pack spreads round its foe this long after the screech
 	ScareTicks     = 3 * TicksPerSecond     // small animals run from a roar this long
 	ScareDist      = 10.0
-	CallDist       = 16.0 // a herd call carries this far
+	CallDist       = GrazerGiveUp // a herd call carries this far: as far as a grazer keeps up a fight
 	PackCallDist   = 30.0 // a Troodon's cry, further: the night is quiet
 	WarnBackOff    = 4.5  // a warned foe further than this got the message
 	TurtleShare    = 0.25 // a blow on an Ankylosaurus with its head in does this share
@@ -228,7 +228,7 @@ const (
 var skillDefs = [NumSkills]SkillDef{
 	SkillRexBite: {Kind: CreatureRex, Name: "bite", Label: "Cắn nghiền", Class: SkillHeavy,
 		Windup: 14, Active: 2, Recover: 14, Shape: ZoneCone, Reach: 3.4, Width: 0.7,
-		Damage: 34, Cooldown: 70, MaxD: 3.3, Lock: 4, Weight: 6},
+		Damage: RexBiteDamage, Cooldown: RexBiteCD, MaxD: 3.3, Lock: 4, Weight: 6},
 	SkillRexRoar: {Kind: CreatureRex, Name: "roar", Label: "Gầm choáng", Class: SkillHeavy,
 		Windup: 20, Active: 6, Recover: 14, Shape: ZoneCircle, Reach: 6, Zone: true,
 		Stun: TicksPerSecond, Fx: FxScare, Cooldown: 300, MaxD: 6, Lock: -1, Weight: 1, Wind: CreatureRoar},

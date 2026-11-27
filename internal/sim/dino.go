@@ -56,8 +56,8 @@ const (
 	RexGiveUp     = 16.0
 	RexRoarTicks  = 24
 	RexBiteRange  = 2.6
-	RexBiteDamage = 35.0
-	RexBiteCD     = 5 * TicksPerSecond / 2
+	RexBiteDamage = 34.0
+	RexBiteCD     = 7 * TicksPerSecond / 2
 	RexChaseTicks = 20 * TicksPerSecond
 	RexCoolTicks  = 8 * TicksPerSecond // after it gives up, it ignores players this long
 

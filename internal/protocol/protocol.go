@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 47
+const Version = 49
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -112,6 +112,7 @@ type Snapshot struct {
 	BossMarks []BossMark  // the boss lairs this player has seen, for the map
 	Victory   VictoryView // every boss has fallen: the game-beaten screen
 	Lairs     []LairView  // the boss lairs near by: their arenas, and whether their bosses sleep
+	Zones     []ZoneView  // red warnings on the ground where beasts' special moves will land; see skills.go
 }
 
 // BoatView is a boat on the water.
@@ -176,6 +177,9 @@ type SelfState struct {
 	NoticeSeq uint32
 
 	DevBuild bool // free build is on: only from a server in dev mode; see sim/devbuild.go
+
+	// What the beasts' moves left on this player (sim/status.go).
+	Stunned, Bleeding, Slowed, Pinned bool
 }
 
 // CookView is a player's cooking: the buffs dishes gave them, and the
@@ -214,6 +218,7 @@ type PlayerView struct {
 	Swimming  bool           // in the water: drawn swimming
 	Bees      bool           // a swarm of bees is after them: drawn round them
 	HurtSeq   uint8          // goes up with every blow that makes them jolt; the client starts the jolt when it changes
+	Stunned   bool           // dazed by a beast's roar or stomp: drawn reeling
 	DeedSeq   uint8          // goes up with every deed others see done (eating, scooping, tossing); the client plays it when it changes
 	Deed      sim.Deed       // the last one
 	DeedItem  sim.ItemKind   // and what it was done with
@@ -255,4 +260,11 @@ type CreatureView struct {
 	Ridden bool         // someone is riding it: not a target
 
 	HP, MaxHP int16 // its health now and at full; see sim/combat.go
+
+	// The move it is making (sim/skills.go): which, its phase, how many ticks
+	// into it and how long that phase lasts this time. Skill 0: none.
+	Skill    sim.SkillID
+	Phase    sim.SkillPhase
+	PhaseT   uint8
+	PhaseLen uint8
 }

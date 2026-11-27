@@ -106,7 +106,7 @@ func TestSteppingOutOfTheZoneDodgesTheMove(t *testing.T) {
 				w.Step()
 			}
 			p.Y -= 5 // well aside of anything it aims
-			for range d.Active + d.Recover + PinHold {
+			for n := 0; c.sk.id == id && n < 10*TicksPerSecond; n++ {
 				w.Step()
 			}
 			if p.Health < MaxHealth {
@@ -352,7 +352,7 @@ func TestAHerdBeastCallsItsHerdWhenHit(t *testing.T) {
 	pid := w.AddPlayer("a")
 	p := w.players[pid]
 	a := w.addCreature(CreatureTrike, p.X+2, p.Y)
-	b := w.addCreature(CreatureTrike, p.X+14, p.Y) // beyond the herd's alarm, within its call
+	b := w.addCreature(CreatureTrike, p.X+2+HerdAlarmDist+1, p.Y) // beyond the herd's alarm, within its call
 	w.wound(a, 10, p)
 	if b.rage > 0 {
 		t.Fatal("a herd mate this far off heard the blow itself")

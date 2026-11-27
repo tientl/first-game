@@ -34,6 +34,9 @@ var DevHelp = []string{
 	"freebuild [on|off]    xây tự do: chế tạo, dựng không tốn gì · B: bảng xây · Shift+chuột phải: gỡ",
 }
 
+// devMore are commands that live with what they work on, by canonical name.
+var devMore = map[string]func(w *World, r *DevResult, p *Player, args []string){}
+
 // devCommands maps each command's folded names to its canonical one.
 var devCommands = map[string]string{
 	"give": "give", "cho": "give", "item": "give",
@@ -77,6 +80,10 @@ func (w *World) DevCommand(id PlayerID, line string) DevResult {
 		return r
 	}
 	args = args[1:]
+	if f, ok := devMore[cmd]; ok {
+		f(w, &r, p, args) // commands kept with what they work on, e.g. skills.go's fight and skill
+		return r
+	}
 	switch cmd {
 	case "help":
 		r.Lines = append(r.Lines, DevHelp...)
