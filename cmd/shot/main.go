@@ -158,7 +158,6 @@ func main() {
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
 	client.OverrideSettings(func(s *client.Settings) { s.Quality = *quality })
-	_ = settingsTab
 	if *uiScale > 0 {
 		client.SetUIScale(*uiScale)
 	}
@@ -980,6 +979,9 @@ func main() {
 	ebiten.SetWindowTitle("shot")
 	game := client.New(conn, "Tien")
 	game.ShowOverlay(*overlay)
+	if *settingsTab != "" && !*menu {
+		game.ShowSettings(*settingsTab) // over the pause menu
+	}
 	game.SetMapZoom(*mapZoom)
 	var adx, ady float64
 	if n, _ := fmt.Sscanf(*aimAt, "%g,%g", &adx, &ady); n == 2 {
@@ -1011,6 +1013,9 @@ func main() {
 		m := client.NewMenu(client.SaveInfo{Exists: true, Day: 3, Name: "Tien", SavedAt: time.Now(), Size: 512})
 		if *sizes {
 			m.ShowDifficultyPicker()
+		}
+		if *settingsTab != "" {
+			m.ShowSettings(*settingsTab)
 		}
 		inner = &menuGame{m}
 	}

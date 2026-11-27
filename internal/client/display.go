@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 // The window and how the game is drawn on it, as the settings ask
@@ -288,4 +289,12 @@ func sizedImage(img **ebiten.Image, w, h int) *ebiten.Image {
 		*img = ebiten.NewImage(w, h)
 	}
 	return *img
+}
+
+// fullscreenKeys toggles fullscreen on F11 or Alt+Enter.
+func fullscreenKeys() {
+	alt := ebiten.IsKeyPressed(ebiten.KeyAltLeft) || ebiten.IsKeyPressed(ebiten.KeyAltRight)
+	if inpututil.IsKeyJustPressed(ebiten.KeyF11) || alt && inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+		ToggleFullscreen()
+	}
 }

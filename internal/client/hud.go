@@ -752,7 +752,7 @@ func (g *Game) drawHelp(screen *uiDst, sw, sh int) {
 		line{"= / −", "thu phóng (hoặc Ctrl + lăn chuột)", colMuted},
 		line{"F11", "toàn màn hình", colMuted},
 		line{"F1", "ẩn bảng phím này", colMuted},
-		line{"Esc", "tạm dừng · lưu game", colMuted})
+		line{"Esc", "tạm dừng · lưu game · cài đặt", colMuted})
 
 	const rowH = 18
 	w, keyW := 0.0, 0.0
@@ -776,6 +776,10 @@ func (g *Game) drawHelp(screen *uiDst, sw, sh int) {
 
 func (g *Game) drawPause(screen *uiDst, sw, sh int) {
 	g.dim(screen, sw, sh, 0.55)
+	if g.opts != nil {
+		g.opts.draw(screen) // see settingsui.go
+		return
+	}
 	cx := float64(sw) / 2
 	top := max(16, float64(sh)/2-215)
 	drawTitle(screen, "Tạm dừng", cx, top, 3, colBoneText, color.RGBA{60, 36, 20, 255})

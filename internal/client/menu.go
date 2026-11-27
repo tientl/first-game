@@ -39,8 +39,7 @@ type SaveInfo struct {
 const (
 	btnContinue = iota
 	btnNew
-	btnMusic
-	btnEffects
+	btnSettings
 	btnQuit
 )
 
@@ -57,6 +56,7 @@ type Menu struct {
 	create   *charCreator   // kept, so going back and forth keeps the choices
 	look     sim.Look       // the look made for the new game
 	busy     string         // shown over everything while a world is being made
+	settings *settingsScreen // the settings screen, while open; see settingsui.go
 	status   string
 	bg       *Game
 }
@@ -83,8 +83,7 @@ func NewMenu(info SaveInfo) *Menu {
 	m.list = buttonList{items: []button{
 		cont,
 		{label: "Trò chơi mới"},
-		{label: "Nhạc", volume: volMusic},
-		{label: "Hiệu ứng", volume: volEffects},
+		{label: "Cài đặt"},
 		{label: "Thoát"},
 	}}
 	if cont.disabled {
@@ -114,6 +113,13 @@ func (m *Menu) ShowCharacterScreen() { m.creating = true }
 // It is for dev tools that capture frames.
 func (m *Menu) ShowDifficultyPicker() { m.picking = true }
 
+// ShowSettings opens the settings screen at tab "audio", "display" or
+// "controls", as "Cài đặt" would. It is for dev tools that capture frames.
+func (m *Menu) ShowSettings(tab string) {
+	m.settings = newSettingsScreen(false)
+	m.settings.showTab(tab)
+}
+
 // SetBusy shows msg over the menu and ignores input until it is cleared
 // with an empty msg; used while a world is being made or loaded.
 func (m *Menu) SetBusy(msg string) { m.busy = msg }
@@ -133,6 +139,13 @@ func (m *Menu) Update() MenuChoice {
 	snd.setMusic("menu")
 	snd.update()
 	if m.busy != "" {
+		return MenuNone
+	}
+	fullscreenKeys() // F11, Alt+Enter: see display.go
+	if m.settings != nil {
+		if m.settings.update() {
+			m.settings = nil
+		}
 		return MenuNone
 	}
 	if m.creating {
@@ -183,6 +196,9 @@ func (m *Menu) Update() MenuChoice {
 		}
 		m.picking = true
 		return MenuNone
+	case btnSettings:
+		m.settings = newSettingsScreen(false)
+		return MenuNone
 	case btnQuit:
 		return MenuQuit
 	}
@@ -199,6 +215,10 @@ func (m *Menu) Draw(real *ebiten.Image) {
 	if m.creating {
 		m.create.draw(screen)
 		defer m.create.drawPreview(real, uiScaleNow) // after the interface: at the screen's own resolution
+		return
+	}
+	if m.settings != nil {
+		m.settings.draw(screen)
 		return
 	}
 	// Darken towards the middle column so the text reads over the island.
@@ -218,7 +238,7 @@ func (m *Menu) Draw(real *ebiten.Image) {
 	if m.status != "" {
 		drawText(screen, m.status, cx, float64(sh)-80, color.RGBA{255, 140, 130, 255}, text.AlignCenter, 1)
 	}
-	drawText(screen, "W/S hoặc chuột để chọn · Enter để xác nhận · A/D chỉnh âm lượng · F11 toàn màn hình", cx, float64(sh)-24, colMuted, text.AlignCenter, 1)
+	drawText(screen, "W/S hoặc chuột để chọn · Enter để xác nhận · F11 toàn màn hình", cx, float64(sh)-24, colMuted, text.AlignCenter, 1)
 
 	if m.confirm {
 		dimScreen(screen, color.RGBA{0, 0, 0, 150})

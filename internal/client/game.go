@@ -123,6 +123,7 @@ type Game struct {
 
 	paused  bool
 	pause   buttonList
+	opts    *settingsScreen // the settings screen, opened from the pause menu; see settingsui.go
 	onPause func(bool)
 	exit    Exit
 
@@ -190,8 +191,7 @@ func New(conn Conn, name string) *Game {
 		pause: buttonList{items: []button{
 			{label: "Tiếp tục"},
 			{label: "Lưu game"},
-			{label: "Nhạc", volume: volMusic},
-			{label: "Hiệu ứng", volume: volEffects},
+			{label: "Cài đặt"},
 			{label: "Lưu và về menu chính"},
 			{label: "Lưu và thoát"},
 		}},
@@ -238,8 +238,8 @@ func (g *Game) Update() error {
 		g.art = getArt() // images are created once the game loop is running
 		g.ground = newGroundCache()
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyF11) {
-		ebiten.SetFullscreen(!ebiten.IsFullscreen())
+	if !g.demo {
+		fullscreenKeys() // F11, Alt+Enter: see display.go (the menu does it for its backdrop)
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyF1) {
 		g.showHelp = !g.showHelp // the full list of keys; see hud.go
@@ -257,7 +257,7 @@ func (g *Game) Update() error {
 		g.wmap.collect()
 		return nil
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) && g.opts == nil { // the settings screen closes itself
 		if g.build.on && g.overlay == overlayNone && !g.paused {
 			g.build.on = false // Esc stops building first; see mouse.go
 			g.showNotice("Đã thôi xây")
@@ -298,6 +298,7 @@ func (g *Game) setPaused(p bool) {
 	}
 	g.paused = p
 	g.pause.sel = 0
+	g.opts = nil
 	snd.ui("ui_pause")
 	if p && g.sentInput != (sim.Input{}) {
 		// Let go of every key, so the player does not keep walking.
@@ -311,6 +312,12 @@ func (g *Game) setPaused(p bool) {
 }
 
 func (g *Game) updatePause() {
+	if g.opts != nil {
+		if g.opts.update() {
+			g.opts = nil
+		}
+		return
+	}
 	switch g.pause.update() {
 	case 0:
 		g.setPaused(false)
@@ -318,11 +325,22 @@ func (g *Game) updatePause() {
 		if g.conn.Send(protocol.ClientMsg{Kind: protocol.ClientSave}) != nil {
 			g.showNotice("Không gửi được yêu cầu lưu")
 		}
-	case 4:
+	case 2:
+		g.opts = newSettingsScreen(true)
+	case 3:
 		g.exit = ExitToMenu
-	case 5:
+	case 4:
 		g.exit = ExitQuit
 	}
+}
+
+// ShowSettings opens the pause menu and the settings screen over it at tab
+// "audio", "display" or "controls". It is for dev tools that capture
+// frames; players press Esc and pick "Cài đặt".
+func (g *Game) ShowSettings(tab string) {
+	g.paused = true
+	g.opts = newSettingsScreen(true)
+	g.opts.showTab(tab)
 }
 
 func (g *Game) setOverlay(o overlay) {
