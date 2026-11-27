@@ -479,12 +479,9 @@ func (gc *groundCache) draw(dst drawTarget, ox, oy float64, frame int) {
 			gc.request(chunkKey{cx, cy})
 		}
 	}
-	op := &ebiten.DrawImageOptions{}
 	for _, k := range gc.keys {
 		gc.used[k] = frame
-		op.GeoM.Reset()
-		op.GeoM.Translate(float64(k.cx*chunkW)-ox, float64(k.cy*chunkH)-oy)
-		drawImageD(dst, gc.chunks[k], op, groundDens)
+		drawChunkImage(dst, gc.chunks[k], float64(k.cx*chunkW)-ox, float64(k.cy*chunkH)-oy, ebiten.ColorScale{})
 	}
 	for _, k := range gc.keys {
 		if gc.seas[k] {
@@ -493,13 +490,11 @@ func (gc *groundCache) draw(dst drawTarget, ox, oy float64, frame int) {
 		}
 	}
 	if gc.roofAlpha > 0 {
-		rop := &ebiten.DrawImageOptions{}
-		rop.ColorScale.ScaleAlpha(gc.roofAlpha)
+		var cs ebiten.ColorScale
+		cs.ScaleAlpha(gc.roofAlpha)
 		for _, k := range gc.keys {
 			if r := gc.roofs[k]; r != nil {
-				rop.GeoM.Reset()
-				rop.GeoM.Translate(float64(k.cx*chunkW)-ox, float64(k.cy*chunkH)-oy)
-				drawImageD(dst, r, rop, groundDens)
+				drawChunkImage(dst, r, float64(k.cx*chunkW)-ox, float64(k.cy*chunkH)-oy, cs)
 			}
 		}
 	}
@@ -525,4 +520,48 @@ func (gc *groundCache) draw(dst drawTarget, ox, oy float64, frame int) {
 func (gc *groundCache) drawWater(dst drawTarget) {
 	w, h := float64(dst.Bounds().Dx()), float64(dst.Bounds().Dy())
 	fillRect(dst, -1, -1, float32(w)+2, float32(h)+2, colWaterBG, false) // a pixel over, for the canvas's sub-pixel shift
+}
+
+// drawChunkImage draws img, baked at groundDens and lying edge to edge with
+// its neighbours (a chunk of the ground, the rock roofing its caves, a band
+// of a cliff's foot), its corner at (x, y) art pixels on dst, coloured by
+// cs. No such image may blend with what lies outside it, or a thin line
+// shows along every chunk's edge. At a whole scale its pixels land whole
+// and are taken nearest, and drawn smaller (720p, zoomed out) a smooth
+// sample never reaches past its edge: there it goes through drawImageD as
+// any image does. Blown up by a fraction, the smooth samples along its edge
+// would take in the transparent border round it. The world is not drawn at
+// such scales (crispScale, display.go), but should it be, the image is
+// drawn from just inside its edge, so its outermost pixels are held at the
+// edge as by a texture clamped to its edge.
+func drawChunkImage(dst drawTarget, img *ebiten.Image, x, y float64, cs ebiten.ColorScale) {
+	wd, ok := dst.(*worldDst)
+	if !ok || wd.r <= groundDens || whole(wd.r/groundDens) {
+		op := &ebiten.DrawImageOptions{ColorScale: cs}
+		op.GeoM.Translate(x, y)
+		drawImageD(dst, img, op, groundDens)
+		return
+	}
+	wd.flush()
+	s := wd.r / groundDens // canvas pixels to an image pixel
+	b := img.Bounds()
+	w, h := float64(b.Dx()), float64(b.Dy())
+	// The source is taken in from each side by just enough that the
+	// outermost canvas pixels sample a hair inside the middles of the
+	// outermost image pixels, and nothing beyond them. (Right on a middle,
+	// a smooth sample reads its pixel and the one past it on a border
+	// between two, and which of those the card takes is a toss-up.)
+	const hair = 1.0 / 32
+	in := func(n float64) float64 { return (0.5 + hair - 0.5/s) / (1 - 1/(n*s)) }
+	ix, iy := in(w), in(h)
+	x0, y0 := math.Round(x*wd.r), math.Round(y*wd.r)
+	x1, y1 := x0+w*s, y0+h*s
+	sx0, sy0 := float64(b.Min.X)+ix, float64(b.Min.Y)+iy
+	sx1, sy1 := float64(b.Max.X)-ix, float64(b.Max.Y)-iy
+	vs := make([]ebiten.Vertex, 4)
+	for i, c := range [4][4]float64{{x0, y0, sx0, sy0}, {x1, y0, sx1, sy0}, {x0, y1, sx0, sy1}, {x1, y1, sx1, sy1}} {
+		vs[i] = ebiten.Vertex{DstX: float32(c[0]), DstY: float32(c[1]), SrcX: float32(c[2]), SrcY: float32(c[3]),
+			ColorR: cs.R(), ColorG: cs.G(), ColorB: cs.B(), ColorA: cs.A()}
+	}
+	wd.canvas.DrawTriangles(vs, []uint16{0, 1, 2, 1, 3, 2}, img, &ebiten.DrawTrianglesOptions{Filter: ebiten.FilterLinear})
 }
