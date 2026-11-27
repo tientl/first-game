@@ -151,13 +151,17 @@ func drawMasked(dst, img *ebiten.Image, x, y, r, k float64) {
 	dst.DrawRectShader(b.Dx(), b.Dy(), maskShader, op)
 }
 
-// drawMinimap draws the minimap under the clock, in the block whose left
-// edge is x0: the ground around the player at the screen's resolution,
-// cut round, in a bronze rim with north marked, the player an arrow.
-func (g *Game) drawMinimap(screen *uiDst, x0 float64) {
+// miniBase is the minimap's ground in its own pixels, before it is drawn up.
+var miniBase *ebiten.Image
+
+// drawMinimap draws the round minimap in the top right corner of a canvas
+// sw wide: the ground around the player at the screen's resolution, cut
+// round, in a thin bronze rim with north marked, the player an arrow.
+func (g *Game) drawMinimap(screen *uiDst, sw int) {
 	m := &g.wmap
 	k := screen.k
-	cw, ch := int(math.Round(miniW*k)), int(math.Round(miniH*k))
+	kv := k * miniZoom // screen pixels to a minimap pixel
+	cw, ch := int(math.Round(miniD*k)), int(math.Round(miniD*k))
 	if m.mini == nil || m.mini.Bounds().Dx() != cw || m.mini.Bounds().Dy() != ch {
 		if m.mini != nil {
 			m.mini.Deallocate()
@@ -165,7 +169,7 @@ func (g *Game) drawMinimap(screen *uiDst, x0 float64) {
 		m.mini = ebiten.NewImage(cw, ch)
 	}
 	c := m.mini
-	view := &uiDst{img: c, k: k} // the minimap's own canvas, in its UI pixels
+	view := &uiDst{img: c, k: kv} // the minimap's own canvas, in its own pixels
 
 	alpha := g.alpha()
 	cx, cy := float64(g.width)/2, float64(g.height)/2
@@ -180,22 +184,30 @@ func (g *Game) drawMinimap(screen *uiDst, x0 float64) {
 	ox, oy := miniOrigin(cx, cy)
 	at := func(x, y float64) (float32, float32) { return float32(ox + x*tw), float32(oy + y*th) }
 
+	// The ground: its pieces laid one to one on a canvas in the minimap's own
+	// pixels, where they meet on whole pixels without a seam, then drawn up
+	// to the screen's resolution smoothly.
 	c.Fill(colWaterBG)
+	if miniBase == nil {
+		miniBase = ebiten.NewImage(miniW, miniH)
+	}
+	miniBase.Fill(colWaterBG)
 	mw, mh := float64(g.width)*tw, float64(g.height)*th
 	fog := m.fogImage()
 	if img := m.img; img != nil && fog != nil {
-		if !m.minis.draw(view, ox, oy, g.frame) {
+		if !m.minis.draw(miniBase, ox, oy, g.frame) {
 			b := img.Bounds()
 			op := &ebiten.DrawImageOptions{}
 			op.GeoM.Scale(mw/float64(b.Dx()), mh/float64(b.Dy()))
 			op.GeoM.Translate(ox, oy)
 			op.Filter = ebiten.FilterLinear
-			view.DrawImage(img, op)
-			m.minis.draw(view, ox, oy, g.frame)
+			miniBase.DrawImage(img, op)
+			m.minis.draw(miniBase, ox, oy, g.frame)
 		}
 	}
+	view.DrawImage(miniBase, &ebiten.DrawImageOptions{Filter: ebiten.FilterLinear})
 	if fog != nil {
-		drawFog(c, fog, ox*k, oy*k, mw*k, mh*k, k)
+		drawFog(c, fog, ox*kv, oy*kv, mw*kv, mh*kv, k)
 	}
 	for _, f := range g.fires {
 		x, y := at(float64(f.tx)+0.5, float64(f.ty)+0.5)
@@ -212,69 +224,74 @@ func (g *Game) drawMinimap(screen *uiDst, x0 float64) {
 	}
 
 	// On the screen, cut round, in its rim.
-	mx, my := x0+miniPad, float64(miniTop+miniPad)
-	const r = 9.0
-	drawMasked(screen.img, c, math.Round(screen.X(mx)), math.Round(screen.Y(my)), r*k, k)
-	// The rim and north: a small bone tick on it, top middle; and the M
-	// that opens the map. Drawn once, kept.
-	drawBaked(screen, "minimap rim", mx, my, miniW, miniH, 6, func(b *uiDst) {
-		g.drawMiniRim(b, r)
+	pcx, pcy := miniCentre(sw)
+	mx, my := pcx-miniD/2, pcy-miniD/2
+	drawMasked(screen.img, c, math.Round(screen.X(mx)), math.Round(screen.Y(my)), miniD/2*k, k)
+	// The rim and north: a small bone tick inside it, top middle; and the M
+	// that opens the map, on the corner. Drawn once, kept.
+	drawBaked(screen, "minimap rim", mx, my, miniD, miniD, 8, func(b *uiDst) {
+		g.drawMiniRim(b)
 	})
-	g.drawMiniLevel(screen, mx, my)
 
 	// The player: an arrow the way they face, a ring pulsing out from it.
-	pcx, pcy := mx+miniW/2, my+miniH/2
 	pulse := float64(g.frame%70) / 70
-	strokeCircle(screen, float32(pcx), float32(pcy), float32(6+pulse*9), float32(1.2), color.RGBA{255, 246, 224, uint8(170 * (1 - pulse))}, true)
-	drawMapArrow(screen, pcx, pcy, dirAngle(dir), 6.5, playerColors[int(g.myID)%len(playerColors)])
+	strokeCircle(screen, float32(pcx), float32(pcy), float32(5+pulse*8), float32(1.1), color.RGBA{255, 246, 224, uint8(170 * (1 - pulse))}, true)
+	drawMapArrow(screen, pcx, pcy, dirAngle(dir), 5.5, playerColors[int(g.myID)%len(playerColors)])
 }
 
-// drawMiniRim draws the minimap's rim on b, the map's top-left at (0, 0): a
-// thin bronze edge, north, and the key to the full map.
-func (g *Game) drawMiniRim(b *uiDst, r float64) {
-	screen, mx, my := b, 0.0, 0.0
-	strokeRoundRectHair(screen, mx-0.75, my-0.75, miniW+1.5, miniH+1.5, r+0.75, 1.5, color.RGBA{150, 110, 64, 255})
-	strokeRoundRectHair(screen, mx-1.75, my-1.75, miniW+3.5, miniH+3.5, r+1.75, screen.hair(), color.RGBA{20, 14, 10, 220})
-	strokeRoundRectHair(screen, mx+0.25, my+0.25, miniW-0.5, miniH-0.5, r-0.25, screen.hair(), color.RGBA{255, 226, 170, 70})
+// drawMiniRim draws the round minimap's rim on b, the map's top-left at
+// (0, 0): a thin bronze edge, north, and the key to the full map.
+func (g *Game) drawMiniRim(b *uiDst) {
+	const R = miniD / 2
+	c := float32(R)
+	strokeCircle(b, c, c, R+0.6, 1.4, color.RGBA{150, 110, 64, 255}, true)
+	strokeCircle(b, c, c, R+1.3+float32(b.hair())/2, float32(b.hair()), color.RGBA{20, 14, 10, 220}, true)
+	strokeCircle(b, c, c, R-float32(b.hair())/2, float32(b.hair()), color.RGBA{255, 226, 170, 70}, true)
 
-	// North: a small bone tick on the rim, top middle.
-	nx, ny := float32(mx+miniW/2), float32(my)
+	// North: a small bone tick just inside the rim, top middle, and its B.
+	nx, ny := c, float32(1.5)
 	var tick vector.Path
-	tick.MoveTo(nx, ny-4.5)
-	tick.LineTo(nx+4, ny+2)
-	tick.LineTo(nx-4, ny+2)
+	tick.MoveTo(nx, ny)
+	tick.LineTo(nx+3.4, ny+5)
+	tick.LineTo(nx-3.4, ny+5)
 	tick.Close()
 	op := &vector.DrawPathOptions{AntiAlias: true}
 	op.ColorScale.ScaleWithColor(color.RGBA{20, 14, 10, 230})
 	var t2 vector.Path
 	t2.AddPath(&tick, &vector.AddPathOptions{GeoM: func() ebiten.GeoM {
 		var gm ebiten.GeoM
-		gm.Translate(-float64(nx), -float64(ny))
-		gm.Scale(1.35, 1.35)
-		gm.Translate(float64(nx), float64(ny)-0.3)
+		gm.Translate(-float64(nx), -float64(ny)-2.5)
+		gm.Scale(1.4, 1.4)
+		gm.Translate(float64(nx), float64(ny)+2.5)
 		return gm
 	}()})
-	fillPath(screen, &t2, op)
+	fillPath(b, &t2, op)
 	op2 := &vector.DrawPathOptions{AntiAlias: true}
 	op2.ColorScale.ScaleWithColor(colBoneText)
-	fillPath(screen, &tick, op2)
-	uiTextW(screen, "B", float64(nx), float64(ny)+3.5, colBoneText, text.AlignCenter, 0.62, 900, fxOutline)
+	fillPath(b, &tick, op2)
+	uiTextW(b, "B", float64(nx), float64(ny)+5, colBoneText, text.AlignCenter, 0.58, 900, fxOutline)
 
-	// M opens the map.
-	kx, ky := mx+miniW-17, my+miniH-17
-	fillRoundRect(screen, float32(kx), float32(ky), 13, 13, 4, color.RGBA{24, 19, 15, 220})
-	noteBox(screen, kx, ky, 13, 13)
-	uiTextW(screen, "M", kx+6.5, ky+6.5-lineUI*0.72/2, colKey, text.AlignCenter, 0.72, 900, fxPlain)
+	// M opens the map: a little key on the corner, off the ring.
+	const kw = 13.0
+	kx, ky := R+54-kw/2, R+54-kw/2
+	fillRoundRect(b, float32(kx)-0.5, float32(ky)-0.5, kw+1, kw+1, 4.5, color.RGBA{0, 0, 0, 120})
+	fillRoundRect(b, float32(kx), float32(ky), kw, kw, 4, color.RGBA{120, 92, 62, 255})
+	hair := float32(b.hair())
+	fillRoundRect(b, float32(kx)+hair, float32(ky)+hair, kw-2*hair, kw-2*hair, 4-hair, color.RGBA{30, 23, 18, 240})
+	noteBox(b, kx, ky, kw, kw)
+	uiTextW(b, "M", kx+kw/2, ky+kw/2-lineUI*0.7/2, colKey, text.AlignCenter, 0.7, 900, fxPlain)
 }
 
 // drawMiniLevel says, underground, which level of the caves the minimap
-// shows, at its top left (mx, my).
-func (g *Game) drawMiniLevel(screen *uiDst, mx, my float64) {
+// shows: a small plate centred on cx, its top at y.
+func (g *Game) drawMiniLevel(screen *uiDst, cx, y float64) {
 	if k, ok := g.caveLevel(); ok {
-		s := fmt.Sprintf("Hang · tầng %d", k+1)
-		w := textWidthW(s, 0.8, wHeavy)
-		plateA(screen, mx+5, my+5, w+12, 15, 7.5, 0.8)
-		uiTextW(screen, s, mx+11, my+12.5-lineUI*0.8/2, colBoneText, text.AlignStart, 0.8, wHeavy, fxShadow)
+		const s = 0.76
+		t := fmt.Sprintf("Hang · tầng %d", k+1)
+		w := textWidthW(t, s, wHeavy) + 14
+		x := math.Round(cx - w/2)
+		plateA(screen, x, y, w, caveLineH, caveLineH/2, 0.9)
+		uiTextW(screen, t, x+7, y+(caveLineH-lineUI*s)/2, colBoneText, text.AlignStart, s, wHeavy, fxShadow)
 	}
 }
 

@@ -8,8 +8,9 @@ import (
 )
 
 // The chips for what the beasts' moves leave on the player (sim/status.go),
-// beside the poison's and the web's (hud.go), and their pictures, painted
-// like the interface's others (uiicons.go).
+// beside the poison's and the web's (hud.go): small round chips under the
+// vitals, their long lines said once under them as each begins; and their
+// pictures, painted like the interface's others (uiicons.go).
 
 var (
 	colStun   = color.RGBA{255, 222, 110, 255}
@@ -51,7 +52,7 @@ func skillStatusIcon(k statusKind) (uiIcon, bool) {
 		return uiBleed, true
 	case statusSlow:
 		return uiSlow, true
-	case statusPinned:
+	case statusPinned, statusHeld: // claws, or a squid's arms: held down either way
 		return uiPinned, true
 	}
 	return 0, false
