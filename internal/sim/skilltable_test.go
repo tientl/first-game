@@ -15,7 +15,9 @@ func TestDumpSkillTable(t *testing.T) {
 	if path == "" {
 		t.Skip("set SKILL_TABLE to a .md path")
 	}
-	sec := func(ticks int) string { return strings.TrimSuffix(strings.TrimRight(fmt.Sprintf("%.2f", float64(ticks)/TicksPerSecond), "0"), ".") + " s" }
+	sec := func(ticks int) string {
+		return strings.TrimSuffix(strings.TrimRight(fmt.Sprintf("%.2f", float64(ticks)/TicksPerSecond), "0"), ".") + " s"
+	}
 	class := map[SkillClass]string{SkillLight: "nhẹ", SkillHeavy: "mạnh", SkillSpecial: "đặc biệt", SkillCry: "kêu/doạ"}
 	shape := func(d *SkillDef) string {
 		switch d.Shape {

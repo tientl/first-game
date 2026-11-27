@@ -58,12 +58,12 @@ type Player struct {
 	deed      Deed       // the last thing done that others see done; see deeds.go
 	deedItem  ItemKind
 	deedSeq   uint8
-	beeHive   [2]float64 // where the angry bees came from
-	boat      BoatID     // the boat p is aboard, 0 if none; see boats.go
-	swim      int        // ticks spent swimming without rest
-	travelCD  int        // ticks before a cave mouth takes p again
-	cook      cookPlayer // the cooking station open, and the buffs of dishes; see cooking.go
-	dev       devPlayer  // dev mode: god mode and speed, never saved, and free build, kept in a dev save; see dev.go, devbuild.go
+	beeHive   [2]float64   // where the angry bees came from
+	boat      BoatID       // the boat p is aboard, 0 if none; see boats.go
+	swim      int          // ticks spent swimming without rest
+	travelCD  int          // ticks before a cave mouth takes p again
+	cook      cookPlayer   // the cooking station open, and the buffs of dishes; see cooking.go
+	dev       devPlayer    // dev mode: god mode and speed, never saved, and free build, kept in a dev save; see dev.go, devbuild.go
 	status    playerStatus // stunned, bleeding, slowed, pinned down by a beast's move; see status.go
 }
 

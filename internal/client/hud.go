@@ -193,7 +193,7 @@ const (
 	statusStarving
 	statusHungry
 	statusBees
-	statusStun   // what the beasts' moves leave: see skillhud.go
+	statusStun // what the beasts' moves leave: see skillhud.go
 	statusBleed
 	statusSlow
 	statusPinned

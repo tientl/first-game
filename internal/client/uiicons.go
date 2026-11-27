@@ -31,7 +31,7 @@ const (
 	uiSwift
 	uiMight
 	uiSated
-	uiStun   // what the beasts' moves leave: see skillhud.go
+	uiStun // what the beasts' moves leave: see skillhud.go
 	uiBleed
 	uiSlow
 	uiPinned

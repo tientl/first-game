@@ -154,15 +154,15 @@ const (
 type Need uint8
 
 const (
-	NeedNone    Need = iota
-	NeedLeader       // the leader of its pack, with others near
-	NeedFood         // food in the foe's hand or on the ground by them
-	NeedWet          // the foe in the water or a boat
-	NeedUp           // a sea beast up out of the water
-	NeedHit          // just hit, while it was calm (a herd call, a kick)
-	NeedCalm         // nobody has angered it yet (a warning)
-	NeedAngry        // angered
-	NeedFacing       // the foe before it, not at its tail
+	NeedNone   Need = iota
+	NeedLeader      // the leader of its pack, with others near
+	NeedFood        // food in the foe's hand or on the ground by them
+	NeedWet         // the foe in the water or a boat
+	NeedUp          // a sea beast up out of the water
+	NeedHit         // just hit, while it was calm (a herd call, a kick)
+	NeedCalm        // nobody has angered it yet (a warning)
+	NeedAngry       // angered
+	NeedFacing      // the foe before it, not at its tail
 )
 
 // SkillDef is one move. Times are in ticks, distances in tiles.
@@ -202,26 +202,26 @@ type SkillDef struct {
 	Weight     int  // how often it is picked among the moves ready
 	Torch      int  // extra wind-up at a foe holding a burning torch: it is seen coming
 
-	Wind  CreatureState // its state through the wind-up; 0: CreatureStrike
-	After CreatureState // its state when done; 0: back to what it was doing
+	Wind   CreatureState // its state through the wind-up; 0: CreatureStrike
+	After  CreatureState // its state when done; 0: back to what it was doing
 	AfterT int
 }
 
 // Skill tuning.
 const (
-	maxKindSkills  = 8 // a boss may have more: see Stages
-	StaggerDamage  = 24                     // a blow this heavy knocks a small beast out of its wind-up
-	StaggerTicks   = 3 * TicksPerSecond / 5 // and it reels this long: a free blow
-	FlankTicks     = 3 * TicksPerSecond     // a pack spreads round its foe this long after the screech
-	ScareTicks     = 3 * TicksPerSecond     // small animals run from a roar this long
-	ScareDist      = 10.0
-	CallDist       = GrazerGiveUp // a herd call carries this far: as far as a grazer keeps up a fight
-	PackCallDist   = 30.0 // a Troodon's cry, further: the night is quiet
-	WarnBackOff    = 4.5  // a warned foe further than this got the message
-	TurtleShare    = 0.25 // a blow on an Ankylosaurus with its head in does this share
-	PinHold        = 3 * TicksPerSecond
-	PinBiteEvery   = 14
-	PinBite        = 5.0
+	maxKindSkills = 8                      // a boss may have more: see Stages
+	StaggerDamage = 24                     // a blow this heavy knocks a small beast out of its wind-up
+	StaggerTicks  = 3 * TicksPerSecond / 5 // and it reels this long: a free blow
+	FlankTicks    = 3 * TicksPerSecond     // a pack spreads round its foe this long after the screech
+	ScareTicks    = 3 * TicksPerSecond     // small animals run from a roar this long
+	ScareDist     = 10.0
+	CallDist      = GrazerGiveUp // a herd call carries this far: as far as a grazer keeps up a fight
+	PackCallDist  = 30.0         // a Troodon's cry, further: the night is quiet
+	WarnBackOff   = 4.5          // a warned foe further than this got the message
+	TurtleShare   = 0.25         // a blow on an Ankylosaurus with its head in does this share
+	PinHold       = 3 * TicksPerSecond
+	PinBiteEvery  = 14
+	PinBite       = 5.0
 )
 
 // skillDefs is every move, by id.

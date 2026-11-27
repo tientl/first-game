@@ -16,7 +16,7 @@ import "math"
 
 // Status tuning.
 const (
-	StunGrace    = TicksPerSecond      // after a stun, a new one does not take this long
+	StunGrace    = TicksPerSecond       // after a stun, a new one does not take this long
 	BleedPerTick = 2.0 / TicksPerSecond // health a bleeding player loses
 	SlowShare    = 0.55                 // a slowed player's speed
 	PinMash      = 5                    // presses of Action that break a pin

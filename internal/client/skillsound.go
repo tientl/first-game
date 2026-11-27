@@ -12,14 +12,14 @@ import (
 
 // skillCue is how one move sounds.
 type skillCue struct {
-	voice      string  // as the wind-up begins
-	vol, rate  float64 // its loudness and pitch
-	hit        string  // as it lands (a synthesised sound)
-	hitVol     float64
-	roar       bool // the tyrant's roar, with its shaking ground (rexroar.go)
-	landVoice  string
-	landVol    float64
-	landRate   float64
+	voice     string  // as the wind-up begins
+	vol, rate float64 // its loudness and pitch
+	hit       string  // as it lands (a synthesised sound)
+	hitVol    float64
+	roar      bool // the tyrant's roar, with its shaking ground (rexroar.go)
+	landVoice string
+	landVol   float64
+	landRate  float64
 }
 
 var skillCues = map[sim.SkillID]skillCue{

@@ -46,18 +46,18 @@ type skillShot struct {
 }
 
 type skillFilm struct {
-	inner  ebiten.Game
-	conn   client.Conn
-	srv    *server.Server
-	shots  []skillShot
-	setup  map[int][]string // dev lines to send at a frame
-	n, end int
-	crop   image.Rectangle
-	frames map[string][]*image.RGBA // by kind name
-	delays map[string][]int
-	labels map[string][]string
-	dir    string
-	err    error
+	inner      ebiten.Game
+	conn       client.Conn
+	srv        *server.Server
+	shots      []skillShot
+	setup      map[int][]string // dev lines to send at a frame
+	n, end     int
+	crop       image.Rectangle
+	frames     map[string][]*image.RGBA // by kind name
+	delays     map[string][]int
+	labels     map[string][]string
+	dir        string
+	err        error
 	fixW, fixH int
 }
 
@@ -102,6 +102,9 @@ func (e *skillFilm) Draw(screen *ebiten.Image) {
 		e.delays[s.name] = append(e.delays[s.name], delay)
 		full := image.NewRGBA(screen.Bounds())
 		screen.ReadPixels(full.Pix)
+		if (dk.Fx&sim.FxPin != 0 || dk.Stun > 0) && tk == dk.Windup+dk.Active+4 {
+			writePNG(filepath.Join(e.dir, fmt.Sprintf("%s_%s_screen.png", s.name, dk.Name)), full) // the whole screen: the HUD's chips
+		}
 		img := image.NewRGBA(image.Rect(0, 0, e.crop.Dx(), e.crop.Dy()))
 		draw.Draw(img, img.Bounds(), full, e.crop.Min, draw.Src)
 		d := sim.Skill(s.skill)
