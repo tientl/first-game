@@ -230,6 +230,8 @@ type chunkResult struct {
 	shore []byte // nil when the chunk has no coast
 	roof  []byte // nil when the chunk has no cave under a mountain
 	water []byte // nil when the chunk has no water that moves: see terrainanim.go
+	front []byte // nil when no cliff's face reaches down over figures: see terraincliff.go
+	rows  uint8
 }
 
 type groundCache struct {
@@ -240,6 +242,9 @@ type groundCache struct {
 	roofs  map[chunkKey]*ebiten.Image // the rock over caves; absent where there are none
 	waters map[chunkKey]*ebiten.Image // the water maps of the moving water; absent where there is none
 	seas   map[chunkKey]bool          // the chunks with sea in them, which the sea's surface is drawn over: see seasurface.go
+	fronts map[chunkKey]*ebiten.Image // the feet of the cliffs' faces, drawn over the figures by them (terraincliff.go)
+	frows  map[chunkKey]uint8         // which rows of tiles of each have any
+	strips []wallStrip                // the bands of them in view this frame
 
 	// roofAlpha is how much of the cave roofs to draw: 1 from outside, 0
 	// for a player inside a cave; caveIn eases between them (see caves.go).
@@ -263,6 +268,8 @@ func newGroundCache() *groundCache {
 		roofs:     make(map[chunkKey]*ebiten.Image),
 		waters:    make(map[chunkKey]*ebiten.Image),
 		seas:      make(map[chunkKey]bool),
+		fronts:    make(map[chunkKey]*ebiten.Image),
+		frows:     make(map[chunkKey]uint8),
 		roofAlpha: 1,
 		used:      make(map[chunkKey]int),
 		pending:   make(map[chunkKey]bool),
@@ -296,12 +303,23 @@ func (gc *groundCache) reset(terr *terrain) {
 		delete(gc.waters, k)
 	}
 	clear(gc.seas)
+	for k, img := range gc.fronts {
+		img.Deallocate()
+		delete(gc.fronts, k)
+	}
+	clear(gc.frows)
 	clear(gc.used)
 	clear(gc.pending)
 }
 
 // store keeps a baked chunk.
-func (gc *groundCache) store(k chunkKey, ground, shore, roof, water []byte) *ebiten.Image {
+func (gc *groundCache) store(k chunkKey, bc bakedChunk) *ebiten.Image {
+	ground, shore, roof, water := bc.ground, bc.shore, bc.roof, bc.water
+	if bc.front != nil {
+		f := ebiten.NewImage(chunkPW, chunkTiles*frontBandH)
+		f.WritePixels(bc.front)
+		gc.fronts[k], gc.frows[k] = f, bc.frontRows
+	}
 	img := ebiten.NewImage(chunkPW, chunkPH)
 	img.WritePixels(ground)
 	gc.chunks[k] = img
@@ -336,9 +354,9 @@ func (gc *groundCache) request(k chunkKey) {
 	terr, gen := gc.terr, gc.gen
 	go func() {
 		gc.sem <- struct{}{}
-		data, shore, roof, water := terr.bakeChunkAll(k)
+		bc := terr.bakeChunkFull(k)
 		<-gc.sem
-		gc.results <- chunkResult{k, gen, data, shore, roof, water}
+		gc.results <- chunkResult{k, gen, bc.ground, bc.shore, bc.roof, bc.water, bc.front, bc.frontRows}
 	}()
 }
 
@@ -355,7 +373,7 @@ func (gc *groundCache) collect(most int) {
 			if gc.chunks[r.key] != nil {
 				continue // already baked synchronously
 			}
-			gc.store(r.key, r.data, r.shore, r.roof, r.water)
+			gc.store(r.key, bakedChunk{r.data, r.shore, r.roof, r.water, r.front, r.rows})
 		default:
 			return
 		}
@@ -381,8 +399,7 @@ func (gc *groundCache) ensure(keys []chunkKey) {
 			gc.collect(math.MaxInt) // some may be baked and waiting
 		}
 	}
-	type baked struct{ ground, shore, roof, water []byte }
-	out := make([]baked, len(missing))
+	out := make([]bakedChunk, len(missing))
 	var wg sync.WaitGroup
 	next := int32(-1)
 	for w := 0; w < min(len(missing), runtime.NumCPU()); w++ {
@@ -394,14 +411,13 @@ func (gc *groundCache) ensure(keys []chunkKey) {
 				if i >= len(missing) {
 					return
 				}
-				g, s, r, wa := gc.terr.bakeChunkAll(missing[i])
-				out[i] = baked{g, s, r, wa}
+				out[i] = gc.terr.bakeChunkFull(missing[i])
 			}
 		}()
 	}
 	wg.Wait()
 	for i, k := range missing {
-		gc.store(k, out[i].ground, out[i].shore, out[i].roof, out[i].water)
+		gc.store(k, out[i])
 	}
 }
 
@@ -430,6 +446,11 @@ func (gc *groundCache) evict(keep int) {
 			delete(gc.waters, oldest)
 		}
 		delete(gc.seas, oldest)
+		if f := gc.fronts[oldest]; f != nil {
+			f.Deallocate()
+			delete(gc.fronts, oldest)
+			delete(gc.frows, oldest)
+		}
 		delete(gc.used, oldest)
 	}
 }

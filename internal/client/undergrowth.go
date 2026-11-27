@@ -405,6 +405,9 @@ func (g *Game) drawUndergrowth(dst drawTarget, cam camera) {
 				if tree && math.Abs(p.x-float64(tx)-0.5) < 0.3 {
 					continue // not out of the middle of a trunk
 				}
+				if g.belowWall(p.x, p.y) {
+					continue // under the foot of a cliff: see terraincliff.go
+				}
 				sx, sy := cam.toScreen(p.x, p.y)
 				if !envHD {
 					skew := plantSway[p.kind] * math.Sin(secs*1.3+p.x*0.9+p.y*0.5)

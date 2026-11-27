@@ -366,7 +366,7 @@ func GroundCost() (chunks int, bytes, water int64) {
 	for _, img := range gc.chunks {
 		bytes += size(img)
 	}
-	for _, m := range []map[chunkKey]*ebiten.Image{gc.shores, gc.roofs} {
+	for _, m := range []map[chunkKey]*ebiten.Image{gc.shores, gc.roofs, gc.fronts} {
 		for _, img := range m {
 			bytes += size(img)
 		}

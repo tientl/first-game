@@ -203,14 +203,29 @@ func (t *terrain) bakeChunk(k chunkKey) (ground, shore, roof []byte) {
 // bakeChunkAll is bakeChunk, and the chunk's water map for the moving
 // water drawn over it (nil when it has none; see terrainanim.go).
 func (t *terrain) bakeChunkAll(k chunkKey) (ground, shore, roof, water []byte) {
+	bc := t.bakeChunkFull(k)
+	return bc.ground, bc.shore, bc.roof, bc.water
+}
+
+// bakedChunk is all a chunk's bake makes.
+type bakedChunk struct {
+	ground, shore, roof, water []byte
+	front                      []byte // the feet of the cliffs' faces, drawn again over the figures by them: see fronts in terraincliff.go
+	frontRows                  uint8  // which of the chunk's rows of tiles have any
+}
+
+// bakeChunkFull bakes everything of chunk k.
+func (t *terrain) bakeChunkFull(k chunkKey) bakedChunk {
 	if t.caveChunk(k) {
-		return t.bakeCaveChunk(k), nil, nil, nil // the natural caves: see cavebake.go
+		return bakedChunk{ground: t.bakeCaveChunk(k)} // the natural caves: see cavebake.go
 	}
 	b := t.newBake(k)
 	var wm []byte
 	wet := false
 	c := newCanvas(chunkPW, chunkPH)
 	var rf *canvas
+	var front *canvas
+	rows := uint8(0)
 	sh := make([]byte, chunkW*chunkH*4)
 	coast := false
 	for y := 0; y < chunkPH; y++ {
@@ -219,6 +234,15 @@ func (t *terrain) bakeChunkAll(k chunkKey) (ground, shore, roof, water []byte) {
 			u := (float64(b.x0+x) + 0.5) / hdTW
 			col, surf := b.pixel(x, y, u, v)
 			c.px[y*chunkPW+x] = col
+			if b.wall != nil {
+				if row, by, ok := b.wall.front(b, x, y); ok {
+					if front == nil {
+						front = newCanvas(chunkPW, chunkTiles*frontBandH)
+					}
+					front.px[(row*frontBandH+by)*chunkPW+x] = col
+					rows |= 1 << row
+				}
+			}
 			if b.roofed != nil && t.caveNear(u, v) {
 				if rc, ok := b.roofPixel(x, y, u, v, col); ok {
 					if rf == nil {
@@ -254,10 +278,14 @@ func (t *terrain) bakeChunkAll(k chunkKey) (ground, shore, roof, water []byte) {
 	if !coast {
 		sh = nil
 	}
+	bc := bakedChunk{ground: c.bytes(), shore: sh, water: wm, frontRows: rows}
 	if rf != nil {
-		roof = rf.bytes()
+		bc.roof = rf.bytes()
 	}
-	return c.bytes(), sh, roof, wm
+	if front != nil {
+		bc.front = front.bytes()
+	}
+	return bc
 }
 
 // pixel colours image pixel (x, y) of the chunk, at (u, v) in tiles, and
