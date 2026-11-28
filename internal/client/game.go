@@ -125,6 +125,7 @@ type Game struct {
 	paused  bool
 	pause   buttonList
 	opts    *settingsScreen // the settings screen, opened from the pause menu; see settingsui.go
+	credits *creditsScreen  // the credits, opened from the pause menu; see creditsui.go
 	onPause func(bool)
 	exit    Exit
 
@@ -195,6 +196,7 @@ func New(conn Conn, name string) *Game {
 			{label: "Tiếp tục"},
 			{label: "Lưu game"},
 			{label: "Cài đặt"},
+			{label: "Ghi công"},
 			{label: "Lưu và về menu chính"},
 			{label: "Lưu và thoát"},
 		}},
@@ -260,7 +262,7 @@ func (g *Game) Update() error {
 		g.wmap.collect()
 		return nil
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) && g.opts == nil { // the settings screen closes itself
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) && g.opts == nil && g.credits == nil { // the settings screen closes itself
 		if g.build.on && g.overlay == overlayNone && !g.paused {
 			g.build.on = false // Esc stops building first; see mouse.go
 			g.showNotice("Đã thôi xây")
@@ -301,7 +303,7 @@ func (g *Game) setPaused(p bool) {
 	}
 	g.paused = p
 	g.pause.sel = 0
-	g.opts = nil
+	g.opts, g.credits = nil, nil
 	snd.ui("ui_pause")
 	if p && g.sentInput != (sim.Input{}) {
 		// Let go of every key, so the player does not keep walking.
@@ -321,6 +323,12 @@ func (g *Game) updatePause() {
 		}
 		return
 	}
+	if g.credits != nil {
+		if g.credits.update() {
+			g.credits = nil
+		}
+		return
+	}
 	switch g.pause.update() {
 	case 0:
 		g.setPaused(false)
@@ -331,8 +339,10 @@ func (g *Game) updatePause() {
 	case 2:
 		g.opts = newSettingsScreen(true)
 	case 3:
-		g.exit = ExitToMenu
+		g.credits = newCreditsScreen()
 	case 4:
+		g.exit = ExitToMenu
+	case 5:
 		g.exit = ExitQuit
 	}
 }

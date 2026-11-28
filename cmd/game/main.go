@@ -14,6 +14,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
+	"survivalgame"
 	"survivalgame/internal/client"
 	"survivalgame/internal/server"
 	"survivalgame/internal/sim"
@@ -39,7 +40,12 @@ func main() {
 	fps := flag.Int("fps", 0, "frame cap for this session: 30, 60 or 120 frames a second, 0 for none")
 	vsync := flag.Bool("vsync", true, "wait for the screen's refresh, for this session")
 	postFX := flag.Bool("postfx", false, "the lighting shaders (glow, grading) for this session")
+	licenses := flag.Bool("licenses", false, "print the licences of the parts the game is built from (LICENSES.txt) and exit")
 	flag.Parse()
+	if *licenses {
+		fmt.Print(survivalgame.Licenses)
+		return
+	}
 	sim.SetDemo(*demo)
 
 	if *savePath == "" {
