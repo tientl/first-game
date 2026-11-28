@@ -20,17 +20,17 @@ import (
 
 // lairFight is the client's own state of those fights.
 type lairFight struct {
-	pave    *templePaving
-	phases  map[sim.CreatureID]phaseSeen
-	puddles map[sim.CreatureID][]float64 // where a spray's puddles were shown, x, y pairs
-	globs   []venomGlob
-	reefs   map[[2]int32]bool // broken footholds seen, for their splash
-	splash  map[[2]int32]bool
-	pull    float64 // the camera drawn back for a fight: 1 none, less is further back
-	rate    float64 // the battle music's speed
-	drawPull float64       // the pull this frame is drawn at
-	up       *ebiten.Image // the world drawn back, shrunk to the screen
-	clampK    float64            // how far the camera is held in the arena: 0 free, 1 held
+	pave      *templePaving
+	phases    map[sim.CreatureID]phaseSeen
+	puddles   map[sim.CreatureID][]float64 // where a spray's puddles were shown, x, y pairs
+	globs     []venomGlob
+	reefs     map[[2]int32]bool // broken footholds seen, for their splash
+	splash    map[[2]int32]bool
+	pull      float64           // the camera drawn back for a fight: 1 none, less is further back
+	rate      float64           // the battle music's speed
+	drawPull  float64           // the pull this frame is drawn at
+	up        *ebiten.Image     // the world drawn back, shrunk to the screen
+	clampK    float64           // how far the camera is held in the arena: 0 free, 1 held
 	clampLair protocol.LairView // the arena it is held in
 }
 

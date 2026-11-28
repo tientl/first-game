@@ -21,19 +21,19 @@ import (
 // Stone of the temple, from COMFY52: a cold grey granite and a warm
 // sandstone, laid together, both greened by moss and lichen.
 var (
-	tplGrey   = mkRamp(0x282e3b, 0x414453, 0x696f80, 0x8d99a4, 0xbac9cd)
-	tplWarm   = mkRamp(0x3f333b, 0x533b41, 0x6d4e4b, 0x867066, 0xb49d7e)
-	tplMoss   = mkRamp(0x282e3b, 0x343f41, 0x3f4328, 0x5f7132, 0x739a70)
-	tplJoint  = mkRamp(0x1a1f2e, 0x282e3b, 0x343f41, 0x3f4328)
+	tplGrey      = mkRamp(0x282e3b, 0x414453, 0x696f80, 0x8d99a4, 0xbac9cd)
+	tplWarm      = mkRamp(0x3f333b, 0x533b41, 0x6d4e4b, 0x867066, 0xb49d7e)
+	tplMoss      = mkRamp(0x282e3b, 0x343f41, 0x3f4328, 0x5f7132, 0x739a70)
+	tplJoint     = mkRamp(0x1a1f2e, 0x282e3b, 0x343f41, 0x3f4328)
 	tplJointDark = mkRamp(0x1a1917, 0x24231f, 0x2e2d2b)
 	tplFlag      = mkRamp(0x2e2d2b, 0x3e3c38, 0x504d47, 0x645f57, 0x79736a, 0x8f887d, 0xa59d90, 0xb9b1a2) // weathered limestone
 	tplBuff      = mkRamp(0x3c3530, 0x4f463e, 0x645849, 0x7a6b58, 0x917f68, 0xa8947a)
-	tplEarth  = mkRamp(0x2b222a, 0x3c252b, 0x533b41, 0x684039)
-	tplLeaf   = mkRamp(0x5c2b34, 0x8d4830, 0xc57835, 0xe1a845)
-	tplBlack  = mkRamp(0x05080c, 0x0a0f16, 0x111a22, 0x1a2a30, 0x24403f)
-	tplStoneM = &rkMat{tone: tplGrey, ink: hex(0x1a1f2e), rim: hex(0x414453), glint: hex(0xe5efef)}
-	tplWarmM  = &rkMat{tone: tplWarm, ink: hex(0x2b222a), rim: hex(0x533b41), glint: hex(0xeecb90), bias: 0.06}
-	tplPillarM = &rkMat{tone: mkRamp(0x343f41, 0x4d5459, 0x696f80, 0x8d99a4, 0xb4b8b0, 0xd5d6cc), ink: hex(0x1a1f2e), rim: hex(0x414453), glint: hex(0xe5efef), bias: 0.24}
+	tplEarth     = mkRamp(0x2b222a, 0x3c252b, 0x533b41, 0x684039)
+	tplLeaf      = mkRamp(0x5c2b34, 0x8d4830, 0xc57835, 0xe1a845)
+	tplBlack     = mkRamp(0x05080c, 0x0a0f16, 0x111a22, 0x1a2a30, 0x24403f)
+	tplStoneM    = &rkMat{tone: tplGrey, ink: hex(0x1a1f2e), rim: hex(0x414453), glint: hex(0xe5efef)}
+	tplWarmM     = &rkMat{tone: tplWarm, ink: hex(0x2b222a), rim: hex(0x533b41), glint: hex(0xeecb90), bias: 0.06}
+	tplPillarM   = &rkMat{tone: mkRamp(0x343f41, 0x4d5459, 0x696f80, 0x8d99a4, 0xb4b8b0, 0xd5d6cc), ink: hex(0x1a1f2e), rim: hex(0x414453), glint: hex(0xe5efef), bias: 0.24}
 )
 
 // templeLook is what the bake of the courtyard needs to know of a temple.
@@ -65,7 +65,7 @@ const (
 func (t templeLook) pavePixel(u, v float64, hx, hy int) (color.RGBA, bool) {
 	m := math.Min(t.cx, t.cy)
 	d := sim.ArenaQ(sim.LayoutTemple, t.cx, t.cy, u-t.x, v-t.y) * m // how far out, in tiles at its narrower
-	rim := m + (vnoise(u*0.9, v*0.9, 911)-0.5)*1.4 // ragged where the jungle takes it back
+	rim := m + (vnoise(u*0.9, v*0.9, 911)-0.5)*1.4                  // ragged where the jungle takes it back
 	if d > rim {
 		return color.RGBA{}, false
 	}
@@ -526,10 +526,10 @@ func serpentCanvas() (*canvas, float64, float64) {
 		}
 	}
 	add(rkBlock(rng, rkVec{0, 0, 3}, rkVec{1, 0, 0}, rkVec{0, 1, 0}, rkVec{0, 0, 1}, 7, 6, 3, 0.2), tplStoneM)
-	add(rkBlock(rng, rkVec{1, 0, 9}, rkVec{1, 0, 0.25}, rkVec{0, 1, 0}, rkVec{-0.25, 0, 1}, 6.5, 5, 3.5, 0.45), tplWarmM) // the skull
-	add(rkBlock(rng, rkVec{8, 0, 8}, rkVec{1, 0, -0.15}, rkVec{0, 1, 0}, rkVec{0.15, 0, 1}, 4.5, 3.6, 2.4, 0.5), tplWarmM) // the snout
+	add(rkBlock(rng, rkVec{1, 0, 9}, rkVec{1, 0, 0.25}, rkVec{0, 1, 0}, rkVec{-0.25, 0, 1}, 6.5, 5, 3.5, 0.45), tplWarmM)     // the skull
+	add(rkBlock(rng, rkVec{8, 0, 8}, rkVec{1, 0, -0.15}, rkVec{0, 1, 0}, rkVec{0.15, 0, 1}, 4.5, 3.6, 2.4, 0.5), tplWarmM)    // the snout
 	add(rkBlock(rng, rkVec{6.5, 0, 4.6}, rkVec{1, 0, 0.1}, rkVec{0, 1, 0}, rkVec{-0.1, 0, 1}, 4.4, 3.4, 1.3, 0.4), tplStoneM) // the jaw
-	for _, side := range []float64{-1, 1} { // brow ridges
+	for _, side := range []float64{-1, 1} {                                                                                   // brow ridges
 		add(rkNodule(rng, rkVec{2.5, side * 3.4, 12}, 2.4, 1.2, 1.1, 8, 0.15), tplWarmM)
 	}
 	c, ox, oy := s.draw(hdK(), 5)

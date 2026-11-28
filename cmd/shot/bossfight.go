@@ -32,13 +32,13 @@ import (
 
 // bfStep is something the scene does at a frame.
 type bfStep struct {
-	at    int
-	cmds  []string
-	zoom  *int   // the view's zoom from now on
-	shot  string // a still to write, by name
-	gifOn string // begin taking frames for this GIF...
-	gifOff bool  // ...and stop (the GIF is written at the end)
-	every int    // frames between a GIF's frames
+	at      int
+	cmds    []string
+	zoom    *int   // the view's zoom from now on
+	shot    string // a still to write, by name
+	gifOn   string // begin taking frames for this GIF...
+	gifOff  bool   // ...and stop (the GIF is written at the end)
+	every   int    // frames between a GIF's frames
 	overlay string
 }
 
