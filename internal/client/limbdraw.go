@@ -401,7 +401,10 @@ func atkFrame(a, raised, landed float64) uint8 {
 // what a blow or a start does to the arms, and with what it holds.
 func (g *Game) drawFigureJ(dst drawTarget, p protocol.PlayerView, dir sim.Dir, lo loKey, up upKey, x, y float64, armor sim.Tier) {
 	l := p.Look
-	if armor >= sim.TierDiamond && (l.Hair == sim.HairSpiky || l.Hair == sim.HairBun) {
+	if armor == p.Armor { // what is carried: dinosaur hide or a fur coat may show (charpilot_armor.go)
+		armor = shownArmor(p)
+	}
+	if armorHelmed(armor) && (l.Hair == sim.HairSpiky || l.Hair == sim.HairBun) {
 		l.Hair = sim.HairShort // under the skull cap; see drawArmored
 	}
 	f := figDraw{b: g.art.bodyIn(l, p.Wear), up: up, lo: lo, tint: playerColors[int(p.ID)%len(playerColors)]}

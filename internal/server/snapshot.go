@@ -89,6 +89,7 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Look:      p.Look,
 			Mount:     p.Mount(),
 			DinoArmor: p.Inv.Count(sim.ItemDinoArmor) > 0,
+			FurCoat:   p.Inv.Count(sim.ItemFurCoat) > 0,
 			Boat:      p.BoatID(),
 			Swimming:  s.world.Swimming(p),
 			Bees:      p.Swarmed(),

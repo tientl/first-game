@@ -489,10 +489,11 @@ func turnStep(a, b uint8, first bool) (f int, d sim.Dir, mirror bool) {
 // armourByBed lays p's armour on the ground beside their bed while they
 // sleep, the helmet by it.
 func (g *Game) armourByBed(dst drawTarget, p protocol.PlayerView, x, y float64) {
-	if p.Armor <= sim.TierStone {
+	t := shownArmor(p)
+	if t <= sim.TierStone {
 		return
 	}
-	a := g.art.armor(p.Armor, p.Look.Female)
+	a := g.art.armor(t, p.Look.Female)
 	drawAt(dst, a.whole[sim.DirDown][0], x+40, y-3, 1, 1, -math.Pi/2, nil)
 	drawAt(dst, a.helmet[sim.DirDown][0], x+43, y+3, 1, 1, -math.Pi/2, nil)
 }

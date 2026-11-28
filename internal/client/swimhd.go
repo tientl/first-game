@@ -121,8 +121,8 @@ func (g *Game) drawSwimmerHD(dst drawTarget, p protocol.PlayerView, d drawable) 
 	}
 	g.drawInWater(dst, p, d, sink, 0, func(buf drawTarget, x, y float64) {
 		var armor *armorArt
-		if p.Armor > sim.TierStone {
-			armor = g.art.armor(p.Armor, p.Look.Female)
+		if t := shownArmor(p); t > sim.TierStone {
+			armor = g.art.armor(t, p.Look.Female)
 		}
 		drawFig(buf, figDraw{b: g.art.bodyIn(p.Look, p.Wear), armor: armor, up: up, lo: lo, tint: playerColors[int(p.ID)%len(playerColors)]}, x, y)
 	})

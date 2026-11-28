@@ -535,3 +535,78 @@ func TestCharWearSheet(t *testing.T) {
 	}
 	limbPNG(t, filepath.Join(dir, "wear_armor.png"), img)
 }
+
+// TestArmorSetSheet writes every armour set on a man and a woman from the
+// front, the side and the back, the figure in its furs: armour_after.png
+// as it is drawn, armour_before.png in the old figure and its old armour
+// (dinosaur hide and the fur coat were not drawn then), three times the
+// size, and armour_close.png, the helms and shoulders six times:
+//
+//	CHAR_ARMOR=dir go test ./internal/client -run ArmorSetSheet
+func TestArmorSetSheet(t *testing.T) {
+	dir := os.Getenv("CHAR_ARMOR")
+	if dir == "" {
+		t.Skip("set CHAR_ARMOR to a folder")
+	}
+	defer setPilot(t, charRefined)
+	defer func(w sim.Wear) { limbWear = w }(limbWear)
+	limbWear = 0
+	sets := []struct {
+		t    sim.Tier
+		name string
+	}{
+		{sim.TierStone, "none"}, {sim.TierCopper, "hide"}, {sim.TierIron, "bone"}, {sim.TierPlatinum, "agate"},
+		{sim.TierDiamond, "tyrant"}, {armorDino, "dino hide"}, {armorFur, "fur coat"},
+	}
+	man := sim.Look{Hair: sim.HairShort, HairColor: 0, Skin: 1}
+	woman := sim.Look{Female: true, Hair: sim.HairLong, HairColor: 2, Skin: 0}
+	dirs := []sim.Dir{sim.DirDown, sim.DirRight, sim.DirUp}
+	white := color.RGBA{255, 255, 255, 255}
+	const k, cw, ch, left = 3, 140, 300, 150
+	for _, st := range pilotStyles {
+		setPilot(t, st.s)
+		img := limbBackdrop(left+6*cw, len(sets)*ch)
+		for si, s := range sets {
+			pilotLabel(img, 8, si*ch+12, 3, s.name, white)
+			for li, l := range []sim.Look{man, woman} {
+				if armorHelmed(s.t) && (l.Hair == sim.HairSpiky || l.Hair == sim.HairBun) {
+					l.Hair = sim.HairShort
+				}
+				for di, d := range dirs {
+					fx, fy := left+(li*3+di)*cw+cw/2, si*ch+ch-20
+					limbShot(img, l, upKey{dir: d}, loKey{dir: d}, headCache{}, fx, fy, k, 0, 0)
+					if s.t == sim.TierStone || st.s == charCurrent && s.t >= sim.NumTiers {
+						continue
+					}
+					B, H := armorLayersTall(s.t, l.Female, d)
+					tallOver(img, B, fx, fy, k)
+					tallOver(img, H, fx, fy, k)
+				}
+			}
+		}
+		name := map[charStyle]string{charCurrent: "armour_before.png", charRefined: "armour_after.png"}[st.s]
+		limbPNG(t, filepath.Join(dir, name), img)
+	}
+	// The top halves close.
+	setPilot(t, charRefined)
+	const kc, cc, rc = 6, 200, 300
+	img := limbBackdrop(6*cc, (len(sets)-1)*rc)
+	for si, s := range sets[1:] {
+		for li, l := range []sim.Look{man, woman} {
+			for di, d := range dirs {
+				fx, fy := (li*3+di)*cc+cc/2, si*rc+rc+(limbGround-62)*kc
+				sub := limbBackdrop(cc, rc)
+				limbShot(sub, l, upKey{dir: d}, loKey{dir: d}, headCache{}, cc/2, fy-si*rc, kc, 0, 0)
+				B, H := armorLayersTall(s.t, l.Female, d)
+				tallOver(sub, B, cc/2, fy-si*rc, kc)
+				tallOver(sub, H, cc/2, fy-si*rc, kc)
+				for y := 0; y < rc; y++ {
+					for x := 0; x < cc; x++ {
+						img.SetRGBA(fx-cc/2+x, si*rc+y, sub.RGBAAt(x, y))
+					}
+				}
+			}
+		}
+	}
+	limbPNG(t, filepath.Join(dir, "armour_close.png"), img)
+}

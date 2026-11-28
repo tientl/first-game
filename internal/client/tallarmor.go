@@ -31,6 +31,12 @@ func armorLayersTall(t sim.Tier, female bool, d sim.Dir) (B, H *canvas) {
 
 // armorLayersBent is armorLayersTall on a figure bent by xf (motion.go).
 func armorLayersBent(t sim.Tier, female bool, d sim.Dir, xf []figMap) (B, H *canvas) {
+	if pilotOn() { // the figure's armour: see charpilot_armor.go
+		return armorLayersA(t, female, d, xf)
+	}
+	if t >= sim.NumTiers { // dinosaur hide and the fur coat: the old figure has hide
+		t = sim.TierCopper
+	}
 	g := newLimbGen(sim.Look{Female: female}, 0)
 	f := &g.f
 	f.xf = xf

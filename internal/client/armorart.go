@@ -34,7 +34,10 @@ type armorKey struct {
 // first use. It must be called inside the game loop, where images can be
 // created.
 func (a *art) armor(tier sim.Tier, female bool) *armorArt {
-	k := armorKey{min(tier, sim.NumTiers-1), female}
+	if tier >= numArmorLooks || tier >= sim.NumTiers && !pilotOn() {
+		tier = sim.NumTiers - 1
+	}
+	k := armorKey{tier, female}
 	if s, ok := a.armors[k]; ok {
 		return s
 	}

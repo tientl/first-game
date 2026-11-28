@@ -31,8 +31,8 @@ func (g *Game) drawDying(dst drawTarget, p protocol.PlayerView, d drawable) bool
 	b := g.art.bodyIn(p.Look, p.Wear)
 	tint := playerColors[int(p.ID)%len(playerColors)]
 	var armor *armorArt
-	if p.Armor > sim.TierStone {
-		armor = g.art.armor(p.Armor, p.Look.Female)
+	if t := shownArmor(p); t > sim.TierStone {
+		armor = g.art.armor(t, p.Look.Female)
 	}
 	// Where the body ends up: its anchor, and its hips.
 	gx, gy, grave, onGrave := g.graveOf(p, st, d)
