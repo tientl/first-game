@@ -485,3 +485,67 @@ func TestWelcomeOfAColossalWorld(t *testing.T) {
 	t.Logf("2048x2048: Welcome and first snapshot took %v and %.2f MB on the wire (%d tiles raw)",
 		time.Since(t1).Round(time.Millisecond), float64(out)/(1<<20), len(p.welcome.Tiles))
 }
+
+// The server end of a client that stops reading: the write times out, the
+// connection is closed, and the channel the server fills keeps being emptied,
+// so the server loop never waits on it.
+func TestWriteLoopGivesUpOnAClientThatDoesNotRead(t *testing.T) {
+	old := writeTimeout
+	writeTimeout = 200 * time.Millisecond
+	defer func() { writeTimeout = old }()
+
+	srvSide, cliSide := net.Pipe() // a pipe has no buffer: a write blocks until the other side reads
+	defer cliSide.Close()
+	l := &Listener{}
+	msgs := make(chan protocol.ServerMsg, 32)
+	done := make(chan struct{})
+	go func() { l.writeLoop(srvSide, msgs); close(done) }()
+
+	for i := range 5 {
+		msgs <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: protocol.Snapshot{Tick: uint64(i + 1)}}
+	}
+	// Keep the way the server does: queue without ever blocking.
+	sent := 0
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		select {
+		case msgs <- protocol.ServerMsg{Kind: protocol.ServerSnapshot}:
+			sent++
+		default:
+		}
+		time.Sleep(time.Millisecond)
+		if sent > 500 {
+			break
+		}
+	}
+	if sent <= 32 {
+		t.Fatalf("the server could queue only %d messages: the writer stopped emptying the channel", sent)
+	}
+	_ = srvSide.Close()
+	close(msgs)
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("writeLoop never returned")
+	}
+}
+
+// Only the newest snapshot of a backlog is sent, and nothing else is dropped.
+func TestNewestSnapshotOnly(t *testing.T) {
+	snap := func(n uint64) protocol.ServerMsg {
+		return protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: protocol.Snapshot{Tick: n}}
+	}
+	saved := protocol.ServerMsg{Kind: protocol.ServerSaved}
+	got := newestSnapshotOnly([]protocol.ServerMsg{snap(1), snap(2), saved, snap(3), snap(4), saved})
+	var kinds []protocol.ServerMsgKind
+	var tick uint64
+	for _, m := range got {
+		kinds = append(kinds, m.Kind)
+		if m.Kind == protocol.ServerSnapshot {
+			tick = m.Snapshot.Tick
+		}
+	}
+	if len(got) != 3 || tick != 4 || kinds[0] != protocol.ServerSaved || kinds[1] != protocol.ServerSnapshot || kinds[2] != protocol.ServerSaved {
+		t.Fatalf("got kinds %v, last tick %d", kinds, tick)
+	}
+}

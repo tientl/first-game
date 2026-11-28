@@ -54,12 +54,13 @@ const (
 	// from it is real).
 	keepaliveEvery = 3 * time.Second
 	idleTimeout    = 12 * time.Second
-	// writeTimeout bounds one write of up to writeChunk bytes: a client that
-	// does not read for this long is dropped, but a slow link still carrying
-	// the big Welcome is not.
-	writeTimeout = 10 * time.Second
-	writeChunk   = 32 << 10
+	writeChunk     = 32 << 10
 )
+
+// writeTimeout bounds one write of up to writeChunk bytes: a client that does
+// not read for this long is dropped, but a slow link still carrying the big
+// Welcome is not. A variable so a test need not wait ten seconds.
+var writeTimeout = 10 * time.Second
 
 // VersionError is returned by Dial when the server runs another protocol
 // version: the two builds of the game must match.

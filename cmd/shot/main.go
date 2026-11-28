@@ -58,6 +58,7 @@ func main() {
 	hairColor := flag.Int("haircolor", 0, "the player's hair colour, 0 to 7")
 	skin := flag.Int("skin", 0, "the player's skin tone, 0 to 5")
 	create := flag.Bool("create", false, "show the character screen of a new game")
+	coop := flag.String("coop", "", "co-op screens: coop (the Chơi chung list) and join, joinfail (the address screen, with -menu); host, guest, lost, refused, stalled (the game as host or guest)")
 	croc := flag.Bool("croc", false, "put a crocodile basking next to the player, and one lurking in the nearest pond")
 	dinos := flag.Bool("dinos", false, "put one of each dinosaur around the player, in different poses (sea reptiles with -coast)")
 	ice := flag.Bool("ice", false, "put a mammoth herd, a charging mammoth and a stalking sabre-tooth around the player")
@@ -1027,6 +1028,23 @@ func main() {
 		game.HoldLeap(troodonLeaper)
 	}
 	var inner ebiten.Game = game
+	if *coop != "" {
+		switch *coop {
+		case "coop", "join", "joinfail":
+			m := client.NewMenu(client.SaveInfo{Exists: true, Day: 3, Name: "Tien", SavedAt: time.Now(), Size: 512})
+			switch *coop {
+			case "coop":
+				m.ShowCoop()
+			case "join":
+				m.ShowJoin("192.168.1.23", "")
+			case "joinfail":
+				m.ShowJoin("192.168.1.99", "Không thấy phòng ở địa chỉ này (quá thời gian): kiểm tra IP, tường lửa của chủ phòng, và hai máy có cùng mạng (hoặc cùng Tailscale / ZeroTier) không.")
+			}
+			inner = &menuGame{m}
+		default:
+			game.ShowRoom(*coop)
+		}
+	}
 	if *create {
 		m := client.NewMenu(client.SaveInfo{})
 		m.ShowCharacterScreen()

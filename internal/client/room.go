@@ -96,25 +96,68 @@ func (g *Game) drawRoomStatus(ui *uiDst, uw, uh int) {
 	}
 }
 
-// drawRoomPause adds what the room says to the pause menu: where friends
-// join, who is there, and that the world keeps running.
-func (g *Game) drawRoomPause(ui *uiDst, cx, y float64) {
-	switch {
-	case g.room.joined:
-		g.text(ui, "Phòng "+g.room.addr+" · thế giới vẫn chạy trong lúc bạn xem menu", cx, y, colMuted, text.AlignCenter, 1)
-	case g.room.hosting:
-		n := g.friends()
-		head := "Phòng đang mở, chưa có ai vào"
-		if n > 0 {
-			head = fmt.Sprintf("Phòng đang mở · %d bạn đang chơi · thế giới vẫn chạy", n)
-		}
-		g.text(ui, head, cx, y, colMuted, text.AlignCenter, 1)
-		for i, l := range g.room.hostInfo {
-			g.text(ui, l, cx, y+20+float64(i)*18, colBoneText, text.AlignCenter, 1)
-		}
-		if n > 0 {
-			g.text(ui, "Về menu chính sẽ đóng phòng", cx, y+22+float64(len(g.room.hostInfo))*18, color.RGBA{255, 190, 140, 255}, text.AlignCenter, 1)
-		}
+// ShowRoom puts the game in one of the room states, for dev tools that
+// capture frames: "host" and "guest" open the pause menu as the host with two
+// friends and as a guest see it; "lost", "refused" and "stalled" are what a
+// guest sees when the connection is gone, turned away, or quiet.
+func (g *Game) ShowRoom(mode string) {
+	switch mode {
+	case "host":
+		g.SetHosting([]string{"• 192.168.1.23:7777  (cùng mạng nhà)", "• 100.101.102.103:7777  (Tailscale)"}, func() int { return 2 })
+		g.paused = true
+	case "guest":
+		g.SetJoined("100.101.102.103:7777")
+		g.paused = true
+	case "lost":
+		g.SetJoined("100.101.102.103:7777")
+		g.disconnected = true
+	case "refused":
+		g.SetJoined("100.101.102.103:7777")
+		g.room.refused = "Khác phiên bản game: máy chủ 54, máy bạn 53. Hai bên cần cùng một bản game."
+		g.disconnected = true
+	case "stalled":
+		g.SetJoined("100.101.102.103:7777")
+		g.room.lastSnap = time.Now().Add(-4 * time.Second)
 	}
 }
 
+// drawRoomPause adds what the room says to the pause menu. A guest gets a
+// line under the list; the host gets a panel beside it with where friends
+// join and who is there (a line under the list when the window is too
+// narrow for the panel).
+func (g *Game) drawRoomPause(ui *uiDst, sw int, cx, below, top float64) {
+	switch {
+	case g.room.joined:
+		g.text(ui, "Phòng "+g.room.addr+" · thế giới vẫn chạy khi bạn xem menu", cx, below, colMuted, text.AlignCenter, 1)
+	case g.room.hosting:
+		n := g.friends()
+		if float64(sw) < 1100 {
+			head := "Phòng đang mở, chưa có ai vào"
+			if n > 0 {
+				head = fmt.Sprintf("Phòng đang mở · %d bạn đang chơi · thế giới vẫn chạy", n)
+			}
+			g.text(ui, head, cx, below, colMuted, text.AlignCenter, 1)
+			return
+		}
+		x, y, w := 16.0, top+64, 300.0
+		lines := len(g.room.hostInfo)
+		h := 92 + float64(lines)*20
+		if n > 0 {
+			h += 20
+		}
+		drawFrame(ui, float32(x), float32(y), float32(w), float32(h))
+		g.text(ui, "Phòng đang mở", x+w/2, y+12, colWhite, text.AlignCenter, 1.5)
+		who := "Chưa có bạn nào vào"
+		if n > 0 {
+			who = fmt.Sprintf("%d bạn đang chơi · thế giới vẫn chạy", n)
+		}
+		g.text(ui, who, x+w/2, y+40, colMuted, text.AlignCenter, 1)
+		g.text(ui, "Bạn bè bấm Vào phòng và gõ:", x+w/2, y+64, colMuted, text.AlignCenter, 1)
+		for i, l := range g.room.hostInfo {
+			g.text(ui, l, x+w/2, y+86+float64(i)*20, colBoneText, text.AlignCenter, 1)
+		}
+		if n > 0 {
+			g.text(ui, "Về menu chính sẽ đóng phòng", x+w/2, y+90+float64(lines)*20, color.RGBA{255, 190, 140, 255}, text.AlignCenter, 1)
+		}
+	}
+}

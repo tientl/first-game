@@ -1011,14 +1011,10 @@ func (g *Game) drawPause(screen *uiDst, sw, sh int) {
 	drawTitle(screen, title, cx, top, 3, colBoneText, color.RGBA{60, 36, 20, 255})
 	g.pause.draw(screen, cx, top+64, 340)
 	below := g.pause.rowY(len(g.pause.items)) + 8
-	if g.room.joined {
-		g.text(screen, "Chủ phòng tự lưu game", cx, below, colMuted, text.AlignCenter, 1)
-		below += 24
-	} else {
+	if !g.room.joined { // a guest's line is the room's: see room.go
 		g.text(screen, "Game tự lưu mỗi phút và khi thoát", cx, below, colMuted, text.AlignCenter, 1)
-		below += 24
 	}
-	g.drawRoomPause(screen, cx, below)
+	g.drawRoomPause(screen, sw, cx, below, top)
 }
 
 // seasonColors colour the season's name on the clock.

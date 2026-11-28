@@ -393,7 +393,7 @@ func (m *Menu) Draw(real *ebiten.Image) {
 
 	if m.coopOpen {
 		dimScreen(screen, color.RGBA{0, 0, 0, 150})
-		pw, ph := float32(480), float32(330)
+		pw, ph := float32(480), float32(300)
 		px, py := float32(cx)-pw/2, float32(sh)/2-ph/2
 		drawFrame(screen, px, py, pw, ph)
 		drawText(screen, "Chơi chung", cx, float64(py)+18, colWhite, text.AlignCenter, 2)
@@ -523,4 +523,16 @@ func abs(v float64) float64 {
 func drawTitle(dst *uiDst, title string, cx, y, scale float64, fg, shadow color.RGBA) {
 	uiTextW(dst, title, cx, y+scale*0.9, shadow, text.AlignCenter, scale, wTitle+50, fxOutline)
 	uiTextW(dst, title, cx, y, fg, text.AlignCenter, scale, wTitle+50, fxOutline)
+}
+
+// ShowCoop opens the "Chơi chung" list, as the button would. It is for dev
+// tools that capture frames.
+func (m *Menu) ShowCoop() { m.coopOpen = true }
+
+// ShowJoin opens the address screen of "Vào phòng" with addr typed and why
+// the last try failed (empty for none). It is for dev tools that capture frames.
+func (m *Menu) ShowJoin(addr, status string) {
+	m.joinScr.set(addr)
+	m.joinScr.status = status
+	m.joinOpen = true
 }
