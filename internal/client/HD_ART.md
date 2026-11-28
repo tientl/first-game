@@ -532,7 +532,8 @@ screen pixel, like the world.
    writes `icons_hd.png` (each icon at 96 and three times bigger, in a
    second or so; `ICON_ONLY=<item number>` for one). In the game:
    `go run ./cmd/shot -exact -w 1920 -h 1080 -iconsheet -o s.png` (old and
-   new in 1080p hotbar slots, the smaller sizes, and x3), and
+   new in 1080p hotbar slots, the smaller sizes, and x3; 30 icons to a
+   page, `-iconpage 1` and on for the rest), and
    `-overlay recipes -bagfrom 1` for the bag with its recipe cards.
    `-exact` matters on a desktop shorter than 1080: without it the window
    is cut short and the interface drawn at scale 1.
