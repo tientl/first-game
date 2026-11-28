@@ -372,6 +372,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 	g.drawCaveGround(dst, cam) // see caveprops.go
 	g.drawDigSpot(dst, cam)
 	g.drawZones(dst, cam, alpha) // red warnings where beasts' moves will land: see telegraphzone.go
+	g.drawHazards(dst, cam, alpha) // clouds, webs, collapses: see cavecreatures.go
 	// Each thing is drawn on the art-pixel grid through its own ground
 	// point, so a moving one keeps its pixel art whole between art pixels;
 	// see align in hd.go.

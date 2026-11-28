@@ -179,6 +179,9 @@ func (w *World) dropCandidates(x, y float64) []DropCandidate {
 // leavesBody reports whether a creature of kind k leaves a body to butcher
 // when killed; the rest drop what they give at once.
 func leavesBody(k CreatureKind) bool {
+	if s := caveSpecOf(k); s != nil && s.has(trNoBody) {
+		return false
+	}
 	switch k {
 	case CreatureWorm, CreatureFish, CreatureNone, CreatureToad, CreatureGlowToad:
 		return false // too small to butcher: what it gives falls where it died
@@ -278,7 +281,7 @@ func HeadItem(k CreatureKind) ItemKind {
 	case CreatureNone, CreatureWorm, CreatureFish, CreatureTribesman, CreatureToad, CreatureGlowToad:
 		return ItemNone
 	}
-	if k >= NumCreatureKinds {
+	if k >= NumCreatureKinds || k > CreatureAnkylo { // the cave beasts leave no trophy head
 		return ItemNone
 	}
 	return ItemHeadBase + ItemKind(k)
@@ -294,7 +297,7 @@ func HeadOf(k ItemKind) (CreatureKind, bool) {
 }
 
 func init() {
-	if int(NumCreatureKinds) > maxHeads || itemsEnd > ItemHeadBase {
+	if int(CreatureAnkylo)+1 > maxHeads || itemsEnd > ItemHeadBase {
 		panic("sim: no room left for the heads of every creature kind")
 	}
 	for k := CreatureKind(1); k < NumCreatureKinds; k++ {
@@ -330,7 +333,7 @@ func (w *World) placeHeldAt(p *Player, at bool, atX, atY int) {
 		if k, soft, ok := PlacedBy(held); ok && !w.buildSpot(p, atX, atY, k, soft) {
 			return
 		}
-		if held == ItemDung {
+		if held == ItemDung || held == ItemGuano {
 			w.fertilizeAt(p, atX, atY)
 			return
 		}
@@ -359,7 +362,7 @@ func (w *World) placeHeldAt(p *Player, at bool, atX, atY int) {
 		w.launch(p, k) // see boats.go
 		return
 	}
-	if held == ItemDung {
+	if held == ItemDung || held == ItemGuano {
 		w.fertilize(p) // see dung.go
 		return
 	}

@@ -491,6 +491,9 @@ const (
 	NoticeFossil     // Arg: ItemKind dug out of a great skeleton in the rock
 
 	NoticeStolen // Arg: ItemKind a flying reptile snatched; see skills.go
+
+	NoticeGuarded // Arg: CreatureKind guarding the chest; it stays shut while it lives (cavefight.go)
+	NoticeCollapse // the roof came down on them
 )
 
 // CommandKind is a discrete player request, as opposed to held input.

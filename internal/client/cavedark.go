@@ -386,7 +386,9 @@ func (g *Game) drawCaveEyes(dst drawTarget, cam camera, s float32) {
 		case sim.CreatureBear:
 			e = &bearEyes
 		default:
-			continue
+			if e = caveBeastEyes(c.Kind); e == nil {
+				continue
+			}
 		}
 		t := g.frame + int(c.ID)*53
 		if t%(190+int(c.ID%7)*17) < 8 {

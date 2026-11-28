@@ -301,7 +301,7 @@ func voicesOf(k sim.CreatureKind) kindVoices {
 	case sim.CreatureMegalodon:
 		return kindVoices{hurt: say("megalodon_hurt", 0.7, 1), death: say("megalodon_death", 1, 1)}
 	}
-	return kindVoices{}
+	return caveVoices(k)
 }
 
 // How often a beast's voices may come.

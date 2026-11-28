@@ -509,6 +509,9 @@ func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {
 	if l, col, ok := seaLabel(c); ok {
 		return l, col // see searender.go
 	}
+	if l, col, ok := caveLabel(c); ok {
+		return l, col // see cavecreatures.go
+	}
 	if l, col, ok := tribalLabel(c); ok {
 		return l, col // see tribalrender.go
 	}
@@ -608,6 +611,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 	t := g.frame + int(c.ID)*7 // so a group does not move in lockstep
 	if s, bob, ok := g.bossSprite(c, moving); ok {
 		return s, bob // see bosses.go
+	}
+	if s, bob, ok := g.caveSprite(c, moving); ok {
+		return s, bob // the cave fighting's beasts, placeholders: see cavecreatures.go
 	}
 	if s, bob, ok := g.skillSprite(c, side); ok {
 		return s, bob // in the middle of one of its moves: see dinoskills.go
@@ -905,6 +911,9 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 	case sim.CreatureScorpion:
 		return 30
 	default:
+		if w := caveBeastShadow(k); w > 0 {
+			return w
+		}
 		return bossShadow(k) // 0 for fish and sea reptiles, under water, and flying ones, which cast their own
 	}
 }
@@ -938,6 +947,7 @@ func (g *Game) drawCreature(dst drawTarget, c protocol.CreatureView, d drawable)
 	}
 	op.GeoM.Translate(x-s.ax, d.sy-bob-s.ay)
 	drawSprite(dst, s, op)
+	g.drawCaveBossBar(dst, c, d, s)
 	if r, gg, b, a := g.beastFlash(c.ID); a > 0 {
 		drawFlash(dst, s, op, r, gg, b, a) // struck: white, then red; see feel.go
 	}
