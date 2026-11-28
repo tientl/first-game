@@ -113,7 +113,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
 	uiScaleNow = uiScaleFor(sh) // world labels' text grows with the interface
 	if !g.ready || !g.hasCurr {
+		if g.disconnected && (g.room.joined || g.room.refused != "") {
+			ui, uw, uh := beginUI(screen) // the room's reason: see room.go
+			g.drawRoomStatus(ui, uw, uh)
+			endUI(ui)
+			return
+		}
 		msg := "Đang tải…"
+		if g.room.joined {
+			msg = "Đang tải thế giới của chủ phòng…"
+		}
 		if g.disconnected {
 			msg = "Mất kết nối tới máy chủ"
 		}
@@ -307,10 +316,8 @@ func (g *Game) drawInterface(screen *ebiten.Image) {
 	g.drawVictory(ui, uw, uh) // every boss has fallen; see bossui.go
 	g.drawDev(ui, uw, uh)     // see devconsole.go
 
-	if g.disconnected && !g.paused {
-		g.dim(ui, uw, uh, 0.6)
-		g.text(ui, "Mất kết nối tới máy chủ", float64(uw/2), float64(uh/2-16), colWhite, text.AlignCenter, 2)
-		g.text(ui, "Nhấn Esc để về menu", float64(uw/2), float64(uh/2+20), colMuted, text.AlignCenter, 1)
+	if !g.paused {
+		g.drawRoomStatus(ui, uw, uh) // lost connection, or a quiet server: see room.go
 	}
 	if g.paused {
 		g.drawPause(ui, uw, uh)

@@ -22,6 +22,9 @@ const (
 	MenuContinue
 	MenuNew
 	MenuQuit
+	MenuHostContinue // "Tạo phòng" on the saved world: see MenuHost*
+	MenuHostNew      // "Tạo phòng" on a new world, after the difficulty and the character
+	MenuJoin         // "Vào phòng": JoinAddress, NewName and NewLook say where and as whom
 )
 
 // SaveInfo describes the existing save, if any, for the main menu.
@@ -39,6 +42,7 @@ type SaveInfo struct {
 const (
 	btnContinue = iota
 	btnNew
+	btnCoop
 	btnSettings
 	btnCredits
 	btnQuit
@@ -57,11 +61,29 @@ type Menu struct {
 	create   *charCreator    // kept, so going back and forth keeps the choices
 	look     sim.Look        // the look made for the new game
 	busy     string          // shown over everything while a world is being made
+	busyHint string          // and, smaller under it, what the player may do
 	settings *settingsScreen // the settings screen, while open; see settingsui.go
 	credits  *creditsScreen  // the credits ("Ghi công"), while open; see creditsui.go
 	status   string
 	bg       *Game
+
+	// Playing together (see room.go): "Chơi chung" opens coop, a short list;
+	// host marks that the world being picked will be a room, and the join
+	// screen asks where the room is, then the character screen follows.
+	coop     buttonList
+	coopOpen bool
+	host     bool
+	joinScr  *joinScreen
+	joinOpen bool // the address screen is up
+	joinFlow bool // the character screen is the one of "Vào phòng"
 }
+
+const (
+	coopHostSave = iota
+	coopHostNew
+	coopJoin
+	coopBack
+)
 
 // NewMenu builds the title screen. The backdrop world is generated here.
 func NewMenu(info SaveInfo) *Menu {
@@ -82,9 +104,24 @@ func NewMenu(info SaveInfo) *Menu {
 	default:
 		cont.sub = "Chưa có bản lưu"
 	}
+	hostSave := button{label: "Tạo phòng: chơi tiếp", sub: "Bản lưu của bạn, bạn bè vào qua mạng", disabled: cont.disabled}
+	if cont.disabled {
+		hostSave.sub = "Chưa có bản lưu"
+	}
+	m.coop = buttonList{items: []button{
+		hostSave,
+		{label: "Tạo phòng: thế giới mới", sub: "Bạn chơi, bạn bè vào qua mạng"},
+		{label: "Vào phòng", sub: "Chơi trong phòng của bạn bè"},
+		{label: "Quay lại"},
+	}}
+	if cont.disabled {
+		m.coop.sel = coopHostNew
+	}
+	m.joinScr = &joinScreen{}
 	m.list = buttonList{items: []button{
 		cont,
 		{label: "Trò chơi mới"},
+		{label: "Chơi chung", sub: "Tạo phòng hoặc vào phòng bạn bè"},
 		{label: "Cài đặt"},
 		{label: "Ghi công"},
 		{label: "Thoát"},
@@ -105,8 +142,22 @@ func (m *Menu) NewDifficulty() sim.Difficulty { return m.diff }
 // NewSize is the size picked for the new world, after MenuNew, in tiles.
 func (m *Menu) NewSize() int { return m.diffs.worldSize() }
 
-// NewLook is the look made on the character screen, after MenuNew.
+// NewLook is the look made on the character screen, after MenuNew,
+// MenuHostNew or MenuJoin.
 func (m *Menu) NewLook() sim.Look { return m.look }
+
+// JoinAddress is the room's address as typed, after MenuJoin.
+func (m *Menu) JoinAddress() string { return m.joinScr.text() }
+
+// SetJoinAddress fills the address of "Vào phòng", such as the one joined last.
+func (m *Menu) SetJoinAddress(s string) { m.joinScr.set(s) }
+
+// JoinFailed brings the address screen back with why joining failed, so the
+// player can fix the address and try again.
+func (m *Menu) JoinFailed(why string) {
+	m.joinScr.status = why
+	m.joinOpen, m.coopOpen = true, false
+}
 
 // ShowCharacterScreen opens the character screen as picking a difficulty
 // would. It is for dev tools that capture frames.
@@ -133,6 +184,9 @@ func (m *Menu) ShowCredits(scroll float64) {
 // SetBusy shows msg over the menu and ignores input until it is cleared
 // with an empty msg; used while a world is being made or loaded.
 func (m *Menu) SetBusy(msg string) { m.busy = msg }
+
+// SetBusyHint shows a smaller line under the busy message, such as how to cancel.
+func (m *Menu) SetBusyHint(s string) { m.busyHint = s }
 
 // SetStatus shows a message under the buttons, such as why loading failed.
 func (m *Menu) SetStatus(s string) { m.status = s }
@@ -164,33 +218,61 @@ func (m *Menu) Update() MenuChoice {
 		}
 		return MenuNone
 	}
+	if m.joinOpen {
+		switch m.joinScr.update() {
+		case joinNext:
+			m.joinOpen, m.joinFlow, m.creating = false, true, true
+			m.create.startLabel = "Vào phòng"
+		case joinBack:
+			m.joinOpen = false
+		}
+		return MenuNone
+	}
 	if m.creating {
 		switch m.create.update() {
 		case createDone:
 			m.creating, m.look = false, m.create.look
+			m.create.startLabel = ""
+			switch {
+			case m.joinFlow:
+				m.joinFlow = false
+				return MenuJoin
+			case m.host:
+				m.host = false
+				return MenuHostNew
+			}
 			return MenuNew
 		case createCancel:
-			m.creating, m.picking = false, true // back to the difficulty
+			m.creating = false
+			m.create.startLabel = ""
+			if m.joinFlow {
+				m.joinFlow, m.joinOpen = false, true // back to the address
+			} else {
+				m.picking = true // back to the difficulty
+			}
 		}
 		return MenuNone
 	}
 	if m.picking {
 		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-			m.picking = false
+			m.picking, m.host = false, false
 			return MenuNone
 		}
 		switch i := m.diffs.update(); {
 		case i >= 0 && i < len(difficulties):
 			m.picking, m.diff, m.creating = false, difficulties[i], true
+			if m.host {
+				m.create.startLabel = "Mở phòng"
+			}
 			return MenuNone
 		case i == len(difficulties):
-			m.picking = false
+			m.picking, m.host = false, false
 		}
 		return MenuNone
 	}
 	if m.confirm {
 		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-			m.confirm = false
+			m.confirm, m.host = false, false
 			return MenuNone
 		}
 		switch m.yesNo.update() {
@@ -198,11 +280,38 @@ func (m *Menu) Update() MenuChoice {
 			m.confirm, m.picking = false, true
 			return MenuNone
 		case 1:
-			m.confirm = false
+			m.confirm, m.host = false, false
+		}
+		return MenuNone
+	}
+	if m.coopOpen {
+		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+			m.coopOpen = false
+			return MenuNone
+		}
+		switch m.coop.update() {
+		case coopHostSave:
+			m.coopOpen = false
+			return MenuHostContinue
+		case coopHostNew:
+			m.coopOpen, m.host = false, true
+			if m.info.Exists {
+				m.confirm, m.yesNo.sel = true, 1
+			} else {
+				m.picking = true
+			}
+		case coopJoin:
+			m.coopOpen, m.joinOpen = false, true
+			m.joinScr.status = ""
+		case coopBack:
+			m.coopOpen = false
 		}
 		return MenuNone
 	}
 	switch m.list.update() {
+	case btnCoop:
+		m.coopOpen = true
+		return MenuNone
 	case btnContinue:
 		return MenuContinue
 	case btnNew:
@@ -244,6 +353,10 @@ func (m *Menu) Draw(real *ebiten.Image) {
 		m.credits.draw(screen)
 		return
 	}
+	if m.joinOpen {
+		m.joinScr.draw(screen)
+		return
+	}
 	// Darken towards the middle column so the text reads over the island.
 	fillRect(screen, 0, 0, float32(sw), float32(sh), color.RGBA{10, 8, 6, 90}, false)
 	cx := float64(sw) / 2
@@ -256,6 +369,7 @@ func (m *Menu) Draw(real *ebiten.Image) {
 	drawTitle(screen, "Survival", cx, ty+80, 2.6, color.RGBA{226, 128, 74, 255}, color.RGBA{60, 30, 10, 255})
 	drawText(screen, "Một thế giới tiền sử đang chờ bạn", cx, ty+128, color.RGBA{236, 226, 200, 255}, text.AlignCenter, 1)
 
+	m.list.compact = sh < 640
 	m.list.draw(screen, cx, listY, 420)
 
 	if m.status != "" {
@@ -277,6 +391,16 @@ func (m *Menu) Draw(real *ebiten.Image) {
 		m.yesNo.draw(screen, cx, float64(py)+90, 300)
 	}
 
+	if m.coopOpen {
+		dimScreen(screen, color.RGBA{0, 0, 0, 150})
+		pw, ph := float32(480), float32(330)
+		px, py := float32(cx)-pw/2, float32(sh)/2-ph/2
+		drawFrame(screen, px, py, pw, ph)
+		drawText(screen, "Chơi chung", cx, float64(py)+18, colWhite, text.AlignCenter, 2)
+		m.coop.compact = sh < 640
+		m.coop.draw(screen, cx, float64(py)+56, 420)
+	}
+
 	if m.picking {
 		m.diffs.draw(screen)
 	}
@@ -285,6 +409,9 @@ func (m *Menu) Draw(real *ebiten.Image) {
 		dimScreen(screen, color.RGBA{0, 0, 0, 170})
 		dots := strings.Repeat(".", 1+int(time.Now().UnixMilli()/400)%3)
 		drawText(screen, m.busy+dots, cx, float64(sh)/2-16, colWhite, text.AlignCenter, 2)
+		if m.busyHint != "" {
+			drawText(screen, m.busyHint, cx, float64(sh)/2+22, colMuted, text.AlignCenter, 1)
+		}
 	}
 }
 

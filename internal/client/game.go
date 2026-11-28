@@ -61,6 +61,7 @@ type Game struct {
 
 	helloSent    bool
 	disconnected bool
+	room         roomState // hosting or joining a room over the network: see room.go
 
 	// Static map, from Welcome.
 	ready         bool
@@ -257,6 +258,7 @@ func (g *Game) Update() error {
 		return nil
 	}
 	defer func() { g.frameSounds(g.alpha()) }()
+	g.noteRoom()
 	if g.disconnected {
 		g.setOverlay(overlayNone)
 	}
@@ -449,10 +451,13 @@ func (g *Game) onMessage(m protocol.ServerMsg) {
 		g.onSnapshot(m.Snapshot)
 	case protocol.ServerDev:
 		g.onDev(m.Dev) // see devconsole.go
+	case protocol.ServerRefused:
+		g.room.refused, g.disconnected = m.Refused, true
 	}
 }
 
 func (g *Game) onSnapshot(s protocol.Snapshot) {
+	g.room.lastSnap = time.Now()
 	g.observeTutorial(&s) // see tutorial.go
 	old, hadOld := g.curr, g.hasCurr
 	clear(g.prevPlayers)

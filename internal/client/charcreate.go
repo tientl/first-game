@@ -18,13 +18,14 @@ import (
 // hair style, hair colour and skin colour, beside a large preview that
 // turns around.
 type charCreator struct {
-	name    []rune // as typed; trimmed when the game starts
-	look    sim.Look
-	hairSet bool // the player picked a style, so a change of body keeps it
-	focus   int  // the highlighted row
-	frame   int
-	turn    int    // quarter turns added by clicking the preview
-	chars   []rune // reused buffer for the characters typed this frame
+	name       []rune // as typed; trimmed when the game starts
+	look       sim.Look
+	hairSet    bool // the player picked a style, so a change of body keeps it
+	focus      int  // the highlighted row
+	frame      int
+	startLabel string // the start button's words when it is not "Bắt đầu"
+	turn       int    // quarter turns added by clicking the preview
+	chars      []rune // reused buffer for the characters typed this frame
 
 	// Layout from the last draw, for the mouse.
 	rows           [ccRows]box
@@ -408,6 +409,9 @@ func (c *charCreator) drawRow(dst *uiDst, i int, r box) {
 		label = "Ngẫu nhiên"
 	case ccStart:
 		label = "Bắt đầu"
+		if c.startLabel != "" {
+			label = c.startLabel // "Mở phòng", "Vào phòng": see menu.go
+		}
 	case ccBack:
 		label = "Quay lại"
 	}

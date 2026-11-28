@@ -35,9 +35,12 @@ type downEncoder struct {
 	enc *gob.Encoder
 }
 
-// compressLevel trades CPU for bytes. The tile map is the only big message
-// and is sent once per join; snapshots are small, so speed wins.
-const compressLevel = flate.BestSpeed
+// compressLevel: measured (TestBandwidth), the fastest level costs four times
+// the bytes on snapshots, which look so much like the last one that only a
+// level that searches the whole window finds the match; the tile map is the
+// only big message
+// and is sent once per join.
+const compressLevel = flate.DefaultCompression
 
 func newDownEncoder(w io.Writer) *downEncoder {
 	out := bufio.NewWriterSize(w, writeChunk)

@@ -1004,9 +1004,21 @@ func (g *Game) drawPause(screen *uiDst, sw, sh int) {
 	}
 	cx := float64(sw) / 2
 	top := max(16, float64(sh)/2-215)
-	drawTitle(screen, "Tạm dừng", cx, top, 3, colBoneText, color.RGBA{60, 36, 20, 255})
+	title := "Tạm dừng"
+	if g.shared() {
+		title = "Menu" // a room's world does not stop for one player: see room.go
+	}
+	drawTitle(screen, title, cx, top, 3, colBoneText, color.RGBA{60, 36, 20, 255})
 	g.pause.draw(screen, cx, top+64, 340)
-	g.text(screen, "Game tự lưu mỗi phút và khi thoát", cx, g.pause.rowY(len(g.pause.items))+8, colMuted, text.AlignCenter, 1)
+	below := g.pause.rowY(len(g.pause.items)) + 8
+	if g.room.joined {
+		g.text(screen, "Chủ phòng tự lưu game", cx, below, colMuted, text.AlignCenter, 1)
+		below += 24
+	} else {
+		g.text(screen, "Game tự lưu mỗi phút và khi thoát", cx, below, colMuted, text.AlignCenter, 1)
+		below += 24
+	}
+	g.drawRoomPause(screen, cx, below)
 }
 
 // seasonColors colour the season's name on the clock.

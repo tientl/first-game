@@ -16,6 +16,7 @@ import (
 
 	"survivalgame"
 	"survivalgame/internal/client"
+	"survivalgame/internal/netplay"
 	"survivalgame/internal/server"
 	"survivalgame/internal/sim"
 )
@@ -28,6 +29,7 @@ func main() {
 	size := flag.Int("size", 0, "world width and height in tiles for a new game (0: as picked in the menu)")
 	savePath := flag.String("save", "", "save file (default: in the user config directory)")
 	dev := flag.Bool("dev", false, "dev mode: straight into a small new world, god mode, the console on the ` key; see dev.go")
+	port := flag.Int("port", netplay.DefaultPort, "TCP port a room (\"Chơi chung\" > \"Tạo phòng\") listens on; friends join at this machine's address and this port")
 	// On by default until the other four bosses have lairs of their own like
 	// these two (PLAN.md group 8); -demo=false raises all six.
 	demo := flag.Bool("demo", true, "the demo: only two bosses, Titanoboa and Megalodon, each in a lair; -demo=false raises all six")
@@ -74,7 +76,10 @@ func main() {
 	})
 	client.InitAudio(settingsPath)
 
-	a := &app{seed: *seed, name: *name, size: *size, savePath: *savePath, dev: *dev}
+	if *port < 1 || *port > 65535 {
+		log.Fatalf("-port %d: a TCP port is 1 to 65535", *port)
+	}
+	a := &app{seed: *seed, name: *name, size: *size, savePath: *savePath, dev: *dev, port: *port}
 	a.openMenu()
 	if a.dev {
 		a.startDev() // see dev.go
@@ -98,9 +103,13 @@ type app struct {
 	size     int
 	savePath string
 	dev      bool // -dev: see dev.go
+	port     int  // -port: where a room listens: see coop.go
 
 	menu *client.Menu
 	sess *session
+
+	hosting bool // the game being made is a room friends will join: see coop.go
+	dialing *dialing
 
 	// Who the next game is joined as: the character made for a new game, or
 	// the saved player for "Chơi tiếp" (who keeps the saved look).
@@ -122,11 +131,12 @@ type loaded struct {
 
 // session is one game in progress: a local server and the client playing it.
 type session struct {
-	srv    *server.Server
+	srv    *server.Server // nil for a guest in somebody else's room
 	cancel context.CancelFunc
 	done   chan error
-	conn   *server.LocalConn
+	conn   interface{ Close() error }
 	game   *client.Game
+	room   *netplay.Listener // the host's: friends come in through it
 }
 
 func (a *app) Update() error {
@@ -147,6 +157,11 @@ func (a *app) Update() error {
 		return nil
 	}
 
+	if a.dialing != nil {
+		a.updateDial() // see coop.go
+		return nil
+	}
+
 	if a.loading != nil {
 		select {
 		case r := <-a.loading:
@@ -163,8 +178,14 @@ func (a *app) Update() error {
 		return nil
 	}
 
-	switch a.menu.Update() {
-	case client.MenuContinue:
+	choice := a.menu.Update()
+	if choice != client.MenuNone {
+		a.hosting = choice == client.MenuHostContinue || choice == client.MenuHostNew
+	}
+	switch choice {
+	case client.MenuJoin:
+		a.startDial() // see coop.go
+	case client.MenuContinue, client.MenuHostContinue:
 		a.look, a.join, a.newGame = sim.Look{}, a.name, false
 		if a.join == "" {
 			a.join = a.savedName
@@ -178,7 +199,7 @@ func (a *app) Update() error {
 			srv, err := server.NewFromSave(cfg, f.World)
 			return loaded{srv, err, "Không mở được bản lưu"}
 		})
-	case client.MenuNew:
+	case client.MenuNew, client.MenuHostNew:
 		a.look, a.join, a.newGame = a.menu.NewLook(), a.menu.NewName(), true
 		cfg := a.config()
 		cfg.Seed = a.seed
@@ -227,6 +248,14 @@ func (a *app) background(msg string, job func() loaded) {
 }
 
 func (a *app) start(srv *server.Server) {
+	var room *netplay.Listener
+	if a.hosting { // open the door before the world runs: if the port is taken, nothing was started
+		var err error
+		if room, err = netplay.Listen(srv, fmt.Sprintf(":%d", a.port)); err != nil {
+			a.menu.SetStatus(fmt.Sprintf("Không mở được phòng ở cổng %d (đang có chương trình khác dùng, hoặc có phòng khác đang mở): %v", a.port, err))
+			return
+		}
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- srv.Run(ctx) }()
@@ -234,17 +263,23 @@ func (a *app) start(srv *server.Server) {
 	if err != nil {
 		cancel()
 		<-done
+		if room != nil {
+			_ = room.Close()
+		}
 		a.menu.SetStatus("Không kết nối được: " + err.Error())
 		return
 	}
 	g := client.New(conn, a.join)
 	g.SetLook(a.look)
-	g.SetPauseHook(srv.SetPaused)
+	g.SetPauseHook(srv.SetPaused) // the server keeps the clock running while friends are in the room
 	g.SetDev(a.dev)
 	if !a.dev {
 		g.SetTutorial(srv.Seed(), a.join, a.newGame) // the first minutes' guide
 	}
-	a.sess = &session{srv: srv, cancel: cancel, done: done, conn: conn, game: g}
+	if room != nil {
+		g.SetHosting(roomLines(room.Port()), srv.RemotePlayers) // see coop.go
+	}
+	a.sess = &session{srv: srv, cancel: cancel, done: done, conn: conn, game: g, room: room}
 	a.menu = nil
 }
 
@@ -253,12 +288,17 @@ func (a *app) endSession() {
 	if a.sess == nil {
 		return
 	}
-	a.sess.srv.SetPaused(false)
-	a.sess.cancel()
-	if err := <-a.sess.done; err != nil {
-		log.Printf("server: %v", err)
+	if s := a.sess.srv; s != nil { // a guest has no server of its own to stop
+		s.SetPaused(false)
+		a.sess.cancel()
+		if err := <-a.sess.done; err != nil {
+			log.Printf("server: %v", err)
+		}
 	}
 	_ = a.sess.conn.Close()
+	if a.sess.room != nil {
+		_ = a.sess.room.Close() // the friends are told when the server shuts down; this ends their sockets
+	}
 	a.sess = nil
 }
 
@@ -284,6 +324,7 @@ func (a *app) openMenu() {
 	}
 	a.menu = client.NewMenu(info)
 	a.menu.SetDefaultName(a.name)
+	a.menu.SetJoinAddress(a.lastRoom()) // see coop.go
 	a.savedName = info.Name
 }
 

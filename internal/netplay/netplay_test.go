@@ -6,6 +6,7 @@ import (
 	"math"
 	"net"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -39,10 +40,13 @@ func startRoom(t *testing.T, size int, cfg server.Config) *room {
 		t.Fatal(err)
 	}
 	r := &room{srv: srv, ln: ln, addr: ln.Addr().String()}
+	var once sync.Once
 	r.stop = func() {
-		_ = ln.Close()
-		cancel()
-		<-done
+		once.Do(func() {
+			_ = ln.Close()
+			cancel()
+			<-done
+		})
 	}
 	t.Cleanup(r.stop)
 	return r
@@ -147,7 +151,7 @@ func TestHostAndTwoClients(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	look := sim.Look{Female: true, Skin: 3, Hair: sim.HairBraid, HairColor: 5}
+	look := sim.Look{Female: true, Skin: 3, Hair: sim.HairBun, HairColor: 5}
 	a := r.join(t, "Anh", look)
 	b := r.join(t, "Bình", sim.Look{})
 	host.welcomed(t)
@@ -159,7 +163,7 @@ func TestHostAndTwoClients(t *testing.T) {
 	if w != 2 {
 		t.Errorf("RemotePlayers = %d, want 2", w)
 	}
-	if a.welcome.Width != 128 || len(a.welcome.Tiles) != 128*128 {
+	if a.welcome.Width != 128 || len(a.welcome.Tiles) != a.welcome.Width*a.welcome.Height {
 		t.Fatalf("welcome carries %dx%d with %d tiles", a.welcome.Width, a.welcome.Height, len(a.welcome.Tiles))
 	}
 	if a.id == b.id || a.id == host.id {
@@ -183,7 +187,7 @@ func TestHostAndTwoClients(t *testing.T) {
 	}
 	moved := func(p *player) bool {
 		v, ok := p.view(a.id)
-		return ok && math.Abs(v.X-start.X) > 1
+		return ok && math.Abs(float64(v.X-start.X)) > 1
 	}
 	for name, p := range map[string]*player{"b": b, "host": host} {
 		if !p.pump(5*time.Second, func() bool { return moved(p) }) {
@@ -212,7 +216,7 @@ func TestHostAndTwoClients(t *testing.T) {
 	if !ok || v.Look != look.Sanitized() {
 		t.Errorf("rejoined look = %+v, want the saved %+v", v.Look, look.Sanitized())
 	}
-	if math.Hypot(v.X-last.X, v.Y-last.Y) > 0.6 {
+	if math.Hypot(float64(v.X-last.X), float64(v.Y-last.Y)) > 0.6 {
 		t.Errorf("rejoined at (%.1f, %.1f), left at (%.1f, %.1f)", v.X, v.Y, last.X, last.Y)
 	}
 	if !b.pump(5*time.Second, func() bool { _, ok := b.view(a2.id); return ok }) {
@@ -440,9 +444,9 @@ func TestBandwidth(t *testing.T) {
 		size, size, joinedAt.Sub(t0).Round(time.Millisecond), outJoin/1024, outJoin/1024/3, inJoin)
 
 	// Everyone walks about, so snapshots change; spread them out toward beasts.
-	dirs := [][2]float64{{1, 0}, {0, 1}, {-1, 1}}
+	dirs := [][2]int8{{1, 0}, {0, 1}, {-1, 1}}
 	for i, p := range ps {
-		_ = p.conn.Send(protocol.ClientMsg{Kind: protocol.ClientInput, Input: sim.Input{MoveX: dirs[i][0], MoveY: dirs[i][1], Sprint: true}})
+		_ = p.conn.Send(protocol.ClientMsg{Kind: protocol.ClientInput, Input: sim.Input{MoveX: dirs[i][0], MoveY: dirs[i][1]}})
 	}
 	const span = 10 * time.Second
 	in0, out0 := r.ln.Traffic()
@@ -460,7 +464,7 @@ func TestBandwidth(t *testing.T) {
 	up := float64(in1-in0) / span.Seconds()
 	t.Logf("steady state, 3 clients: down %.1f KB/s in all (%.1f KB/s = %.0f kbit/s per client), up %.2f KB/s in all; about %.0f creatures in view",
 		down/1024, down/1024/3, down/3*8/1000, up/1024, float64(creatures)/float64(snaps))
-	if perClient := down / 3; perClient > 40*1024 {
+	if perClient := down / 3; perClient > 20*1024 {
 		t.Errorf("%.1f KB/s per client down is too much for 20 snapshots a second", perClient/1024)
 	}
 }
