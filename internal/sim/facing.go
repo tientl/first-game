@@ -217,3 +217,24 @@ func (w *World) fromFront(p *Player, e *Entity) bool {
 
 // face sets e, just put down, to face d, as its kind can.
 func (e *Entity) face(d Dir) { e.Face = FacingOf(e.Kind, e.Var, d) }
+
+// turnOldDoors turns each door of a save from before things turned (all of
+// them facing south, passed north–south) that stands in a wall running
+// north–south, with a wall, a fence or a door north or south of it and
+// none east or west, to face east: it is passed east–west, as it was.
+func (w *World) turnOldDoors() {
+	inWall := func(tx, ty int) bool {
+		e := w.entityAt(tx, ty)
+		return e != nil && (turnOf(e.Kind, e.Var) == turnRun && e.Kind != EntityCampfire || e.Kind == EntityDoor)
+	}
+	for _, e := range w.entities {
+		if e.Kind != EntityDoor {
+			continue
+		}
+		ns := inWall(e.TX, e.TY-1) || inWall(e.TX, e.TY+1)
+		ew := inWall(e.TX-1, e.TY) || inWall(e.TX+1, e.TY)
+		if ns && !ew {
+			e.Face = DirRight
+		}
+	}
+}

@@ -123,7 +123,7 @@ func TestDoorsLetPlayersThroughButNotBeasts(t *testing.T) {
 		w.addEntity(EntityWall, 18, ty)
 	}
 	w.removeEntity(w.entityAt(18, 16))
-	w.addEntity(EntityDoor, 18, 16)
+	w.addEntity(EntityDoor, 18, 16).face(DirRight) // in a wall running north–south: passed east–west (facing.go)
 	if w.creatureFits(CreatureRaptor, 18.5, 16.5) {
 		t.Error("a raptor fits in a doorway")
 	}

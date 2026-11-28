@@ -22,6 +22,9 @@ import (
 //	    tent, a furnace and an oven turned
 //	shot -exact -w 1920 -h 1080 -freebuild -devpiece 6 -aim 1,3 -rotgif -gif 90 -o ghost.png
 //	    a palette piece in hand, turned with R three times, then put down
+//	shot -exact -w 1920 -h 1080 -rotbase -rotbaseat 0,5 -build 9 -aim -1,-2 -turn 3 -frames 160 -o bed.png
+//	    standing inside the base, a bed's ghost turned to face east, with
+//	    the hint to turn it over the hotbar
 var (
 	rotSheetFlag = flag.Bool("rotsheet", false, "write the sheet of what turns instead of a frame: every piece each way it faces, sleepers, and walls and fences joined (see internal/client/rotsheet.go)")
 	rotBaseFlag  = flag.Bool("rotbase", false, "build a small base round the player through free build's own commands with things facing every way: joined walls, doors both ways, a bed, a tent, a furnace, an oven (see rotate.go)")

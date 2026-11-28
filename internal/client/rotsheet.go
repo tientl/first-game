@@ -74,7 +74,7 @@ func rotRows() []rotRow {
 	}
 	r := four("grill", sim.EntityCampfire, uint8(sim.GearGrill), fuel)
 	t := four("head on a post", sim.EntityTrophy, uint8(sim.CreatureTrike), nil)
-	r.cells = append(r.cells, t.cells...)
+	r.name, r.cells = "grill, head", append(r.cells, t.cells...)
 	rows = append(rows, r)
 	// Sleepers, each way.
 	sl := rotRow{name: "asleep"}

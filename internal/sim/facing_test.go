@@ -127,6 +127,46 @@ func TestOlderSavesFaceSouth(t *testing.T) {
 	}
 }
 
+// A door of an older save standing in a wall that runs north–south is
+// turned on loading to be passed east–west, as it was; one in a wall
+// running east–west, or standing alone, stays facing south.
+func TestOlderSavesKeepDoorsPassable(t *testing.T) {
+	w, p := newFreeBuildWorld(t)
+	tx, ty := int(p.X)+3, int(p.Y)-4
+	for dy := 0; dy < 5; dy++ {
+		k := EntityStoneWall
+		if dy == 2 {
+			k = EntityDoor
+		}
+		if e := w.entityAt(tx, ty+dy); e != nil {
+			w.removeEntity(e)
+		}
+		w.addEntity(k, tx, ty+dy)
+	}
+	for dx := -1; dx <= 1; dx++ {
+		k := EntityWall
+		if dx == 0 {
+			k = EntityDoor
+		}
+		if e := w.entityAt(tx-4+dx, ty); e != nil {
+			w.removeEntity(e)
+		}
+		w.addEntity(k, tx-4+dx, ty)
+	}
+	d := w.Save()
+	d.Version = 30
+	w2, err := Load(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e, _ := w2.EntityAt(tx, ty+2); e.Kind != EntityDoor || e.Face != DirRight {
+		t.Errorf("door in a wall running north–south: %v facing %v, want a door facing east", e.Kind, e.Face)
+	}
+	if e, _ := w2.EntityAt(tx-4, ty); e.Kind != EntityDoor || e.Face != DirDown {
+		t.Errorf("door in a wall running east–west: %v facing %v, want a door facing south", e.Kind, e.Face)
+	}
+}
+
 // A door is walked through along its way through, and its posts stop
 // whoever tries to cross it the other way.
 func TestDoorsArePassedAlongTheirWay(t *testing.T) {
