@@ -25,11 +25,25 @@ func init() {
 
 func fishKind(v int) string { return "fish" + string(rune('0'+v)) }
 
+// How big the small animals are drawn against their designs, so they stand
+// beside the player (playerArtH, 93 px at 1080p) at about their size: the
+// rabbit sitting up with its ears high comes to the player's knee (0.3 of
+// the player), the crab with its claws up to the shin (0.25), the coiled
+// snake's raised head to the knee (0.35), a monkey sitting to the hip
+// (0.4). A little bigger than life, so they still read at a glance.
+// `shot -scalesheet -scaleonly small` shows them.
+const (
+	rabbitSize = 0.65
+	crabSize   = 0.65
+	snakeSize  = 0.82
+	monkeySize = 0.72
+)
+
 // --- the rabbit --------------------------------------------------------------------
 
 var (
-	rabFur   = newSurf(furRamp, sFur, 0, 77).with(4.5, furFlow)
-	rabPale  = newSurf(paleRamp, sFur, 0, 78).with(4, furFlow)
+	rabFur   = newSurf(furRamp, sFur, 0, 77).with(3.6, furFlow)
+	rabPale  = newSurf(paleRamp, sFur, 0, 78).with(3.2, furFlow)
 	rabTail  = newSurf(tailRamp, sFur, 0, 79).with(3, -math.Pi/2)
 	rabEarIn = newSurf(mkRamp(0x8a4a4c, 0xb96a6c, 0xe59a94, 0xf4c0b6), sMatte, 0.15, 80)
 	rabFoot  = newSurf(paleRamp, sFur, 0, 81).with(3, 0)
@@ -67,7 +81,7 @@ func hopAt(ph float64) hopKey {
 // bound, gathered, pushing off, stretched out, landing on the fore paws and
 // the hind feet swinging through.
 func rabbitHD(pose, f int) (*canvas, float64, float64) {
-	q := newCritAt(24, 20, 2, 2)
+	q := newCritZoom(24, 20, 2, 2, rabbitSize)
 	face := func(ex, ey, nx, ny, ang float64) {
 		// a pale ring round the eye, the eye big and dark with a glint, the
 		// whisker pad, the pink nose and the whiskers
@@ -78,8 +92,8 @@ func rabbitHD(pose, f int) (*canvas, float64, float64) {
 		q.dot(ex-0.25, ey-0.25, 1, 0, hex(0xd8d0c8))
 		q.flat(aEll(nx, ny, 0.4, 0.32).turned(nx, ny, ang), plain(colNose))
 		q.dot(nx, ny, -1, -1, hex(0xf2a8a8))
-		for k := 0.0; k < 3; k++ { // whiskers
-			for t := 1.0; t < 4.5; t++ {
+		for k := 0.0; k < 2; k++ { // whiskers
+			for t := 1.5; t < 4; t++ {
 				wx, wy := turnXY(nx-0.6+t*0.42, ny+0.4+k*0.3+t*0.06*(k-1), nx, ny, ang)
 				q.dot(wx, wy, 0, 0, mix(paleRamp[2], colWhite, 0.3))
 			}
@@ -398,7 +412,7 @@ func snakeHD(pose, f int) (*canvas, float64, float64) {
 	if pose == snakeCoil || pose == snakeCoilLik {
 		return snakeCoilHD(pose == snakeCoilLik)
 	}
-	q := newCritAt(53, 28, 2, 3)
+	q := newCritZoom(53, 28, 2, 3, snakeSize)
 	const neckX, neckY = 34.0, 13.0
 	ph := float64(pose) * 2 * math.Pi / snakeSlither
 	if pose == 0 && f > 0 {
@@ -431,7 +445,7 @@ func snakeHD(pose, f int) (*canvas, float64, float64) {
 }
 
 func snakeCoilHD(tongue bool) (*canvas, float64, float64) {
-	q := newCritAt(34, 26, 2, 1)
+	q := newCritZoom(34, 26, 2, 1, snakeSize)
 	const cx, cy = 14.0, 16.0
 	const turns, inner, outer = 1.3, 2.6, 9.2
 	const coilEnd = 0.86

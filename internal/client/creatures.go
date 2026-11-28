@@ -882,14 +882,16 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 		return 13
 	case sim.CreatureQuetzal:
 		return 20
-	case sim.CreatureRabbit, sim.CreatureMonkey:
-		return 12
+	case sim.CreatureRabbit:
+		return 12 * rabbitSize
+	case sim.CreatureMonkey:
+		return 12 * monkeySize
 	case sim.CreatureToad, sim.CreatureGlowToad:
-		return 10
+		return 10 * toadSize
 	case sim.CreatureSnake:
-		return 20
+		return 20 * snakeSize
 	case sim.CreatureCrab:
-		return 14
+		return 14 * crabSize
 	case sim.CreatureAnkylo:
 		return 36 // low and wide
 	case sim.CreatureTrike, sim.CreatureStego, sim.CreatureRex:

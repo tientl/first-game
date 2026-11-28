@@ -188,6 +188,19 @@ func (g *Game) scaleGroups() (names []string, groups [][]scaleEntry) {
 		beast("rex", sim.CreatureRex),
 		beast("long-neck", sim.CreatureBrachio),
 	)
+	add("Small creatures",
+		beast("rabbit", sim.CreatureRabbit),
+		beast("crab", sim.CreatureCrab),
+		beast("fish", sim.CreatureFish),
+		beast("worm", sim.CreatureWorm),
+		beast("snake", sim.CreatureSnake),
+		beast("monkey", sim.CreatureMonkey),
+		beast("spider", sim.CreatureSpider),
+		beast("scorpion", sim.CreatureScorpion),
+		beast("toad", sim.CreatureToad),
+		beast("croc", sim.CreatureCroc),
+		beast("troodon", sim.CreatureTroodon),
+	)
 	return names, groups
 }
 

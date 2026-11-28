@@ -46,7 +46,13 @@ var toadHopPose = [toadHopFrames + 1]toadPose{
 	{0.1, 0, 1.9, 1.15, 0.86, 0},     // 8: settling, squashed
 }
 
-// toadHopBob is how high off the ground each frame of a hop is, in art pixels.
+// toadSize is how big a toad is drawn against its design: a hand long beside
+// the player, about a sixth of the player tall sitting up (see the sizes in
+// critsmall.go).
+const toadSize = 0.62
+
+// toadHopBob is how high off the ground each frame of a hop is, in art pixels
+// of the design (times toadSize on the screen).
 var toadHopBob = [toadHopFrames + 1]float64{0, 0, 1.5, 4.5, 7, 7.5, 5.5, 2, 0}
 
 var (
@@ -64,7 +70,7 @@ var (
 // toadHD draws a toad: glow picks the glow toad, mask only what of it
 // shines in the dark (for the light drawn over the night).
 func toadHD(glow, mask bool, pose, f int) (*canvas, float64, float64) {
-	q := newCritAt(27, 23, 6, 3)
+	q := newCritZoom(27, 23, 6, 3, toadSize)
 	p := toadHopPose[0]
 	throat := 0.0
 	switch pose {
@@ -281,7 +287,7 @@ func (g *Game) toadFrame(c protocol.CreatureView, t int) (pose, f int, bob float
 	case sim.CreatureWander: // a hop: the crouch for a blink, then through the air
 		hop := sim.ToadHopTicks * 60 / sim.TicksPerSecond
 		f = min(toadHopFrames-1, 1+age*(toadHopFrames-1)/hop)
-		return toadHop, f, toadHopBob[f]
+		return toadHop, f, toadHopBob[f] * toadSize
 	case sim.CreatureIdle:
 		if age >= 0 && age < 5 && c.ID != 0 {
 			return toadHop, toadHopFrames, 0 // just landed

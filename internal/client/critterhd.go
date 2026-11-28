@@ -528,7 +528,7 @@ func (g *Game) critterSprite(c protocol.CreatureView, moving bool, side, t int) 
 			period = 9
 		}
 		ph := float64(t%period) / float64(period)
-		bob := 3 * math.Sin(math.Pi*clamp01((ph-0.1)/0.66)) // off the ground from the push to the landing
+		bob := 3 * rabbitSize * math.Sin(math.Pi*clamp01((ph-0.1)/0.66)) // off the ground from the push to the landing
 		f := 1 + int(ph*cycFrames)%cycFrames                 // see hopKeys in critsmall.go
 		return critter("rabbit", side, rabbitHop, f), bob, true
 	case sim.CreatureSnake:
@@ -638,7 +638,7 @@ func (g *Game) critterSprite(c protocol.CreatureView, moving bool, side, t int) 
 		case feeding(c):
 		case moving && c.State == sim.CreatureFlee:
 			f := cyc(t, 5)
-			return critter("monkey", side, monkeyLeap, f), 1.5 * (1 + math.Cos(2*math.Pi*cycPh(f))), true
+			return critter("monkey", side, monkeyLeap, f), 1.5 * monkeySize * (1 + math.Cos(2*math.Pi*cycPh(f))), true
 		case moving:
 			return fr("monkey", monkeyWalkA, cyc(t, 7))
 		}

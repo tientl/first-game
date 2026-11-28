@@ -6,8 +6,9 @@ import (
 
 // The crab at HD density, painted (critpaint.go): seen from the front, its
 // shell a hard, shining dome with grooves and granules and a toothed front
-// rim, eyes on stalks, two big claws with knobbled palms and dark-tipped
-// fingers, and four jointed legs a side.
+// rim, black eyes on stalks, two big claws with dark-tipped fingers, and
+// three jointed legs a side splayed out past the shell, so it reads at its
+// small size (crabSize).
 
 var (
 	crabShell  = newSurf(crabRamp, sShell, 0.9, 401)
@@ -15,15 +16,14 @@ var (
 	crabLegS   = newSurf(mkRamp(0x5a1a10, 0x8e2c18, 0xc04a26, 0xe07038, 0xf09a5a), sShell, 0.45, 403)
 	crabUnder  = newSurf(ramp{hex(0x8a6448), hex(0xc0966a), hex(0xe2c497), hex(0xf6e6c4)}, sPlate, 0.2, 404)
 	crabTip    = newSurf(ramp{hex(0x1e1412), hex(0x3a2622), hex(0x5e4036), hex(0x8a6a58)}, sShell, 0.8, 405)
+	crabGrain  = newSurf(ramp{hex(0xb33e22), hex(0xd8622e), hex(0xf0904a), hex(0xfac890)}, sShell, 0.8, 409)
 	crabStalk  = newSurf(ramp{hex(0x7e2416), hex(0xb33e22), hex(0xd8622e), hex(0xf09a5a)}, sMatte, 0.2, 406)
-	crabJoint  = newSurf(ramp{hex(0xa05a36), hex(0xd08858), hex(0xecb080), hex(0xfadcb0)}, sMatte, 0.3, 408)
-	crabPalmTu = newSurf(ramp{hex(0xb33e22), hex(0xd8622e), hex(0xf0904a), hex(0xfac890)}, sShell, 0.8, 409)
 )
 
 // crabHD is a crab seen from the front. Frames 1 to cycFrames of crabWalkA
 // are its sideways scuttle; those of crabPinch its raised claws snapping.
 func crabHD(pose, f int) (*canvas, float64, float64) {
-	q := newCritAt(32, 24, 2, 3)
+	q := newCritZoom(32, 24, 2, 3, crabSize)
 	cx, cy := 14.0, 11.5
 	pinch := pose == crabPinch
 	ph, walking := 0.0, false
@@ -43,35 +43,30 @@ func crabHD(pose, f int) (*canvas, float64, float64) {
 	}
 	cy += bob
 
-	// Legs: four a side, from under the shell's rim: the thigh up and out
+	// Legs: three a side, from under the shell's rim: the thigh up and out
 	// to a high knee, the shank down, a pointed dark-tipped foot.
-	for _, fi := range []float64{3, 2, 1, 0} {
+	for _, fi := range []float64{2, 1, 0} {
 		for side := -1.0; side <= 1; side += 2 {
 			dx, up := 0.0, 0.0
 			if walking {
-				dx, up = pace(ph+0.25*fi+0.25*(side+1), 0.55, 1.6, 1.2)
+				dx, up = pace(ph+0.33*fi+0.25*(side+1), 0.55, 1.7, 1.3)
 			}
-			// fanned out: the front pair high and forward, each pair behind
-			// it lower and further out, so all four read apart
-			bx, by := cx+side*(5-0.45*fi), cy+0.3+0.7*fi-bob
-			kx, ky := cx+side*(7.6+0.75*fi)+dx*0.5, cy-1.9+0.95*fi-up-bob
-			ax, ay := kx+side*(1.1+0.2*fi)+dx*0.35, ky+2-up*0.3
-			fx, fy := ax+side*(0.45+0.15*fi)+dx*0.2, 14.9-up-0.45*fi
-			b := 0.03 - 0.07*fi // the hind legs further back, in the shell's shade
-			q.body(aCap(bx, by, kx, ky, 0.66, 0.56), crabLegS, look{round: 0.5, bias: b + 0.04})
-			q.body(aCap(kx, ky, ax, ay, 0.52, 0.42), crabLegS, look{round: 0.4, bias: b})
-			q.body(aEll(kx, ky, 0.4, 0.38), crabJoint, look{round: 0.38, bias: b - 0.04, soft: true})
-			foot := aCap(ax, ay, fx, fy, 0.36, 0.08)
+			// fanned out: the front pair high and in, each pair behind it
+			// lower and further out, so all three read apart
+			bx, by := cx+side*(4.8-0.5*fi), cy+0.4+0.8*fi-bob
+			kx, ky := cx+side*(8+1.1*fi)+dx*0.5, cy-2.3+1.2*fi-up-bob
+			ax, ay := kx+side*(1.2+0.3*fi)+dx*0.35, ky+2.2-up*0.3
+			fx, fy := ax+side*(0.5+0.2*fi)+dx*0.2, 14.9-up-0.5*fi
+			b := 0.06 - 0.08*fi // the hind legs further back, in the shell's shade
+			q.body(aCap(bx, by, kx, ky, 0.62, 0.5), crabLegS, look{round: 0.5, bias: b + 0.04})
+			q.body(aCap(kx, ky, ax, ay, 0.5, 0.38), crabLegS, look{round: 0.4, bias: b})
+			foot := aCap(ax, ay, fx, fy, 0.36, 0.1)
 			q.body(foot, crabLegS, look{round: 0.34, bias: b - 0.02})
-			q.coat(aCap(lerpf(ax, fx, 0.55), lerpf(ay, fy, 0.55), fx, fy, 0.4, 0.12), crabTip)
-			for h := 0.45; h < 0.9; h += 0.4 { // bristles on the shank's back
-				q.dot(lerpf(kx, ax, h)+side*0.5, lerpf(ky, ay, h), int(side), 0, crabRamp[1])
-			}
+			q.coat(aCap(lerpf(ax, fx, 0.5), lerpf(ay, fy, 0.5), fx, fy, 0.4, 0.14), crabTip)
 		}
 	}
 
-	// Claws: an arm forward and out, a knobbed wrist, then the palm and its
-	// two fingers.
+	// Claws: an arm forward and out, then the palm and its two fingers.
 	claws := func() {
 		for side := -1.0; side <= 1; side += 2 {
 			px, py, ang, gap := cx+side*8.4, cy-5.4, side*0.5, 0.5
@@ -82,32 +77,26 @@ func crabHD(pose, f int) (*canvas, float64, float64) {
 			ex, ey := cx+side*7.2, cy-0.9-1.2*clamp01(-(py-cy)/9)
 			q.body(aCap(sx, sy, ex, ey, 1.05, 0.95), crabLimb, look{round: 0.9, bias: -0.06})
 			q.body(aCap(ex, ey, px-side*0.5, py+1.7, 0.95, 0.9), crabLimb, look{round: 0.8, bias: -0.02})
-			for k := 0.0; k < 2; k++ { // knobs along the wrist's top
-				t := 0.3 + 0.3*k
-				q.body(aEll(lerpf(ex, px, t)-side*0.25, lerpf(ey, py+1.7, t)-0.6, 0.3, 0.28), crabPalmTu, look{round: 0.3, soft: true})
-			}
-			// The palm points up and a little in: a broad hand, a fixed
-			// finger and a thumb that opens.
+			// The palm points up and a little in: a broad hand and two
+			// fingers, the outer fixed, the inner opening, each a curved
+			// point bending in to meet the other, dark at the tip.
 			tx, ty := -math.Sin(ang), -math.Cos(ang)
-			hand := aEll(px, py, 2.35, 1.95)
-			finger := aPoly(px-side*2.15, py-0.6, px-side*1.5+tx*4, py-0.4+ty*4, px-side*0.25, py-1.2)
-			thumb := aPoly(px+side*0.1, py-1.3, px+side*(0.5+gap)+tx*3.7, py+ty*3.7, px+side*2.15, py-0.5)
-			q.body(sBlend(0.5, finger, aEll(px-side*1.2, py-1, 0.9, 0.8)), crabLimb, look{round: 0.7, bias: -0.04})
-			q.body(sBlend(0.5, thumb, aEll(px+side*1.2, py-1, 0.9, 0.8)), crabLimb, look{round: 0.7})
+			ox, oy := -ty*side, tx*side // across the palm, outwards
+			finger := func(across, spread, bias float64) shape {
+				a := spread * across * side
+				dx, dy := turnXY(tx, ty, 0, 0, a)
+				bx, by := px+tx*1.2+ox*across*1.05, py+ty*1.2+oy*across*1.05
+				mx, my := bx+dx*2.1, by+dy*2.1
+				ex, ey := bx+dx*4.1-ox*across*0.6, by+dy*4.1-oy*across*0.6
+				f := aPath(bx, by, 1.15, mx, my, 0.85, ex, ey, 0.18)
+				q.body(f, crabLimb, look{round: 0.7, bias: bias})
+				q.coat(f.and(aEll(ex, ey, 1.6, 1.6)), crabTip)
+				return f
+			}
+			finger(1, gap*0.5, -0.04)
+			finger(-1, gap*0.5, 0.04)
+			hand := aEll(px, py+0.2, 2.6, 2.2)
 			q.body(hand, crabShell, look{round: 1.8})
-			// the dark tips of the fingers, and the teeth on their inner edges
-			q.coat(finger.and(aEll(px-side*1.5+tx*4, py-0.4+ty*4, 1.9, 1.9)), crabTip)
-			q.coat(thumb.and(aEll(px+side*(0.5+gap)+tx*3.7, py+ty*3.7, 1.8, 1.8)), crabTip)
-			for k := 0.0; k < 3; k++ {
-				t := 0.35 + 0.2*k
-				q.dot(lerpf(px-side*0.4, px-side*1.4+tx*3.8, t)+side*0.35, lerpf(py-1.1, py-0.4+ty*3.8, t), 0, 0, hex(0xf6d8b0))
-			}
-			// Granules in rows over the palm.
-			for k := 0; k < 5; k++ {
-				gx := px - side*0.2 + (float64(k%3)-1)*1.1
-				gy := py + 0.2 + float64(k/3)*0.9 - 0.4
-				q.body(aEll(gx, gy, 0.24, 0.22), crabPalmTu, look{round: 0.24, soft: true, bias: 0.04})
-			}
 		}
 	}
 	if !pinch {
@@ -141,17 +130,17 @@ func crabHD(pose, f int) (*canvas, float64, float64) {
 		gx := cx + (hashf(k, 3, 41)-0.5)*9.5
 		gy := cy - 3.4 + hashf(k, 4, 41)*2
 		if shell.d(gx*cK, gy*cK) < -0.6*cK {
-			q.body(aEll(gx, gy, 0.2, 0.18), crabPalmTu, look{round: 0.2, soft: true})
+			q.body(aEll(gx, gy, 0.2, 0.18), crabGrain, look{round: 0.2, soft: true})
 		}
 	}
 	// Eyes on stalks in their sockets at the front edge.
 	for side := -1.0; side <= 1; side += 2 {
 		ex := cx + side*2.6
 		q.shade(aEll(ex, cy-3.7, 0.95, 0.55), -0.28)
-		q.body(aCap(ex, cy-3.7, ex+side*0.25, cy-5.3, 0.42, 0.38), crabStalk, look{round: 0.4})
-		gx, gy := ex+side*0.3, cy-5.85
-		q.flat(aEll(gx, gy, 0.86, 0.9), plain(hex(0x140e12)))
-		q.flat(aEll(gx+0.15, gy+0.25, 0.55, 0.5), plain(hex(0x30262e)))
+		q.body(aCap(ex, cy-3.7, ex+side*0.3, cy-5.4, 0.5, 0.45), crabStalk, look{round: 0.45})
+		gx, gy := ex+side*0.35, cy-6
+		q.flat(aEll(gx, gy, 1.05, 1.05), plain(hex(0x140e12)))
+		q.flat(aEll(gx+0.2, gy+0.3, 0.6, 0.55), plain(hex(0x3a2e38)))
 		q.dot(gx-0.35, gy-0.38, 0, 0, colWhite)
 		q.dot(gx-0.35, gy-0.38, 1, 0, hex(0xd8d0d8))
 	}
