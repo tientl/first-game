@@ -12,12 +12,14 @@ import (
 
 // Fire, at HD: the campfire, a fire low under a pot, the bonfire of a
 // village, a torch on its stand and in the hand, the furnace's and the
-// oven's mouths. Each is a bed of flame tongues after pixelfx's fire/campfire
-// and fire/torch (see fx.go): tongues side by side, the middle ones tallest,
-// each leaning, leaping and wavering on its own clock, hottest low in the
-// middle, in clean bands from a dark red rim through orange and yellow to a
-// white heart. fireFrames frames make one loop that closes on itself; each
-// is painted the first time it is shown.
+// oven's mouths. Each is a few teardrop tongues off a bed of glowing coals
+// (paintFire), kept small so the hearth under it shows (hearthart.go: the
+// ring of stones, the crossed logs): the middle tongue tallest, each leaning
+// and wavering on its own clock, its edge licked by noise rising through it,
+// a wisp now and then breaking off a tip, in clean bands from a dark red rim
+// through orange and amber to a pale yellow heart. fireFrames frames make
+// one loop that closes on itself; each is painted the first time it is
+// shown.
 //
 // Round the fire (drawFireFX, drawFireSmoke): embers rising and wandering,
 // sparks popping out now and then, smoke rising and spreading on the wind,
@@ -65,7 +67,7 @@ type fireShape struct {
 // A campfire is kept small: a few tongues off a bed of coals, well inside its
 // ring of stones, so the logs show round them.
 var fireShapes = [numFireKinds]fireShape{
-	fireCamp:    {h: 12.5, w: 4.2, lobes: 3, coals: 5.6},
+	fireCamp:    {h: 14, w: 4.4, lobes: 3, coals: 5.6},
 	fireCampLow: {h: 6, w: 3.2, lobes: 3, coals: 5.6},
 	fireBonfire: {h: 21, w: 7, lobes: 5, coals: 9},
 	fireCook:    {h: 6.5, w: 4.4, lobes: 3, coals: 5.4},
