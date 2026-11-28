@@ -96,6 +96,7 @@ func main() {
 	flag.StringVar(&titanAt, "titanat", "", "with -bosses: dx,dy[,1], where to put Titanoboa, in tiles from the player (default -7,-3.5), facing left with ,1; the Megalodon is left out")
 	skillsFlag := flag.String("skills", "", "film every move of these beasts (a comma list of rex, dakota, achero, troodon, ptero, quetzal, plesio, sabre, trike, toro, stego, brachio, ankylo, anzu, thesc, ornitho, mammoth; or all) and write a GIF of each into -o's folder; see skills.go")
 	encounterFlag := flag.String("encounter", "", "play a real meeting with a boss of the demo, titan or shark, and write its stills as <o>_approach.png, _lair.png, _intro.png and _arena.png; see encounter.go")
+	bossFight := flag.String("bossfight", "", "play a scene at a lair of StyleLairs and write its pictures into -o's folder: titan, shark or map; see bossfight.go")
 	encGIF := flag.Bool("encgif", false, "with -encounter: also write every fourth frame of the entrance as <o>_gif_NNN.png")
 	caveBeasts := flag.String("cavebeasts", "", "put the cave fighting's beasts (a comma list of names, or all) in rows beside the player, in the pose -cavepose says; use with -at cavein -frames 240 -held 13 for the dark cave")
 	cavePose := flag.String("cavepose", "", "with -cavebeasts: idle, chase, sleep (bones as a pile), windup (with the red zone of its big move), active or recover")
@@ -183,6 +184,10 @@ func main() {
 	}
 	if *combatLive != "" {
 		runCombat(*combatLive, *out, *seed, *winW, *winH, *dayFrac)
+		return
+	}
+	if *bossFight != "" {
+		runBossFight(*bossFight, filepath.Dir(*out), *seed, *size, *winW, *winH)
 		return
 	}
 	if *encounterFlag != "" {

@@ -535,3 +535,23 @@ func spinoLurkCanvas() (*canvas, float64, float64) {
 	}
 	return bossCrop(c, 76, wy)
 }
+
+// megaBeachN is how many frames the shark's lunge onto the reef has.
+const megaBeachN = 10
+
+// megaBeach is the shark hurled out over the edge of its lagoon (the lunge
+// of sim/sharkfight.go): frames 0 to 3 its body coming up out of the water
+// along the reef, jaws wide; 4 to 9 lying beached on its belly, thrashing,
+// jaws snapping, the sea streaming off it.
+var megaBeach = newBHAnim(megaBeachN, func(i int) (*canvas, float64, float64) {
+	u := float64(i) / (megaBeachN - 1)
+	rise := smooth(clamp01(u / 0.35))
+	c := hdBossCanvas(megaW, megaH)
+	thrash := math.Sin(float64(i) * 1.9)
+	// Lying low along the surface, the head over the reef, a little down.
+	fr := hdFrameAt(c, megaCX+10+16*rise, megaWY+30-26*rise+2*thrash*(1-rise*0.3), 0.06-0.22*(1-rise)+0.04*thrash, megaK)
+	gape := 0.9 - 0.5*clamp01((u-0.4)/0.6) + 0.25*math.Max(0, math.Sin(float64(i)*2.4))
+	megaSide(c, fr, gape, thrash*1.2)
+	hdOut(c, megaWY, megaCX, 7, math.Mod(u*2.5, 1), u*1.8, 30, 990)
+	return hdCrop(c, megaCX, megaWY)
+})
