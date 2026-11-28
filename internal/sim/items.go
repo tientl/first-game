@@ -159,6 +159,15 @@ const (
 
 	ItemShield // a round wooden shield, raised to block blows: see shield.go
 
+	// What the cave beasts leave: see cavefight.go.
+	ItemVenomGland     // from the spider queens and the scorpion matriarch
+	ItemChitin         // an armour plate of a giant millipede or a queen
+	ItemGuano          // bat droppings: fertilizer, like dung
+	ItemAmber          // ancient amber, from the bones of the old beasts
+	ItemCentipedeClaw  // a venom claw of the giant house centipede
+	ItemOlm            // a blind cave salamander: food
+	ItemFossilBone     // a heavy old bone, from the walking skeletons
+
 	itemsEnd // new items go above this line
 
 	// The head of each kind of beast, a trophy: HeadItem(k). They sit at a
@@ -308,6 +317,13 @@ var itemDefs = [NumItems]ItemDef{
 	ItemToadSkin:       {Name: "Da cóc"},
 	ItemPoisonGland:    {Name: "Tuyến độc cóc"},
 	ItemGlowGland:      {Name: "Tuyến phát sáng"},
+	ItemVenomGland:    {Name: "Tuyến nọc nhện"},
+	ItemChitin:        {Name: "Giáp kitin"},
+	ItemGuano:         {Name: "Phân dơi"},
+	ItemAmber:         {Name: "Hổ phách cổ"},
+	ItemCentipedeClaw: {Name: "Vuốt độc rết"},
+	ItemOlm:           {Name: "Cá lưỡng cư mù", Hunger: 12, Health: 1},
+	ItemFossilBone:    {Name: "Xương hóa thạch"},
 }
 
 // Valid reports whether k is a real item kind (not ItemNone, in range).

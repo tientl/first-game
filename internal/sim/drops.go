@@ -10,8 +10,9 @@ import (
 
 // Things on the ground. A felled tree, a broken boulder, a butchered kill
 // or an old chest does not put its yield straight into the bag: it falls
-// on the ground around it, and the player picks it up, with Space (the
-// nearest pile within reach comes first) or by walking right over it.
+// on the ground around it, and the player picks it up, with E (the pile
+// pointed at, else the nearest within reach; see pickup.go) or by walking
+// right over it. Action (the left button, Space) never picks anything up.
 // Piles that nobody takes rot away after a while.
 //
 // A beast that is killed lies where it fell, in its blood. Working on the
@@ -20,12 +21,12 @@ import (
 
 // Drop and corpse tuning.
 const (
-	DropReach        = 1.4                // Space picks up a pile this close, before anything else
+	DropReach        = 1.4                // E picks up a pile this close; see pickup.go
 	DropTouch        = 0.5                // walking this close to a pile picks it up
 	DropPickupDelay  = TicksPerSecond / 2 // a fresh pile cannot be walked up at once: it is still falling
 	DropLifeTicks    = 5 * 60 * TicksPerSecond
 	DropScatter      = 0.9                // how far piles spread from where they fell
-	PickCooldown     = TicksPerSecond / 5 // Space picks up piles quickly, one after another
+	PickCooldown     = TicksPerSecond / 5 // E held down picks things up quickly, one after another
 	CorpseRotTicks   = 4 * 60 * TicksPerSecond
 	TwigChance       = 0.7  // a felled tree drops branches this often...
 	TreeSeedChance   = 0.3  // ...and a seed this often
@@ -148,8 +149,8 @@ type DropCandidate struct {
 	X, Y float64
 }
 
-// NearestDrop is the pile Space picks up: the nearest within DropReach of
-// (x, y), the lower id on a tie. The server and the client both use it.
+// NearestDrop is the pile E picks up when none is pointed at: the nearest
+// within DropReach of (x, y), the lower id on a tie. See pickup.go.
 func NearestDrop(x, y float64, drops []DropCandidate) (DropID, bool) {
 	var best DropID
 	bestD := DropReach * DropReach
@@ -173,27 +174,14 @@ func (w *World) dropCandidates(x, y float64) []DropCandidate {
 	return out
 }
 
-// pickNearest is Space on the ground: it picks up the nearest pile in
-// reach, if there is one.
-func (w *World) pickNearest(p *Player) (acted, found bool) {
-	id, ok := NearestDrop(p.X, p.Y, w.dropCandidates(p.X, p.Y))
-	if !ok {
-		return false, false
-	}
-	for _, d := range w.drops {
-		if d.ID == id {
-			p.Dir = dirToward(d.X-p.X, d.Y-p.Y)
-			return w.pickUp(p, d, true), true
-		}
-	}
-	return false, false
-}
-
 // --- kills and bodies --------------------------------------------------------
 
 // leavesBody reports whether a creature of kind k leaves a body to butcher
 // when killed; the rest drop what they give at once.
 func leavesBody(k CreatureKind) bool {
+	if s := caveSpecOf(k); s != nil && s.has(trNoBody) {
+		return false
+	}
 	switch k {
 	case CreatureWorm, CreatureFish, CreatureNone, CreatureToad, CreatureGlowToad:
 		return false // too small to butcher: what it gives falls where it died
@@ -293,7 +281,7 @@ func HeadItem(k CreatureKind) ItemKind {
 	case CreatureNone, CreatureWorm, CreatureFish, CreatureTribesman, CreatureToad, CreatureGlowToad:
 		return ItemNone
 	}
-	if k >= NumCreatureKinds {
+	if k >= NumCreatureKinds || k > CreatureAnkylo { // the cave beasts leave no trophy head
 		return ItemNone
 	}
 	return ItemHeadBase + ItemKind(k)
@@ -309,7 +297,7 @@ func HeadOf(k ItemKind) (CreatureKind, bool) {
 }
 
 func init() {
-	if int(NumCreatureKinds) > maxHeads || itemsEnd > ItemHeadBase {
+	if int(CreatureAnkylo)+1 > maxHeads || itemsEnd > ItemHeadBase {
 		panic("sim: no room left for the heads of every creature kind")
 	}
 	for k := CreatureKind(1); k < NumCreatureKinds; k++ {
@@ -345,7 +333,7 @@ func (w *World) placeHeldAt(p *Player, at bool, atX, atY int) {
 		if k, soft, ok := PlacedBy(held); ok && !w.buildSpot(p, atX, atY, k, soft) {
 			return
 		}
-		if held == ItemDung {
+		if held == ItemDung || held == ItemGuano {
 			w.fertilizeAt(p, atX, atY)
 			return
 		}
@@ -374,7 +362,7 @@ func (w *World) placeHeldAt(p *Player, at bool, atX, atY int) {
 		w.launch(p, k) // see boats.go
 		return
 	}
-	if held == ItemDung {
+	if held == ItemDung || held == ItemGuano {
 		w.fertilize(p) // see dung.go
 		return
 	}

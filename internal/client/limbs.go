@@ -129,6 +129,14 @@ type upKey struct {
 
 const upSit = 0x80
 
+// upTorch, in an upKey's frame, raises the arm that holds things as a
+// torch is held: up and forwards, the flame over the shoulder, whatever
+// the rest of the figure does.
+const upTorch = 0x40
+
+// torchArm is that arm.
+var torchArm = armJ{sh: 0.55, el: 1.4, ab: armOut}
+
 // legNear and legFar, in a loKey's frame, draw only the near leg or only
 // the far one (sideways): a rider's, on either side of the mount (ride.go).
 const (
@@ -347,7 +355,17 @@ type upperPose struct {
 }
 
 func upperPoseOf(k upKey) upperPose {
-	k.frame &^= upSit
+	torch := k.frame&upTorch != 0
+	k.frame &^= upSit | upTorch
+	p := upperPoseBare(k)
+	if torch {
+		p.arm[0], p.open[0], p.fore[0] = torchArm, false, false
+	}
+	return p
+}
+
+// upperPoseBare is upperPoseOf without the flags of k's frame.
+func upperPoseBare(k upKey) upperPose {
 	if k.anim >= upMotion {
 		return motionPose(motionID(k.anim-upMotion), int(k.frame), k.dir).up
 	}
@@ -358,12 +376,15 @@ func upperPoseOf(k upKey) upperPose {
 	stride := func(gd gaitDef, back float64) {
 		ph := (float64(k.frame) + 0.5) / upFrames
 		p.arm = gd.arms(ph)
-		p.tilt, p.nod = gd.tilt, -0.7*gd.tilt            // leaning in, the head up: the eyes level
-		if k.anim == upWalkHold || k.anim == upRunHold { // the hand that holds something held before the body
+		p.tilt, p.nod = gd.tilt, -0.7*gd.tilt // leaning in, the head up: the eyes level
+		if k.anim == upWalkHold || k.anim == upRunHold {
+			// The hand that carries something swings with the stride as the
+			// other does, but less, and straighter, with the weight in it:
+			// the hand from behind the hip to before it.
 			s := math.Sin(2 * math.Pi * (ph - gd.duty/2))
-			p.arm[0] = armJ{sh: 0.35 + 0.06*s, el: 0.95, ab: armOut}
+			p.arm[0] = armJ{sh: 0.75 * gd.arm * s, el: 0.3 + 0.15*max(0, s), ab: armOut}
 			if gd.run {
-				p.arm[0] = armJ{sh: 0.42 + 0.08*s, el: 1.3, ab: armOut + 0.04}
+				p.arm[0] = armJ{sh: -0.1 + 0.6*gd.arm*s, el: 0.6 + 0.3*s, ab: armOut + 0.04, out: s}
 			}
 		}
 		_, d0 := gd.legs(ph - 1.5/loFrames)
@@ -635,10 +656,10 @@ func skirtOf(k upKey, t float64) skirt {
 		if k.anim == upRun || k.anim == upRunHold {
 			gd = runGait
 		}
-		p.leg, p.drop = gd.legs((float64(k.frame&^upSit) + 0.5) / upFrames)
+		p.leg, p.drop = gd.legs((float64(k.frame&^(upSit|upTorch)) + 0.5) / upFrames)
 		p.reach = gd.half()
 	case k.anim >= upMotion:
-		p = motionPose(motionID(k.anim-upMotion), int(k.frame&^upSit), k.dir).lo
+		p = motionPose(motionID(k.anim-upMotion), int(k.frame&^(upSit|upTorch)), k.dir).lo
 		if p == (lowerPose{}) {
 			return skirt{}
 		}

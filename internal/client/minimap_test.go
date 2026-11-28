@@ -20,7 +20,10 @@ func TestMinimapCentresOnThePlayer(t *testing.T) {
 			t.Errorf("player at %v drawn at %.1f,%.1f, want the middle %d,%d", p, x, y, miniW/2, miniH/2)
 		}
 	}
-	if miniBottom() <= miniTop+miniH {
+	if miniBottom() <= miniTop+miniD {
 		t.Error("miniBottom is not below the minimap")
+	}
+	if math.Abs(miniW*miniZoom-miniD) > 0.5 || miniW != miniH {
+		t.Errorf("the minimap's canvas %dx%d at %.2f is not the round map %d across", miniW, miniH, miniZoom, miniD)
 	}
 }

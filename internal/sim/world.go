@@ -35,6 +35,7 @@ type World struct {
 	drops    []*Drop // piles on the ground; see drops.go
 	nextDrop DropID
 	webs     []*Web // webs spat by spiders, in the air; see cavelife.go
+	cf       caveFight // the caves' hazards and noise; see cavefight.go
 	nextWeb  uint32
 	wx       weather   // lightning, tornadoes and ice; see weather.go
 	villages []Village // see tribe.go
@@ -201,6 +202,7 @@ func (w *World) Step() {
 	w.stepStations()  // see cooking.go
 	w.stepCreatures()
 	w.stepWebs()
+	w.stepCaveFight() // see cavefight.go
 	w.stepBoats()
 	w.stepDrops()
 	w.stepWeather()

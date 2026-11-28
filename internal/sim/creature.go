@@ -87,6 +87,36 @@ const (
 	CreatureGlowToad // harmless; it glows at night
 
 	CreatureAnkylo // Ankylosaurus: armoured, it swings a bony tail club; see ankylo.go
+
+	// The cave fighting: see cavefight.go. Every one is a row of caveSpecs.
+	CreatureArthro      // Arthropleura, a giant millipede: rams, sweeps, sprays, curls into a coil
+	CreatureArthroQueen // the jungle cave's boss
+	CreatureCentipede   // a giant house centipede: very fast, venom lunge
+	CreatureQueenMeadow // spider queens, one to an island kind
+	CreatureQueenDesert
+	CreatureQueenMarsh
+	CreatureQueenSnow
+	CreatureQueenVolcano
+	CreatureSpiderling // hatched from an egg sac
+	CreatureEggSac     // a spider queen's egg sac: stands still, hatches unless broken
+	CreatureBat
+	CreatureOlm      // blind cave salamander
+	CreatureCaveCrab // white, blind, harmless
+	CreatureHyena
+	CreatureWhipScorp
+	CreatureCaveLion
+	CreatureMonitor // a monitor lizard breathing heat
+	CreatureAnt
+	CreatureAntSoldier
+	CreatureVampBat // a giant vampire bat, the lower level's mini-boss
+	CreatureBlindCroc
+	CreatureAlphaBear
+	CreatureMegalania
+	CreatureLionAlpha
+	CreatureScorpQueen // the scorpion matriarch
+	CreatureSkelRaptor // walking skeletons
+	CreatureSkelTrike
+	CreatureSkelRex
 	NumCreatureKinds
 )
 
@@ -336,6 +366,7 @@ type Creature struct {
 	flinchCD int         // ticks before a blow can make it flinch again; see combat.go
 	blow     pendingBlow // a blow drawn back, waiting to land; see telegraph.go
 	sk       skillState  // its moves: the one it is making, and their cooldowns; see skills.go
+	cv       caveVars    // what the cave beasts keep; see cavefight.go
 
 	homeX, homeY float64
 	hx, hy       float64 // heading while walking or fleeing, a unit vector
@@ -763,7 +794,9 @@ func (w *World) stepCreature(c *Creature) {
 	case CreatureAnkylo:
 		w.stepAnkylo(c) // see ankylo.go
 	default:
-		w.wander(c)
+		if !w.stepCaveKind(c) { // the cave beasts: see cavefight.go
+			w.wander(c)
+		}
 	}
 }
 
@@ -973,6 +1006,7 @@ func (w *World) catch(p *Player, c *Creature) bool {
 	seq := p.NoticeSeq
 	dmg := w.blow(p, c.Kind)  // see combat.go
 	dmg = armoured(p, c, dmg) // an Ankylosaurus's plates: see ankylo.go
+	dmg = w.caveBlow(p, c, dmg) // skeletons, exposed beasts: see cavefight.go
 	if c.Kind == CreatureToad && Punches(p.Held()) && c.biteCD == 0 {
 		w.toadPoisons(c, p) // a bare fist on a poison toad: see toad.go
 	}

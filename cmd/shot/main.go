@@ -72,6 +72,7 @@ func main() {
 	fx := flag.Bool("fx", false, "turn on the post-processing shaders: glow and colour grading")
 	quality := flag.Int("quality", 100, "the render quality: the world drawn at 100, 75 or 50 percent of the screen and blown up (the interface stays sharp; see internal/client/display.go)")
 	uiScale := flag.Float64("uiscale", 0, "the interface's scale, screen pixels to a UI pixel (2.5 is 250%); 0 is automatic")
+	creditsAt := flag.Int("credits", -1, "with -menu: show the credits screen scrolled down this many UI pixels (0 at the top)")
 	settingsTab := flag.String("settings", "", "open the settings screen at a tab: audio, display or controls (with -menu, over the main menu; else over the pause menu)")
 	fight := flag.Bool("fight", false, "show the beasts' health: a few just hurt, with the damage floating up (use with -dinos)")
 	troodon := flag.Bool("troodon", false, "put a pack of night hunters round the player: one stalking, one leaping in, one biting, and two more watching from the dark (use with -time 0.9 for their eyes)")
@@ -96,6 +97,9 @@ func main() {
 	skillsFlag := flag.String("skills", "", "film every move of these beasts (a comma list of rex, dakota, achero, troodon, ptero, quetzal, plesio, sabre, trike, toro, stego, brachio, ankylo, anzu, thesc, ornitho, mammoth; or all) and write a GIF of each into -o's folder; see skills.go")
 	encounterFlag := flag.String("encounter", "", "play a real meeting with a boss of the demo, titan or shark, and write its stills as <o>_approach.png, _lair.png, _intro.png and _arena.png; see encounter.go")
 	encGIF := flag.Bool("encgif", false, "with -encounter: also write every fourth frame of the entrance as <o>_gif_NNN.png")
+	caveBeasts := flag.String("cavebeasts", "", "put the cave fighting's beasts (a comma list of names, or all) in rows beside the player, in the pose -cavepose says; use with -at cavein -frames 240 -held 13 for the dark cave")
+	cavePose := flag.String("cavepose", "", "with -cavebeasts: idle, chase, sleep (bones as a pile), windup (with the red zone of its big move), active or recover")
+	caveHaz := flag.Bool("cavehaz", false, "with -cavebeasts: a poison cloud, a web, a cloud of dust and a collapse coming down")
 	king := flag.Bool("king", false, "put the mammoth king by the player, with a mammoth of its herd for scale; -bosspose picks its state (0 idle, 1 chase, 2 strike, 3 special, 4 roar), -bossage how far into it")
 	victory := flag.Bool("victory", false, "show the game-beaten (Phá đảo!) screen")
 	aimAt := flag.String("aim", "", "dx,dy: hold the mouse pointer this many tiles from the player (the hover brackets, a held torch's ghost)")
@@ -146,7 +150,10 @@ func main() {
 	combatSheet := flag.String("combatsheet", "", "write the combat sheets into this folder instead of a frame: the shield on the figure in every facing, and every effect frame by frame (see internal/client/combatsheet.go)")
 	combatLive := flag.String("combat", "", "play a real fight and write it as <o>.gif: feel (blows with hit-stop, flash, knockback, shake) or shield (raise, block, parry); see combat.go")
 	heldSheet := flag.String("heldsheet", "", "write the held-item sheets into this folder instead of a frame: every held item in the hand old and new, and a GIF of the swings (see internal/client/heldsheet.go)")
+	heldFit := flag.String("heldfit", "", "write the held-fit sheets into this folder instead of a frame: every tool in hand in every facing, and GIFs of a run from behind and from the side (see internal/client/heldfitsheet.go)")
 	heldHD := flag.Bool("heldhd", true, "the HD held items, painted at the figure's density and turned cleanly (false: the old density-1 sprites; see internal/client/heldhd.go)")
+	noFire := flag.Bool("nofire", false, "leave out the campfire put next to the player (to see the dark of the caves with no light but the player's own)")
+	brightness := flag.Int("brightness", 0, "the brightness setting: 0 as the game is, 1 brighter, 2 brightest (the night and the caves less dark; see internal/client/settings.go)")
 	flag.Parse()
 	client.SetMeasureCanopy(*canopyFlag)
 	client.SetHeroHD(*herohd)
@@ -159,7 +166,7 @@ func main() {
 	client.SetSubPixel(*subPixel)
 	client.SetZoom(*zoom)
 	client.SetPostFX(*fx)
-	client.OverrideSettings(func(s *client.Settings) { s.Quality = *quality })
+	client.OverrideSettings(func(s *client.Settings) { s.Quality, s.Brightness = *quality, *brightness })
 	if *uiScale > 0 {
 		client.SetUIScale(*uiScale)
 	}
@@ -764,6 +771,9 @@ func main() {
 		put(troodonLeaper+3, -7.5, -2.2, sim.CreatureChase, false) // and two more out in the dark
 		put(troodonLeaper+4, 7.5, 3.4, sim.CreatureIdle, true)
 	}
+	if *caveBeasts != "" {
+		addCaveBeasts(&snap, sx, sy, *caveBeasts, *cavePose, *caveHaz)
+	}
 	if *king {
 		states := []sim.CreatureState{sim.CreatureIdle, sim.CreatureChase, sim.CreatureStrike, sim.CreatureSpecial, sim.CreatureRoar}
 		hp := int16(min(sim.CreatureMammothKing.MaxHP(), 32767))
@@ -896,7 +906,7 @@ func main() {
 
 	// A campfire next to the spawn, so lighting is visible at night; not
 	// in the base built by -devbase, which has its own.
-	if !*sea && !*devBase {
+	if !*sea && !*devBase && !*noFire {
 		snap.Entities = append(snap.Entities, protocol.EntityView{
 			ID: 1 << 30, Kind: sim.EntityCampfire, TX: int16(cx + 2), TY: int16(cy), Ready: true,
 			Fuel: sim.FireStartFuel,
@@ -975,6 +985,7 @@ func main() {
 		snap.Players[0].HurtSeq++
 	}
 	cookScene(&snap, sx, sy)   // see cook.go
+	hudScene(&snap)            // see hud.go
 	tentScene(&snap, sx, sy)   // see tent.go
 	thinEntities(&snap, *thin) // see terrain.go
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}
@@ -986,6 +997,7 @@ func main() {
 	ebiten.SetWindowTitle("shot")
 	game := client.New(conn, "Tien")
 	game.ShowOverlay(*overlay)
+	hudGame(game) // see hud.go
 	if *settingsTab != "" && !*menu {
 		game.ShowSettings(*settingsTab) // over the pause menu
 	}
@@ -1024,6 +1036,9 @@ func main() {
 		if *settingsTab != "" {
 			m.ShowSettings(*settingsTab)
 		}
+		if *creditsAt >= 0 {
+			m.ShowCredits(float64(*creditsAt))
+		}
 		inner = &menuGame{m}
 	}
 	g := &shooter{inner: inner, frames: *frames, out: *out, crop: *crop, cost: *costFlag, gifN: *gifN, gifStep: max(1, *gifStep), bench: *benchN}
@@ -1055,6 +1070,9 @@ func main() {
 	}
 	if *heldSheet != "" {
 		g.held, g.heldDir = game, *heldSheet
+	}
+	if *heldFit != "" {
+		g.heldFit, g.heldFitDir = game, *heldFit
 	}
 	if *tentSheetFlag != "" {
 		g.tents, g.tentDir = game, *tentSheetFlag
@@ -1088,25 +1106,27 @@ func (c *fakeConn) Messages() <-chan protocol.ServerMsg { return c.ch }
 func (c *fakeConn) Close() error                        { return nil }
 
 type shooter struct {
-	inner     ebiten.Game
-	frames    int
-	n         int
-	out       string
-	crop      string
-	done      bool
-	err       error
-	sheet     *client.Game // write its scale sheet instead of the frame
-	trunks    *client.Game // write its trunk sheet instead of the frame
-	motions   *client.Game // write its motion sheets into motionDir instead of the frame
-	motionDir string
-	held      *client.Game // write its held-item sheets into heldDir instead of the frame
-	combat    *client.Game // write its combat sheets into combatDir instead of the frame
-	combatDir string
-	heldDir   string
-	icons     *client.Game // write its icon sheet instead of the frame
-	tents     *client.Game // write the leaf tent's sheet and GIF into tentDir instead of the frame
-	tentDir   string       // the folder they go in
-	cost      bool         // print what the art has cost
+	inner      ebiten.Game
+	frames     int
+	n          int
+	out        string
+	crop       string
+	done       bool
+	err        error
+	sheet      *client.Game // write its scale sheet instead of the frame
+	trunks     *client.Game // write its trunk sheet instead of the frame
+	motions    *client.Game // write its motion sheets into motionDir instead of the frame
+	motionDir  string
+	held       *client.Game // write its held-item sheets into heldDir instead of the frame
+	combat     *client.Game // write its combat sheets into combatDir instead of the frame
+	combatDir  string
+	heldDir    string
+	heldFit    *client.Game // write its held-fit sheets into heldFitDir instead of the frame
+	heldFitDir string
+	icons      *client.Game // write its icon sheet instead of the frame
+	tents      *client.Game // write the leaf tent's sheet and GIF into tentDir instead of the frame
+	tentDir    string       // the folder they go in
+	cost       bool         // print what the art has cost
 
 	gifN, gifStep int           // -gif: frames to keep, and game frames between them
 	gifFrames     []*image.RGBA // kept so far
@@ -1169,6 +1189,13 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 		s.err, s.done = s.combat.CombatSheets(s.combatDir), true
 		if s.err == nil {
 			log.Printf("wrote the combat sheets in %s", s.combatDir)
+		}
+		return
+	}
+	if s.heldFit != nil {
+		s.err, s.done = s.heldFit.HeldFitSheets(s.heldFitDir), true
+		if s.err == nil {
+			log.Printf("wrote the held-fit sheets in %s", s.heldFitDir)
 		}
 		return
 	}

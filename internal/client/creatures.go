@@ -401,8 +401,15 @@ func swingAtCreatureSound(c protocol.CreatureView) {
 		sim.CreatureTroodon, sim.CreatureTitanoboa, sim.CreatureSpino, sim.CreatureMammothKing,
 		sim.CreatureCarcharo, sim.CreatureGiganoto, sim.CreatureMegalodon, sim.CreatureAnkylo:
 		snd.playAt("whack", x, y, 0.6, 0.1)
-	default:
-		snd.playAt("rustle", x, y, 0.45, 0.1)
+	default: // by what it is made of: never a clang on flesh; see hitsound.go
+		switch hitMaterial(c.Kind) {
+		case matChitin:
+			snd.playAt("shell_crunch", x, y, 0.6, 0.08)
+		case matBone:
+			snd.playAt("bone_knock", x, y, 0.6, 0.08)
+		default:
+			snd.playAt("flesh_slap", x, y, 0.6, 0.1)
+		}
 	}
 }
 
@@ -417,7 +424,8 @@ func nearAPlayer(ps []protocol.PlayerView, x, y, r float64) bool {
 
 // --- targeting --------------------------------------------------------------
 
-// targetView is what the Action key would work on right now.
+// targetView is what the Action key would work on right now, or (a pile or
+// a loose thing on the ground) what E would pick up: see pickup.go.
 type targetView struct {
 	ok       bool
 	creature bool // c is the target, else e
@@ -501,6 +509,9 @@ func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {
 	if l, col, ok := seaLabel(c); ok {
 		return l, col // see searender.go
 	}
+	if l, col, ok := caveLabel(c); ok {
+		return l, col // see cavecreatures.go
+	}
 	if l, col, ok := tribalLabel(c); ok {
 		return l, col // see tribalrender.go
 	}
@@ -522,7 +533,7 @@ func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {
 	case sim.CreatureSnake:
 		return name + " — đánh", colWhite
 	case sim.CreatureWorm:
-		return name + " — nhặt làm mồi", colWhite
+		return name + " — bắt làm mồi", colWhite // a click catches it; "nhặt" is E's (pickup.go)
 	case sim.CreatureCrab:
 		if c.State == sim.CreatureChase || c.State == sim.CreatureStrike {
 			return name + " — bắt (coi chừng bị kẹp)", colWhite
@@ -600,6 +611,9 @@ func (g *Game) creatureSprite(c protocol.CreatureView, moving bool) (sprite, flo
 	t := g.frame + int(c.ID)*7 // so a group does not move in lockstep
 	if s, bob, ok := g.bossSprite(c, moving); ok {
 		return s, bob // see bosses.go
+	}
+	if s, bob, ok := g.caveSprite(c, moving); ok {
+		return s, bob // the cave fighting's beasts, placeholders: see cavecreatures.go
 	}
 	if s, bob, ok := g.skillSprite(c, side); ok {
 		return s, bob // in the middle of one of its moves: see dinoskills.go
@@ -897,6 +911,9 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 	case sim.CreatureScorpion:
 		return 30
 	default:
+		if w := caveBeastShadow(k); w > 0 {
+			return w
+		}
 		return bossShadow(k) // 0 for fish and sea reptiles, under water, and flying ones, which cast their own
 	}
 }
@@ -933,6 +950,7 @@ func (g *Game) drawCreature(dst drawTarget, c protocol.CreatureView, d drawable)
 		op.ColorScale.ScaleAlpha(solid)
 	}
 	drawSprite(dst, s, op)
+	g.drawCaveBossBar(dst, c, d, s)
 	if r, gg, b, a := g.beastFlash(c.ID); a > 0 {
 		drawFlash(dst, s, op, r, gg, b, a) // struck: white, then red; see feel.go
 	}

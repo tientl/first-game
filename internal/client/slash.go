@@ -80,7 +80,8 @@ func (g *Game) drawSlash(dst drawTarget, p protocol.PlayerView, d drawable, bob 
 		fade = max(0, 1-(age-slashFrames)/slashFade)
 	}
 	if fade > 0 && heldDefOf(p.Held) != nil { // at the canvas's own resolution; see heldhd.go
-		swingArc(dst, gx, gy, side, a, from, way, 1.4, slashReach-4, slashReach, mix(rp[len(rp)-1], colWhite, 0.5), fade*0.85)
+		r := heldDefOf(p.Held).reachAt() // the blade's tip: see heldhd_art.go
+		swingArc(dst, gx, gy, side, a, from, way, 1.4, r*0.55, r+0.4, mix(rp[len(rp)-1], colWhite, 0.5), fade*0.85)
 	} else if fade > 0 {
 		tail := 1.4 // radians of arc behind the blade
 		for s := 0.0; s <= 1; s += 1.0 / 48 {

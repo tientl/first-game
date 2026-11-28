@@ -10,6 +10,11 @@ import (
 
 // The natural caves of StyleCaves: see cavesys.go.
 
+// caveStyle is the style the natural caves are tested in: as a new game
+// makes them (see caveways.go). The caves of the older styles are held as
+// they were by the golden digests (golden_test.go).
+const caveStyle = StyleLatest
+
 var caveWorlds struct {
 	sync.Mutex
 	m map[[2]uint64]*World
@@ -28,7 +33,7 @@ func genCaves(t *testing.T, seed uint64, size int) *World {
 	if w := caveWorlds.m[k]; w != nil {
 		return w
 	}
-	w := genStyle(t, StyleCaves, seed, size)
+	w := genStyle(t, caveStyle, seed, size)
 	caveWorlds.m[k] = w
 	return w
 }
@@ -160,7 +165,7 @@ func TestCavesGrowWithTheIsland(t *testing.T) {
 	for _, s := range w.caves.systems {
 		n, r := 0, 0.0
 		for _, c := range s.chambers {
-			if !c.hall {
+			if !c.hall && !c.junction && c.pocket == 0 {
 				n++
 				r += c.r
 			}
@@ -189,7 +194,9 @@ func TestCavesGrowWithTheIsland(t *testing.T) {
 				t.Errorf("island of %d tiles: %+v; one of %d: %+v", b.area, b, s.area, s)
 			}
 		}
-		if b.r < 10 || b.r > 20 {
+		// Of mixed sizes since StyleCaveWays: great halls, and more small
+		// grottos than before.
+		if b.r < 8 || b.r > 20 {
 			t.Errorf("island of %d tiles: chambers of %.1f tiles' radius on average", b.area, b.r)
 		}
 	}
@@ -236,21 +243,31 @@ func TestCavesHaveNoLongDeadEnds(t *testing.T) {
 					}
 				}
 			}
-			// A side branch ends soon, in something worth the detour.
+			// A side branch ends soon, in something worth the detour; a
+			// side pocket, a dead end on purpose, sooner still.
 			for i, c := range s.chambers {
-				if !c.leaf {
-					continue
-				}
-				if l := s.branchLen(i); l > caveDeadEndMost {
-					t.Errorf("seed %d island %d: a side branch of %.0f tiles of tunnel", seed, s.island, l)
+				switch {
+				case c.pocket != 0:
+					if l := s.branchLen(i); len(c.adj) != 1 || l > caveSpurMost {
+						t.Errorf("seed %d island %d: a side pocket at the end of %.0f tiles of spur, %d ways in", seed, s.island, l, len(c.adj))
+					}
+				case c.leaf:
+					if l := s.branchLen(i); l > caveDeadEndMost {
+						t.Errorf("seed %d island %d: a side branch of %.0f tiles of tunnel", seed, s.island, l)
+					}
 				}
 			}
 		}
 	}
 }
 
-// caveDeadEndMost is the longest a side branch's tunnels may run.
-const caveDeadEndMost = 60
+// caveDeadEndMost is the longest a side branch's tunnels may run, and
+// caveSpurMost a side pocket's spur (measured from the edges of the round
+// chambers it joins, so a little longer than it is dug).
+const (
+	caveDeadEndMost = 60
+	caveSpurMost    = caveSpurMax + 8
+)
 
 func TestCavesDescentGoesDownAndBack(t *testing.T) {
 	w := genCaves(t, 42, SizeLarge)
@@ -360,8 +377,8 @@ func TestCavesSpidersKeepToTheirNests(t *testing.T) {
 const caveSpiderCap = 600
 
 func TestCavesAreDeterministic(t *testing.T) {
-	a := genStyle(t, StyleCaves, 9, SizeLarge)
-	b := genStyle(t, StyleCaves, 9, SizeLarge)
+	a := genStyle(t, caveStyle, 9, SizeLarge)
+	b := genStyle(t, caveStyle, 9, SizeLarge)
 	if worldHash(a) != worldHash(b) {
 		t.Fatal("the same seed made two different worlds")
 	}
@@ -378,7 +395,7 @@ func TestCavesAreDeterministic(t *testing.T) {
 }
 
 func TestCavesSaveAndLoad(t *testing.T) {
-	w := genStyle(t, StyleCaves, 5, SizeLarge)
+	w := genStyle(t, caveStyle, 5, SizeLarge)
 	// A torch set in the caves burns on, through a save.
 	var at [2]int
 	found := false
@@ -405,7 +422,7 @@ func TestCavesSaveAndLoad(t *testing.T) {
 		t.Fatal("a torch in the caves burnt out")
 	}
 	d := w.Save()
-	if d.Version != SaveVersion || d.Style != StyleCaves {
+	if d.Version != SaveVersion || d.Style != caveStyle {
 		t.Fatalf("saved version %d style %d", d.Version, d.Style)
 	}
 	l, err := Load(d)
@@ -433,7 +450,7 @@ func TestCavesTickAtColossalSize(t *testing.T) {
 		t.Skip("slow")
 	}
 	t0 := time.Now()
-	w := genStyle(t, StyleCaves, 1, SizeColossal)
+	w := genStyle(t, caveStyle, 1, SizeColossal)
 	t.Logf("2048x2048 with its caves: %v, %d rows, %d systems, %d creatures", time.Since(t0), w.height, len(w.caves.systems), len(w.fauna.creatures))
 	// Two players: one on the surface, one deep in the biggest system.
 	var big *caveSystem
@@ -469,8 +486,8 @@ func TestCavesOlderStylesHaveNone(t *testing.T) {
 
 // The mouths of the natural caves keep the rules of the older ones.
 func TestCavesMouthsLeadDownAndOpenSouth(t *testing.T) {
-	testCaveMouths(t, genStyle(t, StyleCaves, 2, SizeLarge))
-	testMouthsOpenSouth(t, genStyle(t, StyleCaves, 2, SizeLarge))
+	testCaveMouths(t, genStyle(t, caveStyle, 2, SizeLarge))
+	testMouthsOpenSouth(t, genStyle(t, caveStyle, 2, SizeLarge))
 }
 
 // reachFromChambers is how far into the tunnel cells cells (of level lv's

@@ -130,6 +130,28 @@ var uiScreens = []uiScreen{
 		g.notice, g.noticeUntil = "Thiếu nguyên liệu: cần 2 Đá lửa thô và 1 Dây thừng", time.Now().Add(time.Hour)
 		g.autosaved = time.Now()
 	}},
+	{"hud-statuses", func(g *Game) { // every status at once, and every buff
+		s := &g.curr.Self
+		s.Stunned, s.Bleeding, s.Slowed, s.Pinned = true, true, true, true
+		s.Cook.Buffs = [sim.NumBuffs]int32{52 * 20, 215 * 20, 96 * 20, 171 * 20, 438 * 20}
+		g.curr.Players[0].Bees = true
+		g.statusAt[statusBleed] = g.frame + 5 // the newest: its long line shows
+	}},
+	{"hud-notices-boss", func(g *Game) { // three notices under a boss that holds the player
+		g.ShowNotices("Thiếu nguyên liệu: cần 2 Đá lửa thô và 1 Dây thừng",
+			"Chưa buồn ngủ — giường chỉ dùng được lúc chạng vạng và ban đêm · cầm rìu trên tay để dỡ", "Đã nhặt 3 Gỗ")
+		g.curr.Boss = protocol.BossView{Kind: sim.CreatureTitanoboa, HP: 6600, MaxHP: 16500, Enraged: true, Holds: true}
+		g.autosaved = time.Now()
+	}},
+	{"hud-sea", func(g *Game) { // aboard a sailing boat in a squid's arms
+		g.curr.Self.Boat = 5
+		g.curr.Boats = []protocol.BoatView{{ID: 5, Kind: sim.BoatSail, X: 10.5, Y: 10.5, HP: 40, Rider: 1, Held: true}}
+		g.curr.Wind, g.curr.WindDir = 0.7, 2
+	}},
+	{"hud-swim", func(g *Game) { g.curr.Players[0].Swimming = true; g.curr.Self.Breath = 0.4 }},
+	{"hud-hint", func(g *Game) { // the held item's name gone: the hint
+		g.hudFX.held = heldFX{slot: g.hotSel, item: g.curr.Self.Inv[g.hotSel].Item, at: time.Now().Add(-time.Minute)}
+	}},
 	{"bag", func(g *Game) { g.setOverlay(overlayBag); g.bag.setFocus(sim.ItemStick) }},
 	{"bag-empty-focus", func(g *Game) { g.setOverlay(overlayBag); g.bag.cursor = sim.HotbarSlots + 20 }},
 	{"chest", func(g *Game) {
@@ -247,8 +269,45 @@ func interfaceScreensAtEverySize(t *testing.T) {
 				g.drawInterface(img)
 			}
 			checkTexts(t, sz.name+" "+sc.name, uiProbe, sz.w, sz.h)
+			if strings.HasPrefix(sc.name, "hud") || sc.name == "boss" {
+				checkHUDClear(t, sz.name+" "+sc.name, uiProbe)
+			}
 		}
 		img.Deallocate()
+	}
+}
+
+// checkHUDClear fails t where two pieces of the HUD lie over each other:
+// boxes that hold text, each not inside another, that cross.
+func checkHUDClear(t *testing.T, where string, p *probe) {
+	t.Helper()
+	const tol = 1.0 // image pixels
+	contains := func(a, b probeRect) bool {
+		return b.x >= a.x-tol && b.y >= a.y-tol && b.x+b.w <= a.x+a.w+tol && b.y+b.h <= a.y+a.h+tol
+	}
+	var top []probeRect
+	for i, b := range p.boxes {
+		inside := false
+		for j, a := range p.boxes {
+			if i != j && contains(a, b) && !(contains(b, a) && j > i) {
+				inside = true
+				break
+			}
+		}
+		if !inside {
+			top = append(top, b)
+		}
+	}
+	bad := 0
+	for i, a := range top {
+		for _, b := range top[i+1:] {
+			ix := math.Min(a.x+a.w, b.x+b.w) - math.Max(a.x, b.x)
+			iy := math.Min(a.y+a.h, b.y+b.h) - math.Max(a.y, b.y)
+			if ix > tol && iy > tol && bad < 6 {
+				bad++
+				t.Errorf("%s: (%.0f, %.0f) %.0fx%.0f lies over (%.0f, %.0f) %.0fx%.0f", where, a.x, a.y, a.w, a.h, b.x, b.y, b.w, b.h)
+			}
+		}
 	}
 }
 
