@@ -972,6 +972,10 @@ func (g *Game) drawSleeper(dst drawTarget, p protocol.PlayerView, d drawable) {
 		return
 	}
 	if e, ok := g.tentUnder(p); ok { // in a tent: lying further in, its shell over them; see tentart.go
+		if tentShut(e) { // turned: out of sight; see tentturn.go
+			g.drawShutSleeper(dst, p, e, math.Round(d.sx), math.Round(d.sy), bedLie)
+			return
+		}
 		defer g.drawTentShell(dst, e, math.Round(d.sx), math.Round(d.sy))
 		d.sx, d.sy = d.sx+tentSleepDX, d.sy+tentSleepDY
 	}

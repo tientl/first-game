@@ -45,7 +45,7 @@ const (
 	tentDY = tentL * 0.75
 	slopeA = 40.0 // the length of a slope, ridge to foot: math.Hypot(tentB, tentH)
 
-	tentW, tentHt  = 64, 73 // the canvas, art pixels
+	tentW, tentHt  = 64, 82 // the canvas, art pixels: room below for a tent turned east or west (tentturn.go)
 	tentAX, tentAY = 32, 59 // its anchor on the canvas: the tile's middle
 
 	// Where a sleeper lies in it, from a bed's place for them: a little to
@@ -121,6 +121,10 @@ type tentPaint struct {
 	shadow []float32 // soft shadow on the ground under it, where nothing is painted
 	rs     [numTentMats]ramp
 	seed   uint32
+	geo    *tentGeo // turned from facing south (tentturn.go); nil as it was drawn
+	gable  bool     // painting the closed end: only within its triangle
+	clip   float64   // painting this slope of a turned tent: only from the ridge to the ground
+	shown  []float64 // the slopes of a turned tent the viewer sees
 }
 
 func newTentPaint(v tentLeaf) *tentPaint {
@@ -144,6 +148,9 @@ func (t *tentPaint) art(ix, iy int) (float64, float64) {
 func (t *tentPaint) in(ix, iy int) bool { return ix >= 0 && iy >= 0 && ix < t.w && iy < t.h }
 
 func (t *tentPaint) set(ix, iy int, m uint8, l float64) {
+	if t.gable && !t.onGable(ix, iy) || t.clip != 0 && !t.onSlope(ix, iy) {
+		return
+	}
 	if t.in(ix, iy) {
 		i := iy*t.w + ix
 		t.mat[i], t.lit[i] = m, float32(l)
@@ -152,6 +159,9 @@ func (t *tentPaint) set(ix, iy int, m uint8, l float64) {
 
 // darken takes dl of the light off what is painted at (ix, iy).
 func (t *tentPaint) darken(ix, iy int, dl float64) {
+	if t.gable && !t.onGable(ix, iy) || t.clip != 0 && !t.onSlope(ix, iy) {
+		return
+	}
 	if t.in(ix, iy) {
 		if i := iy*t.w + ix; t.mat[i] != tmNone {
 			t.lit[i] -= float32(dl)
@@ -249,7 +259,7 @@ func (l *tLeaf) at(ix, iy int, t *tentPaint, dx, dy float64) (s, q float64, ok b
 	if l.side == 0 {
 		a, b = x, y/l.flat
 	} else {
-		a, b = slopeAB(l.side, x, y)
+		a, b = t.sAB(l.side, x, y)
 	}
 	ex, ey := l.a1-l.a0, l.b1-l.b0
 	L := math.Hypot(ex, ey)
@@ -277,7 +287,7 @@ func (t *tentPaint) leaf(l tLeaf) {
 		if l.side == 0 {
 			x, y = p[0], p[1]*l.flat
 		} else {
-			x, y = slopeXY(l.side, p[0], p[1])
+			x, y = t.sXY(l.side, p[0], p[1])
 		}
 		x0, y0, x1, y1 = min(x0, x), min(y0, y), max(x1, x), max(y1, y)
 	}
@@ -327,7 +337,7 @@ func (t *tentPaint) leaf(l tLeaf) {
 				continue
 			}
 			v := l.lit
-			if q*l.foldSign() > 0 {
+			if q*t.foldSign(&l) > 0 {
 				v += l.fold
 			} else {
 				v -= l.fold * 0.7
@@ -358,10 +368,15 @@ func (t *tentPaint) leaf(l tLeaf) {
 			if (1-math.Abs(q))*wPx < 1 {
 				v -= 0.16 // the rim, turned away
 			}
-			if l.side != 0 {
+			if l.side == tentGable {
+				// The closed end: darker near the ground (tentturn.go).
+				x, y := t.art(ix, iy)
+				a, _ := t.sAB(l.side, x, y)
+				v -= 0.12 * clamp01((a-22)/10)
+			} else if l.side != 0 {
 				// Further back and nearer the ground the slope is in its own shade.
 				x, y := t.art(ix, iy)
-				a, b := slopeAB(l.side, x, y)
+				a, b := t.sAB(l.side, x, y)
 				v -= 0.12*clamp01(b/tentL) + 0.14*clamp01((a-32)/10)
 			}
 			v += (hashf(ix, iy, l.seed) - 0.5) * 0.05
@@ -545,13 +560,13 @@ func (t *tentPaint) cutEdge() {
 // thatchBed fills slope side with the dark mass of the thatch under the
 // leaves laid on it.
 func (t *tentPaint) thatchBed(side, lit float64) {
-	x0, y0 := slopeXY(side, 0, tentL)
-	x1, y1 := slopeXY(side, slopeA, 0)
+	x0, y0 := t.sXY(side, 0, tentL)
+	x1, y1 := t.sXY(side, slopeA, 0)
 	bx0, by0, bx1, by1 := t.box(x0, y0, x1, y1, 1)
 	for iy := by0; iy <= by1; iy++ {
 		for ix := bx0; ix <= bx1; ix++ {
 			x, y := t.art(ix, iy)
-			a, b := slopeAB(side, x, y)
+			a, b := t.sAB(side, x, y)
 			if a < 0 || a > slopeA+0.5 || b < 0 || b > tentL+0.3 {
 				continue
 			}
@@ -621,7 +636,7 @@ func (t *tentPaint) frond(side, a0, a1, b, bend float64, gap, sweep float64, ln 
 		s := float64(i) / (L * tk)
 		a := a0 + L*s
 		bb := b + bend*4*s*(1-s)
-		x, y := slopeXY(side, a, bb)
+		x, y := t.sXY(side, a, bb)
 		ix, iy := t.px(x, y)
 		th := 1 + int(0.8*(1-s))
 		for d := 0; d < th; d++ {
@@ -713,9 +728,13 @@ func (t *tentPaint) snowCaps(side, b, amount float64, seed uint32) {
 			continue // bare here: it slid off, or never settled
 		}
 		lumps = append(lumps, lump{a, b + 0.6 + hashf(i, 2, seed)*1.4, (2.4 + 2*hashf(i, 4, seed)) * amount, (1.8 + 1.2*hashf(i, 5, seed)) * amount})
+		if t.geo != nil { // a turned slope is seen more nearly face on: the snow lies along the boughs
+			l := &lumps[len(lumps)-1]
+			l.ra, l.rb = l.ra*1.6, l.rb*0.7
+		}
 	}
-	x0, y0 := slopeXY(side, 0, b+4)
-	x1, y1 := slopeXY(side, slopeA+2, b-3)
+	x0, y0 := t.sXY(side, 0, b+4)
+	x1, y1 := t.sXY(side, slopeA+2, b-3)
 	bx0, by0, bx1, by1 := t.box(x0, y0, x1, y1, 2)
 	for iy := by0; iy <= by1; iy++ {
 		for ix := bx0; ix <= bx1; ix++ {
@@ -723,7 +742,7 @@ func (t *tentPaint) snowCaps(side, b, amount float64, seed uint32) {
 				continue
 			}
 			x, y := t.art(ix, iy)
-			a, bb := slopeAB(side, x, y)
+			a, bb := t.sAB(side, x, y)
 			best, nx, ny := 2.0, 0.0, 0.0
 			for _, l := range lumps {
 				dx, dy := (a-l.a)/l.ra, (bb-l.b)/l.rb
@@ -787,6 +806,12 @@ func (t *tentPaint) fringe(v tentLeaf) {
 		lit := 0.68
 		if side > 0 {
 			lit = 0.42
+		}
+		if t.geo != nil { // turned: only over the slopes in sight, lit as they are (tentturn.go)
+			if !t.geo.facesUs(side) {
+				continue
+			}
+			lit = 0.17 + 0.72*t.geo.planeLit(side)
 		}
 		for i, at := range []float64{9, 21, 33} {
 			h := func(j int) float64 { return hashf(i, j, t.seed+uint32(side+40)) }
@@ -859,13 +884,13 @@ func (t *tentPaint) groundLeaves(v tentLeaf, r func(i, j int) float64) {
 		}
 		x0, y0 := s[0]-math.Cos(ang)*ln/2, s[1]/0.6-math.Sin(ang)*ln/2
 		x1, y1 := s[0]+math.Cos(ang)*ln/2, s[1]/0.6+math.Sin(ang)*ln/2
-		t.leaf(tLeaf{side: 0, flat: 0.6, a0: x0, b0: y0, a1: x1, b1: y1, w: w, narrow: narrow, bend: 0.5,
+		t.groundLeaf(tLeaf{side: 0, flat: 0.6, a0: x0, b0: y0, a1: x1, b1: y1, w: w, narrow: narrow, bend: 0.5,
 			mat: mat, lit: 0.55 + (r(i, 52)-0.5)*0.15, fold: 0.08, veins: 5, seed: t.seed + uint32(200+i)})
 		if v == tentFir || v == tentPalm || v == tentFern {
 			// A sprig, not one leaflet: two more beside it.
 			for k := 1; k <= 2; k++ {
 				d := float64(k) * 1.3
-				t.leaf(tLeaf{side: 0, flat: 0.6, a0: x0 + d*math.Cos(ang), b0: y0 + d*math.Sin(ang), a1: x1 - math.Sin(ang)*float64(3-2*k)*1.6,
+				t.groundLeaf(tLeaf{side: 0, flat: 0.6, a0: x0 + d*math.Cos(ang), b0: y0 + d*math.Sin(ang), a1: x1 - math.Sin(ang)*float64(3-2*k)*1.6,
 					b1: y1 + math.Cos(ang)*float64(3-2*k)*1.6, w: w * 0.9, narrow: true, mat: mat, lit: 0.5, fold: 0.05, seed: t.seed + uint32(220+i*3+k)})
 			}
 		}
@@ -977,10 +1002,20 @@ func (t *tentPaint) inside() {
 }
 
 // genTent paints a tent thatched with v: what is inside, and the shell.
-func genTent(v tentLeaf) (back, front *canvas) {
+func genTent(v tentLeaf) (back, front *canvas) { return genTentFaced(v, sim.DirDown) }
+
+// genTentFaced paints a tent thatched with v, its door facing face: what is
+// seen inside through the door, and the shell (tentturn.go for the turned).
+func genTentFaced(v tentLeaf, face sim.Dir) (back, front *canvas) {
 	in := newTentPaint(v)
-	in.inside()
 	sh := newTentPaint(v)
+	if geo := tentGeoOf(face); geo != nil {
+		in.geo, sh.geo = geo, geo
+		in.insideTurned()
+		sh.shellTurned(v)
+		return in.canvas(), sh.canvas()
+	}
+	in.inside()
 	sh.shell(v)
 	return in.canvas(), sh.canvas()
 }
@@ -988,14 +1023,19 @@ func genTent(v tentLeaf) (back, front *canvas) {
 // tentArt is a thatch's drawings: what is inside, the shell, and both as one.
 type tentArt struct{ back, front, whole sprite }
 
-var tentArts [numTentLeaves]*tentArt
+var tentArts [numTentLeaves][4]*tentArt
 
-// tentArtOf is thatch v's drawings, made the first time they are wanted.
-func tentArtOf(v tentLeaf) *tentArt {
-	if a := tentArts[v]; a != nil {
+// tentArtOf is thatch v's drawings, its door to the south, made the first
+// time they are wanted.
+func tentArtOf(v tentLeaf) *tentArt { return tentArtFaced(v, sim.DirDown) }
+
+// tentArtFaced is thatch v's drawings with its door facing face.
+func tentArtFaced(v tentLeaf, face sim.Dir) *tentArt {
+	face &= 3
+	if a := tentArts[v][face]; a != nil {
 		return a
 	}
-	back, front := genTent(v)
+	back, front := genTentFaced(v, face)
 	whole := hdCanvas(tentW, tentHt)
 	whole.over(back, 0, 0)
 	whole.over(front, 0, 0)
@@ -1009,13 +1049,18 @@ func tentArtOf(v tentLeaf) *tentArt {
 		front: mkUp(front, tentAX*tk, tentAY*tk),
 		whole: mkUp(whole, tentAX*tk, tentAY*tk),
 	}
-	tentArts[v] = a
+	tentArts[v][face] = a
 	return a
+}
+
+// tentArtAt is the drawings of tent e, by its ground and its facing.
+func (g *Game) tentArtAt(e protocol.EntityView) *tentArt {
+	return tentArtFaced(tentLeafOf(g.tileAt(int(e.TX), int(e.TY))), sim.FacingOf(e.Kind, e.Var, e.Face))
 }
 
 // tentSprite is how a tent looks, whole: for the bag, a ghost, the label.
 func (g *Game) tentSprite(e protocol.EntityView) sprite {
-	return tentArtOf(tentLeafOf(g.tileAt(int(e.TX), int(e.TY)))).whole
+	return g.tentArtAt(e).whole
 }
 
 // tentSleeper reports whether someone is asleep in the tent on tile (tx, ty).
@@ -1035,7 +1080,7 @@ func (g *Game) drawTentEntity(dst drawTarget, e protocol.EntityView, d drawable)
 	if e.Kind != sim.EntityLeafTent {
 		return false
 	}
-	a := tentArtOf(tentLeafOf(g.tileAt(int(e.TX), int(e.TY))))
+	a := g.tentArtAt(e)
 	solid := g.seeThrough(e, a.whole, d) // fading while it hides someone behind; see occlude.go
 	noteCanopy(a.whole, d.sx, d.sy)
 	put := func(s sprite) {
@@ -1045,10 +1090,17 @@ func (g *Game) drawTentEntity(dst drawTarget, e protocol.EntityView, d drawable)
 		drawSprite(dst, s, op)
 	}
 	put(a.back)
-	if !g.tentSleeper(e.TX, e.TY) {
+	if !g.tentSleeper(e.TX, e.TY) || tentShut(e) {
 		put(a.front)
 	}
 	return true
+}
+
+// tentShut reports whether tent e is turned so that whoever sleeps in it
+// is out of sight: its door to the back or the sides (tentturn.go). Only
+// the sleep floating up from them shows.
+func tentShut(e protocol.EntityView) bool {
+	return sim.FacingOf(e.Kind, e.Var, e.Face) != sim.DirDown
 }
 
 // bedLabel is what the target marker says over a bed or a tent named
@@ -1078,7 +1130,7 @@ func (g *Game) tentUnder(p protocol.PlayerView) (protocol.EntityView, bool) {
 // drawTentShell puts the shell of tent e, standing at (x, y), over whoever
 // sleeps in it.
 func (g *Game) drawTentShell(dst drawTarget, e protocol.EntityView, x, y float64) {
-	a := tentArtOf(tentLeafOf(g.tileAt(int(e.TX), int(e.TY))))
+	a := g.tentArtAt(e)
 	putSprite(dst, a.front, x, y)
 }
 

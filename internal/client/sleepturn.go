@@ -14,7 +14,8 @@ import (
 // up or down the screen, so its sleeper is the one laid across turned a
 // quarter and drawn shorter, as the ground going back is (three quarters).
 // They sit down on the bed's open side and then lie straight down. In a
-// tent they lie across it as ever, their head away from its door.
+// tent facing south they lie across it as ever; in one turned they are
+// shut in, out of sight (tentShut).
 
 // sleepLie is how someone asleep lies, and where their head and their
 // armour are from the bed's anchor.
@@ -64,15 +65,10 @@ func (g *Game) sleepLie(p protocol.PlayerView) sleepLie {
 		return lieFor(sim.DirLeft)
 	}
 	e := g.curr.Entities[i]
-	switch e.Kind {
-	case sim.EntityBed:
+	if e.Kind == sim.EntityBed {
 		return lieFor(bedHead(sim.FacingOf(e.Kind, e.Var, e.Face)))
-	case sim.EntityLeafTent:
-		if e.Face == sim.DirLeft {
-			return lieFor(sim.DirRight) // the door west: the head away from it
-		}
 	}
-	return lieFor(sim.DirLeft)
+	return lieFor(sim.DirLeft) // in a tent facing south, as ever; turned, out of sight (tentShut)
 }
 
 // laidCanvasTurned is laidCanvas for k, mirrored or turned lengthways as k
@@ -149,4 +145,23 @@ func squashY(c *canvas, f float64) *canvas {
 		}
 	}
 	return s
+}
+
+// drawShutSleeper is p asleep in tent e at (x, y), turned so they are out
+// of sight (tentShut): once they have lain down, their sleep floats up
+// from the door, or over the ridge when the door is round the back.
+func (g *Game) drawShutSleeper(dst drawTarget, p protocol.PlayerView, e protocol.EntityView, x, y, age float64) {
+	if age < bedLie {
+		return
+	}
+	geo := tentGeoOf(sim.FacingOf(e.Kind, e.Var, e.Face))
+	if geo == nil {
+		return
+	}
+	at := tv{0, -1, tentH * 0.55}
+	if !geo.facesUs(tentFront) {
+		at = tv{0, tentMidY, tentH + 3}
+	}
+	dx, dy := geo.proj(at)
+	g.drawZzz(dst, x+math.Round(dx), y+math.Round(dy), float64(p.ID))
 }

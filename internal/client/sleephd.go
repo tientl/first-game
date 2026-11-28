@@ -415,6 +415,10 @@ func (g *Game) drawSleeperHD(dst drawTarget, p protocol.PlayerView, d drawable) 
 	// anything floats up from them: see tentart.go.
 	shell := func() {}
 	if e, ok := g.tentUnder(p); ok {
+		if tentShut(e) { // shut in, out of sight: only their sleep floats up from it
+			g.drawShutSleeper(dst, p, e, x, y, age)
+			return
+		}
 		tx, ty := x, y
 		shell = func() { g.drawTentShell(dst, e, tx, ty) }
 		x, y = x+lie.sign()*tentSleepDX, y+tentSleepDY
