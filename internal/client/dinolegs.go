@@ -493,6 +493,9 @@ func stepJoints(w *canvas, r dinoRig, p rigPose, pad, k int) (float64, []bool) {
 			}
 			ly.x0, ly.y0, ly.x1, ly.y1 = w.w, w.h, 0, 0
 			J, th := c.solve(feet[i], drop)
+			if p.limp != 0 {
+				J, th = c.limpJoints(p.limp, n == 2) // a body falling dead; see corpseart.go
+			}
 			c.draw(ly, J, th)
 			drawn[i] = [4]int{ly.x0, ly.y0, ly.x1, ly.y1}
 			ly.trimJoints(k)

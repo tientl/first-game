@@ -54,6 +54,7 @@ var monkeyDef = creatureDef{
 
 func init() {
 	creatureDefs[CreatureMonkey] = monkeyDef
+	nameHead(CreatureMonkey)
 	diets[CreatureMonkey] = dietDef{
 		grazes: true, hunger: [2]int{40 * TicksPerSecond, 90 * TicksPerSecond},
 		thirst: [2]int{100 * TicksPerSecond, 200 * TicksPerSecond}, eatTicks: 4 * TicksPerSecond,

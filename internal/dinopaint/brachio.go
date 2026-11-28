@@ -74,6 +74,7 @@ func brachio() *Species {
 	)
 	return &Species{
 		Name:        "brachio",
+		K:           5.5, // a long-neck towers six and a half players tall
 		GuideDetail: 0.5,
 		Ink:         32,
 		Materials: []Material{

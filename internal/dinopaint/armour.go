@@ -224,7 +224,7 @@ func (p *Painter) Scutes(s ScuteSpec) {
 	}
 	val := append([]float64(nil), p.Val...)
 	flat := LightOn(norm3(0, 0, 1))
-	const e = 1.0 / K
+	e := 1.0 / K
 	for py := 0; py < p.H; py++ {
 		for px := 0; px < p.W; px++ {
 			i := py*p.W + px

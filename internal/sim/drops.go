@@ -304,9 +304,17 @@ func init() {
 		panic("sim: no room left for the heads of every creature kind")
 	}
 	for k := CreatureKind(1); k < NumCreatureKinds; k++ {
-		if h := ItemHeadBase + ItemKind(k); HeadItem(k) == h {
-			itemDefs[h] = ItemDef{Name: "Đầu " + lowerFirst(k.Name()), Stack: 5}
-		}
+		nameHead(k)
+	}
+}
+
+// nameHead names the trophy head of kind k after the beast. The init above
+// names every head, but a beast registered by a file whose init runs after
+// this one (inits run in file-name order) has no name yet then, so those
+// files call nameHead again once they have set creatureDefs.
+func nameHead(k CreatureKind) {
+	if h := ItemHeadBase + ItemKind(k); HeadItem(k) == h {
+		itemDefs[h] = ItemDef{Name: "Đầu " + lowerFirst(k.Name()), Stack: 5}
 	}
 }
 

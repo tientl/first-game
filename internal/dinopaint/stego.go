@@ -102,6 +102,7 @@ func stego() *Species {
 	)
 	return &Species{
 		Name:        "stego",
+		K:           3.6, // twice a player's height
 		GuideDetail: 0.4,
 		Ink:         28,
 		// The plates and the tail's spikes are painted again: the guide's

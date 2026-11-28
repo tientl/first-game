@@ -66,6 +66,7 @@ func trike() *Species {
 	beak := Poly(70.2, 35.2, 74, 34.6, 78.6, 37.8, 78.8, 41.6, 76.4, 43.6, 72, 43.2, 70.4, 40.6)
 	return &Species{
 		Name:        "trike",
+		K:           10.0 / 3, // 1.7 players tall
 		GuideDetail: 0.6,
 		Ink:         28,
 		// The horns are painted again, smoothly: the guide's, above the

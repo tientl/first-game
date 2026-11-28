@@ -109,6 +109,24 @@ it and pick one with a flag, or make both from the same code with
   `CRITTER_DUMP=dir go test ./internal/client -run DumpCritters -v` writes a
   sheet (old above new, then the moving frames) and GIFs of each animal, and
   what drawing them costs.
+  Most of them are painted as the dinosaurs are (`critpaint.go`): a part
+  drawn with `q.body(shape, surf, look)` keeps, per pixel, the way its
+  surface faces, its material (`surf`: fur in locks, scales, shell, wet
+  skin, plates, matte hide, each on a `richRamp` leaning violet in the
+  shadow and warm in the light) and how much it is shadowed; a part laid
+  over another gets a crease and a soft shadow down and to the right. When
+  the drawing is done (`q.done`) every such pixel is lit at once from the
+  top left, with a rim of light on the edges turned away and a glint on what
+  shines, and outlined in the part's own darkest tone, lighter on the lit
+  side. `q.coat` repaints part of a form in another material (a pale belly,
+  war paint, a dark finger tip) and `q.shade` darkens or lightens it (a
+  groove, a brow), both keeping its form; eyes, teeth and glints go on flat
+  (`q.flat`, `q.dot`, `q.glassEye`). The files: `critsmall.go` (rabbit,
+  worm, fish, snake), `critcrab.go`, `critmonkey.go`, `critspider.go`,
+  `critscorp.go`, `critcroc.go`, `crittribe.go` (the warrior, drawn as tall
+  and as long in the leg as the player), and `crittotem.go`, the village
+  post, painted the same way and made a sprite with `mkUp`. A smaller
+  animal is drawn smaller with `newCritZoom` (see "Sizes" below).
 - Everyone starts as a caveman: the jointed figure bare (`cavefig.go`), a
   man in a fur loincloth, a woman in a fur wrap and skirt, both barefoot.
   The clothes (`sim.Wear`, made and carried like armour) go over it: the
@@ -308,7 +326,28 @@ go run ./cmd/shot -w 1920 -h 1080 -scalesheet -scaleonly build -o b.png
 
 - What stands in front of the player or a beast fades while they are
   behind it (`occlude.go`): any sprite of 30 art pixels or more gets a coarse
-  mask of its opaque pixels when its image is made (`noteCover`).
+  mask of its opaque pixels when its image is made (`noteCover`), and its
+  mirror the mirrored mask. A beast that tall fades the same way while a
+  player stands behind it (`seeThroughBeast`), but not for another beast,
+  so a herd of long-necks does not fade itself.
+- The beasts, in players: raptor 1.1, three-horn 1.7, plate-back 2.0,
+  mammoth 2.6, rex 2.9, long-neck 6.5 (`-scaleonly creatures`). A painted
+  dinosaur is made bigger by painting it finer over the same guide
+  (`Species.K` in `internal/dinopaint`, `dinoGrow` in `dinorig.go`, which
+  must agree): more scales and creases, not bigger pixels. Its rig, measured
+  on the guide, is scaled to the painting when it is drawn (`rigAsDrawn`),
+  and the seat, the shadow and the pet's heart through `beastScale`. The
+  mammoth is drawn in code a little bigger (`mammothGrow`). The sim's
+  hitboxes are unchanged. `shot -beasts "brachio,0,1.5;rex,4,2,left"` puts
+  beasts round the player to see them in the world.
+- The small animals, in players (`-scaleonly small`): rabbit sitting up
+  0.32, crab 0.3, coiled snake 0.35, sitting monkey 0.44, toad about 0.17,
+  fish 0.2; the cave spider 0.35 and the desert scorpion 1.0 are giants on
+  purpose; the tribal warrior stands as tall as the player. They are drawn
+  a little bigger than life, so they read at a glance, by `rabbitSize`,
+  `crabSize`, `snakeSize`, `monkeySize` (`critsmall.go`) and `toadSize`
+  (`toadart.go`): `newCritZoom` draws the same design that much smaller,
+  and the shadow (`creatureShadowBase`) and the hop's bob follow.
 - The big tree sets are drawn when first wanted (`lazyart.go`): the common
   ones on a goroutine just after start-up, the snow's, the swamp's and the
   woods' once the snapshot holds one. `shot -cost` prints what the art
@@ -581,7 +620,8 @@ screen pixel, like the world.
    writes `icons_hd.png` (each icon at 96 and three times bigger, in a
    second or so; `ICON_ONLY=<item number>` for one). In the game:
    `go run ./cmd/shot -exact -w 1920 -h 1080 -iconsheet -o s.png` (old and
-   new in 1080p hotbar slots, the smaller sizes, and x3), and
+   new in 1080p hotbar slots, the smaller sizes, and x3; 30 icons to a
+   page, `-iconpage 1` and on for the rest), and
    `-overlay recipes -bagfrom 1` for the bag with its recipe cards.
    `-exact` matters on a desktop shorter than 1080: without it the window
    is cut short and the interface drawn at scale 1.

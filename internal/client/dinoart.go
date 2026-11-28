@@ -423,8 +423,27 @@ const (
 )
 
 // beastScale is how much bigger than its design a creature of kind k is
-// drawn; 1 for the small animals.
+// drawn; 1 for the small animals. A species painted bigger than its drawing
+// (dinoGrow) or drawn bigger than its old design (mammothGrow) grows with it.
 func beastScale(k sim.CreatureKind) float64 {
+	switch k {
+	case sim.CreatureTrike:
+		return trikeScale * growOf("trike")
+	case sim.CreatureStego:
+		return stegoScale * growOf("stego")
+	case sim.CreatureBrachio:
+		return brachioScale * growOf("brachio")
+	case sim.CreatureRex:
+		return rexScale * growOf("rex")
+	case sim.CreatureMammoth:
+		return mammothScale * mammothGrow
+	}
+	return designScale(k)
+}
+
+// designScale is how much bigger than its design a creature of kind k is
+// drawn, as it was designed.
+func designScale(k sim.CreatureKind) float64 {
 	switch k {
 	case sim.CreatureTrike:
 		return trikeScale

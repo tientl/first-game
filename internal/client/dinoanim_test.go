@@ -79,9 +79,9 @@ func TestDumpDinoAnim(t *testing.T) {
 				took += time.Since(start)
 				n++
 				bytes += 4 * c.w * c.h
-				base := dinoImage(dinoRigs[species].file, false)
+				_, bw, bh, _ := rigAsDrawn(dinoRigs[species])
 				k := max(1, c.dens)
-				w, h := (base.w+60)*k, (base.h+40)*k
+				w, h := (bw+60)*k, (bh+40)*k
 				img := image.NewNRGBA(image.Rect(0, 0, w, h))
 				for j := range img.Pix {
 					img.Pix[j] = []byte{88, 128, 70, 255}[j%4]
@@ -116,6 +116,7 @@ func TestStanceFeetStayPlanted(t *testing.T) {
 			continue
 		}
 		rigCanvas(r, rigPose{step: 1}) // cuts its legs
+		r, _, _, _ = rigAsDrawn(r)     // grown with its painting
 		k := 1
 		if dinoHD {
 			k = HDDensity

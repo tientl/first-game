@@ -146,6 +146,7 @@ func main() {
 	exact := flag.Bool("exact", false, "draw on a screen exactly -w by -h pixels, whatever size the window gets (a window taller than the desktop is cut short, and a 1061-pixel screen is not 1080p: the interface is drawn at scale 1, not 2)")
 	iconHD := flag.Bool("iconhd", true, "the HD item icons, at the screen's own resolution (false: the old 16x16 icons, scaled up; see internal/client/iconhd.go)")
 	iconSheet := flag.Bool("iconsheet", false, "write the icon sheet instead of a frame: every HD item icon next to its old one, in 1080p hotbar slots and three times as big")
+	iconPage := flag.Int("iconpage", 0, "with -iconsheet: which page of the icons, 30 to a page, from 0; -1 for all of them, now an image too big to draw")
 	freeBuild := flag.Bool("freebuild", false, "dev mode with free build on: the DEV · XÂY TỰ DO tag, every recipe lit with a DEV badge; -overlay palette opens the build palette (see internal/sim/devbuild.go)")
 	devBase := flag.Bool("devbase", false, "build a small base round the player through free build's own commands: the ground cleared, then walls, a door, floors, a bed, fires, a farm, flowers (implies -freebuild; see dev.go)")
 	devPiece := flag.Int("devpiece", -1, "a piece of the build palette in hand, by its number (free build): its ghost under -aim")
@@ -164,6 +165,7 @@ func main() {
 	client.SetEnvHD(*envHD)
 	client.SetCritterHD(*critterHD)
 	client.SetIconHD(*iconHD)
+	client.SetIconSheetPage(*iconPage)
 	client.SetHeldHD(*heldHD)
 	client.SetSubPixel(*subPixel)
 	client.SetZoom(*zoom)
@@ -828,6 +830,7 @@ func main() {
 	}
 	putDinosA(&snap, sx, sy, *coast) // dinosa.go
 	putAnkylo(&snap, sx, sy)         // ankylo.go
+	putBeasts(&snap, sx, sy)         // beasts.go
 	if *eat {
 		for i := range snap.Creatures {
 			if c := &snap.Creatures[i]; c.State == sim.CreatureIdle && c.Kind.Feeds() {
@@ -990,6 +993,7 @@ func main() {
 		snap.Players[0].HurtSeq++
 	}
 	cookScene(&snap, sx, sy)   // see cook.go
+	firebloodScene(&snap, sx, sy) // see fireblood.go
 	hudScene(&snap)            // see hud.go
 	tentScene(&snap, sx, sy)   // see tent.go
 	thinEntities(&snap, *thin) // see terrain.go
@@ -1096,6 +1100,9 @@ func main() {
 	if *heldFit != "" {
 		g.heldFit, g.heldFitDir = game, *heldFit
 	}
+	if *firebloodSheetFlag != "" {
+		g.fireblood, g.firebloodDir = game, *firebloodSheetFlag
+	}
 	if *tentSheetFlag != "" {
 		g.tents, g.tentDir = game, *tentSheetFlag
 	}
@@ -1148,6 +1155,8 @@ type shooter struct {
 	icons      *client.Game // write its icon sheet instead of the frame
 	tents      *client.Game // write the leaf tent's sheet and GIF into tentDir instead of the frame
 	tentDir    string       // the folder they go in
+	fireblood  *client.Game // write the fire and body sheets into firebloodDir instead of the frame
+	firebloodDir string
 	cost       bool         // print what the art has cost
 
 	gifN, gifStep int           // -gif: frames to keep, and game frames between them
@@ -1192,6 +1201,13 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 			return
 		}
 		log.Printf("wrote %s", gifPath(s.out))
+	}
+	if s.fireblood != nil {
+		s.err, s.done = s.fireblood.FireBloodSheets(s.firebloodDir), true
+		if s.err == nil {
+			log.Printf("wrote the fire and body sheets in %s", s.firebloodDir)
+		}
+		return
 	}
 	if s.tents != nil {
 		s.err, s.done = s.tents.TentSheets(s.tentDir), true

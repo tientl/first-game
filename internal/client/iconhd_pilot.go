@@ -22,11 +22,9 @@ var iconPilot = []sim.ItemKind{
 	sim.ItemClay, sim.ItemHide, sim.ItemBone, sim.ItemStew,
 }
 
+// The axe, the pickaxe, the spear, the flint knife and the torch are their
+// held painters (iconhd_tools.go), so the bag and the hand match.
 func init() {
-	regIcon(sim.ItemAxe, icAxe)
-	regIcon(sim.ItemPickaxe, icPick)
-	regIcon(sim.ItemSpear, icSpear)
-	regIcon(sim.ItemCopperSword, icFlintKnife)
 	regIcon(sim.ItemWood, icWood)
 	regIcon(sim.ItemStick, icStick)
 	regIcon(sim.ItemStone, icStone)
@@ -38,7 +36,6 @@ func init() {
 	regIcon(sim.ItemCookedMeat, icRoast)
 	regIcon(sim.ItemFish, icFish)
 	regIcon(sim.ItemBanana, icBanana)
-	regIcon(sim.ItemTorch, icTorch)
 	regIcon(sim.ItemClay, icClay)
 	regIcon(sim.ItemHide, icHide)
 	regIcon(sim.ItemBone, icBone)
@@ -259,183 +256,6 @@ func binding(p *icv, a iaxis, x, y, length, hw float64) {
 	})
 }
 
-// --- tools -----------------------------------------------------------------------
-
-// icAxe is the stone axe: a knapped grey head lashed to a wooden haft.
-func icAxe(p *icv) {
-	ax, ay, bx, by := 3.0, 15.2, 11.6, 3.6
-	haft := mkAxis(ax, ay, bx, by)
-	p.fill(sCap(ax, ay, bx, by, 0.82, 0.7), shRod(iiWood, haft, 0.76, -0.02, 1, 11))
-	// The head, in the haft's frame at the lashing: s up the haft, t out
-	// to the left of it, where the edge is.
-	hx, hy := ax+haft.ex*10.6, ay+haft.ey*10.6
-	fr := frameOf(hx, hy, haft.ex, haft.ey)
-	head := fr.poly(
-		-1.2, -1.7, 1.2, -1.7, 1.8, 0.6, 3.3, 5.0, 3.1, 6.1, 1.6, 6.7, 0, 6.85,
-		-1.6, 6.7, -3.1, 6.1, -3.4, 5.0, -1.8, 0.6)
-	p.fill(head, func(f *ifrag) color.RGBA {
-		s, t := fr.st(f.x, f.y)
-		// The face is two planes meeting along a ridge down the middle:
-		// the upper one turned to the light.
-		base := 0.62
-		if s < -0.25+0.08*t {
-			base = 0.4
-		}
-		l := knap(f.x, f.y, base, 2.1, 5)
-		if t > 5.1 && -f.d < 0.7 {
-			l += 0.3 // the ground edge
-		}
-		return pick(icStoneR, l)
-	})
-	binding(p, haft, hx, hy, 2.3, 1.0)
-}
-
-// icPick is the stone pickaxe: a curved head with two points across the
-// top of the haft.
-func icPick(p *icv) {
-	ax, ay, bx, by := 2.8, 15.2, 11.0, 4.6
-	haft := mkAxis(ax, ay, bx, by)
-	p.fill(sCap(ax, ay, bx, by, 0.8, 0.7), shRod(iiWood, haft, 0.75, -0.02, 1, 21))
-	hx, hy := ax+haft.ex*12.0, ay+haft.ey*12.0
-	fr := frameOf(hx, hy, haft.ex, haft.ey)
-	arc := func(t float64) (float64, float64) { return 0.7 - t*t/16, t }
-	var left, right []float64
-	for i := 0; i <= 6; i++ {
-		t := float64(i) / 6 * 6.6
-		s, tt := arc(t)
-		x, y := fr.at(s, tt)
-		left = append(left, x, y)
-		s, tt = arc(-t * 0.92)
-		x, y = fr.at(s, tt)
-		right = append(right, x, y)
-	}
-	head := sPath(1.25, 0.12, left...).or(sPath(1.25, 0.12, right...))
-	p.fill(head, func(f *ifrag) color.RGBA {
-		s, t := fr.st(f.x, f.y)
-		cs, _ := arc(t)
-		// Round across the head: lit on its upper side.
-		l := litOf(fr.ex*(s-cs)*0.75, fr.ey*(s-cs)*0.75) - 0.06
-		l += (knap(f.x, f.y, 0.5, 1.2, 9) - 0.5) * 0.5
-		return pick(icStoneR, l)
-	})
-	binding(p, haft, hx+haft.ex*0.1, hy+haft.ey*0.1, 2.4, 1.0)
-}
-
-// icSpear is a long shaft with a knapped flint point.
-func icSpear(p *icv) {
-	ax, ay, bx, by := 1.6, 15.0, 10.6, 5.6
-	shaft := mkAxis(ax, ay, bx, by)
-	p.fill(sCap(ax, ay, bx, by, 0.66, 0.58), shRod(iiWood, shaft, 0.62, 0, 1, 31))
-	// The point: a leaf of flint from the shaft's end.
-	fr := frameOf(bx, by, shaft.ex, shaft.ey)
-	point := fr.poly(-1.2, 0, 0.2, 1.2, 2.6, 1.95, 4.8, 1.3, 7.0, 0, 4.8, -1.3, 2.6, -1.95, 0.2, -1.2)
-	p.fill(point, func(f *ifrag) color.RGBA {
-		s, t := fr.st(f.x, f.y)
-		base := 0.62
-		if t < 0.08*(s-1) {
-			base = 0.38
-		}
-		l := knap(f.x, f.y, base, 1.0, 13)
-		if -f.d < 0.45 && toward(f.gx, f.gy) > 0 {
-			l += 0.3 // the edge, thin and bright
-		}
-		return pick(icWFlintR, l)
-	})
-	binding(p, shaft, bx-shaft.ex*0.5, by-shaft.ey*0.5, 2.0, 0.8)
-	// A strip of hide hanging from the lashing.
-	tx, ty := bx-shaft.ex*1.2, by-shaft.ey*1.2
-	p.fill(sPath(0.34, 0.22, tx, ty, tx+0.7, ty+1.8, tx+0.3, ty+3.6), shBulge(icCordR, 0.3, -0.05))
-}
-
-// icFlintKnife is the flint knife: a broad knapped blade in a grip bound
-// with hide.
-func icFlintKnife(p *icv) {
-	fr := frameOf(1.7, 14.9, 0.69, -0.72) // from the pommel to the point
-	// The blade, from the grip's end to the point.
-	blade := fr.poly(5.0, 1.7, 8.4, 2.75, 11.8, 2.4, 14.8, 1.05, 17.4, -0.1, 14.2, -1.8, 10.2, -2.35, 6.4, -1.9, 4.9, -0.7)
-	p.fill(blade, func(f *ifrag) color.RGBA {
-		s, t := fr.st(f.x, f.y)
-		// Two faces meeting along a ridge from the grip to the point.
-		ridge := 0.25 - 0.02*(s-5)
-		base := 0.64
-		if t < ridge {
-			base = 0.36
-		}
-		l := knap(f.x, f.y, base, 1.15, 17)
-		if -f.d < 0.5 && toward(f.gx, f.gy) > -0.2 {
-			l += 0.3 // the fine edge, retouched
-		}
-		if math.Abs(t-ridge) < 0.14 {
-			l += 0.18
-		}
-		return pick(icWFlintR, l)
-	})
-	// A glint along the upper edge.
-	gx0, gy0 := fr.at(9.0, 2.15)
-	gx1, gy1 := fr.at(13.2, 1.45)
-	p.on(sCap(gx0, gy0, gx1, gy1, 0.17, 0.1), solidC(icGlint))
-	// The grip: bound with rawhide, a wooden knob at the end.
-	g0x, g0y := fr.at(0.8, 0)
-	g1x, g1y := fr.at(5.6, 0)
-	grip := mkAxis(g0x, g0y, g1x, g1y)
-	p.fill(sCap(g0x, g0y, g1x, g1y, 1.05, 1.0), func(f *ifrag) color.RGBA {
-		u, v := grip.uv(f.x, f.y)
-		l := grip.rod(v, 1.05)
-		if math.Mod(u*1.9-v*0.5+50, 1) < 0.3 {
-			l -= 0.3
-		}
-		return pick(icHideIn, l)
-	})
-	kx, ky := fr.at(0.4, 0)
-	p.fill(sEll(kx, ky, 1.25, 1.25), shSphere(iiWood, kx, ky, 1.25, 1.25, -0.05, false))
-}
-
-// icTorch is a stick with a wrapped head and a flame on it.
-func icTorch(p *icv) {
-	ax, ay, bx, by := 3.8, 15.2, 9.4, 7.6
-	stick := mkAxis(ax, ay, bx, by)
-	p.fill(sCap(ax, ay, bx, by, 0.72, 0.8), shRod(iiWood, stick, 0.76, 0, 1, 41))
-	// The head: tarred cloth wound round the top, wider than the stick.
-	fr := frameOf(bx, by, stick.ex, stick.ey)
-	h0x, h0y := fr.at(-1.6, 0)
-	h1x, h1y := fr.at(1.0, 0)
-	head := mkAxis(h0x, h0y, h1x, h1y)
-	p.fill(sCap(h0x, h0y, h1x, h1y, 1.35, 1.55), func(f *ifrag) color.RGBA {
-		u, v := head.uv(f.x, f.y)
-		l := head.rod(v, 1.5)
-		if math.Mod(u*1.3+v*0.45+50, 1) < 0.3 {
-			l -= 0.25
-		}
-		return pick(icClothR, l)
-	})
-	// The flame, leaning back from the way it is held: tongues licking up
-	// from a round root, hottest low in its middle.
-	fx, fy := fr.at(1.5, 0)
-	flame := iBlend(1.4,
-		sEll(fx, fy+0.1, 2.3, 2.0),
-		sTaper(2.0, 1.45, 0.08, fx, fy, fx-0.3, fy-2.6, fx-1.0, fy-5.4),
-		sTaper(1.1, 0.75, 0.05, fx+1.0, fy-0.4, fx+1.8, fy-2.4, fx+1.7, fy-3.9),
-		sTaper(0.9, 0.6, 0.05, fx-1.3, fy-0.2, fx-2.2, fy-1.8, fx-2.4, fy-3.0))
-	lick := shape{flame.x0 - 0.6, flame.y0 - 0.6, flame.x1 + 0.6, flame.y1 + 0.6, func(x, y float64) float64 {
-		up := clamp01((fy - y) / 6)
-		return flame.d(x, y) + (fbm2(x*0.9, y*0.55, 7, 2)-0.5)*1.4*up
-	}}
-	p.fill(lick, func(f *ifrag) color.RGBA {
-		dx, dy := (f.x-fx+0.3)/2.0, (f.y-fy+1.1)/3.4
-		l := 1.08 - math.Hypot(dx, dy)*0.55 + (fbm2(f.x*0.8, f.y*0.5-0.5, 8, 2)-0.5)*0.25
-		if -f.d < 0.4 {
-			l = min(l, 0.3) // a red rim
-		}
-		return pick(iiFire, l)
-	})
-	p.bareLast()
-	// The glow about it.
-	p.soft(sEll(fx-0.4, fy-1.6, 5.6, 6.0), func(f *ifrag) color.RGBA {
-		d := math.Hypot((f.x-fx+0.4)/5.6, (f.y-fy+1.6)/6.0)
-		return color.RGBA{0xff, 0xa8, 0x40, uint8(90 * clamp01(1-d) * clamp01(1-d))}
-	})
-}
-
 // --- materials of the land ---------------------------------------------------------
 
 // icWood is two cut logs, one on the other, their ends towards the viewer.
@@ -633,7 +453,7 @@ func icBerry(p *icv) {
 	berry(8.0, 12.4, 2.9)
 }
 
-// icMeat is a raw steak on the bone: red meat flecked with fat on its cut
+// icMeat is a raw steak on the bone: red meat marbled with fat on its cut
 // face, a rind of fat round its side, the bone's end standing out.
 func icMeat(p *icv) {
 	// The bone first, under the meat.
@@ -648,6 +468,9 @@ func icMeat(p *icv) {
 		if below < 0.75 {
 			return pick(icFatR, l+0.2)
 		}
+		if math.Mod(f.x*0.9+fbm2(f.x, f.y, 96, 2)*1.4, 1) < 0.14 {
+			l -= 0.18 // the grain of the muscle, across the side
+		}
 		return pick(icRawR, l-0.25)
 	})
 	p.fill(face, func(f *ifrag) color.RGBA {
@@ -656,25 +479,16 @@ func icMeat(p *icv) {
 		if -f.d < 0.62 && toward(f.gx, f.gy) > -0.1 {
 			return pick(icFatR, l)
 		}
-		// Flecks of fat: short streaks scattered on a jittered grid.
-		const cell = 1.05
-		gx, gy := f.x/cell, f.y/cell
-		ix, iy := math.Floor(gx), math.Floor(gy)
-		for dy := -1.0; dy <= 1; dy++ {
-			for dx := -1.0; dx <= 1; dx++ {
-				cx, cy := ix+dx, iy+dy
-				h := hashf(int(cx), int(cy), 91)
-				if h > 0.6 {
-					continue
-				}
-				px := cx + 0.2 + 0.6*hashf(int(cx), int(cy), 92)
-				py := cy + 0.2 + 0.6*hashf(int(cx), int(cy), 93)
-				a := hashf(int(cx), int(cy), 94) * math.Pi
-				ux, uy := (gx-px)*math.Cos(a)+(gy-py)*math.Sin(a), -(gx-px)*math.Sin(a)+(gy-py)*math.Cos(a)
-				if ux*ux/0.16+uy*uy/0.012 < 1 {
-					return mix(pick(icRawR, l), icFatR[2], 0.7)
-				}
-			}
+		// Marbling: thin veins of fat winding through the red, branching,
+		// fading out here and there.
+		n := fbm2(f.x*0.42, f.y*0.55, 91, 3)
+		vein := math.Abs(n - 0.5)
+		if w := 0.035 * (0.4 + fbm2(f.x*0.8, f.y*0.8, 92, 2)); vein < w {
+			return mix(pick(icRawR, l), icFatR[1+int(l*1.9)], 0.8)
+		}
+		m := fbm2(f.x*0.7+9, f.y*0.9, 93, 2)
+		if math.Abs(m-0.5) < 0.018 {
+			return mix(pick(icRawR, l), icFatR[1], 0.55)
 		}
 		return pick(icRawR, l)
 	})
@@ -780,76 +594,119 @@ func icBanana(p *icv) {
 	one(7.0, 9.6, 1.8, 6.2, 1.55)
 	one(8.2, 12.2, 2.6, 11.2, 1.6)
 	one(10.0, 13.4, 5.6, 14.6, 1.6)
-	// The stalk they hang from.
-	a := mkAxis(sx, sy+0.4, 13.8, 1.0)
-	p.fill(sCap(sx, sy+0.4, 13.8, 1.0, 0.95, 0.6), shRod(icPeel, a, 0.85, 0.15, 0, 0))
+	// The stalk they hang from: green and fibrous, ridged along its length,
+	// the crown where the hand grows from it knobbed, its end cut pale.
+	a := mkAxis(sx, sy+0.4, 14.0, 0.9)
+	p.fill(sCap(sx-0.4, sy+0.8, 14.0, 0.9, 1.25, 0.85), func(f *ifrag) color.RGBA {
+		u, v := a.uv(f.x, f.y)
+		l := a.rod(v, 1.0) + 0.1
+		if math.Abs(math.Sin(v*4.4+fbm2(u*0.4, v, 89, 2)*1.5)) > 0.86 {
+			l -= 0.18 // its ridges
+		}
+		if u < 1.1 {
+			return pick(icPeel, l-0.1) // the crown, brown and knobbed
+		}
+		return pick(icStalk, l-0.12)
+	})
+	p.fill(iEll(14.0, 0.9, 0.48, 0.82, math.Atan2(a.ey, a.ex)), func(f *ifrag) color.RGBA {
+		d := math.Hypot(f.x-14.0, f.y-0.9)
+		if d < 0.3 {
+			return pick(icStalk, 0.55)
+		}
+		return pick(icStalk, 0.9) // the cut, pale and wet
+	})
 }
 
-// icClay is a block of wet clay as dug and cut: a soft rounded slab, the
-// cut face streaked by the wire, a thumb's dent on top, shining wet; a
-// pinch of it beside.
+// icClay is wet clay as it is dug by the water: smooth lumps slumped in a
+// puddle of their own slip, a thumb pressed into the big one, everything
+// slick and shining.
 func icClay(p *icv) {
-	slab := sBox(2.4, 4.2, 13.2, 12.8, 2.2)
-	topY := func(x float64) float64 { return 8.2 + 0.12*(x-8) } // where the top turns down into the face
-	p.fill(slab, func(f *ifrag) color.RGBA {
-		var l float64
-		if f.y < topY(f.x) {
-			l = 0.78 // the top, facing up
-			if -f.d < 1.0 {
-				l += 0.12 * toward(f.gx, f.gy)
-			}
-		} else {
-			l = 0.48 // the cut face, towards the viewer
-			if math.Mod(f.y*2.1+fbm2(f.x*0.35, f.y, 102, 2)*1.6, 1) < 0.16 {
-				l -= 0.16 // the wire's streaks
-			}
-			if f.y-topY(f.x) < 0.45 {
-				l += 0.2 // the rounded edge between them
-			}
+	cr := clayRamp
+	// The puddle of slip they sit in: flat, dark, a sky's glint on it.
+	puddle := iBlend(1.2, sEll(8.0, 13.2, 7.0, 2.2), sEll(3.6, 12.6, 2.6, 1.6)).rough(0.2, 0.9, 100)
+	p.fill(puddle, func(f *ifrag) color.RGBA {
+		l := 0.34 + 0.1*toward(f.gx, f.gy)*clamp01(1+f.d/0.5)
+		if math.Abs(f.y-12.4-(f.x-8)*0.05) < 0.16 && f.x > 9.6 && f.x < 13.4 {
+			return mix(pick(cr, 0.5), hex(0xd8e8f0), 0.7)
 		}
-		if f.gx > 0.5 && -f.d < 1.3 {
-			l -= 0.22 // the shaded right side
-		}
-		return pick(icClayR, l+(fbm2(f.x*1.2, f.y*1.2, 101, 2)-0.5)*0.1)
+		return pick(cr, l)
 	})
-	// A thumb's dent in the top: dark at its lit side, lit at its far one.
-	cx, cy, r := 6.8, 6.2, 1.5
-	p.on(sEll(cx, cy, r, r*0.55), func(f *ifrag) color.RGBA {
-		nx, ny := (f.x-cx)/r, (f.y-cy)/(r*0.55)
-		return pick(icClayR, litOf(-nx*0.8, -ny*0.6)-0.02)
+	lump := func(s shape, cx, cy, rx, ry, bias float64, seed uint32) {
+		p.fill(s, func(f *ifrag) color.RGBA {
+			nx, ny := (f.x-cx)/rx, (f.y-cy)/ry
+			l := litOf(nx*0.9, ny*0.9) + bias + (fbm2(f.x*0.8, f.y*0.8, seed, 2)-0.5)*0.1
+			if nx*0.45+ny*0.89 > 0.62 {
+				l += 0.12 // the slip's light thrown up under it
+			}
+			return pick(cr, l)
+		})
+	}
+	big := iBlend(1.6, sEll(7.2, 8.0, 5.4, 4.6), sEll(7.6, 11.0, 6.0, 2.4)).rough(0.15, 1.6, 101)
+	lump(big, 6.8, 8.6, 5.8, 5.0, 0.0, 102)
+	// A thumb pressed into it: a dish, dark on its lit side, lit on the far.
+	cx, cy, r := 8.2, 7.0, 1.6
+	p.on(sEll(cx, cy, r, r*0.75), func(f *ifrag) color.RGBA {
+		nx, ny := (f.x-cx)/r, (f.y-cy)/(r*0.75)
+		return pick(cr, litOf(-nx*0.85, -ny*0.85)-0.08)
 	})
-	// The pinch beside it.
-	p.fill(iBlend(0.8, sEll(12.6, 13.0, 2.2, 1.6), sEll(12.0, 12.0, 1.2, 1.0)), shSphere(icClayR, 12.4, 12.6, 2.2, 1.7, 0.02, false))
-	// The wet shine.
-	p.on(sTaper(0.08, 0.22, 0.06, 3.6, 7.6, 5.0, 5.4, 7.6, 4.8), solidC(hex(0xf6ece0)))
-	p.on(sTaper(0.06, 0.16, 0.05, 9.0, 8.5, 10.8, 8.7, 12.0, 8.9), solidC(hex(0xf6ece0)))
-	p.on(sEll(11.6, 11.6, 0.3, 0.2), solidC(hex(0xf6ece0)))
+	small := sEll(12.8, 10.8, 2.2, 1.9)
+	lump(small, 12.8, 10.8, 2.2, 1.9, 0.02, 103)
+	lump(sEll(2.8, 11.4, 1.3, 1.1), 2.8, 11.4, 1.3, 1.1, 0.04, 104)
+	// The wet shine: sharp, cool highlights.
+	wet := hex(0xfff6f0)
+	p.on(sTaper(0.06, 0.28, 0.05, 2.6, 8.6, 3.4, 5.6, 6.0, 3.8), solidC(wet))
+	p.on(sEll(9.4, 6.2, 0.36, 0.2), solidC(wet))
+	p.on(sTaper(0.05, 0.18, 0.04, 11.2, 10.2, 11.8, 9.4, 12.8, 9.1), solidC(wet))
+	p.on(sEll(2.4, 10.9, 0.3, 0.18), solidC(wet))
 }
 
-// icHide is a hide laid out flat: the pale flesh side up, the fur showing
-// round its edge, the legs and tail out at its corners.
+// icHide is a hide scraped and laid out flat: the pale flesh side up,
+// creased where it was stretched, the fur showing round its edge, one
+// corner folded back to show the fur side, the legs and tail out at its
+// corners.
 func icHide(p *icv) {
 	pelt := sPoly(
 		4.2, 2.6, 6.2, 3.6, 8.0, 2.8, 9.8, 3.6, 11.8, 2.4, 12.4, 4.2, 11.6, 5.6, 12.6, 8.0,
 		11.8, 10.6, 13.2, 12.4, 12.4, 14.0, 10.4, 12.8, 8.2, 13.8, 6.0, 12.8, 3.6, 14.0, 2.8, 12.4,
 		4.2, 10.6, 3.4, 8.0, 4.4, 5.6, 3.4, 4.2)
-	fur := iBlend(0.8, pelt).rough(0.3, 0.45, 111)
-	p.fill(fur, func(f *ifrag) color.RGBA {
-		l := bulge(f, 0.9) + (fbm2(f.x*3.5, f.y*0.9, 112, 2)-0.5)*0.4
+	fur := iBlend(0.8, pelt).rough(0.35, 0.4, 111)
+	shFurEdge := func(f *ifrag) color.RGBA {
+		l := bulge(f, 0.9) + (fbm2(f.x*3.5, f.y*0.9, 112, 2)-0.5)*0.45
 		return pick(icPelt, l)
-	})
-	inner := iBlend(0.8, pelt).grow(-0.75)
+	}
+	p.fill(fur, shFurEdge)
+	inner := iBlend(0.8, pelt).grow(-0.8)
 	p.fill(inner, func(f *ifrag) color.RGBA {
 		// Flat, mottled, a little lit towards the top left; the edge rolls.
-		l := 0.62 - (f.x+f.y-16)*0.015 + (fbm2(f.x*0.9, f.y*0.9, 113, 3)-0.5)*0.35
-		if -f.d < 0.5 {
-			l += 0.16 * toward(f.gx, f.gy)
+		l := 0.6 - (f.x+f.y-16)*0.018 + (fbm2(f.x*0.9, f.y*0.9, 113, 3)-0.5)*0.32
+		if -f.d < 0.55 {
+			l += 0.18 * toward(f.gx, f.gy)
+		}
+		// Creases where it was stretched: from the middle out to the legs.
+		for _, c := range [][4]float64{{8, 8, 3.4, 3.6}, {8, 8, 3.4, 12.6}, {8, 8, 12.4, 12.6}} {
+			a := mkAxis(c[0], c[1], c[2], c[3])
+			u, v := a.uv(f.x, f.y)
+			if u > 1.2 && u < a.l-1.0 && math.Abs(v-0.3*math.Sin(u*1.3)) < 0.14 {
+				l -= 0.2
+			} else if u > 1.2 && u < a.l-1.0 && math.Abs(v-0.3*math.Sin(u*1.3)-0.26) < 0.1 {
+				l += 0.12
+			}
 		}
 		return pick(icHideIn, l)
 	})
 	// The spine's line down the middle.
-	p.on(sPath(0.22, 0.16, 8.0, 3.8, 8.2, 8.0, 8.1, 12.6), func(f *ifrag) color.RGBA {
+	p.on(sPath(0.2, 0.14, 8.0, 3.8, 8.2, 8.0, 8.1, 12.6), func(f *ifrag) color.RGBA {
 		return mix(p.px[f.iy*p.n+f.ix], icHideIn[0], 0.35)
+	})
+	// The top right corner folded back over: its fur side up.
+	flap := sPoly(9.4, 3.4, 12.2, 2.8, 11.6, 6.2)
+	p.fill(flap.grow(0.25).rough(0.25, 0.35, 114), shFurEdge)
+	p.fill(flap, func(f *ifrag) color.RGBA {
+		l := 0.55 + (fbm2(f.x*2.6, f.y*0.8, 115, 2)-0.5)*0.5
+		if math.Abs(math.Sin((f.x*2.4+f.y*0.8)*math.Pi)) > 0.86 {
+			l -= 0.15
+		}
+		return pick(icPelt, l)
 	})
 }
 

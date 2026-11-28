@@ -177,7 +177,7 @@ func (g *Game) scaleGroups() (names []string, groups [][]scaleEntry) {
 		s, _ := g.creatureSprite(protocol.CreatureView{Kind: k, State: sim.CreatureIdle}, false)
 		return scaleEntry{name: name, s: s, creature: true}
 	}
-	add("Creatures (not rescaled)",
+	add("Creatures",
 		beast("raptor", sim.CreatureRaptor),
 		beast("tribesman", sim.CreatureTribesman),
 		beast("sabre-tooth", sim.CreatureSabre),
@@ -187,6 +187,19 @@ func (g *Game) scaleGroups() (names []string, groups [][]scaleEntry) {
 		beast("mammoth", sim.CreatureMammoth),
 		beast("rex", sim.CreatureRex),
 		beast("long-neck", sim.CreatureBrachio),
+	)
+	add("Small creatures",
+		beast("rabbit", sim.CreatureRabbit),
+		beast("crab", sim.CreatureCrab),
+		beast("fish", sim.CreatureFish),
+		beast("worm", sim.CreatureWorm),
+		beast("snake", sim.CreatureSnake),
+		beast("monkey", sim.CreatureMonkey),
+		beast("spider", sim.CreatureSpider),
+		beast("scorpion", sim.CreatureScorpion),
+		beast("toad", sim.CreatureToad),
+		beast("croc", sim.CreatureCroc),
+		beast("troodon", sim.CreatureTroodon),
 	)
 	return names, groups
 }

@@ -474,7 +474,8 @@ func mirrorSprite(s sprite) sprite {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(-1, 1)
 	op.GeoM.Translate(float64(w), 0)
-	img.DrawImage(s.img, op) // in image pixels: the mirror keeps s's density
+	img.DrawImage(s.img, op)   // in image pixels: the mirror keeps s's density
+	mirrorCover(s.img, img, w) // see occlude.go
 	return sprite{img: img, ax: s.w() - s.ax, ay: s.ay, dens: s.dens}
 }
 

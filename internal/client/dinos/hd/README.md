@@ -14,6 +14,15 @@ Two ways make them:
 - **Filtered** (the rest, for now): `gen.py` upscales and textures the
   drawing. It skips the species in its `PAINTED` set.
 
+**Bigger than the guide.** A description's `K` paints it finer than three
+image pixels to a guide pixel: the three-horn at 3.33, the plate-back at
+3.6, the rex at 3.75, the long-neck at 5.5. The painting is then `K / 3`
+times as big in the game, with that much more detail (the guide's shapes,
+muscles and parts are in guide pixels; scales, outlines and fine marks are
+in image pixels, so they stay as fine). It is padded to whole art pixels
+on the right and at the bottom. The game scales the rig with it
+(`dinoGrow` in `dinorig.go`, which must say `K / 3`).
+
 ## Adding a species to the painter
 
 Copy `rex.go` (a biped) or `trike.go` (a quadruped with a frill and horns)

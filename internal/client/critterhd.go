@@ -28,6 +28,7 @@ const cK = HDDensity
 // by (ox, oy) image pixels, so a drawing can be given room around it.
 type crit struct {
 	c      *canvas
+	g      *gbuf // what body painted, to be lit when done (critpaint.go)
 	ox, oy int
 	edge   float64 // how dark a part's rim is where it lies over another
 	zoom   float64 // the drawing comes out this many times bigger (a smaller cousin: less than 1)
@@ -157,6 +158,9 @@ func (q *crit) draw(s shape, sh shader, mode int) {
 				p = mix(p, colInk, q.edge)
 			}
 			c.px[i] = p
+			if q.g != nil {
+				q.g.sf[i] = nil // drawn flat: not lit again
+			}
 		}
 	}
 }
@@ -176,7 +180,11 @@ func (q *crit) behind(s shape, sh shader) { q.draw(s, sh, fillBehind) }
 
 // dot colours the image pixel at art point (x, y), dx and dy image pixels off.
 func (q *crit) dot(x, y float64, dx, dy int, col color.RGBA) {
-	q.c.put(int(math.Floor(x*cK*q.zoom))+dx+q.ox, int(math.Floor(y*cK*q.zoom))+dy+q.oy, col)
+	px, py := int(math.Floor(x*cK*q.zoom))+dx+q.ox, int(math.Floor(y*cK*q.zoom))+dy+q.oy
+	q.c.put(px, py, col)
+	if q.g != nil && q.c.in(px, py) {
+		q.g.sf[py*q.c.w+px] = nil
+	}
 }
 
 // eye is an eye at art point (x, y), r image pixels across its iris: a dark
@@ -198,7 +206,12 @@ func (q *crit) bead(x, y, r float64) {
 
 // done outlines the drawing and hands it over with its anchor, in art pixels.
 func (q *crit) done(ol, ax, ay float64) (*canvas, float64, float64) {
-	q.c.outline(ol)
+	if q.g != nil {
+		q.light() // the parts drawn as forms: see critpaint.go
+		q.outlineLit(ol)
+	} else {
+		q.c.outline(ol)
+	}
 	return q.c, ax*q.zoom + float64(q.ox)/cK, ay*q.zoom + float64(q.oy)/cK
 }
 
@@ -515,16 +528,8 @@ func (g *Game) critterSprite(c protocol.CreatureView, moving bool, side, t int) 
 			period = 9
 		}
 		ph := float64(t%period) / float64(period)
-		bob := math.Sin(ph*math.Pi) * 3
-		f := 1 // gathered
-		switch {
-		case ph > 0.12 && ph < 0.42:
-			f = 2 // rising
-		case ph >= 0.42 && ph < 0.62:
-			f = 0 // stretched out
-		case ph >= 0.62 && ph < 0.92:
-			f = 3 // coming down
-		}
+		bob := 3 * rabbitSize * math.Sin(math.Pi*clamp01((ph-0.1)/0.66)) // off the ground from the push to the landing
+		f := 1 + int(ph*cycFrames)%cycFrames                 // see hopKeys in critsmall.go
 		return critter("rabbit", side, rabbitHop, f), bob, true
 	case sim.CreatureSnake:
 		switch {
@@ -633,7 +638,7 @@ func (g *Game) critterSprite(c protocol.CreatureView, moving bool, side, t int) 
 		case feeding(c):
 		case moving && c.State == sim.CreatureFlee:
 			f := cyc(t, 5)
-			return critter("monkey", side, monkeyLeap, f), 1.5 * (1 + math.Cos(2*math.Pi*cycPh(f))), true
+			return critter("monkey", side, monkeyLeap, f), 1.5 * monkeySize * (1 + math.Cos(2*math.Pi*cycPh(f))), true
 		case moving:
 			return fr("monkey", monkeyWalkA, cyc(t, 7))
 		}
