@@ -260,6 +260,12 @@ func (g *Game) drawBossMarks(dst *uiDst, at func(x, y float64) (float32, float32
 		g.text(dst, m.Kind.Name(), float64(x), float64(y)+14, colWhite, text.AlignCenter, 1)
 		if m.Camp { // its camp: a tent by a fire, and the way in
 			cx, cy := at(float64(m.CX), float64(m.CY))
+			label := text.AlignCenter
+			lx, ly := float64(cx), float64(cy)+8
+			if d := math.Hypot(float64(cx-x), float64(cy-y)); d < 36 { // on the whole map it lies close by the lair: set apart
+				cx, cy = x+30, y-16 // up and to the right, clear of the lair's name below it
+				label, lx, ly = text.AlignStart, float64(cx)+15, float64(cy)-9
+			}
 			for i := 0.15; i < 0.85; i += 0.1 {
 				fillCircle(dst, cx+(x-cx)*float32(i), cy+(y-cy)*float32(i), 1.4, fade(colBone, 200), true)
 			}
@@ -280,7 +286,7 @@ func (g *Game) drawBossMarks(dst *uiDst, at func(x, y float64) (float32, float32
 			op2.ColorScale.ScaleWithColor(color.RGBA{96, 150, 70, 255})
 			fillPath(dst, &q, op2)
 			fillCircle(dst, cx+11, cy+3, 3, color.RGBA{240, 150, 50, 255}, true)
-			g.text(dst, "Trại", float64(cx), float64(cy)+8, colWhite, text.AlignCenter, 1)
+			g.text(dst, "Trại", lx, ly, colWhite, label, 1)
 		}
 	}
 }
