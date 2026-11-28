@@ -417,7 +417,8 @@ func nearAPlayer(ps []protocol.PlayerView, x, y, r float64) bool {
 
 // --- targeting --------------------------------------------------------------
 
-// targetView is what the Action key would work on right now.
+// targetView is what the Action key would work on right now, or (a pile or
+// a loose thing on the ground) what E would pick up: see pickup.go.
 type targetView struct {
 	ok       bool
 	creature bool // c is the target, else e
@@ -522,7 +523,7 @@ func (g *Game) creatureLabelBase(c protocol.CreatureView) (string, color.RGBA) {
 	case sim.CreatureSnake:
 		return name + " — đánh", colWhite
 	case sim.CreatureWorm:
-		return name + " — nhặt làm mồi", colWhite
+		return name + " — bắt làm mồi", colWhite // a click catches it; "nhặt" is E's (pickup.go)
 	case sim.CreatureCrab:
 		if c.State == sim.CreatureChase || c.State == sim.CreatureStrike {
 			return name + " — bắt (coi chừng bị kẹp)", colWhite

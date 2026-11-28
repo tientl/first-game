@@ -11,11 +11,11 @@ func TestOnlyBusyEntitiesAreStepped(t *testing.T) {
 		t.Fatalf("a fresh world steps %d of %d entities, want only the few that change", n, len(w.entities))
 	}
 
-	// A harvested twig is stepped until it grows back, then dropped.
+	// A twig picked up (E) is stepped until it grows back, then dropped.
 	pw := flatWorld()
 	id := pw.AddPlayer("a")
 	twig := pw.addEntity(EntityTwig, 17, 16)
-	pw.SetInput(id, Input{Action: true})
+	pw.Apply(id, Command{Kind: CmdInteract})
 	pw.Step()
 	if twig.Ready || pw.active[twig.ID] == nil {
 		t.Fatalf("picked twig: ready %v, active %v", twig.Ready, pw.active[twig.ID] != nil)

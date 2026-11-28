@@ -431,24 +431,6 @@ func (g *Game) drawDrop(dst drawTarget, d protocol.DropView, sx, sy, lift float6
 	}
 }
 
-// dropTarget is the pile Space would pick up now, if any.
-func (g *Game) dropTarget(x, y float64) (protocol.DropView, bool) {
-	var cands []sim.DropCandidate
-	for _, d := range g.curr.Drops {
-		cands = append(cands, sim.DropCandidate{ID: d.ID, X: float64(d.X), Y: float64(d.Y)})
-	}
-	id, ok := sim.NearestDrop(x, y, cands)
-	if !ok {
-		return protocol.DropView{}, false
-	}
-	for _, d := range g.curr.Drops {
-		if d.ID == id {
-			return d, true
-		}
-	}
-	return protocol.DropView{}, false
-}
-
 // --- weather and the seasons -----------------------------------------------------------
 
 // seasonTiles is the ground as the season shows it: in winter the meadows,
@@ -632,7 +614,7 @@ func (g *Game) drawLightning(dst drawTarget, cam camera) {
 	if flash > 0 {
 		b := dst.Bounds()
 		a := uint8(105 * flash)
-		fillRect(dst, 0, 0, float32(b.Dx()), float32(b.Dy()), color.RGBA{a, a, a, a}, false)
+		fillRect(dst, -overlayMargin, -overlayMargin, float32(b.Dx()+2*overlayMargin), float32(b.Dy()+2*overlayMargin), color.RGBA{a, a, a, a}, false) // the margin: see overlay.go
 	}
 }
 

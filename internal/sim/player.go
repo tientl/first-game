@@ -258,6 +258,8 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 		}
 	case CmdInteract:
 		w.interactKey(p) // see aim.go
+	case CmdPickUp:
+		w.pickUpKey(p) // E held down; see pickup.go
 	case CmdFeed:
 		w.feedKey(p)
 	case CmdRide:
@@ -410,6 +412,9 @@ func (c TargetCandidate) targetable(hasWood bool) bool {
 	}
 	if StationOf(c.Kind, c.Var) != StationNone {
 		return true // a fire with a pot on it is opened, wood in the bag or not; see cooking.go
+	}
+	if LooseItem(c.Kind) {
+		return false // a branch, a pebble…: picked up with E, not Action; see pickup.go
 	}
 	return Interactable(c.Kind, c.Ready, hasWood)
 }

@@ -107,6 +107,7 @@ type Game struct {
 
 	showHelp  bool              // F1: the full list of keys; see hud.go
 	hudTarget targetView        // what Action works on, for the hint over the hotbar
+	pick      pickState         // what E picks up, and E held down; see pickup.go
 	statusOn  [numStatuses]bool // the status effects last drawn
 	statusAt  [numStatuses]int  // when each began, for its long line
 	hudFX     hudFX             // the bars' trails, the labels' fades; see uitheme.go, uilabels.go
@@ -154,6 +155,7 @@ type Game struct {
 	hd       *heroHDState  // the trial hero's frames and lights; see herohddraw.go
 	caveMask *ebiten.Image // one pixel per tile in view: where it is always dark
 	lavaMask *ebiten.Image // one pixel per tile in view: where lava glows
+	caveDark caveDarkState // the light of the natural caves this frame; see cavedark.go
 	canopy   *ebiten.Image // one pixel per tile in view: where the woods shade the ground
 	drawList []drawable
 	figures  []figure                 // who may be hidden behind a tree or a wall this frame; see occlude.go
@@ -587,6 +589,9 @@ func (g *Game) handleInput() {
 // updateKeys handles the keys that do one thing per press: E, R, V and the
 // right button.
 func (g *Game) updateKeys(dead bool) {
+	if dead || g.overlay != overlayNone {
+		g.pick.held = false // E held down picks up only in play
+	}
 	switch {
 	case dead:
 		// The death screen: R, E or Enter comes back.
@@ -611,9 +616,11 @@ func (g *Game) updateKeys(dead bool) {
 	case g.overlay != overlayNone:
 		return
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
+	ePressed := inpututil.IsKeyJustPressed(ebiten.KeyE)
+	if ePressed {
 		g.command(sim.Command{Kind: sim.CmdInteract}) // pick up, open, get on or off; see sim/aim.go
 	}
+	g.updatePickHold(ePressed) // held down, E picks up one thing after another; see pickup.go
 	if inpututil.IsKeyJustPressed(ebiten.KeyR) {
 		g.command(sim.Command{Kind: sim.CmdRide}) // as E for beasts and boats; see ride.go
 	}

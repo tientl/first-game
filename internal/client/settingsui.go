@@ -75,7 +75,7 @@ const (
 	rowShake
 	rowPostFX
 	rowGrade
-	rowGround
+	rowBrightness
 )
 
 // setRowKind is the control a row has.
@@ -116,12 +116,12 @@ func setRows(t int) []setRow {
 			{rowVSync, kindToggle, "VSync", ""},
 			{rowZoom, kindSteps, "Thu phóng camera", "Hình ảnh"},
 			{rowShake, kindToggle, "Rung màn hình", ""},
-			{rowPostFX, kindToggle, "Ánh sáng và chỉnh màu", ""},
+			{rowPostFX, kindToggle, "Hiệu ứng toả sáng", ""},
 		}
 		if len(colourGrades) > 0 {
 			rows = append(rows, setRow{rowGrade, kindChoice, "Tông màu", ""})
 		}
-		return append(rows, setRow{rowGround, kindChoice, "Kiểu mặt đất", ""})
+		return append(rows, setRow{rowBrightness, kindChoice, "Độ sáng", ""})
 	}
 	return nil
 }
@@ -261,10 +261,10 @@ func (s *settingsScreen) choices(id setRowID) []setChoice {
 		for _, g := range colourGrades {
 			out = append(out, setChoice{label: g.label, on: cur.Grade == g.name, put: func(st *Settings) { st.Grade = g.name }})
 		}
-	case rowGround:
-		out = append(out,
-			setChoice{label: "Cỏ xanh", on: cur.Ground != "warm", put: func(st *Settings) { st.Ground = "" }},
-			setChoice{label: "Đất ấm", on: cur.Ground == "warm", put: func(st *Settings) { st.Ground = "warm" }})
+	case rowBrightness:
+		for i, name := range [len(brightnessLevels)]string{"Bình thường", "Sáng hơn", "Sáng nhất"} {
+			out = append(out, setChoice{label: name, on: cur.Brightness == i, put: func(st *Settings) { st.Brightness = i }})
+		}
 	}
 	return out
 }
@@ -729,8 +729,8 @@ func (s *settingsScreen) help() string {
 		return "Lửa, đuốc toả sáng và màu theo giờ trong ngày. Tốn máy hơn một chút."
 	case rowGrade:
 		return "Tông màu của thế giới."
-	case rowGround:
-		return "Cỏ xanh mướt, hoặc đất vàng ấm lốm đốm cỏ."
+	case rowBrightness:
+		return "Cho màn hình tối: đêm và hang bớt tối một chút. Trong hang vẫn phải cầm đuốc mới thấy đường."
 	}
 	return ""
 }
@@ -847,7 +847,7 @@ var setKeysLeft = []setKey{
 	{keys: []string{"Chuột trái", "Space"}, does: "chặt, đập, hái, đánh (giữ: làm liền tay)"},
 	{keys: []string{"Chuột phải"}, does: "dùng món đang cầm: ăn, cắm đuốc…"},
 	{keys: []string{"Q"}, does: "giữ để giơ khiên đỡ đòn"},
-	{keys: []string{"E"}, does: "nhặt đồ, mở rương, cưỡi thú, lên thuyền"},
+	{keys: []string{"E"}, does: "nhặt đồ (giữ: nhặt liền), mở rương"},
 	{keys: []string{"R"}, does: "cưỡi thú, lên thuyền"},
 	{keys: []string{"V"}, does: "đặt món đang cầm xuống đất"},
 	{keys: []string{"G"}, does: "vứt một món (Shift + G: cả chồng)"},

@@ -515,7 +515,7 @@ const (
 	CmdPlace                     // set down what I hold: a head on a post, a torch in the ground, a seed
 	CmdVictorySeen               // I have closed the game-beaten screen; see bosses.go
 	CmdToss                      // throw Count of the stack in Slot on the ground in front; see toss.go
-	CmdInteract                  // E: pick up a pile, open a chest, get on or off a beast or boat; see aim.go
+	CmdInteract                  // E: pick up a pile or loose thing, open a chest, get on or off a beast or boat; see aim.go
 	CmdCookPut                   // move Count (0: all) of the stack in my Slot into my open cooking station; see cooking.go
 	CmdCookTake                  // move the stack in the station's Slot into my inventory
 	CmdCookClose                 // close my open station
@@ -524,6 +524,7 @@ const (
 	CmdFeed                      // give the held food to the beast pointed at, or the nearest that eats it; see aim.go
 	CmdDevBuild                  // free build: put build palette piece Slot on tile (TX, TY) when At, else in front; see devbuild.go
 	CmdDevRemove                 // free build: take the structure on tile (TX, TY) away when At, else the one in front
+	CmdPickUp                    // E held down: pick up the next pile or loose thing, and nothing else; see pickup.go
 	CmdThrow                     // throw the spear held at where the player points; see throw.go
 )
 
@@ -543,7 +544,7 @@ type Command struct {
 // Input is the continuously held player input, sampled every tick.
 type Input struct {
 	MoveX, MoveY int8 // each -1, 0 or 1
-	Action       bool // work on the target: the one pointed at, else the nearest (chop, mine, pick, refuel)
+	Action       bool // work on the target: the one pointed at, else the nearest (chop, mine, gather, strike, refuel); it never picks up, E does
 	// Aim is where the mouse points, in world tiles, when Aim is set: the
 	// player faces it and Action works on what is under it if in reach.
 	// See aim.go.

@@ -40,15 +40,10 @@ const (
 
 var groundStyle GroundStyle
 
-// SetGroundStyle picks the look of the ground and keeps it with the
-// settings. The ground in view is baked again in the new look.
-func SetGroundStyle(s GroundStyle) {
-	name := ""
-	if s == GroundWarm {
-		name = "warm"
-	}
-	changeSettings(func(st *Settings) { st.Ground = name }) // sets groundStyle: see settings.go
-}
+// SetGroundStyle picks the look of the ground, for this run only: the warm
+// ground is a trial (shot -warm), not a setting. The ground in view is
+// baked again in the new look (groundCache.draw).
+func SetGroundStyle(s GroundStyle) { groundStyle = s }
 
 // CurrentGroundStyle is the look of the ground now.
 func CurrentGroundStyle() GroundStyle { return groundStyle }

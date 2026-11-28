@@ -178,7 +178,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	g.updateCave() // before anything hides under, or shows from, a cave roof
 	target, far := g.target()
-	g.hudTarget = target
+	g.hudTarget, g.pick.view = target, g.pickTarget() // see pickup.go
 
 	if frozen {
 		g.drawStopped(screen, scale)
@@ -260,8 +260,7 @@ func (g *Game) drawWorld(screen, canvas *ebiten.Image, cam camera, scale, rr, cw
 func (g *Game) drawAfterWorld(screen *ebiten.Image, cam camera, fs float64, sw, sh int, alpha float64, target, far targetView) {
 
 	vop := &ebiten.DrawImageOptions{}
-	vb := g.art.vignette.Bounds()
-	vop.GeoM.Scale(float64(sw)/float64(vb.Dx()), float64(sh)/float64(vb.Dy()))
+	stretchOver(&vop.GeoM, g.art.vignette.Bounds(), sw, sh) // to the very edge: see overlay.go
 	vop.ColorScale.ScaleAlpha(0.38)
 	vop.Filter = ebiten.FilterLinear
 	screen.DrawImage(g.art.vignette, vop)
@@ -1090,9 +1089,7 @@ func (g *Game) target() (tg, far targetView) {
 		return targetView{}, far // a held hoe tills the tile in front: marked by drawDigSpot
 	}
 	x, y := float64(p.X), float64(p.Y)
-	if d, ok := g.dropTarget(x, y); ok {
-		return targetView{ok: true, drop: true, d: d}, far // a pile comes first, as on the server
-	}
+	// Never a pile or a loose thing: E picks those up (pickTarget, pickup.go).
 	t, ok := sim.ResolveTarget(x, y, aim, ax, ay, g.curr.Self.Inv.HasFuel(), g.candidateAt,
 		creatureCandidates(g.curr.Creatures, x, y), sim.ReachBonusFor(p.Held)+sim.RideReach(p.Mount != 0))
 	if !ok {
@@ -1122,6 +1119,7 @@ const labelLift = 2.5 * playerArtH
 func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, tg targetView) {
 	alpha := g.alpha()
 	var cur floatLabel
+	tg = g.labelled(tg) // or what E picks up there; see pickup.go
 	if tg.ok && tg.aimed {
 		var sx, sy, top float64
 		var label string
@@ -1130,7 +1128,7 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			x, y, lift := g.dropPos(tg.d)
 			sx, sy = cam.toScreenFine(x, y)
 			top = sy - lift - 14
-			label = "Nhặt " + tg.d.Item.Def().Name
+			label = "E: nhặt " + tg.d.Item.Def().Name
 			if tg.d.Count > 1 {
 				label += fmt.Sprintf(" ×%d", tg.d.Count)
 			}
@@ -1150,6 +1148,8 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				label += [2]string{" nhỏ", " lớn"}[sizeIdx(e.Big)]
 			}
 			switch {
+			case sim.LooseItem(e.Kind): // picked up with E, not the left button; see pickup.go
+				label = "E: nhặt " + label
 			case hasHive(e) && e.Fuel == 0: // see jungleart.go
 				label = "Tổ ong — lấy mật (cầm đuốc cho ong khỏi đốt)"
 				if g.myHeld() != sim.ItemTorch {
