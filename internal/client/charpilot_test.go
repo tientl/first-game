@@ -8,20 +8,21 @@ import (
 	"path/filepath"
 	"testing"
 
+	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
 )
 
-// The style pilot's sheets (charpilot.go): the current figure and the three
-// new looks side by side, enlarged, to choose between:
+// The figure's sheets (charpilot.go): the old figure and the figure as it is
+// drawn now side by side, enlarged:
 //
 //	CHAR_PILOT=dir go test ./internal/client -run CharPilotSheets
 //
 // writes compare_front.png (standing, facing the viewer, four times the
 // size), compare_turnaround.png (front, side, back), compare_motion.png
 // (idle, walk, run and an axe's swing, from the side; the axe a stand-in),
-// faces.png and hands.png (sixteen times), and for each style
-// hair_<style>.png (every hair style, hair colour and skin tone),
-// close_<style>.png (the upper body, ten times) and detail_<style>.png
+// faces.png and hands.png (sixteen times), and for each
+// hair_a.png (every hair style, hair colour and skin tone),
+// close_<old|a>.png (the upper body, ten times) and detail_<old|a>.png
 // (the whole figure, eight times).
 
 var pilotStyles = []struct {
@@ -203,12 +204,10 @@ func pFillRect(img *image.RGBA, r image.Rectangle, c color.RGBA) {
 	}
 }
 
-// TestCharPilotBakes draws every style in every facing, standing, striding,
-// running, chopping, punching and lying dead, bare and clothed: each must
-// leave nothing of its bookkeeping behind (a skin held back from a hand,
-// a fist's dots to put back, layers waiting for their outline), stand on
-// the ground line, and keep its pixels opaque where the old fist's dots
-// were put back.
+// TestCharPilotBakes draws the figure in every facing, standing, striding,
+// running, chopping, punching and lying dead, bare and clothed, with and
+// without each armour: every bake must have its layers, and the feet must
+// stand on the ground line.
 func TestCharPilotBakes(t *testing.T) {
 	defer setPilot(t, charRefined)
 	lo2, up2 := moChop.keys(sim.DirRight, 2)
@@ -609,4 +608,58 @@ func TestArmorSetSheet(t *testing.T) {
 		}
 	}
 	limbPNG(t, filepath.Join(dir, "armour_close.png"), img)
+}
+
+// TestArmorLooks draws every armour on both figures in every facing, upright
+// and bent by a blow: each has a plate on the trunk, a helmed set's helm
+// stands over the crown, and what a player carries picks what is drawn.
+func TestArmorLooks(t *testing.T) {
+	defer setPilot(t, charRefined)
+	setPilot(t, charRefined)
+	rows := func(c *canvas) (top, bottom int) {
+		top, bottom = -1, -1
+		for i, q := range c.px {
+			if q.A >= 128 {
+				if top < 0 {
+					top = i / c.w
+				}
+				bottom = i / c.w
+			}
+		}
+		return
+	}
+	looks := []sim.Tier{sim.TierCopper, sim.TierIron, sim.TierPlatinum, sim.TierDiamond, armorDino, armorFur}
+	for _, at := range looks {
+		for _, female := range []bool{false, true} {
+			for _, d := range []sim.Dir{sim.DirDown, sim.DirUp, sim.DirRight} {
+				for _, up := range []upKey{{dir: d}, {d, upPunch, atkFrames - 1}, {d, upRun, 2}} {
+					B, H := armorLayersBent(at, female, d, bendOf(upperPoseOf(up)).trunk(d))
+					if top, bottom := rows(B); top < 40 || top > 52 || bottom < 66 || bottom > 96 {
+						t.Errorf("armour %d female %v facing %d %+v: the plate spans rows %d to %d", at, female, d, up, top, bottom)
+					}
+					if top, _ := rows(H); top < 0 || armorHelmed(at) && top > 24 {
+						t.Errorf("armour %d female %v facing %d %+v: what goes over everything starts on row %d", at, female, d, up, top)
+					}
+				}
+			}
+		}
+	}
+	p := protocol.PlayerView{}
+	for _, c := range []struct {
+		armor     sim.Tier
+		dino, fur bool
+		want      sim.Tier
+	}{
+		{sim.TierStone, false, false, sim.TierStone},
+		{sim.TierStone, false, true, armorFur},
+		{sim.TierCopper, false, true, sim.TierCopper},
+		{sim.TierIron, true, true, armorDino},
+		{sim.TierPlatinum, true, false, sim.TierPlatinum},
+		{sim.TierDiamond, false, true, sim.TierDiamond},
+	} {
+		p.Armor, p.DinoArmor, p.FurCoat = c.armor, c.dino, c.fur
+		if got := shownArmor(p); got != c.want {
+			t.Errorf("armour %d, dinosaur hide %v, fur coat %v: drawn %d, want %d", c.armor, c.dino, c.fur, got, c.want)
+		}
+	}
 }
