@@ -41,6 +41,8 @@ type laidKey struct {
 	lay    bool  // laid down: anchored so that put on a bed's anchor the head is on the pillow
 	cover  uint8 // the fur over it: 0 none, 1 to the hips, 2 to the shoulders
 	thin   bool  // a hide over the legs only, on the bare ground
+	flip   bool  // mirrored: the head to the right, on a bed turned about (see sleepturn.go)
+	stand  int8  // laid lengthways: 1 the head up the screen, -1 down it (see sleepturn.go)
 }
 
 var laidCache = map[laidKey]sprite{}
@@ -74,7 +76,7 @@ func laidSprite(k laidKey) sprite {
 	if s, ok := laidCache[k]; ok {
 		return s
 	}
-	c, ax, ay := laidCanvas(k)
+	c, ax, ay := laidCanvasTurned(k) // see sleepturn.go
 	s := cropSprite(c, ax, ay)
 	laidCache[k] = s
 	return s
@@ -395,7 +397,10 @@ const (
 
 // drawSleeperHD draws p asleep at d, in their bed (the bed is drawn under
 // them as an entity): going to bed if they have only just lain down, then
-// asleep, breathing, turning over now and then.
+// asleep, breathing, turning over now and then. They lie the way the bed
+// or the tent under them faces (sleepturn.go): across with the head left
+// as ever, or right, mirrored; or lengthways on a bed turned east or west,
+// sitting down on its open side and then lying straight down.
 func (g *Game) drawSleeperHD(dst drawTarget, p protocol.PlayerView, d drawable) {
 	st := g.moveState(p.ID)
 	age := float64(g.frame - st.asleepAt)
@@ -405,39 +410,46 @@ func (g *Game) drawSleeperHD(dst drawTarget, p protocol.PlayerView, d drawable) 
 	look := p.Look.Sanitized()
 	tint := playerColors[int(p.ID)%len(playerColors)]
 	x, y := math.Round(d.sx), math.Round(d.sy)
+	lie := g.sleepLie(p) // see sleepturn.go
 	// In a leaf tent they lie further in, and its shell goes over them before
 	// anything floats up from them: see tentart.go.
 	shell := func() {}
 	if e, ok := g.tentUnder(p); ok {
 		tx, ty := x, y
 		shell = func() { g.drawTentShell(dst, e, tx, ty) }
-		x, y = x+tentSleepDX, y+tentSleepDY
+		x, y = x+lie.sign()*tentSleepDX, y+tentSleepDY
 	}
 	hx, hy := laidHips()
+	hx *= lie.sign()
 	b := g.art.bodyIn(p.Look, p.Wear)
-	// The standing figure's feet, for its hips on the bed at (hx, hy).
+	// The standing figure's feet, for its hips on the bed at (hx, hy); by
+	// the open side of a bed lying lengthways.
+	sitX, sitY := x+hx, y+hy
+	if lie.stand != 0 {
+		sitX, sitY = x+lie.side*(bedLongHW+1), y+2
+	}
 	feet := func(m motionID, f int) (loKey, upKey, float64) {
 		lo, up := m.keys(sim.DirDown, f)
-		return lo, up, y + hy + hipHeight - motionPose(m, f, sim.DirDown).lo.drop/HDDensity
+		return lo, up, sitY + hipHeight - motionPose(m, f, sim.DirDown).lo.drop/HDDensity
 	}
 	switch {
 	case age < bedSquat: // down onto the bed
 		lo, up, fy := feet(moSitDown, 1)
-		drawFig(dst, figDraw{b: b, up: up, lo: lo, tint: tint}, x+hx, fy)
+		drawFig(dst, figDraw{b: b, up: up, lo: lo, tint: tint}, sitX, fy)
 		shell()
 		return
 	case age < bedSit: // sat on its edge
 		lo, up, fy := feet(moSit, 0)
-		drawFig(dst, figDraw{b: b, up: up, lo: lo, tint: tint}, x+hx, fy)
+		drawFig(dst, figDraw{b: b, up: up, lo: lo, tint: tint}, sitX, fy)
 		shell()
 		return
-	case age < bedLie: // lying back onto it, in four steps
+	case age < bedLie && lie.stand == 0: // lying back onto it, in four steps
 		f := min(3, int((age-bedSit)/((bedLie-bedSit)/4)))
-		putSprite(dst, laidSprite(laidKey{look: look, wear: p.Wear, tint: tint, m: moLieBack, f: uint8(f), dir: sim.DirDown}), x+hx, y+hy)
+		putSprite(dst, laidSprite(laidKey{look: look, wear: p.Wear, tint: tint, m: moLieBack, f: uint8(f), dir: sim.DirDown, flip: lie.flip}), x+hx, y+hy)
 		shell()
 		return
 	}
-	k := laidKey{look: look, wear: p.Wear, tint: tint, m: moSleep, lay: true, cover: 2}
+	k := laidKey{look: look, wear: p.Wear, tint: tint, m: moSleep, lay: true, cover: 2, flip: lie.flip, stand: lie.stand}
 	switch {
 	case age < bedLie+6:
 		k.cover = 0
@@ -463,13 +475,16 @@ func (g *Game) drawSleeperHD(dst drawTarget, p protocol.PlayerView, d drawable) 
 		f, dir, mirror = 0, sim.DirDown, false
 	}
 	k.f, k.dir, k.mirror = uint8(f), dir, mirror
-	g.drawPillowHair(dst, p.Look, pose, turning, x+pillowX, y+pillowY)
+	headX, headY := x+lie.headX, y+lie.headY
+	if !lie.flip && lie.stand == 0 {
+		g.drawPillowHair(dst, p.Look, pose, turning, headX, headY) // spread out to the left of the head
+	}
 	putSprite(dst, laidSprite(k), x, y)
 	shell()
 	if k.cover == 2 {
-		g.drawZzz(dst, x+pillowX+2, y+pillowY-8, float64(p.ID))
+		g.drawZzz(dst, headX+2, headY-8, float64(p.ID))
 	}
-	g.armourByBed(dst, p, x, y)
+	g.armourByBed(dst, p, x+lie.armourDX, y+lie.armourDY)
 }
 
 // turnStep is the step of turning over from pose a to pose b: the first

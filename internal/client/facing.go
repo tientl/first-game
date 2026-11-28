@@ -187,3 +187,7 @@ func (g *Game) drawFacingArrow(dst drawTarget, k sim.EntityKind, v uint8, d sim.
 	strokeLine(dst, float32(px), float32(py), float32(px+bx+sx), float32(py+by+sy), 1.2, c, true)
 	strokeLine(dst, float32(px), float32(py), float32(px+bx-sx), float32(py+by-sy), 1.2, c, true)
 }
+
+// StopBuilding leaves build mode, as a right click does: for the
+// screenshot tool.
+func (g *Game) StopBuilding() { g.build.on = false }
