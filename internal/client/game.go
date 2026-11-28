@@ -171,6 +171,7 @@ type Game struct {
 	boss        bossUI      // the boss bar and the victory screen; see bossui.go
 	lair        lairFX      // the lairs' scenes and the moment a fight starts; see lairrender.go, bossintro.go
 	dev         *devConsole // the dev console, only with -dev; see devconsole.go
+	tut         *tutorial   // the first minutes' guide; see tutorial.go
 
 	// How a fight feels: see feel.go and fx.go.
 	stop    hitStop                  // the picture held after a blow
@@ -438,6 +439,7 @@ func (g *Game) onMessage(m protocol.ServerMsg) {
 }
 
 func (g *Game) onSnapshot(s protocol.Snapshot) {
+	g.observeTutorial(&s) // see tutorial.go
 	old, hadOld := g.curr, g.hasCurr
 	clear(g.prevPlayers)
 	for _, p := range g.curr.Players {

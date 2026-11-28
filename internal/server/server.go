@@ -355,3 +355,6 @@ func surfaceH(w *sim.World) int {
 	}
 	return 0
 }
+
+// Seed is the seed of the world being played.
+func (s *Server) Seed() uint64 { return s.cfg.Seed }

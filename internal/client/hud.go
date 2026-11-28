@@ -419,6 +419,7 @@ func (g *Game) drawHUD(screen *uiDst, sw, sh int) {
 	st := g.statuses()
 	g.noteStatuses(st)
 	g.drawStatuses(screen, st, vitalX, chipsTop(len(vs)))
+	g.drawTutorial(screen, len(vs), st) // see tutorialdraw.go
 
 	withMap := g.overlay == overlayNone
 	g.drawCorner(screen, sw, withMap)
