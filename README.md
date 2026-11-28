@@ -100,6 +100,10 @@ Mọi âm thanh cũng được tổng hợp bằng code, không có file âm tha
 
 Lần đầu chạy: toàn màn hình theo độ phân giải màn hình, chất lượng Cao, cỡ giao diện Tự động, VSync bật. Game vẽ theo điểm ảnh thật của màn hình, cả khi Windows phóng to 125–150%. Cờ dòng lệnh chỉ dùng cho lần chạy đó, không lưu: `-window fullscreen|borderless|windowed`, `-res 1600x900`, `-quality 75`, `-ui 150`, `-fps 60`, `-vsync=false`, `-postfx`.
 
+## Ghi công và giấy phép
+
+Màn hình "Ghi công" (menu chính và menu tạm dừng) liệt kê mọi tiếng thu, phông chữ, thư viện và công thức mượn, lấy từ bảng `internal/client/credits.go`. Nguyên văn các giấy phép nằm trong `LICENSES.txt` ở thư mục gốc: file này phải được đóng gói cạnh file exe khi phát hành (cũng có trong exe, xem bằng `game -licenses`). Sau khi đổi thư viện, chạy `go run ./cmd/licenses` để tạo lại; test kiểm tra bảng ghi công và `LICENSES.txt` đủ mọi tiếng thu và thư viện.
+
 ## Điều khiển
 
 Điều khiển chính bằng chuột, như các game sinh tồn trên PC: bàn phím để đi, chuột để nhắm và làm.

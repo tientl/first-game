@@ -40,6 +40,7 @@ const (
 	btnContinue = iota
 	btnNew
 	btnSettings
+	btnCredits
 	btnQuit
 )
 
@@ -57,6 +58,7 @@ type Menu struct {
 	look     sim.Look        // the look made for the new game
 	busy     string          // shown over everything while a world is being made
 	settings *settingsScreen // the settings screen, while open; see settingsui.go
+	credits  *creditsScreen  // the credits ("Ghi công"), while open; see creditsui.go
 	status   string
 	bg       *Game
 }
@@ -84,6 +86,7 @@ func NewMenu(info SaveInfo) *Menu {
 		cont,
 		{label: "Trò chơi mới"},
 		{label: "Cài đặt"},
+		{label: "Ghi công"},
 		{label: "Thoát"},
 	}}
 	if cont.disabled {
@@ -120,6 +123,13 @@ func (m *Menu) ShowSettings(tab string) {
 	m.settings.showTab(tab)
 }
 
+// ShowCredits opens the credits screen, scrolled down by scroll UI pixels, as
+// "Ghi công" would. It is for dev tools that capture frames.
+func (m *Menu) ShowCredits(scroll float64) {
+	m.credits = newCreditsScreen()
+	m.credits.scrollTo(scroll)
+}
+
 // SetBusy shows msg over the menu and ignores input until it is cleared
 // with an empty msg; used while a world is being made or loaded.
 func (m *Menu) SetBusy(msg string) { m.busy = msg }
@@ -145,6 +155,12 @@ func (m *Menu) Update() MenuChoice {
 	if m.settings != nil {
 		if m.settings.update() {
 			m.settings = nil
+		}
+		return MenuNone
+	}
+	if m.credits != nil {
+		if m.credits.update() {
+			m.credits = nil
 		}
 		return MenuNone
 	}
@@ -199,6 +215,9 @@ func (m *Menu) Update() MenuChoice {
 	case btnSettings:
 		m.settings = newSettingsScreen(false)
 		return MenuNone
+	case btnCredits:
+		m.credits = newCreditsScreen()
+		return MenuNone
 	case btnQuit:
 		return MenuQuit
 	}
@@ -219,6 +238,10 @@ func (m *Menu) Draw(real *ebiten.Image) {
 	}
 	if m.settings != nil {
 		m.settings.draw(screen)
+		return
+	}
+	if m.credits != nil {
+		m.credits.draw(screen)
 		return
 	}
 	// Darken towards the middle column so the text reads over the island.

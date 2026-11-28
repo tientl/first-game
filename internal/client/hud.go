@@ -995,6 +995,10 @@ func (g *Game) drawPause(screen *uiDst, sw, sh int) {
 		g.opts.draw(screen) // see settingsui.go
 		return
 	}
+	if g.credits != nil {
+		g.credits.draw(screen) // see creditsui.go
+		return
+	}
 	cx := float64(sw) / 2
 	top := max(16, float64(sh)/2-215)
 	drawTitle(screen, "Tạm dừng", cx, top, 3, colBoneText, color.RGBA{60, 36, 20, 255})
