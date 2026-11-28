@@ -1,2 +1,6 @@
 dist/
 .claude/worktrees/
+# built programs: never commit them
+*.exe
+/shot
+/game
