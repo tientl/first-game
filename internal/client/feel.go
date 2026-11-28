@@ -317,17 +317,20 @@ func (g *Game) beastStruck(c protocol.CreatureView, dmg int, kill, haveMe bool, 
 	if g.tileAt(int(math.Floor(x)), int(math.Floor(y))).Swimmable() && !crocLike(c.Kind) {
 		g.spawnFX(fxInst{kind: fxSplash, x: x, y: y, k: 0.6 * k})
 	}
+	mat, matter := hitMaterial(c.Kind), hitMatter(c.Kind)
 	if !mine {
-		g.spawnFX(fxInst{kind: fxSpark, x: x, y: y, z: z, ang: ang, k: 0.6})
+		g.spawnHit(x, y, z, ang, k*0.7, 0, mat, matter)
 		return
 	}
 	held := me.Held
+	lvl := 0 // no fire on flesh, shell or bone: see hitfx.go
 	switch {
 	case crit:
-		g.spawnFX(fxInst{kind: fxCrit, x: x, y: y, z: z, ang: ang, k: k})
-	default:
-		g.spawnFX(fxInst{kind: fxSpark, x: x, y: y, z: z, ang: ang, k: k * 0.85})
+		lvl = 2
+	case dmg >= 40 || held == sim.ItemBattleAxe:
+		lvl = 1
 	}
+	g.spawnHit(x, y, z, ang, k*0.9, lvl, mat, matter)
 	switch {
 	case held == sim.ItemSpear:
 		g.spawnFX(fxInst{kind: fxThrust, x: x - math.Cos(ang)*0.25, y: y, z: z, ang: ang, k: 0.9})
@@ -338,7 +341,6 @@ func (g *Game) beastStruck(c protocol.CreatureView, dmg int, kill, haveMe bool, 
 		g.spawnFX(fxInst{kind: fxCleave, x: x - math.Cos(ang)*0.35, y: y, z: 0, ang: ang, k: 1})
 		g.spawnFX(fxInst{kind: fxStomp, x: x, y: y, k: 0.6, pal: g.dustAt(x, y)})
 	}
-	g.spawnFX(fxInst{kind: fxBits, x: x, y: y, z: z, ang: ang, k: 1, pal: g.dustAt(x, y)})
 	if g.leafyAt(x, y) {
 		g.spawnFX(fxInst{kind: fxLeaves, x: x, y: y, z: z + 4, k: 1})
 	}
@@ -409,8 +411,9 @@ func (g *Game) playerStruck(s protocol.Snapshot, p protocol.PlayerView, bitten b
 			rake = ang - 0.9
 		}
 		g.spawnFX(fxInst{kind: fxClaw, x: x, y: y, z: z + 2, ang: rake, k: 1})
+		g.spawnHit(x, y, z, ang, 0.8, 0, matFlesh, mtSkin)
 	default:
-		g.spawnFX(fxInst{kind: fxSpark, x: x, y: y, z: z, ang: ang, k: 0.7})
+		g.spawnHit(x, y, z, ang, 0.8, 0, matFlesh, mtSkin) // a bite or a blow on me: no sparks
 	}
 	if kind == sim.CreatureMegalodon || kind == sim.CreatureMosa {
 		g.spawnFX(fxInst{kind: fxSplash, x: x, y: y, k: 1.8})

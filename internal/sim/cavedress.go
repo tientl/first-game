@@ -74,6 +74,9 @@ func (w *World) finishCaves() {
 		}
 		w.settleLife(rng, s, floors)
 		w.settleThemes(rng, s, floors) // fish, crocodiles, scorpions: see cavethemes.go
+		if w.caveFights() {
+			w.settleCaveFight(s, floors) // see cavespawn.go
+		}
 	}
 }
 

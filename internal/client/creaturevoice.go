@@ -284,6 +284,8 @@ func voicesOf(k sim.CreatureKind) kindVoices {
 		return kindVoices{hurt: say("croak", 0.4, 1.9), death: say("croak", 0.45, 1.5)}
 	case sim.CreatureGlowToad:
 		return kindVoices{hurt: say("croak", 0.35, 2.3), death: say("croak", 0.4, 1.9)}
+	case sim.CreatureOlm: // the blind cave salamander: a faint high squeak, like a toad's but thinner
+		return kindVoices{hurt: say("squeak", 0.3, 1.6), death: say("croak", 0.3, 2.6)}
 	case sim.CreatureMosa:
 		return kindVoices{alarm: say("mosa_call", 0.85, 1), hurt: say("mosa_hurt", 0.6, 1), death: say("mosa_death", 0.85, 1)}
 	case sim.CreatureKraken:
@@ -301,7 +303,7 @@ func voicesOf(k sim.CreatureKind) kindVoices {
 	case sim.CreatureMegalodon:
 		return kindVoices{hurt: say("megalodon_hurt", 0.7, 1), death: say("megalodon_death", 1, 1)}
 	}
-	return kindVoices{}
+	return caveVoices(k)
 }
 
 // How often a beast's voices may come.

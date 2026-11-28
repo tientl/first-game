@@ -176,8 +176,13 @@ func (g *Game) drawCaveBats(dst drawTarget, cam camera) {
 			op := &ebiten.DrawImageOptions{}
 			s := a.bat[1+(g.frame/4+k)%3]
 			op.GeoM.Translate(x-s.ax, y-s.ay)
-			op.ColorScale.ScaleAlpha(0.7)
+			l := float32(1)
+			if g.caveDark.on { // lit as the cave is where it flies, though never quite lost; see cavedark.go
+				l = float32(clamp01(0.3 + 1.4*g.caveLightAt(x, y)))
+			}
+			op.ColorScale.Scale(0.7*l, 0.7*l, 0.7*l, 0.7)
 			drawSprite(dst, s, op)
+			g.drawBatEyes(dst, x, y, k) // their eyes catch the light in the dark
 		}
 	}
 }

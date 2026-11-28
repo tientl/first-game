@@ -242,12 +242,10 @@ func TestClamsLieByTheSea(t *testing.T) {
 	fw := flatWorld()
 	id := fw.AddPlayer("a")
 	clam := fw.addEntity(EntityClam, 17, 16)
-	fw.SetInput(id, Input{Action: true})
-	fw.Step()
+	fw.Apply(id, Command{Kind: CmdInteract}) // E picks them up: see pickup.go
 	if p := mustPlayer(t, fw, id); p.Inv.Count(ItemClam) != ClamYield || clam.Ready {
 		t.Fatalf("clams %d, bed ready %v: want them picked by hand", p.Inv.Count(ItemClam), clam.Ready)
 	}
-	fw.SetInput(id, Input{})
 	fw.addEntity(EntityCampfire, 15, 16)
 	fw.Apply(id, Command{Kind: CmdCraft, Recipe: RecipeRoastClam})
 	if p := mustPlayer(t, fw, id); p.Inv.Count(ItemRoastClam) != 1 || p.Inv.Count(ItemClam) != 0 {

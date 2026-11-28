@@ -8,14 +8,16 @@ import (
 	"survivalgame/internal/sim"
 )
 
-// The light in the natural caves (see cavebake.go). The upper level is
-// dark, but not black: the walls can be made out a little way off. The
-// lower one is darker. Daylight comes down the shafts over the ways up and
-// spills across their halls, pale and cool, dimmer by night.
+// The light in the natural caves (see cavebake.go). Away from any light
+// they are near black, the deep level darker still, and a torch is needed
+// to see: cavedark.go draws it. Daylight comes down the shafts over the
+// ways up and spills a little way into their halls, pale and cool, dimmer
+// by night.
 
 // naturalDark is how dark each level of the natural caves is, away from any
-// light.
-var naturalDark = [sim.CaveLevels]float64{0.8, 0.92}
+// light, for what follows the dark (the glowing plants, the eyes in the
+// dark): see darknessNow.
+var naturalDark = [sim.CaveLevels]float64{0.94, 0.95}
 
 const (
 	caveDayRadius   = 7.5  // tiles of daylight round the way up

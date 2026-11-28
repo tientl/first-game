@@ -164,7 +164,9 @@ func (w *World) wound(c *Creature, dmg int, by *Player) (killed bool) {
 	d := c.Kind.def()
 	c.HP -= dmg
 	c.Tame = 0
+	w.caveWounded(c, dmg, by)
 	if c.HP <= 0 {
+		w.caveFelled(c)
 		w.fell(c) // the body falls; see drops.go
 		return true
 	}
