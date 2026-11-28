@@ -446,6 +446,9 @@ func genStoneRunHD(sh runShape) sprite {
 	gy := int(foot0) - (wallArtH+4)*k + 4*k // the old wall's courses
 	const half = 5 * k                      // half the wall's thickness going back, on the screen
 	mx, _ := runPx(0, 0)
+	// Whether it goes on north and south into the next tile.
+	joinedN := sh.n && (sh.mid || !sh.capN)
+	joinedS := sh.s && (sh.mid || !sh.capS)
 	// Going back: from the back end to the front, its top and merlons.
 	if sh.n || sh.s {
 		back, front := 0.0, 0.0
@@ -464,8 +467,10 @@ func genStoneRunHD(sh runShape) sprite {
 			stoneFace(c, int(mx)-half, int(mx)+half, int(fy)-H, 3*k, int(mx)-half, int(fy)-H-3*k, false, 932)
 			stoneTop(c, int(mx)-half, int(mx)+half, int(fy)-H-3*k-5, int(fy)-H-3*k, 933)
 		}
-		// The face of its near end.
-		stoneFace(c, int(mx)-half, int(mx)+half, int(yf), H, int(mx)-half, gy, true, 934)
+		// The face of its near end, unless the run goes on south over it.
+		if !joinedS {
+			stoneFace(c, int(mx)-half, int(mx)+half, int(yf), H, int(mx)-half, gy, true, 934)
+		}
 	}
 	// Along it.
 	if sh.w || sh.e {
@@ -510,6 +515,16 @@ func genStoneRunHD(sh runShape) sprite {
 		pillar(0, 6.5)
 	}
 	c.outline(0.8)
+	if joinedN { // no ink across the top where it runs on from the tile behind
+		_, yb := runPx(0, -9)
+		for y := int(yb) - H - 2; y < int(yb)-H; y++ {
+			for x := int(mx) - half - 1; x <= int(mx)+half; x++ {
+				if c.in(x, y) && c.ol != nil && c.ol[y*c.w+x] {
+					c.px[y*c.w+x], c.ol[y*c.w+x] = color.RGBA{}, false
+				}
+			}
+		}
+	}
 	return mkUp(c, runAX*k, runAY*k)
 }
 

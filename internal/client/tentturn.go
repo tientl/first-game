@@ -366,7 +366,7 @@ func (t *tentPaint) gableThatch(v tentLeaf, lit float64) {
 				mat = tmDry
 			}
 			t.frond(tentGable, -3+h(i, 1)*2, tentH+2, b+(h(i, 3)-0.5)*1.5, (h(i, 4)-0.5)*2, 1.55, 0.7,
-				func(s float64) float64 { return (3+3.6*math.Sin(math.Pi*math.Min(1, s*1.15+0.1)))*(1-0.25*s) },
+				func(s float64) float64 { return (3 + 3.6*math.Sin(math.Pi*math.Min(1, s*1.15+0.1))) * (1 - 0.25*s) },
 				mat, lit+(h(i, 5)-0.5)*0.12, 0.95, t.seed+uint32(800+i*53))
 		}
 	default:

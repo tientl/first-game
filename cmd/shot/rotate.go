@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 
 	"survivalgame/internal/client"
@@ -25,6 +26,7 @@ var (
 	rotSheetFlag = flag.Bool("rotsheet", false, "write the sheet of what turns instead of a frame: every piece each way it faces, sleepers, and walls and fences joined (see internal/client/rotsheet.go)")
 	rotBaseFlag  = flag.Bool("rotbase", false, "build a small base round the player through free build's own commands with things facing every way: joined walls, doors both ways, a bed, a tent, a furnace, an oven (see rotate.go)")
 	rotGIFFlag   = flag.Bool("rotgif", false, "with -devpiece and -aim: turn the piece in hand with R every half second, three times, then put it down where its ghost is (use with -gif)")
+	turnFlag     = flag.Int("turn", 0, "turn what is being placed (-build, -devpiece, or a tent, a head or a grill held) this many times, as R does, before the capture")
 )
 
 // rotBasePlan is the -rotbase shot's base, in tiles from the player: a
@@ -112,4 +114,18 @@ func (r *rotScript) step(frame int) {
 	case r.conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: s}:
 	default:
 	}
+}
+
+var rotBaseAt = flag.String("rotbaseat", "", "dx,dy: build the -rotbase base this many tiles from the player (5,5 puts them inside it, by its south door)")
+
+// rotBaseShifted is rotBasePlan moved as -rotbaseat says.
+func rotBaseShifted() []devBasePart {
+	var dx, dy int
+	fmt.Sscanf(*rotBaseAt, "%d,%d", &dx, &dy)
+	out := make([]devBasePart, len(rotBasePlan))
+	for i, p := range rotBasePlan {
+		p.dx, p.dy = p.dx+dx, p.dy+dy
+		out[i] = p
+	}
+	return out
 }

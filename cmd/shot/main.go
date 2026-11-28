@@ -591,7 +591,7 @@ func main() {
 		*freeBuild = true
 		plan := devBasePlan
 		if *rotBaseFlag {
-			plan = rotBasePlan // see rotate.go
+			plan = rotBaseShifted() // see rotate.go
 		}
 		buildDevBase(w, sx, sy, plan) // see dev.go
 	}
@@ -1057,6 +1057,7 @@ func main() {
 	if *rotSheetFlag {
 		g.rotSheet = game
 	}
+	g.turnN, g.turnG = *turnFlag, game
 	if *rotGIFFlag {
 		me := snap.Players[0]
 		g.rot = &rotScript{conn: conn, snap: snap, game: game, tx: int16(math.Floor(float64(me.X) + adx)), ty: int16(math.Floor(float64(me.Y) + ady)), start: *frames}
@@ -1150,9 +1151,11 @@ type shooter struct {
 	fixW, fixH    int           // -exact: the screen's size, whatever the window's
 	benchTimes    []time.Duration
 	benchLast     time.Time
-	walk          *walker     // -walk: the player on the move; see walk.go
-	rot           *rotScript  // -rotgif: the piece in hand turned, then put down; see rotate.go
+	walk          *walker      // -walk: the player on the move; see walk.go
+	rot           *rotScript   // -rotgif: the piece in hand turned, then put down; see rotate.go
 	rotSheet      *client.Game // write the sheet of what turns instead of the frame
+	turnN         int          // -turn: what is being placed turned this many times; see rotate.go
+	turnG         *client.Game
 }
 
 func (s *shooter) Update() error {
@@ -1162,6 +1165,9 @@ func (s *shooter) Update() error {
 	s.n++
 	if s.rot != nil {
 		s.rot.step(s.n) // see rotate.go
+	}
+	if s.turnN != 0 && s.n == 3 {
+		s.turnG.TurnPlacing(s.turnN)
 	}
 	if s.walk != nil {
 		s.walk.step(s.n)

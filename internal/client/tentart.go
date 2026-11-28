@@ -121,8 +121,8 @@ type tentPaint struct {
 	shadow []float32 // soft shadow on the ground under it, where nothing is painted
 	rs     [numTentMats]ramp
 	seed   uint32
-	geo    *tentGeo // turned from facing south (tentturn.go); nil as it was drawn
-	gable  bool     // painting the closed end: only within its triangle
+	geo    *tentGeo  // turned from facing south (tentturn.go); nil as it was drawn
+	gable  bool      // painting the closed end: only within its triangle
 	clip   float64   // painting this slope of a turned tent: only from the ridge to the ground
 	shown  []float64 // the slopes of a turned tent the viewer sees
 }
