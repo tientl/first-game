@@ -128,6 +128,22 @@ func cleanName(name string) string {
 	return name
 }
 
+// NameInUse reports whether a connected player already has the name a client
+// asking to join as name would get: co-op refuses a second player of the same
+// name, because the saved character is found by name.
+func (w *World) NameInUse(name string) bool {
+	name = cleanName(name)
+	if name == "" {
+		return false // a generated name is never taken
+	}
+	for _, p := range w.players {
+		if p.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 // AddPlayer creates a player at the spawn point and returns its id. An empty
 // name is replaced by a generated one.
 func (w *World) AddPlayer(name string) PlayerID { return w.AddPlayerWithLook(name, Look{}) }
@@ -231,7 +247,7 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 		}
 	case CmdCraft:
 		if !p.Dead {
-			w.craftAt(p, cmd.Recipe, cmd.At, int(cmd.TX), int(cmd.TY))
+			w.craftAt(p, cmd.Recipe, cmd.At, int(cmd.TX), int(cmd.TY), cmd.Face)
 		}
 	case CmdChestPut, CmdChestTake, CmdChestClose, CmdChestTakeDown:
 		if !p.Dead {
@@ -254,7 +270,7 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 		}
 	case CmdPlace:
 		if !p.Dead && !p.Asleep {
-			w.placeHeldAt(p, cmd.At, int(cmd.TX), int(cmd.TY)) // see drops.go
+			w.placeHeldAt(p, cmd.At, int(cmd.TX), int(cmd.TY), cmd.Face) // see drops.go
 		}
 	case CmdInteract:
 		w.interactKey(p) // see aim.go
@@ -274,7 +290,7 @@ func (w *World) Apply(id PlayerID, cmd Command) {
 		w.throwSpear(p) // see throw.go
 	case CmdDevBuild:
 		if !p.Dead && !p.Asleep {
-			w.devBuild(p, int(cmd.Slot), cmd.At, int(cmd.TX), int(cmd.TY)) // free build only; see devbuild.go
+			w.devBuild(p, int(cmd.Slot), cmd.At, int(cmd.TX), int(cmd.TY), cmd.Face) // free build only; see devbuild.go
 		}
 	case CmdDevRemove:
 		if !p.Dead && !p.Asleep {
@@ -331,11 +347,15 @@ func (w *World) stepPlayer(p *Player) {
 			can = w.swimmable
 		}
 		// Resolve each axis on its own so the player slides along coasts.
-		if can(p.X+dx, p.Y) {
+		movedX, movedY := can(p.X+dx, p.Y), false
+		if movedX {
 			p.X += dx
 		}
-		if can(p.X, p.Y+dy) {
+		if movedY = can(p.X, p.Y+dy); movedY {
 			p.Y += dy
+		}
+		if !movedX || !movedY {
+			w.doorNudge(p, bySide(!movedX, dx), bySide(!movedY, dy), sp, can) // held on a door's post; see facing.go
 		}
 		if !p.guard.up { // behind a shield they back off still facing the foe
 			p.Dir = dirToward(mx, my)
@@ -605,14 +625,14 @@ func (w *World) interact(p *Player, e *Entity) bool {
 		}
 		return w.stoke(p, e, FireMaxFuel) // coal first: it burns longest
 	case EntityMortar, EntityOven, EntityDryRack:
-		return w.openCook(p, e)
+		return w.fromFront(p, e) && w.openCook(p, e) // an oven at its mouth: see facing.go
 	case EntityClay:
 		return w.harvest(p, e, ItemClay, ClayYield, HitPower, func() {
 			e.Ready = false // the water lays down more
 			e.RegrowAt = w.tick + ClayRegrowTicks
 		})
 	case EntityFurnace:
-		return w.stoke(p, e, FurnaceMaxFuel)
+		return w.fromFront(p, e) && w.stoke(p, e, FurnaceMaxFuel) // at its mouth: see facing.go
 	case EntityCactus:
 		dmg := withTool(ToolAxe)
 		return dmg > 0 && w.harvest(p, e, ItemCactus, CactusYield, dmg, func() {
@@ -695,12 +715,13 @@ func (w *World) eat(p *Player, i int) {
 	}
 }
 
-func (w *World) craft(p *Player, id RecipeID) { w.craftAt(p, id, false, 0, 0) }
+func (w *World) craft(p *Player, id RecipeID) { w.craftAt(p, id, false, 0, 0, DirDown) }
 
 // craftAt is craft; a structure goes on tile (tx, ty) when at is set, if
-// that tile passes BuildSpot, else in front of p. In free build nothing is
-// needed, no fire or furnace either, and nothing is used up (devbuild.go).
-func (w *World) craftAt(p *Player, id RecipeID, at bool, tx, ty int) {
+// that tile passes BuildSpot, else in front of p, facing face if its kind
+// turns (facing.go). In free build nothing is needed, no fire or furnace
+// either, and nothing is used up (devbuild.go).
+func (w *World) craftAt(p *Player, id RecipeID, at bool, tx, ty int, face Dir) {
 	r, ok := RecipeByID(id)
 	if !ok {
 		return
@@ -746,7 +767,7 @@ func (w *World) craftAt(p *Player, id RecipeID, at bool, tx, ty int) {
 		return
 	}
 	p.Inv.TakeAll(r.Inputs)
-	w.addEntity(r.Places, tx, ty)
+	w.addEntity(r.Places, tx, ty).face(face)
 	p.notify(NoticeCrafted, uint8(id))
 }
 

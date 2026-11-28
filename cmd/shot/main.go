@@ -58,6 +58,7 @@ func main() {
 	hairColor := flag.Int("haircolor", 0, "the player's hair colour, 0 to 7")
 	skin := flag.Int("skin", 0, "the player's skin tone, 0 to 5")
 	create := flag.Bool("create", false, "show the character screen of a new game")
+	coop := flag.String("coop", "", "co-op screens: coop (the Chơi chung list) and join, joinfail (the address screen, with -menu); host, guest, lost, refused, stalled (the game as host or guest)")
 	croc := flag.Bool("croc", false, "put a crocodile basking next to the player, and one lurking in the nearest pond")
 	dinos := flag.Bool("dinos", false, "put one of each dinosaur around the player, in different poses (sea reptiles with -coast)")
 	ice := flag.Bool("ice", false, "put a mammoth herd, a charging mammoth and a stalking sabre-tooth around the player")
@@ -593,9 +594,13 @@ func main() {
 		}
 	}
 	snap.Self.Inv.Add(sim.ItemSpear, 1)
-	if *devBase {
+	if *devBase || *rotBaseFlag {
 		*freeBuild = true
-		buildDevBase(w, sx, sy) // see dev.go
+		plan := devBasePlan
+		if *rotBaseFlag {
+			plan = rotBaseShifted() // see rotate.go
+		}
+		buildDevBase(w, sx, sy, plan) // see dev.go
 	}
 	snap.Self.DevBuild = *freeBuild
 
@@ -608,7 +613,7 @@ func main() {
 			ready = false
 		}
 		snap.Entities = append(snap.Entities, protocol.EntityView{
-			ID: e.ID, Kind: e.Kind, TX: int16(e.TX), TY: int16(e.TY), Ready: ready, Big: e.Big, Var: e.Var, Fuel: int32(e.Fuel),
+			ID: e.ID, Kind: e.Kind, TX: int16(e.TX), TY: int16(e.TY), Ready: ready, Big: e.Big, Var: e.Var, Fuel: int32(e.Fuel), Face: e.Face,
 		})
 	})
 	w.EachCreatureIn(sx-20, sy-20, sx+20, sy+20, func(c sim.Creature) {
@@ -1035,6 +1040,23 @@ func main() {
 		game.HoldLeap(troodonLeaper)
 	}
 	var inner ebiten.Game = game
+	if *coop != "" {
+		switch *coop {
+		case "coop", "join", "joinfail":
+			m := client.NewMenu(client.SaveInfo{Exists: true, Day: 3, Name: "Tien", SavedAt: time.Now(), Size: 512})
+			switch *coop {
+			case "coop":
+				m.ShowCoop()
+			case "join":
+				m.ShowJoin("192.168.1.23", "")
+			case "joinfail":
+				m.ShowJoin("192.168.1.99", "Không thấy phòng ở địa chỉ này (quá thời gian): kiểm tra IP, tường lửa của chủ phòng, và hai máy có cùng mạng (hoặc cùng Tailscale / ZeroTier) không.")
+			}
+			inner = &menuGame{m}
+		default:
+			game.ShowRoom(*coop)
+		}
+	}
 	if *create {
 		m := client.NewMenu(client.SaveInfo{})
 		m.ShowCharacterScreen()
@@ -1057,6 +1079,14 @@ func main() {
 	var wdx, wdy float64
 	if n, _ := fmt.Sscanf(*walkFlag, "%g,%g", &wdx, &wdy); n == 2 {
 		g.walk = &walker{conn: conn, snap: snap, vx: float32(wdx / sim.TicksPerSecond), vy: float32(wdy / sim.TicksPerSecond)}
+	}
+	if *rotSheetFlag {
+		g.rotSheet = game
+	}
+	g.turnN, g.turnG = *turnFlag, game
+	if *rotGIFFlag {
+		me := snap.Players[0]
+		g.rot = &rotScript{conn: conn, snap: snap, game: game, tx: int16(math.Floor(float64(me.X) + adx)), ty: int16(math.Floor(float64(me.Y) + ady)), start: *frames}
 	}
 	if *exact {
 		g.fixW, g.fixH = *winW, *winH
@@ -1152,7 +1182,11 @@ type shooter struct {
 	fixW, fixH    int           // -exact: the screen's size, whatever the window's
 	benchTimes    []time.Duration
 	benchLast     time.Time
-	walk          *walker // -walk: the player on the move; see walk.go
+	walk          *walker      // -walk: the player on the move; see walk.go
+	rot           *rotScript   // -rotgif: the piece in hand turned, then put down; see rotate.go
+	rotSheet      *client.Game // write the sheet of what turns instead of the frame
+	turnN         int          // -turn: what is being placed turned this many times; see rotate.go
+	turnG         *client.Game
 }
 
 func (s *shooter) Update() error {
@@ -1160,6 +1194,12 @@ func (s *shooter) Update() error {
 		return ebiten.Termination
 	}
 	s.n++
+	if s.rot != nil {
+		s.rot.step(s.n) // see rotate.go
+	}
+	if s.turnN != 0 && s.n == 3 {
+		s.turnG.TurnPlacing(s.turnN)
+	}
 	if s.walk != nil {
 		s.walk.step(s.n)
 	}
@@ -1240,6 +1280,9 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 	s.printBench()
 	if s.trunks != nil {
 		final = s.trunks.TrunkSheet()
+	}
+	if s.rotSheet != nil {
+		final = s.rotSheet.RotateSheet() // see rotate.go
 	}
 	if s.icons != nil {
 		final = s.icons.IconSheet()

@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 53
+const Version = 55
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -53,6 +53,11 @@ const (
 	ServerSnapshot
 	ServerSaved // the outcome of a save
 	ServerDev   // the answer to a ClientDev
+
+	// ServerRefused: the server will not take this client (wrong version,
+	// name in use, room full). The reason is in ServerMsg.Refused; the
+	// connection is closed right after.
+	ServerRefused
 )
 
 // ServerMsg is a message from the server to one client.
@@ -62,6 +67,7 @@ type ServerMsg struct {
 	Snapshot Snapshot
 	Saved    SaveResult
 	Dev      DevReply
+	Refused  string // ServerRefused: why, in words for the player
 }
 
 // SaveResult reports a save, requested by this client or automatic.
@@ -252,11 +258,12 @@ type EntityView struct {
 	Kind   sim.EntityKind
 	TX, TY int16
 	Ready  bool
-	Big    bool  // trees and boulders: the big size
-	Stage  uint8 // growing crops: 0 just planted to sim.CropStages-1
-	Fuel   int32 // campfires, furnaces and standing torches; a man-eater's ticks till it may snap again
-	Var    uint8 // a body's or trophy's creature kind, a flower's colour, a seedling's seed, a glowing plant's look; on a campfire, the sim.CookGear on it
-	Cook   uint8 // a cooking station: sim.CookFlag bits
+	Big    bool    // trees and boulders: the big size
+	Stage  uint8   // growing crops: 0 just planted to sim.CropStages-1
+	Fuel   int32   // campfires, furnaces and standing torches; a man-eater's ticks till it may snap again
+	Var    uint8   // a body's or trophy's creature kind, a flower's colour, a seedling's seed, a glowing plant's look; on a campfire, the sim.CookGear on it
+	Cook   uint8   // a cooking station: sim.CookFlag bits
+	Face   sim.Dir // which way a built thing faces: see sim/facing.go
 }
 
 // CreatureView is what clients see of an animal.

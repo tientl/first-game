@@ -782,7 +782,16 @@ func (g *Game) drawHotbarLine(screen *uiDst, sw, sh int, held sim.Slot) {
 	}
 	const ts = 0.85
 	kw := textWidthW(h.key, ts, wHeavy)
-	tw := kw + 6 + textWidth(h.s, ts)
+	sw2 := textWidth(h.s, ts)
+	tw := kw + 6 + sw2
+	// Something that turns being placed: R and the wheel, after a dot; see facing.go.
+	tkey, tverb, turns := g.turnHint()
+	const gap = 15.0
+	tkw := 0.0
+	if turns {
+		tkw = textWidthW(tkey, ts, wHeavy)
+		tw += gap + tkw + 6 + textWidth(tverb, ts)
+	}
 	hx := math.Round(cx - tw/2)
 	ty := y + (lineH-lineUI*ts)/2
 	plateA(screen, hx-11, y, tw+22, lineH, lineH/2, 0.82*a)
@@ -792,6 +801,12 @@ func (g *Game) drawHotbarLine(screen *uiDst, sw, sh int, held sim.Slot) {
 		hc = rc
 	}
 	uiText(screen, h.s, hx+kw+6, ty, fade(hc, uint8(255*a)), text.AlignStart, ts, fxShadow)
+	if turns {
+		tx := hx + kw + 6 + sw2 + gap
+		fillCircle(screen, float32(tx-gap/2), float32(y+lineH/2), 1.5, fade(colMuted, uint8(255*a)), true)
+		uiTextW(screen, tkey, tx, ty, fade(colKey, uint8(255*a)), text.AlignStart, ts, wHeavy, fxShadow)
+		uiText(screen, tverb, tx+tkw+6, ty, fade(colGood, uint8(255*a)), text.AlignStart, ts, fxShadow)
+	}
 }
 
 // drawKeyBadge is the number key of a hotbar slot, on a little tab of bone
@@ -1004,9 +1019,17 @@ func (g *Game) drawPause(screen *uiDst, sw, sh int) {
 	}
 	cx := float64(sw) / 2
 	top := max(16, float64(sh)/2-215)
-	drawTitle(screen, "Tạm dừng", cx, top, 3, colBoneText, color.RGBA{60, 36, 20, 255})
+	title := "Tạm dừng"
+	if g.shared() {
+		title = "Menu" // a room's world does not stop for one player: see room.go
+	}
+	drawTitle(screen, title, cx, top, 3, colBoneText, color.RGBA{60, 36, 20, 255})
 	g.pause.draw(screen, cx, top+64, 340)
-	g.text(screen, "Game tự lưu mỗi phút và khi thoát", cx, g.pause.rowY(len(g.pause.items))+8, colMuted, text.AlignCenter, 1)
+	below := g.pause.rowY(len(g.pause.items)) + 8
+	if !g.room.joined { // a guest's line is the room's: see room.go
+		g.text(screen, "Game tự lưu mỗi phút và khi thoát", cx, below, colMuted, text.AlignCenter, 1)
+	}
+	g.drawRoomPause(screen, sw, cx, below, top)
 }
 
 // seasonColors colour the season's name on the clock.

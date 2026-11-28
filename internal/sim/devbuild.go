@@ -224,9 +224,9 @@ func (w *World) standers() [][2]float64 {
 }
 
 // devBuild puts palette piece i on tile (tx, ty) for p, when at is set, else
-// on the tile p faces; nothing is needed and nothing is used up. It does
-// nothing unless p builds freely.
-func (w *World) devBuild(p *Player, i int, at bool, tx, ty int) {
+// on the tile p faces, facing face if it turns (facing.go); nothing is
+// needed and nothing is used up. It does nothing unless p builds freely.
+func (w *World) devBuild(p *Player, i int, at bool, tx, ty int, face Dir) {
 	pc, ok := DevPieceAt(i)
 	if !ok || !w.freeBuild(p) {
 		return
@@ -244,17 +244,19 @@ func (w *World) devBuild(p *Player, i int, at bool, tx, ty int) {
 		return
 	}
 	p.Dir = dirToward(float64(tx)+0.5-p.X, float64(ty)+0.5-p.Y)
-	w.devPut(pc, tx, ty)
+	w.devPut(pc, tx, ty, face)
 }
 
-// devPut sets piece pc down on tile (tx, ty), which DevBuildSpot passed.
-func (w *World) devPut(pc DevPiece, tx, ty int) *Entity {
+// devPut sets piece pc down on tile (tx, ty), which DevBuildSpot passed,
+// facing face if it turns.
+func (w *World) devPut(pc DevPiece, tx, ty int, face Dir) *Entity {
 	if pc.OnFire {
 		e := w.entityAt(tx, ty)
 		if e == nil || e.Kind != EntityCampfire || e.Var != 0 {
 			e = w.addEntity(EntityCampfire, tx, ty)
 		}
 		e.Var = pc.Var
+		e.face(face)
 		w.station(e.ID)
 		return e
 	}
@@ -263,6 +265,7 @@ func (w *World) devPut(pc DevPiece, tx, ty int) *Entity {
 	}
 	e := w.addEntity(pc.Kind, tx, ty)
 	e.Var = pc.Var
+	e.face(face)
 	switch pc.Kind {
 	case EntityTorchStand:
 		e.Fuel = TorchStandTicks
@@ -301,7 +304,7 @@ func (w *World) devRemove(p *Player, at bool, tx, ty int) {
 		return
 	}
 	if e.Kind == EntityCampfire {
-		e.Var = uint8(GearNone) // the pot goes with the fire
+		e.Var, e.Face = uint8(GearNone), DirDown // the pot goes with the fire
 	}
 	if inv := w.chests[e.ID]; inv != nil {
 		var items []Ingredient

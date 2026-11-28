@@ -130,6 +130,7 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			Fuel:  entityFuel(e, tick),
 			Var:   e.Var,
 			Cook:  e.Cook,
+			Face:  e.Face,
 		})
 	})
 	snap.Season, snap.Weather = sim.SeasonOf(tick), s.world.Weather()

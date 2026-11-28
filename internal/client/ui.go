@@ -35,8 +35,9 @@ type button struct {
 
 // buttonList is a column of buttons centred on x.
 type buttonList struct {
-	items []button
-	sel   int
+	items   []button
+	sel     int
+	compact bool // thinner buttons, closer together, for a short screen
 
 	// Layout, set by draw and used for mouse hit-testing on the next update.
 	x, y, w, h, gap float64
@@ -123,6 +124,9 @@ func (b *buttonList) handle() int {
 
 func (b *buttonList) draw(dst *uiDst, x, y, w float64) {
 	b.x, b.y, b.w, b.h, b.gap = x, y, w, 44, 10
+	if b.compact {
+		b.h, b.gap = 38, 6
+	}
 	for i, it := range b.items {
 		ry, rh := b.rowY(i), b.rowH(i)
 		left := x - w/2

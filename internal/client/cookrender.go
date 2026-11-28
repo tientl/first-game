@@ -82,6 +82,9 @@ func (g *Game) drawCookEntity(dst drawTarget, e protocol.EntityView, d drawable)
 		if loaded || done {
 			front = a.grill[1]
 		}
+		if sim.RunsNS(e.Face) { // turned to run north–south; see facedart.go
+			back, front = grillLong(loaded || done)
+		}
 	default:
 		back, front = a.panBack, a.pan[0]
 		if loaded || done {
@@ -105,11 +108,7 @@ func (g *Game) drawOvenFire(dst drawTarget, e protocol.EntityView, d drawable) {
 	if e.Kind != sim.EntityOven || e.Fuel <= 0 {
 		return
 	}
-	if g.drawFireOf(dst, e, fireMouth, d.sx-1.5, d.sy-0.5) { // see fireart.go
-		return
-	}
-	f := g.art.flames[(g.frame/4+int(e.ID))%flameFrames]
-	drawAt(dst, f, d.sx-1.5, d.sy-0.5, 0.6, 0.42, 0, nil)
+	g.drawMouthFire(dst, e, d) // where its mouth is, the way it faces; see facedart.go
 }
 
 // puffs draws n puffs rising from (x, y) one after another: each climbs

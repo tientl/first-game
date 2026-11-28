@@ -33,7 +33,16 @@ type LocalConn struct {
 
 // ConnectLocal opens an in-process connection to s. The server picks it up on
 // its next tick. It fails with ErrServerClosed once Run has returned.
-func (s *Server) ConnectLocal() (*LocalConn, error) {
+func (s *Server) ConnectLocal() (*LocalConn, error) { return s.connect(false) }
+
+// ConnectRemote is ConnectLocal for a client that is really on the network:
+// package netplay holds the other end of the wire and relays through the
+// returned connection. Such a client counts against Config.MaxRemote, may not
+// make the host's save write, and keeps the world running when the host
+// pauses.
+func (s *Server) ConnectRemote() (*LocalConn, error) { return s.connect(true) }
+
+func (s *Server) connect(remote bool) (*LocalConn, error) {
 	c := &LocalConn{
 		toServer:   make(chan protocol.ClientMsg, localInboxSize),
 		fromServer: make(chan protocol.ServerMsg, localOutboxSize),
@@ -44,7 +53,7 @@ func (s *Server) ConnectLocal() (*LocalConn, error) {
 	if s.closed {
 		return nil, ErrServerClosed
 	}
-	s.pending = append(s.pending, &peer{in: c.toServer, out: c.fromServer, gone: c.gone})
+	s.pending = append(s.pending, &peer{in: c.toServer, out: c.fromServer, gone: c.gone, remote: remote})
 	return c, nil
 }
 
