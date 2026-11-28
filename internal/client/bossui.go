@@ -100,27 +100,34 @@ func (g *Game) drawBossBar(screen *uiDst, sw int) {
 		flash = 1 - float64(since)/10 // the flash of the blow
 	}
 	drawBarFill(screen, X+1, BY+1, W-2, BH-2, f, fill, barFX{trail: u.shownHP, flash: flash}, g.frame)
-	// The mark at half: a notch of bone.
-	mx, by, bh := float32(X+W/2), float32(BY), float32(BH)
-	mark := colBone
-	if f < 0.5 {
-		mark = color.RGBA{120, 104, 82, 255} // passed
+	// The marks where its fight changes: a notch of bone at each (at half,
+	// where it flies into its rage; in a lair of StyleLairs, its stages).
+	by, bh := float32(BY), float32(BH)
+	for _, at := range g.bossBarMarks(b.Kind) {
+		mx := float32(X + W*at)
+		mark := colBone
+		if f < at {
+			mark = color.RGBA{120, 104, 82, 255} // passed
+		}
+		fillRect(screen, mx-0.6, by, 1.2, bh, fade(colHideDark, 160), true)
+		var d vector.Path
+		d.MoveTo(mx, by-4.5)
+		d.LineTo(mx+2.8, by-1.6)
+		d.LineTo(mx, by+1.3)
+		d.LineTo(mx-2.8, by-1.6)
+		d.Close()
+		op := &vector.DrawPathOptions{AntiAlias: true}
+		op.ColorScale.ScaleWithColor(mark)
+		fillPath(screen, &d, op)
 	}
-	fillRect(screen, mx-0.6, by, 1.2, bh, fade(colHideDark, 160), true)
-	var d vector.Path
-	d.MoveTo(mx, by-4.5)
-	d.LineTo(mx+2.8, by-1.6)
-	d.LineTo(mx, by+1.3)
-	d.LineTo(mx-2.8, by-1.6)
-	d.Close()
-	op := &vector.DrawPathOptions{AntiAlias: true}
-	op.ColorScale.ScaleWithColor(mark)
-	fillPath(screen, &d, op)
 	const vs = 0.58
 	uiTextW(screen, fmt.Sprintf("%d / %d", b.HP, b.MaxHP), X+W-7, BY+BH/2-lineUI*vs/2, colWhite, text.AlignEnd, vs, 880, fxOutline) // clear of the mark at half
 	if b.Holds {
 		const s = 0.85
 		msg := "Bị siết! Giữ phím di chuyển để vùng ra, hoặc đánh nó"
+		if l, ok := g.lairOf(b.Kind); ok && l.Layout != sim.LayoutHollow {
+			msg = "Bị siết! Bấm đánh liên tục để vùng ra"
+		}
 		c := colBad
 		if (g.frame/12)%2 == 0 {
 			c = lighten(c, 50)
@@ -251,6 +258,36 @@ func (g *Game) drawBossMarks(dst *uiDst, at func(x, y float64) (float32, float32
 			strokeLine(dst, x+10, y-10, x-10, y+10, 3, color.RGBA{230, 40, 40, 255}, true)
 		}
 		g.text(dst, m.Kind.Name(), float64(x), float64(y)+14, colWhite, text.AlignCenter, 1)
+		if m.Camp { // its camp: a tent by a fire, and the way in
+			cx, cy := at(float64(m.CX), float64(m.CY))
+			label := text.AlignCenter
+			lx, ly := float64(cx), float64(cy)+8
+			if d := math.Hypot(float64(cx-x), float64(cy-y)); d < 36 { // on the whole map it lies close by the lair: set apart
+				cx, cy = x+30, y-16 // up and to the right, clear of the lair's name below it
+				label, lx, ly = text.AlignStart, float64(cx)+15, float64(cy)-9
+			}
+			for i := 0.15; i < 0.85; i += 0.1 {
+				fillCircle(dst, cx+(x-cx)*float32(i), cy+(y-cy)*float32(i), 1.4, fade(colBone, 200), true)
+			}
+			var p vector.Path
+			p.MoveTo(cx-8, cy+5)
+			p.LineTo(cx, cy-7)
+			p.LineTo(cx+8, cy+5)
+			p.Close()
+			op := &vector.DrawPathOptions{AntiAlias: true}
+			op.ColorScale.ScaleWithColor(colInk)
+			fillPath(dst, &p, op)
+			var q vector.Path
+			q.MoveTo(cx-6.5, cy+4)
+			q.LineTo(cx, cy-5)
+			q.LineTo(cx+6.5, cy+4)
+			q.Close()
+			op2 := &vector.DrawPathOptions{AntiAlias: true}
+			op2.ColorScale.ScaleWithColor(color.RGBA{96, 150, 70, 255})
+			fillPath(dst, &q, op2)
+			fillCircle(dst, cx+11, cy+3, 3, color.RGBA{240, 150, 50, 255}, true)
+			g.text(dst, "Trại", lx, ly, colWhite, label, 1)
+		}
 	}
 }
 

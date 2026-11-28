@@ -198,6 +198,9 @@ func butcherHits(k CreatureKind) int {
 // for small things what it gives drops at once.
 func (w *World) fell(c *Creature) {
 	c.gone = true
+	if c.Kind.Boss() {
+		c.X, c.Y = w.lootSpot(c.X, c.Y) // on ground a player can reach, not in its lagoon or its pool: see lairsite.go
+	}
 	if !leavesBody(c.Kind) {
 		w.dropAt(c.X, c.Y, c.Kind.loot())
 		return

@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 52
+const Version = 53
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -88,6 +88,7 @@ type Welcome struct {
 	Relief        []sim.Relief   // row-major like Tiles: each tile's height level and variant; nil for worlds made before sim.StyleIsles
 	Difficulty    sim.Difficulty // the world's difficulty: whether dying costs what you carry
 	Caves         []sim.CaveCell // since sim.StyleCaves: what each tile from row SurfaceH down is in the natural caves (see sim.CaveCell); nil before
+	Style         sim.WorldStyle // the generator that made the world: which water is a pond (sim.PondMaskFor)
 }
 
 // Snapshot is the state one client needs to draw a frame, sent every tick.
@@ -109,12 +110,14 @@ type Snapshot struct {
 	WindDir   float32       // where the wind blows towards, radians (0 east)
 	Wind      float32       // how hard, 0 to 1
 
-	Boss      BossView    // the boss this player is fighting, for the big bar; see boss.go
-	BossMarks []BossMark  // the boss lairs this player has seen, for the map
-	Victory   VictoryView // every boss has fallen: the game-beaten screen
-	Lairs     []LairView  // the boss lairs near by: their arenas, and whether their bosses sleep
-	Zones     []ZoneView  // red warnings on the ground where beasts' special moves will land; see skills.go
+	Boss      BossView     // the boss this player is fighting, for the big bar; see boss.go
+	BossMarks []BossMark   // the boss lairs this player has seen, for the map
+	Victory   VictoryView  // every boss has fallen: the game-beaten screen
+	Lairs     []LairView   // the boss lairs near by: their arenas, and whether their bosses sleep
+	Zones     []ZoneView   // red warnings on the ground where beasts' special moves will land; see skills.go
 	Hazards   []HazardView // clouds, webs and collapses in the caves; see sim/cavehaz.go
+	LairHazards []LairHazardView // venom, the flood and broken reef round the bosses; see boss.go
+	Spears    []SpearView  // spears in the air; see boss.go
 }
 
 // BoatView is a boat on the water.

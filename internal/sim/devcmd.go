@@ -277,11 +277,13 @@ func (w *World) devTP(r *DevResult, p *Player, args []string) {
 		place, label = DevCave, "hang gần nhất"
 	case where == "pyramid" || where == "kimtuthap" || where == "kimtu":
 		place, label = DevPyramid, "kim tự tháp"
-	case strings.HasPrefix(where, "boss") || strings.HasPrefix(where, "trum"):
+	case strings.HasPrefix(where, "boss") || strings.HasPrefix(where, "trum") || strings.HasPrefix(where, "trai") || strings.HasPrefix(where, "camp"):
 		place = DevBoss
-		rest := strings.TrimPrefix(strings.TrimPrefix(where, "boss"), "trum")
+		camp := strings.HasPrefix(where, "trai") || strings.HasPrefix(where, "camp")
+		rest := strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(where, "boss"), "trum"), "trai"), "camp")
+		numbered := false
 		if v, err := strconv.Atoi(rest); err == nil {
-			n = v
+			n, numbered = v, true
 		} else {
 			for i := range NumBosses {
 				if k := BossKind(i); rest != "" && strings.Contains(fold(k.Name()), rest) {
@@ -290,15 +292,28 @@ func (w *World) devTP(r *DevResult, p *Player, args []string) {
 				}
 			}
 		}
+		if demo && numbered && n >= 1 && n <= len(demoBosses) {
+			i, _ := BossIndex(demoBosses[n-1]) // the demo numbers its own two: 1 Titanoboa, 2 Megalodon
+			n = i + 1
+		}
 		if n < 1 || n > NumBosses {
 			var names []string
 			for i := range NumBosses {
 				names = append(names, fmt.Sprintf("%d %s", i+1, BossKind(i).Name()))
 			}
-			r.say("tp boss <1-%d>: %s", NumBosses, strings.Join(names, ", "))
+			if demo {
+				names = names[:0]
+				for i, k := range demoBosses {
+					names = append(names, fmt.Sprintf("%d %s", i+1, k.Name()))
+				}
+			}
+			r.say("tp boss <số>: %s; tp trại <số>: trại gần hang ổ", strings.Join(names, ", "))
 			return
 		}
 		label = "trùm " + BossKind(n-1).Name()
+		if camp {
+			place, label = DevCamp, "trại gần hang ổ "+BossKind(n-1).Name()
+		}
 	default:
 		r.say("Không biết nơi %q: làng, trùm N, hang, kim tự tháp, spawn hay x y", strings.Join(args, " "))
 		return
