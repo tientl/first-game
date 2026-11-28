@@ -25,6 +25,9 @@ var (
 	tplWarm   = mkRamp(0x3f333b, 0x533b41, 0x6d4e4b, 0x867066, 0xb49d7e)
 	tplMoss   = mkRamp(0x282e3b, 0x343f41, 0x3f4328, 0x5f7132, 0x739a70)
 	tplJoint  = mkRamp(0x1a1f2e, 0x282e3b, 0x343f41, 0x3f4328)
+	tplJointDark = mkRamp(0x1a1917, 0x24231f, 0x2e2d2b)
+	tplFlag      = mkRamp(0x2e2d2b, 0x3e3c38, 0x504d47, 0x645f57, 0x79736a, 0x8f887d, 0xa59d90, 0xb9b1a2) // weathered limestone
+	tplBuff      = mkRamp(0x3c3530, 0x4f463e, 0x645849, 0x7a6b58, 0x917f68, 0xa8947a)
 	tplEarth  = mkRamp(0x2b222a, 0x3c252b, 0x533b41, 0x684039)
 	tplLeaf   = mkRamp(0x5c2b34, 0x8d4830, 0xc57835, 0xe1a845)
 	tplBlack  = mkRamp(0x05080c, 0x0a0f16, 0x111a22, 0x1a2a30, 0x24403f)
@@ -94,8 +97,8 @@ func (t templeLook) water(u, v, q float64, hx, hy int) color.RGBA {
 	l += (fbm2(u*2.1, v*3.3, 914, 2) - 0.5) * 0.08
 	c := rq(tplBlack, l, hx, hy)
 	// A dead leaf or two floating.
-	if lf := hashf(int(math.Floor(u*5)), int(math.Floor(v*7)), 915); lf < 0.012 && q < 0.9 {
-		c = tplLeaf.at(int(lf * 300))
+	if lf := hashf(int(math.Floor(u*5)), int(math.Floor(v*7)), 915); lf < 0.004 && q < 0.9 {
+		c = mix(tplLeaf.at(int(lf*700)), c, 0.4)
 	}
 	return c
 }
@@ -110,9 +113,9 @@ func (t templeLook) coping(u, v, q float64, hx, hy int) color.RGBA {
 	j := math.Floor(seg)
 	f := seg - j
 	id := int(j) + 100
-	rp := tplGrey
-	if hashf(id, 1, 916) < 0.08 {
-		rp = tplWarm
+	rp := tplFlag
+	if hashf(id, 1, 916) < 0.1 {
+		rp = tplBuff
 	}
 	l := 0.62 + (hashf(id, 2, 916)-0.5)*0.14
 	switch {
@@ -162,20 +165,20 @@ func (t templeLook) radial(u, v, q, rr float64, hx, hy int, d, rim float64) (col
 func (t templeLook) flags(u, v float64, hx, hy int, d, rim float64) (color.RGBA, bool) {
 	// Courses of 0.95 to 1.35 tiles' depth, laid north to south.
 	vv := v + (vnoise(u*0.3, v*0.3, 920)-0.5)*0.25
-	base := math.Floor(vv / 1.15)
-	row, top, depth := base, 0.0, 1.15
+	base := math.Floor(vv / 1.4)
+	row, top, depth := base, 0.0, 1.4
 	for k := base - 1; k <= base+1; k++ { // the course this point falls in, each a little deeper or shallower
-		t0 := k*1.15 + (hashf(int(k), 9, 921)-0.5)*0.4
-		t1 := (k+1)*1.15 + (hashf(int(k+1), 9, 921)-0.5)*0.4
+		t0 := k*1.4 + (hashf(int(k), 9, 921)-0.5)*0.45
+		t1 := (k+1)*1.4 + (hashf(int(k+1), 9, 921)-0.5)*0.45
 		if vv >= t0 && vv < t1 {
 			row, top, depth = k, t0, t1-t0
 		}
 	}
 	fv := (vv - top) / depth
-	off := hashf(int(row), 0, 921) * 2.3
+	off := hashf(int(row), 0, 921) * 2.9
 	a := u + off
-	bound := func(j float64) float64 { return j*1.7 + (hashf(int(j), int(row), 922)-0.5)*0.9 }
-	j := math.Floor(a / 1.7)
+	bound := func(j float64) float64 { return j*2.1 + (hashf(int(j), int(row), 922)-0.5)*1.1 }
+	j := math.Floor(a / 2.1)
 	if a < bound(j) {
 		j--
 	} else if a >= bound(j+1) {
@@ -197,64 +200,68 @@ func (t templeLook) stone(u, v float64, hx, hy, id int, fu, fv, wpx, hpx float64
 		// The flag is gone: the earth it lay on, a little dead leaf.
 		if hashf(id, 4, 923) < 0.6 && edge < 0.6 {
 			e := rq(tplEarth, 0.35+(fbm2(u*4, v*4, 924, 2)-0.5)*0.6, hx, hy)
-			if hashf(hx/3, hy/3, 925) < 0.05 {
-				e = tplLeaf.at(int(hashf(hx, hy, 926) * 4))
+			if hashf(hx/3, hy/3, 925) < 0.03 {
+				e = tplLeaf.at(int(hashf(hx, hy, 926) * 3))
 			}
 			return e, true
 		}
 		return color.RGBA{}, false
 	}
-	// Distances to its four edges, art pixels.
+	// Distances to its four edges, art pixels; the joints a little
+	// irregular, the flags' corners chipped.
 	el, er := fu*wpx, (1-fu)*wpx
 	et, eb := fv*hpx, (1-fv)*hpx
-	const jw = 0.5
-	if min(el, er, et, eb) < jw { // the joint: dark, mossed in places
-		if m := vnoise(u*1.7, v*2.1, 927); m > 0.58-0.25*edge {
-			return rq(tplMoss, 0.15+m*0.45, hx, hy), true
+	jw := 0.55 + (vnoise(u*5, v*5, 927)-0.5)*0.5
+	near := min(el, er, et, eb)
+	if corner := math.Hypot(min(el, er), min(et, eb)); near < jw || corner < jw+1.1 {
+		if m := vnoise(u*1.7, v*2.1, 928); m > 0.55-0.25*edge {
+			return rq(tplMoss, 0.12+m*0.4, hx, hy), true
 		}
-		return tplJoint.at(int(hashf(hx, hy, 928)*1.99)), true
+		return tplJointDark.at(int(hashf(hx, hy, 929) * 1.99)), true
 	}
-	rp := tplGrey
-	l := 0.5 + (hashf(id, 6, 923)-0.5)*0.12
-	if hashf(id, 5, 923) < 0.12 {
-		rp, l = tplWarm, l+0.05 // a flag of sandstone among the granite
+	rp := tplFlag
+	l := 0.5 + (hashf(id, 6, 923)-0.5)*0.1
+	if hashf(id, 5, 923) < 0.15 {
+		rp = tplBuff // a flag of buff sandstone among the limestone
 	}
-	l += (hashf(id, 7, 923) - 0.5) * 0.08 // each laid a little askew
-	// Worn round at its edges: the top and left catch the light, the
-	// bottom and right fall into shade.
-	const bev = 1.4
+	// Each a little domed, worn smooth: lighter in the middle, to the light.
+	cu, cv := fu-0.5, fv-0.5
+	l += 0.07*(1-4*cu*cu)*(1-4*cv*cv) - 0.07*cv - 0.04*cu
+	l += (hashf(id, 7, 923) - 0.5) * 0.06 // laid a little askew
+	// Its edges worn round: the top and left catch the light, the bottom
+	// and right fall into shade, and the stone by a joint is a little dark.
 	switch {
-	case et < jw+bev*0.7:
-		l += 0.17
-	case eb < jw+bev:
-		l -= 0.17 * (1 - (eb-jw)/bev)
+	case et-jw < 1.4:
+		l += 0.13 * (1 - (et-jw)/1.4)
+	case eb-jw < 2:
+		l -= 0.16 * (1 - (eb-jw)/2)
 	}
 	switch {
-	case el < jw+bev*0.6:
-		l += 0.07
-	case er < jw+bev*0.8:
-		l -= 0.08
+	case el-jw < 1.1:
+		l += 0.06
+	case er-jw < 1.6:
+		l -= 0.08 * (1 - (er-jw)/1.6)
 	}
-	// Its face: worn smoother in the middle, pitted, mottled.
-	l += (fbm2(u*2.3, v*2.9, 929, 2) - 0.5) * 0.18
-	l += (vnoise(u*9, v*11, 930) - 0.5) * 0.06
-	if hashf(hx/2, hy/2, 931) < 0.025 {
-		l -= 0.2
+	// Its face: weathered, pitted.
+	l += (fbm2(u*3.1, v*3.7, 930, 2) - 0.5) * 0.12
+	l += (vnoise(u*11, v*13, 931) - 0.5) * 0.07
+	if hashf(hx/2, hy/2, 932) < 0.02 {
+		l -= 0.14
 	}
 	// A crack across some.
-	if hashf(id, 8, 923) < 0.25 {
-		if cr := vnoise(u*2.6+float64(id%97), v*3.1, 932); math.Abs(cr-0.5) < 0.012 {
-			return tplJoint.at(1), true
+	if hashf(id, 8, 923) < 0.22 {
+		if cr := vnoise(u*2.6+float64(id%97), v*3.1, 933); math.Abs(cr-0.5) < 0.011 {
+			return tplJointDark.at(1), true
 		}
 	}
-	// Moss creeping out of the joints over the flags, more by the rim.
-	near := min(el, er, et, eb)
-	m := fbm2(u*0.7, v*0.8, 933, 2) + 0.3*edge - near*0.025
-	if m > 0.7 {
-		return rq(tplMoss, 0.2+(m-0.7)*2+l*0.3, hx, hy), true
+	// Moss creeping out of the joints, more by the rim; pale lichen.
+	m := fbm2(u*0.6, v*0.7, 934, 2) + 0.35*edge - near*0.02
+	switch {
+	case m > 0.76, m > 0.72 && (hx+hy)%2 == 0:
+		return rq(tplMoss, 0.18+(m-0.72)*1.6+l*0.3, hx, hy), true
 	}
-	if lc := vnoise(u*3.3, v*3.7, 934); lc > 0.8 { // pale lichen
-		return mix(rq(rp, l, hx, hy), hex(0xa5c67c), 0.35), true
+	if lc := vnoise(u*4.3, v*5.1, 935); lc > 0.83 {
+		return mix(rq(rp, l+0.08, hx, hy), hex(0xa5c67c), 0.22), true
 	}
 	return rq(rp, l, hx, hy), true
 }

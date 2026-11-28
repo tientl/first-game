@@ -496,6 +496,15 @@ The lairs of `sim.StyleLairs` (`sim/temple.go`, `sim/atoll.go`):
   and the frames that were there; Titanoboa under its pool is a shadow
   with rings and bubbles (`drawTitanUnder`).
 
+- **The camera in a fight** (`arenaCamera`): the arenas are bigger than
+  the screen (the courtyard a rounded oblong of 40 by 31 tiles,
+  `sim.ArenaQ`; the atoll 45 across to its shelf), and while the fight is
+  on the view is kept inside (a little past the edge, more at the bottom
+  under the hotbar), easing in and out over half a second, after the
+  boss's entrance and before the shake; it is drawn back to 0.9 (drawn
+  for a screen a ninth bigger and shrunk, `lf.pull`). A red arrow at the
+  edge points to the boss when it is off the screen (`drawBossArrow`).
+
 Look: `go run ./cmd/shot -exact -w 1920 -h 1080 -size 1024 -bossfight
 titan|shark|map -o dir/x.png` plays the scenes in a real game and writes
 the stills, the GIFs and a still of every tenth GIF frame in `dir/review`.

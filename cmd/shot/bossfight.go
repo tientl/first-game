@@ -194,7 +194,11 @@ func runBossFight(which, dir string, seed uint64, size, winW, winH int) {
 		a := math.Atan2(titan.CampY-ly, titan.CampX-lx)
 		in := func(d float64) string { return tp(lx+math.Cos(a)*d, ly+math.Sin(a)*d) }
 		// The courtyard's edge along the way in (its rounded oblong: sim.ArenaQ).
-		edge := 1 / sim.ArenaQ(sim.LayoutTemple, titan.RX, titan.RY, math.Cos(a), math.Sin(a))
+		// The courtyard's nearer side to the way in, a tile and a half in.
+		side := tp(lx+math.Copysign(titan.RX-1.5, math.Cos(a)), ly)
+		if math.Abs(math.Sin(a)) > math.Abs(math.Cos(a)) {
+			side = tp(lx, ly+math.Copysign(titan.RY-1.5, math.Sin(a)))
+		}
 		steps = []bfStep{
 			{at: 20, cmds: append(setup, in(7.5))},
 			{at: 40, zoom: z(-1)},
@@ -207,7 +211,7 @@ func runBossFight(which, dir string, seed uint64, size, winW, winH int) {
 			{at: 480, cmds: []string{in(6.5), "boss calm off"}},
 			// The whole screen is arena: in the middle of the courtyard, and at its edge.
 			{at: 760, shot: "titan_arena_middle"},
-			{at: 770, cmds: []string{in(edge - 1.5)}},
+			{at: 770, cmds: []string{side}},
 			{at: 900, shot: "titan_arena_edge"},
 			{at: 905, cmds: []string{in(6.5)}},
 			{at: 960, cmds: []string{"boss skill strike"}, gifOn: "titan_fight", every: 6},

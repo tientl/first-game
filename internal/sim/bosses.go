@@ -530,7 +530,7 @@ func (w *World) noteBossesSeen() {
 			if !l.ok {
 				continue
 			}
-			near := math.Hypot(l.x-p.X, l.y-p.Y) <= bossSeeRange
+			near := math.Hypot(l.x-p.X, l.y-p.Y) <= bossSeeRange+l.site.r // a lair of StyleLairs is seen from its arena's edge
 			if c := l.c; c != nil && math.Hypot(c.X-p.X, c.Y-p.Y) <= bossSeeRange {
 				near = true
 			}
@@ -602,7 +602,11 @@ func (w *World) BossFight(id PlayerID) (s BossStatus, ok bool) {
 		if c == nil || c.gone || !l.awake {
 			continue
 		}
-		if d := math.Hypot(c.X-p.X, c.Y-p.Y); d <= best {
+		d := math.Hypot(c.X-p.X, c.Y-p.Y)
+		if l.site.layout != LayoutHollow && l.site.q(p.X-l.x, p.Y-l.y) <= 1+2/min(l.site.rx, l.site.ry) {
+			d = min(d, BossBarRange) // anywhere in the courtyard or on the atoll: the fight is on
+		}
+		if d <= best {
 			s, ok, best = w.bossStatus(i), true, d
 		}
 	}

@@ -589,7 +589,7 @@ func (g *Game) drawBrokenReef(dst drawTarget, cam camera, hz protocol.HazardView
 	settle := clamp01(1 - float64(hz.Left)/sim.ReefSettle)
 	open := clamp01(float64(hz.Age) / 6)
 	a := uint8(255 * open * (1 - settle))
-	k := 0.7 + 0.3*open
+	k := 0.9 + 0.4*open // a little more than its tile, so the gaps run together
 	drawAt(dst, brokenReef.sprite(i, false), sx, sy, k, k, 0, color.RGBA{a, a, a, a})
 	if settle > 0 { // rising back: stones and foam
 		for j := range 5 {
@@ -951,9 +951,16 @@ func (g *Game) arenaCamera(cx, cy, hw, hh float64) (float64, float64) {
 	l := f.clampLair
 	lx, ly := float64(l.X), float64(l.Y)
 	rx, ry := float64(l.RX), float64(l.RY)
+	// The edge itself may show, a little past it, and more at the bottom,
+	// where the hotbar would hide a player standing at the edge.
 	fits := func(x, y float64) bool {
 		for _, c := range [8][2]float64{{-1, -1}, {1, -1}, {-1, 1}, {1, 1}, {0, -1}, {0, 1}, {-1, 0}, {1, 0}} {
-			if sim.ArenaQ(l.Layout, rx, ry, x+c[0]*hw-lx, y+c[1]*hh-ly) > 1 {
+			dx, dy := x+c[0]*hw-lx, y+c[1]*hh-ly
+			my := ry + 0.8
+			if dy > 0 {
+				my = ry + 2.4
+			}
+			if sim.ArenaQ(l.Layout, rx+0.8, my, dx, dy) > 1 {
 				return false
 			}
 		}
@@ -985,6 +992,11 @@ func (g *Game) arenaCamera(cx, cy, hw, hh float64) (float64, float64) {
 			_, y = along(x, y, x, cy)
 		}
 	}
+	// But never so that the player is lost: in the courtyard's rounded
+	// corners the view gives way to keep them well in it.
+	const side, top, bottom = 3.0, 3.0, 4.0
+	x = max(cx-(hw-side), min(cx+(hw-side), x))
+	y = max(cy-(hh-bottom), min(cy+(hh-top), y))
 	k := smooth(f.clampK)
 	return cx + (x-cx)*k, cy + (y-cy)*k
 }

@@ -35,11 +35,11 @@ func reefFlat(hx, hy int, u, v, s float64) color.RGBA {
 	const e = 0.04
 	hc := h(u, v)
 	gx, gy := (h(u+e, v)-hc)/e, (h(u, v+e)-hc)/e
-	l := 0.55 - 0.18*gx - 0.22*gy + (hc-0.5)*0.5
+	l := 0.6 - 0.12*gx - 0.14*gy + (hc-0.5)*0.32
 	// Tide pools in the hollows, away from the open water's edge.
 	pool := fbm2(u*0.7+3.1, v*0.9, 1503, 2)
-	if pool < 0.34 && s > 0.35 {
-		d := (0.34 - pool) / 0.34
+	if pool < 0.24 && s > 0.5 {
+		d := (0.24 - pool) / 0.24
 		if d < 0.12 { // the pool's rim: wet, dark
 			return rq(reefFlatRock, 0.15+l*0.3, hx, hy)
 		}
@@ -50,15 +50,15 @@ func reefFlat(hx, hy int, u, v, s float64) color.RGBA {
 		return rq(reefPool, pl, hx, hy)
 	}
 	switch {
-	case hc < 0.32: // a crack between heads
-		l = 0.08 + hc*0.4
+	case hc < 0.27: // a crack between heads
+		l = 0.2 + hc*0.4
 	case hc > 0.72:
 		l += 0.12
 	}
 	c := rq(reefFlatRock, l, hx, hy)
-	if w := vnoise(u*1.1, v*1.3, 1506); w > 0.62 && hc < 0.55 { // weed in the low places
+	if w := vnoise(u*1.1, v*1.3, 1506); w > 0.72 && hc < 0.5 { // weed in the low places
 		c = rq(reefWeed, l*0.9+(w-0.62), hx, hy)
-	} else if p := vnoise(u*2.3+7, v*2.9, 1507); p > 0.7 && hc > 0.45 { // pink coralline on the heads
+	} else if p := vnoise(u*2.3+7, v*2.9, 1507); p > 0.8 && hc > 0.5 { // pink coralline on the heads
 		c = rq(reefPink, l*0.8+0.15, hx, hy)
 	}
 	if hashf(hx, hy, 1508) < 0.008 { // a shell, a speck of white
