@@ -131,7 +131,7 @@ func deedMotion(d sim.Deed, k sim.ItemKind) motionID {
 	switch d {
 	case sim.DeedScoop:
 		return moScoop
-	case sim.DeedToss:
+	case sim.DeedToss, sim.DeedThrow:
 		return moThrow
 	}
 	return eatMotion(k)

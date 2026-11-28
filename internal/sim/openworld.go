@@ -32,9 +32,10 @@ const (
 	StyleFlint                      // as StyleCaves, with about half the flint on the rocky hills, in small veins with gaps; see orevein.go
 	StyleCaveWays                   // as StyleFlint, with caves of more, smaller chambers, forks, loops round the main route and side pockets, and leaner chests by distance from home; see caveways.go
 	StyleCaveFight                  // as StyleCaveWays, with the fighting of the caves: their beasts, bosses, skeletons and hazards; see cavefight.go
+	StyleLairs                      // as StyleCaveFight, with Titanoboa's temple and the Megalodon's atoll (temple.go, atoll.go), and the sea's pockets no ponds (PondMaskFor)
 
 	// StyleLatest is what a new game is made with.
-	StyleLatest = StyleCaveFight
+	StyleLatest = StyleLairs
 )
 
 // biomeShares is how much of the lowland each biome takes, and how wide the

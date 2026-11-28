@@ -28,6 +28,7 @@ type playerStatus struct {
 	stun, grace int
 	bleed       int
 	slow        int
+	wade        int        // ticks left wading the temple's flood: see lairsite.go
 	pin         CreatureID // the beast holding them down, 0 if none
 	mash        int        // presses of Action against it so far
 }
@@ -65,11 +66,18 @@ func (p *Player) PinnedBy() CreatureID { return p.status.pin }
 
 // statusSpeed is the share of their speed p walks at.
 func (p *Player) statusSpeed() float64 {
+	k := 1.0
 	if p.status.slow > 0 {
-		return SlowShare
+		k = SlowShare
 	}
-	return 1
+	if p.status.wade > 0 {
+		k *= WadeShare
+	}
+	return k
 }
+
+// Wading reports whether p wades the flooded courtyard of the temple.
+func (p *Player) Wading() bool { return p.status.wade > 0 }
 
 // stepStatus runs p's statuses for a tick; pressed is whether Action went
 // down since the last. It reports whether p is held: stunned or pinned, so
@@ -95,12 +103,19 @@ func (w *World) stepStatus(p *Player, pressed bool) (held bool) {
 	if s.slow > 0 {
 		s.slow--
 	}
+	if s.wade > 0 {
+		s.wade--
+	}
 	if s.pin != 0 {
 		c := w.creatureByID(s.pin)
 		if c == nil || c.sk.pin != p.ID || p.Dead {
 			s.pin = 0
 		} else if pressed {
-			if s.mash++; s.mash >= PinMash {
+			need := PinMash
+			if m := Skill(c.sk.id).Mash; m > 0 {
+				need = m // a boss's coils take more
+			}
+			if s.mash++; s.mash >= need {
 				w.breakFree(p, c)
 			}
 		}
@@ -113,6 +128,9 @@ func (w *World) breakFree(p *Player, c *Creature) {
 	p.status.pin, p.status.mash = 0, 0
 	w.cancelSkill(c)
 	c.State, c.timer = CreatureHurt, 2*StaggerTicks
+	if c.Kind.Boss() { // a boss shakes off a flinch at once (bossfight.go): it lies stunned a while instead
+		c.after, c.afterT = CreatureIdle, 2*StaggerTicks
+	}
 	c.flinchCD = FlinchEvery
 	dx, dy := c.X-p.X, c.Y-p.Y
 	l := math.Hypot(dx, dy)

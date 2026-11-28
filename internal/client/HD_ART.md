@@ -499,6 +499,55 @@ frame from the state and how long the beast has been in it (`stateAge`).
 frame and what they cost; `shot -bosses -demobosses -bosspose N -bossage F`
 shows them in the game.
 
+## The temple and the atoll
+
+The lairs of `sim.StyleLairs` (`sim/temple.go`, `sim/atoll.go`):
+
+- **The temple's floor** (`templeart.go`): the courtyard's paving, the
+  coping round the black pool and the pool's water are one per-pixel
+  function (`templeLook.pavePixel`): courses of flags of their own depth
+  and width, staggered, each with worn edges lit from the top left, a
+  mottled face, cracks, lichen, moss creeping from the joints, flags gone
+  towards the ragged rim; a ring of radial flags round the coping; the
+  water black, the sky's grey in its far half. It is baked in blocks of 4 x
+  4 tiles at HD the first time they are in view (two a frame) and let go
+  when long out of view, and drawn in `drawLairFloor` (`lairfight.go`)
+  under everything that stands.
+- **The temple's stones** are rock scenes (`rockart.go`): `rkDrum`s
+  stacked on a plinth and broken off at a slant for the colonnade's
+  pillars, `rkLog`s lying in a row with the capital for a fallen column
+  (one sprite across its three tiles), blocks for the serpent's head,
+  fluted (`tplFlutes`) and mossed. The dead tree is the swamp's snag grown
+  to seven men: `trunkHD` with `barkDead`, limbs forking three deep, beards
+  of grey moss, its roots over the stones of a wall.
+- **The reef** a player stands on is baked with the ground: `reefFlat`
+  for a tile of sand with `VarReef` (coral heads lit from the top left,
+  tide pools, weed, coralline, awash at the edge). The wreck's deck is one
+  HD decal drawn flat (`genWreckDeck`); its mast stands (`genTallMast`).
+- **What the fights leave** (`lairfight.go`): venom puddles
+  (`venomPuddle`), the flood (vertex-shaded quads, ripples, rings round
+  who wades), broken reef (`brokenReef`, rising back as it settles), the
+  splash's rings, the shark's blood in the lagoon; the birds over the
+  landmarks; spears in the air and a drawn spear's line.
+- **The bosses' moves** pick their frames from the move and its phase
+  (`bossSkillSprite`): `titanSweep` and `titanSlam` (`bosssnake.go`, the
+  snake laid along headings with `tbBent`), `megaBeach` (`bossshark.go`),
+  and the frames that were there; Titanoboa under its pool is a shadow
+  with rings and bubbles (`drawTitanUnder`).
+
+- **The camera in a fight** (`arenaCamera`): the arenas are bigger than
+  the screen (the courtyard a rounded oblong of 40 by 31 tiles,
+  `sim.ArenaQ`; the atoll 45 across to its shelf), and while the fight is
+  on the view is kept inside (a little past the edge, more at the bottom
+  under the hotbar), easing in and out over half a second, after the
+  boss's entrance and before the shake; it is drawn back to 0.9 (drawn
+  for a screen a ninth bigger and shrunk, `lf.pull`). A red arrow at the
+  edge points to the boss when it is off the screen (`drawBossArrow`).
+
+Look: `go run ./cmd/shot -exact -w 1920 -h 1080 -size 1024 -bossfight
+titan|shark|map -o dir/x.png` plays the scenes in a real game and writes
+the stills, the GIFs and a still of every tenth GIF frame in `dir/review`.
+
 ## Item icons
 
 The old item icons are 16 x 16 pixel maps (`itemicons.go` and the
@@ -571,7 +620,8 @@ screen pixel, like the world.
    writes `icons_hd.png` (each icon at 96 and three times bigger, in a
    second or so; `ICON_ONLY=<item number>` for one). In the game:
    `go run ./cmd/shot -exact -w 1920 -h 1080 -iconsheet -o s.png` (old and
-   new in 1080p hotbar slots, the smaller sizes, and x3), and
+   new in 1080p hotbar slots, the smaller sizes, and x3; 30 icons to a
+   page, `-iconpage 1` and on for the rest), and
    `-overlay recipes -bagfrom 1` for the bag with its recipe cards.
    `-exact` matters on a desktop shorter than 1080: without it the window
    is cut short and the interface drawn at scale 1.

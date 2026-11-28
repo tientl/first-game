@@ -21,6 +21,10 @@ func (g *Game) IconSheet() image.Image {
 		g.art = getArt()
 	}
 	items := iconSheetItems()
+	if n := iconSheetPage * iconSheetPerPage; iconSheetPage >= 0 {
+		n = min(n, len(items))
+		items = items[n:min(len(items), n+iconSheetPerPage)]
+	}
 	const (
 		perRow = 10
 		zoom   = 3
@@ -151,3 +155,13 @@ func iconSheetItems() []sim.ItemKind {
 // iconSheetSizes are the smaller sizes the sheet shows each icon at (at
 // 16 the old icon is drawn: see drawItem).
 var iconSheetSizes = []int{24, 32, 48, 64}
+
+// iconSheetPage is the page of the sheet drawn, iconSheetPerPage icons to a
+// page, or -1 for all of them: there are too many now for one image.
+var iconSheetPage = -1
+
+const iconSheetPerPage = 30
+
+// SetIconSheetPage picks the page of the icon sheet (shot -iconpage), -1 for
+// the whole sheet.
+func SetIconSheetPage(n int) { iconSheetPage = n }

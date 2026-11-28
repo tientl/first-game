@@ -40,7 +40,10 @@ var scorpionDef = creatureDef{
 	fights: true, tough: true, openOnly: true, away: 30,
 }
 
-func init() { creatureDefs[CreatureScorpion] = scorpionDef }
+func init() {
+	creatureDefs[CreatureScorpion] = scorpionDef
+	nameHead(CreatureScorpion)
+}
 
 // Pyramid is where the world's pyramid stands: the tile of the middle of
 // its south face (its doorway). ok is false when there is none.
