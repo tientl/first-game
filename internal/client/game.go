@@ -107,6 +107,7 @@ type Game struct {
 
 	showHelp  bool              // F1: the full list of keys; see hud.go
 	hudTarget targetView        // what Action works on, for the hint over the hotbar
+	pick      pickState         // what E picks up, and E held down; see pickup.go
 	statusOn  [numStatuses]bool // the status effects last drawn
 	statusAt  [numStatuses]int  // when each began, for its long line
 	hudFX     hudFX             // the bars' trails, the labels' fades; see uitheme.go, uilabels.go
@@ -124,6 +125,7 @@ type Game struct {
 	paused  bool
 	pause   buttonList
 	opts    *settingsScreen // the settings screen, opened from the pause menu; see settingsui.go
+	credits *creditsScreen  // the credits, opened from the pause menu; see creditsui.go
 	onPause func(bool)
 	exit    Exit
 
@@ -154,6 +156,7 @@ type Game struct {
 	hd       *heroHDState  // the trial hero's frames and lights; see herohddraw.go
 	caveMask *ebiten.Image // one pixel per tile in view: where it is always dark
 	lavaMask *ebiten.Image // one pixel per tile in view: where lava glows
+	caveDark caveDarkState // the light of the natural caves this frame; see cavedark.go
 	canopy   *ebiten.Image // one pixel per tile in view: where the woods shade the ground
 	drawList []drawable
 	figures  []figure                 // who may be hidden behind a tree or a wall this frame; see occlude.go
@@ -170,6 +173,7 @@ type Game struct {
 	boss        bossUI      // the boss bar and the victory screen; see bossui.go
 	lair        lairFX      // the lairs' scenes and the moment a fight starts; see lairrender.go, bossintro.go
 	dev         *devConsole // the dev console, only with -dev; see devconsole.go
+	tut         *tutorial   // the first minutes' guide; see tutorial.go
 
 	// How a fight feels: see feel.go and fx.go.
 	stop    hitStop                  // the picture held after a blow
@@ -192,6 +196,7 @@ func New(conn Conn, name string) *Game {
 			{label: "Tiếp tục"},
 			{label: "Lưu game"},
 			{label: "Cài đặt"},
+			{label: "Ghi công"},
 			{label: "Lưu và về menu chính"},
 			{label: "Lưu và thoát"},
 		}},
@@ -257,7 +262,7 @@ func (g *Game) Update() error {
 		g.wmap.collect()
 		return nil
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) && g.opts == nil { // the settings screen closes itself
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) && g.opts == nil && g.credits == nil { // the settings screen closes itself
 		if g.build.on && g.overlay == overlayNone && !g.paused {
 			g.build.on = false // Esc stops building first; see mouse.go
 			g.showNotice("Đã thôi xây")
@@ -298,7 +303,7 @@ func (g *Game) setPaused(p bool) {
 	}
 	g.paused = p
 	g.pause.sel = 0
-	g.opts = nil
+	g.opts, g.credits = nil, nil
 	snd.ui("ui_pause")
 	if p && g.sentInput != (sim.Input{}) {
 		// Let go of every key, so the player does not keep walking.
@@ -318,6 +323,12 @@ func (g *Game) updatePause() {
 		}
 		return
 	}
+	if g.credits != nil {
+		if g.credits.update() {
+			g.credits = nil
+		}
+		return
+	}
 	switch g.pause.update() {
 	case 0:
 		g.setPaused(false)
@@ -328,8 +339,10 @@ func (g *Game) updatePause() {
 	case 2:
 		g.opts = newSettingsScreen(true)
 	case 3:
-		g.exit = ExitToMenu
+		g.credits = newCreditsScreen()
 	case 4:
+		g.exit = ExitToMenu
+	case 5:
 		g.exit = ExitQuit
 	}
 }
@@ -437,6 +450,7 @@ func (g *Game) onMessage(m protocol.ServerMsg) {
 }
 
 func (g *Game) onSnapshot(s protocol.Snapshot) {
+	g.observeTutorial(&s) // see tutorial.go
 	old, hadOld := g.curr, g.hasCurr
 	clear(g.prevPlayers)
 	for _, p := range g.curr.Players {
@@ -583,6 +597,9 @@ func (g *Game) handleInput() {
 // updateKeys handles the keys that do one thing per press: E, R, V and the
 // right button.
 func (g *Game) updateKeys(dead bool) {
+	if dead || g.overlay != overlayNone {
+		g.pick.held = false // E held down picks up only in play
+	}
 	switch {
 	case dead:
 		// The death screen: R, E or Enter comes back.
@@ -607,9 +624,11 @@ func (g *Game) updateKeys(dead bool) {
 	case g.overlay != overlayNone:
 		return
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
+	ePressed := inpututil.IsKeyJustPressed(ebiten.KeyE)
+	if ePressed {
 		g.command(sim.Command{Kind: sim.CmdInteract}) // pick up, open, get on or off; see sim/aim.go
 	}
+	g.updatePickHold(ePressed) // held down, E picks up one thing after another; see pickup.go
 	if inpututil.IsKeyJustPressed(ebiten.KeyR) {
 		g.command(sim.Command{Kind: sim.CmdRide}) // as E for beasts and boats; see ride.go
 	}

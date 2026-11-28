@@ -247,8 +247,27 @@ func renderScaleFor(r, q int) int {
 	return max(1, min(max(1, med-1), int(math.Round(float64(r)*0.5))))
 }
 
-// renderScale is renderScaleFor at the quality in force.
-func renderScale(r int) int { return renderScaleFor(r, settings.Quality) }
+// renderScale is the scale the world is drawn at for a world drawn at r on
+// the screen: renderScaleFor at the quality in force, made crisp.
+func renderScale(r int) int { return crispScale(renderScaleFor(r, settings.Quality)) }
+
+// crispScale is the render scale rr made one the HD art lands whole on.
+// The art is painted at HDDensity image pixels to an art pixel (hd.go), so
+// at a multiple of it each image pixel is a whole square of canvas pixels,
+// taken nearest. At 4 or 5 (1080p zoomed in, 1440p) or 7 or 8 every HD
+// image would be blown up by a fraction and smoothed: the art soft, and
+// each chunk of the ground blending at its edge with the nothing round
+// its image, a thin line along every chunk's edge. So the world is drawn
+// at the multiple of HDDensity below rr, and presentWorld blows it up to
+// the screen with a filter for pixel art. At 1 or 2 (720p, zoomed out) the
+// art is drawn smaller than it was painted, which leaves no seams; it
+// stays as it is.
+func crispScale(rr int) int {
+	if rr <= HDDensity || rr%HDDensity == 0 {
+		return rr
+	}
+	return rr - rr%HDDensity
+}
 
 // renderSize is the size of the canvas the world is drawn on for a screen
 // sw by sh drawn at r, at render scale rr.
@@ -260,13 +279,23 @@ func renderSize(sw, sh, r, rr int) (int, int) {
 }
 
 // presentWorld draws the world's canvas on the screen, blown up from render
-// scale rr to the world's scale r.
+// scale rr to the world's scale r: by a whole number, each canvas pixel a
+// square of screen pixels; by a fraction (4/3 at 1080p zoomed in once,
+// 1440p), through Ebitengine's pixel-art filter, which keeps each canvas
+// pixel one flat colour and blends only the one screen pixel a border
+// between two of them crosses, by how much of it each covers. So the art
+// stays crisp and every pixel of it near enough the same size, and nothing
+// shimmers as the camera moves: the borders fall on the screen in the same
+// pattern wherever the camera is.
 func presentWorld(screen, canvas *ebiten.Image, r, rr int) {
 	if rr >= r {
 		screen.DrawImage(canvas, nil)
 		return
 	}
-	op := &ebiten.DrawImageOptions{Filter: ebiten.FilterLinear}
+	op := &ebiten.DrawImageOptions{Filter: ebiten.FilterPixelated}
+	if r%rr == 0 {
+		op.Filter = ebiten.FilterNearest
+	}
 	k := float64(r) / float64(rr)
 	op.GeoM.Scale(k, k)
 	screen.DrawImage(canvas, op)

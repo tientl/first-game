@@ -15,3 +15,11 @@ type ZoneView struct {
 	Reach, Width float32 // a cone's length and half-angle (radians), a circle's radius, a line's length and half-width (tiles)
 	Left, Total  uint8   // ticks till it lands, and the whole wind-up
 }
+
+// HazardView is something on the cave floor or falling from its roof: a
+// cloud, a web, dust trickling before a collapse; see sim/cavehaz.go.
+type HazardView struct {
+	Kind        sim.HazardKind
+	X, Y, R     float32
+	Left, Total uint16
+}

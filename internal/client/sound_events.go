@@ -51,6 +51,9 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		if !p.Acting || wasActing[p.ID] || wasFishing[p.ID] {
 			continue // a strike on a line is heard in fishingSounds
 		}
+		if pickedUp(old, cur, p) {
+			continue // E picked something up: no blow; my own pick-up is heard from the bag below
+		}
 		hasWood := true
 		if p.ID == g.myID {
 			hasWood = old.Self.Inv.HasFuel()
@@ -80,6 +83,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		}
 		e := oldEnts[tg.Entity]
 		x, y := at(e)
+		g.toolHitFX(e, x, y, math.Atan2((y-py)*TileH, (x-px)*TileW), g.swingWhat[p.ID].kind)
 		switch e.Kind {
 		case sim.EntityTree:
 			snd.playAt("chop", x, y, 0.75, 0.06)

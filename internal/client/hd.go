@@ -13,10 +13,12 @@ import (
 // Full HD art. The world is laid out in art pixels (TileW by TileH to a
 // tile) and drawn on a canvas as big as the screen, R canvas pixels to an
 // art pixel (R is the integer world scale: 2 at 720p, 3 at 1080p, plus the
-// zoom). An image can hold its art at a density: how many of its pixels make
-// one art pixel. Density 1 is the original pixel art; HDDensity is the
-// redrawn art, three times as fine, which at 1080p lands one image pixel on
-// one screen pixel. See HD_ART.md.
+// zoom; above 3 kept to a multiple of HDDensity, the canvas then smaller
+// than the screen and blown up to it: see crispScale and presentWorld in
+// display.go). An image can hold its art at a density: how many of its
+// pixels make one art pixel. Density 1 is the original pixel art;
+// HDDensity is the redrawn art, three times as fine, which at 1080p lands
+// one image pixel on one screen pixel. See HD_ART.md.
 //
 // Density-1 drawing looks exactly as it did when the world was drawn on a
 // small art-pixel canvas and scaled up: it still is. Such draws go to an

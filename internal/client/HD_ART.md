@@ -424,8 +424,16 @@ chamber, rock and whether the main route runs over it):
   `caveprops.go` (crystals, giant mushrooms, webs, egg sacs, bones, the
   fossil, the paintings, the tomb's coffin, jars and pillars, roots,
   icicles, obsidian, the roost and its bats). The flat ones are drawn under
-  everything (`drawCaveGround`); crystals and mushrooms light the dark
-  (`caveGlows`, `cavelights.go`).
+  everything (`drawCaveGround`); crystals and mushrooms light the dark.
+- The light (`cavedark.go`): away from any light the caves are near black
+  (`caveAmbient`, about 7% of full light, a little blue), at every hour.
+  Each frame a light map at art-pixel resolution starts from that and
+  adds every lamp with a soft edge (`caveLamps`: the held torch, torch
+  stands, fires, crystals and glowing mushrooms, glowing plants, the
+  daylight down the ways up, and lava from a tile mask); the scene is
+  multiplied by it, then a little haze is added round the lamps. The
+  eyes of spiders, bears and bats shine where it is dark
+  (`drawCaveEyes`). The "Độ sáng" setting (Settings.Brightness, brightnessLevels) raises the dark a little, never enough to see without a torch.
 - The map bakes each level as its own layer (`cavemap.go`).
 
 `go test ./internal/client -bench BakeCaveChunk` times a cave chunk. Look at
@@ -433,6 +441,10 @@ a chamber with `go run ./cmd/shot -open -size 1024 -at cavezone:crystal`
 (or lake, mushroom, nest, den, roost, fossil, paintings, tomb, lava,
 frozen, flooded, stream), `-at caverock:limestone`, `-at caveprop:fossil`,
 `-at cavein|cavedown|caveup`; the map with `-overlay map -reveal -mapzoom 3`.
+For the dark, add `-nofire` (no campfire by the player), `-held 13` (a
+torch in hand), `-cavelight 1|2` (the brightness setting), and `-frames 240`:
+the cave fades in over the frames drawn, and a short run can be caught
+before it has.
 
 ## The bosses and sea monsters
 
@@ -575,7 +587,20 @@ lays out a panel at its own size and shrinks it (the difficulty picker).
   icons are painters like the item icons', baked per size.
 - **Maps** (`uimap.go`): ground not yet walked is faded paper with
   hatching (`fogSrc`) on both maps; the minimap is drawn at the screen's
-  resolution and cut round (`maskSrc`).
+  resolution and cut round (`maskSrc`), a circle in the ring of the day.
+- **The HUD** (`hudlayout.go`, `hud.go`, `hudtoasts.go`) is kept small so
+  the world is what is seen, 12 UI pixels from the edges: thin vital bars
+  (11 px, the value small inside) on a see-through hide (`hudPanel`),
+  round status chips under them (a buff's rim runs down like a clock), the
+  long line of a status said once under the chips as it begins; top right
+  the round minimap in the ring of the day (a sun or moon rides it), one
+  line of day, season and weather under it; top middle a slim boss bar,
+  the notices under it (three at most, fading by themselves); over the
+  hotbar one line, the held item's name for a moment, else the one hint.
+  Every piece's place comes from `hudlayout.go`, and
+  `TestHUDLayoutKeepsClear` checks they keep clear of each other at every
+  screen size and UI size. A chip or the day's line names itself under the
+  pointer.
 - **Over the world** (`uilabels.go`): one label at a time, for what the
   pointer is on, on a soft plate that fades in and out over 140 ms; what is
   out of reach gets a small hint; the target is marked by thin soft
@@ -588,7 +613,8 @@ lays out a panel at its own size and shrinks it (the difficulty picker).
   call `noteBox`; a full-screen dim is `dimScreen`. The screenshot tool
   shows them: `-overlay bag|recipes|craft|map|palette`, `-chest`,
   `-cook -cookui pot`, `-bosses -demobosses`, `-menu`, `-create`,
-  `-devconsole`, `-freebuild`, `-status`, `-aim`.
+  `-devconsole`, `-freebuild`, `-status`, `-skillstatus`, `-buffs`,
+  `-notices "a|b|c"`, `-aim`.
 
 ## Held items
 

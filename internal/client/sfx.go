@@ -522,6 +522,7 @@ func genSFX() map[string][][]float32 {
 	genSwimSFX(add)    // see swimsound.go
 	genTroodonSFX(add) // see troodonsound.go
 	genCombatSFX(add)  // see combatsound.go
+	genHitSFX(add)     // see hitsound.go
 	for name, vs := range <-voices {
 		s[name] = append(s[name], vs...)
 	}

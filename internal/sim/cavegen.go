@@ -274,6 +274,9 @@ func (w *World) buildCaveSystem(rng *rand.Rand, k int, tiles []int, mouths [][2]
 		s.chambers[i].rock = w.rockAbove(&s.chambers[i], w.islands[k].Kind)
 	}
 	s.assignZones(rng, w.islands[k].Kind) // see cavethemes.go
+	if w.caveFights() {
+		s.ensureNest(w.seed ^ uint64(k)*0x9e3779b97f4a7c15) // every big cave has a queen's nest: see cavespawn.go
+	}
 
 	for i := range s.tunnels {
 		s.windTunnel(rng, i)
