@@ -32,12 +32,10 @@ func TestFromTwigsToAnAxe(t *testing.T) {
 	w := flatWorld()
 	id := w.AddPlayer("a")
 	twig := w.addEntity(EntityTwig, 17, 16)
-	w.SetInput(id, Input{Action: true})
-	w.Step()
+	w.Apply(id, Command{Kind: CmdInteract}) // E picks it up: see pickup.go
 	if p := mustPlayer(t, w, id); p.Inv.Count(ItemStick) != TwigYield || twig.Ready {
 		t.Fatalf("sticks %d, twig ready %v: want it picked in one go", p.Inv.Count(ItemStick), twig.Ready)
 	}
-	w.SetInput(id, Input{})
 
 	w.players[id].Inv = InventoryWith(Ingredient{ItemStick, 2}, Ingredient{ItemPebble, 2})
 	w.Apply(id, Command{Kind: CmdCraft, Recipe: RecipeAxe})

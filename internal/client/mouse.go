@@ -22,7 +22,8 @@ import (
 //   - The left button works on what is under the pointer, bracketed on
 //     screen (red when out of reach). With nothing there in reach it works
 //     on the nearest target, preferring those towards the pointer, as Space
-//     does. A click on the hotbar picks that slot.
+//     does. It never picks anything up: E does (pickup.go). A click on the
+//     hotbar picks that slot.
 //   - The right button uses what is held: see rightClickUse.
 //   - Building: a structure chosen in the crafting window (C), or a torch,
 //     a head or a seed in the hand, shows a ghost on the tile under the
@@ -124,21 +125,11 @@ func quantAim(v float64) float32 { return float32(math.Round(v*aimStep) / aimSte
 
 // --- what the pointer is on ---------------------------------------------------
 
-// underPointer is the target or pile under the pointer at (ax, ay) and
-// whether the player reaches it; ok is false when there is none.
+// underPointer is the target under the pointer at (ax, ay) and whether the
+// player reaches it; ok is false when there is none. Piles and loose things
+// are not targets: E picks them up (pickTarget, pickup.go).
 func (g *Game) underPointer(me protocol.PlayerView, ax, ay float64) (tg targetView, inReach bool) {
 	x, y := float64(me.X), float64(me.Y)
-	var drops []sim.DropCandidate
-	for _, d := range g.curr.Drops {
-		drops = append(drops, sim.DropCandidate{ID: d.ID, X: float64(d.X), Y: float64(d.Y)})
-	}
-	if id, ok := sim.AimedDrop(x, y, ax, ay, drops); ok {
-		for _, d := range g.curr.Drops {
-			if d.ID == id {
-				return targetView{ok: true, drop: true, d: d, aimed: true}, true
-			}
-		}
-	}
 	t, in, ok := sim.AimedTarget(x, y, ax, ay, g.curr.Self.Inv.HasFuel(), g.candidateAt,
 		creatureCandidates(g.curr.Creatures, ax, ay), sim.ReachBonusFor(me.Held)+sim.RideReach(me.Mount != 0))
 	if !ok {
@@ -596,6 +587,7 @@ func (g *Game) drawAimCues(screen *ebiten.Image, cam camera, scale float64, tg, 
 			drawCorners(screen, x*scale, y*scale, w*scale, h*scale, colCorner, g.cornerAge(targetKey(tg)), g.frame, strength)
 		}
 	}
+	g.drawPickCues(screen, cam, scale) // and what E picks up; see pickup.go
 	hint := floatLabel{}
 	if far.ok {
 		if x, y, w, h, ok := g.targetBox(far, cam); ok {

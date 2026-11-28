@@ -828,6 +828,9 @@ func (g *Game) contextHint() (key, s string, c color.Color) {
 	if name, ok := g.buildName(); ok { // see buildpalette.go
 		return "Chuột trái:", "dựng " + name + " · chuột phải hoặc Esc: thôi", colGood
 	}
+	if verb, ok := g.pickHint(g.hudTarget, g.pick.view); ok { // E picks up first; see pickup.go
+		return "E:", verb, colWhite
+	}
 	if verb, ok := g.boatHint(); ok { // see searender.go
 		return "E:", verb, colGood
 	}
@@ -854,12 +857,10 @@ func (g *Game) contextHint() (key, s string, c color.Color) {
 }
 
 // targetHint is what Action does to the target outlined, if it is plain.
+// Piles and loose things are E's: see aimHint, pickup.go.
 func (g *Game) targetHint(tg targetView) (key, s string) {
-	if !tg.ok {
+	if !tg.ok || tg.drop {
 		return "", ""
-	}
-	if tg.drop {
-		return "E:", "nhặt " + strings.ToLower(tg.d.Item.Def().Name)
 	}
 	if tg.creature {
 		if tg.c.Tamed {
@@ -887,8 +888,6 @@ func (g *Game) targetHint(tg targetView) (key, s string) {
 		return "Chuột trái:", "cắt cỏ"
 	case sim.EntityBerryBush:
 		return "Chuột trái:", "hái quả mọng"
-	case sim.EntityTwig, sim.EntityPebble, sim.EntityMushroom, sim.EntityClam, sim.EntityReed, sim.EntityFlower:
-		return "Chuột trái:", "nhặt " + name
 	case sim.EntityFlora:
 		f := sim.FloraKind(e.Var)
 		if f.NeedsAxe() {
@@ -922,7 +921,7 @@ func (g *Game) drawHelp(screen *uiDst, sw, sh int) {
 	} else {
 		lines = append(lines,
 			line{"Chuột trái", "chặt, đập, hái, cắt cỏ, đánh, câu cá… thứ dưới con trỏ", colMuted},
-			line{"", "giữ để làm liên tục · xa quá thì làm thứ gần nhất", colMuted},
+			line{"", "giữ để làm liên tục · xa quá thì làm thứ gần nhất · không nhặt đồ", colMuted},
 			line{"Space", "như chuột trái, vào thứ gần nhất", colMuted})
 		if gv := g.ghost(); gv.ok {
 			lines = append(lines, line{"Chuột trái", "đặt " + strings.ToLower(gv.item.Def().Name) + " vào ô dưới con trỏ", colGood})
@@ -933,8 +932,10 @@ func (g *Game) drawHelp(screen *uiDst, sw, sh int) {
 			lines = append(lines, line{"Chuột phải", "dùng món đang cầm: ăn, nướng, cắm đuốc, gieo hạt…", colMuted})
 		}
 	}
-	interact, ic := "nhặt đồ · mở rương · cưỡi thú · lên thuyền", color.Color(colMuted)
-	if verb, ok := g.boatHint(); ok { // see searender.go
+	interact, ic := "nhặt đồ, cành, đá cuội… (giữ: nhặt liền)", color.Color(colMuted)
+	if pk := g.pick.view; g.ePicks(g.hudTarget, pk) { // see pickup.go
+		interact, ic = "nhặt "+pickName(pk)+" (giữ: nhặt liền)", colGood
+	} else if verb, ok := g.boatHint(); ok { // see searender.go
 		interact, ic = verb, colGood
 	} else if verb, can, ok := g.mountHint(); ok { // see ride.go
 		interact = verb
@@ -942,7 +943,8 @@ func (g *Game) drawHelp(screen *uiDst, sw, sh int) {
 			ic = colGood
 		}
 	}
-	lines = append(lines, line{"E", interact, ic}, line{"1-0", "chọn ô (lăn chuột, hoặc nhấp vào ô)", colMuted})
+	lines = append(lines, line{"E", interact, ic}, line{"", "mở rương · cưỡi thú · lên thuyền", colMuted},
+		line{"1-0", "chọn ô (lăn chuột, hoặc nhấp vào ô)", colMuted})
 	n := 0
 	for _, r := range recipes() {
 		if g.canCraft(r) {

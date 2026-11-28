@@ -847,7 +847,7 @@ var setKeysLeft = []setKey{
 	{keys: []string{"Chuột trái", "Space"}, does: "chặt, đập, hái, đánh (giữ: làm liền tay)"},
 	{keys: []string{"Chuột phải"}, does: "dùng món đang cầm: ăn, cắm đuốc…"},
 	{keys: []string{"Q"}, does: "giữ để giơ khiên đỡ đòn"},
-	{keys: []string{"E"}, does: "nhặt đồ, mở rương, cưỡi thú, lên thuyền"},
+	{keys: []string{"E"}, does: "nhặt đồ (giữ: nhặt liền), mở rương"},
 	{keys: []string{"R"}, does: "cưỡi thú, lên thuyền"},
 	{keys: []string{"V"}, does: "đặt món đang cầm xuống đất"},
 	{keys: []string{"G"}, does: "vứt một món (Shift + G: cả chồng)"},
