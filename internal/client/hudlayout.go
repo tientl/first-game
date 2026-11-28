@@ -165,6 +165,7 @@ func hudLayout(uw, uh int) []hudRect {
 		{"vitals", vitalX, vitalY, vitalPanelW, vb - vitalY},
 		{"chips", vitalX, chipsTop(maxVitals), vitalPanelW, cb - chipsTop(maxVitals)},
 		{"status line", vitalX, cb + 4, statusToastW, 3*sLine + 6},
+		{"tutorial", vitalX, trackTop(maxVitals, 3*chipsPerRow(), 3*sLine+6), trackW, trackMaxH},
 		{"minimap", mx - cornerW/2, my - cornerW/2, cornerW, cornerW},
 		{"day line", cornerLeft(uw), infoTop(true), cornerW, cornerBottom(true, true) - infoTop(true)},
 		{"boss", (float64(uw)-bw)/2 - bossTusk, bossTop, bw + 2*bossTusk, bossBottom(true) - bossTop},

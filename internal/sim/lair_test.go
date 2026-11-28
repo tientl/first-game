@@ -6,10 +6,11 @@ import (
 	"testing"
 )
 
-// lairWorld is a generated world with both of the demo's lairs in it.
+// lairWorld is a generated world with both of the demo's lairs in it, as they
+// were before StyleLairs (the hollow and the open sea).
 func lairWorld(t *testing.T) *World {
 	t.Helper()
-	w, err := Generate(GenConfig{Seed: 13, Width: 320, Height: 320, Style: StyleLatest})
+	w, err := Generate(GenConfig{Seed: 13, Width: 320, Height: 320, Style: StyleLairs - 1}) // the last style of the old lairs: see lairsite.go
 	if err != nil {
 		t.Fatal(err)
 	}

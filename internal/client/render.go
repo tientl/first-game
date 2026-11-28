@@ -127,14 +127,22 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if !g.demo {
 		scale = worldScale(sh)
 	}
-	cw, ch := (sw+scale-1)/scale, (sh+scale-1)/scale
+	// In a boss fight the view draws back a little (lairfight.go): the world
+	// is drawn as for a screen 1/pull times as big and shrunk onto this one.
+	pull := 1.0
+	if !g.demo && g.lf.pull > 0 && g.lf.pull < 0.999 {
+		pull = g.lf.pull
+	}
+	g.lf.drawPull = pull
+	vw, vh := int(math.Ceil(float64(sw)/pull)), int(math.Ceil(float64(sh)/pull))
+	cw, ch := (vw+scale-1)/scale, (vh+scale-1)/scale
 	// The render quality may draw it on a smaller canvas, rr canvas pixels
 	// to an art pixel, blown up to the screen after: see display.go.
 	rr := renderScale(scale)
 	canvas := screen
 	frozen := g.frozen() && !g.demo // a hit-stop: the world as it was at the blow; see feel.go
-	if rr < scale || (postFX || g.stop.capture) && !g.demo {
-		w, h := renderSize(sw, sh, scale, rr)
+	if pull < 1 || rr < scale || (postFX || g.stop.capture) && !g.demo {
+		w, h := renderSize(vw, vh, scale, rr)
 		canvas = sizedImage(&g.worldHi, w, h)
 		canvas.Fill(color.RGBA{14, 18, 28, 255})
 	}
@@ -156,6 +164,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	if !g.demo {
 		cx, cy = g.introCamera(cx, cy) // a boss waking: see bossintro.go
+		cx, cy = g.arenaCamera(cx, cy, float64(cw)/2/TileW, float64(ch)/2/TileH) // in a fight the screen is all arena: see lairfight.go
 		sx, sy := shake(g.frame)       // heavy blows, roars, stomps; see feel.go
 		cx, cy = cx+sx, cy+sy
 	}
@@ -165,18 +174,18 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	cam := newCamera(cx, cy, cw, ch, sub)
 	if !g.demo {
-		g.ptr.cam, g.ptr.scale, g.ptr.sw, g.ptr.sh, g.ptr.drawn = cam, float64(scale), sw, sh, true // see mouse.go
+		g.ptr.cam, g.ptr.scale, g.ptr.sw, g.ptr.sh, g.ptr.drawn = cam, float64(scale)*pull, sw, sh, true // see mouse.go
 	}
 	g.updateCave() // before anything hides under, or shows from, a cave roof
 	target, far := g.target()
-	g.hudTarget = target
+	g.hudTarget, g.pick.view = target, g.pickTarget() // see pickup.go
 
 	if frozen {
 		g.drawStopped(screen, scale)
 	} else {
 		g.drawWorld(screen, canvas, cam, scale, rr, cw, ch, alpha, target)
 	}
-	g.drawAfterWorld(screen, cam, scale, sw, sh, alpha, target, far)
+	g.drawAfterWorld(screen, cam, float64(scale)*pull, sw, sh, alpha, target, far)
 }
 
 // drawWorld draws the world on canvas, rr canvas pixels to an art pixel, and
@@ -226,6 +235,17 @@ func (g *Game) drawWorld(screen, canvas *ebiten.Image, cam camera, scale, rr, cw
 		if postFX && !g.demo {
 			img = g.applyPost(canvas, rr) // see postfx.go
 		}
+		if pull := g.lf.drawPull; pull < 0.999 { // drawn back: shrunk onto the screen
+			up := sizedImage(&g.lf.up, screen.Bounds().Dx(), screen.Bounds().Dy())
+			up.Clear()
+			op := &ebiten.DrawImageOptions{Filter: ebiten.FilterLinear}
+			k := float64(scale) / float64(rr) * pull
+			op.GeoM.Scale(k, k)
+			up.DrawImage(img, op)
+			screen.DrawImage(up, nil)
+			g.keepStop(up)
+			return
+		}
 		if rr < scale && g.stop.capture {
 			// The picture a hit-stop holds is kept at the screen's size.
 			img, rr = upscaleWorld(&g.worldUp, img, screen.Bounds().Dx(), screen.Bounds().Dy(), scale, rr), scale
@@ -237,7 +257,7 @@ func (g *Game) drawWorld(screen, canvas *ebiten.Image, cam camera, scale, rr, cw
 
 // drawAfterWorld draws what goes over the world: the vignette, labels and
 // the interface.
-func (g *Game) drawAfterWorld(screen *ebiten.Image, cam camera, scale, sw, sh int, alpha float64, target, far targetView) {
+func (g *Game) drawAfterWorld(screen *ebiten.Image, cam camera, fs float64, sw, sh int, alpha float64, target, far targetView) {
 
 	vop := &ebiten.DrawImageOptions{}
 	stretchOver(&vop.GeoM, g.art.vignette.Bounds(), sw, sh) // to the very edge: see overlay.go
@@ -248,11 +268,12 @@ func (g *Game) drawAfterWorld(screen *ebiten.Image, cam camera, scale, sw, sh in
 	if g.demo {
 		return
 	}
-	g.drawCombat(screen, cam, float64(scale), alpha) // see combatui.go
-	g.drawWorldLabels(screen, cam, float64(scale), target)
-	g.drawAimCues(screen, cam, float64(scale), target, far) // see mouse.go
-	g.drawDigLabel(screen, cam, float64(scale))
-	g.drawFishingLabels(screen, cam, float64(scale))
+	g.drawCombat(screen, cam, fs, alpha) // see combatui.go
+	g.drawWorldLabels(screen, cam, fs, target)
+	g.drawAimCues(screen, cam, fs, target, far) // see mouse.go
+	g.drawDigLabel(screen, cam, fs)
+	g.drawFishingLabels(screen, cam, fs)
+	g.drawBossArrow(screen, cam, fs, sw, sh) // the boss off the screen: see lairfight.go
 	g.drawBossIntro(screen, sw, sh) // letterbox and title card; see bossintro.go
 
 	g.drawInterface(screen)
@@ -372,6 +393,7 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 	g.drawCaveGround(dst, cam) // see caveprops.go
 	g.drawDigSpot(dst, cam)
 	g.drawZones(dst, cam, alpha) // red warnings where beasts' moves will land: see telegraphzone.go
+	g.drawHazards(dst, cam, alpha) // clouds, webs, collapses: see cavecreatures.go
 	// Each thing is drawn on the art-pixel grid through its own ground
 	// point, so a moving one keeps its pixel art whole between art pixels;
 	// see align in hd.go.
@@ -1073,9 +1095,7 @@ func (g *Game) target() (tg, far targetView) {
 		return targetView{}, far // a held hoe tills the tile in front: marked by drawDigSpot
 	}
 	x, y := float64(p.X), float64(p.Y)
-	if d, ok := g.dropTarget(x, y); ok {
-		return targetView{ok: true, drop: true, d: d}, far // a pile comes first, as on the server
-	}
+	// Never a pile or a loose thing: E picks those up (pickTarget, pickup.go).
 	t, ok := sim.ResolveTarget(x, y, aim, ax, ay, g.curr.Self.Inv.HasFuel(), g.candidateAt,
 		creatureCandidates(g.curr.Creatures, x, y), sim.ReachBonusFor(p.Held)+sim.RideReach(p.Mount != 0))
 	if !ok {
@@ -1105,6 +1125,7 @@ const labelLift = 2.5 * playerArtH
 func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, tg targetView) {
 	alpha := g.alpha()
 	var cur floatLabel
+	tg = g.labelled(tg) // or what E picks up there; see pickup.go
 	if tg.ok && tg.aimed {
 		var sx, sy, top float64
 		var label string
@@ -1113,7 +1134,7 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 			x, y, lift := g.dropPos(tg.d)
 			sx, sy = cam.toScreenFine(x, y)
 			top = sy - lift - 14
-			label = "Nhặt " + tg.d.Item.Def().Name
+			label = "E: nhặt " + tg.d.Item.Def().Name
 			if tg.d.Count > 1 {
 				label += fmt.Sprintf(" ×%d", tg.d.Count)
 			}
@@ -1133,6 +1154,8 @@ func (g *Game) drawWorldLabels(screen *ebiten.Image, cam camera, scale float64, 
 				label += [2]string{" nhỏ", " lớn"}[sizeIdx(e.Big)]
 			}
 			switch {
+			case sim.LooseItem(e.Kind): // picked up with E, not the left button; see pickup.go
+				label = "E: nhặt " + label
 			case hasHive(e) && e.Fuel == 0: // see jungleart.go
 				label = "Tổ ong — lấy mật (cầm đuốc cho ong khỏi đốt)"
 				if g.myHeld() != sim.ItemTorch {

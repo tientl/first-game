@@ -18,8 +18,9 @@ import "math"
 // seed from the hand, may be put on a tile the player chooses (Command.At),
 // which must be within PlaceReach and free.
 //
-// E (CmdInteract) picks up a pile, opens a chest, or gets on or off a beast
-// or a boat; right-click with food on a beast (CmdFeed) feeds it.
+// E (CmdInteract) picks up a pile or a loose thing (Action never does: see
+// pickup.go), opens a chest, or gets on or off a beast or a boat;
+// right-click with food on a beast (CmdFeed) feeds it.
 //
 // The rules here are shared with the client, which highlights the same
 // target the server will work on.
@@ -272,7 +273,7 @@ func (w *World) buildSpot(p *Player, tx, ty int, k EntityKind, soft bool) bool {
 // those keep their own facing.
 func (w *World) faceAim(p *Player) {
 	ax, ay, ok := p.Aim()
-	if !ok || !p.input.Action || !AimedItem(p.Held()) || p.mount != 0 || p.boat != 0 || p.line.state != CastNone {
+	if !ok || !(p.input.Action || p.input.Draw) || !AimedItem(p.Held()) || p.mount != 0 || p.boat != 0 || p.line.state != CastNone {
 		return
 	}
 	if dx, dy := ax-p.X, ay-p.Y; dx*dx+dy*dy > 0.04 {
@@ -339,35 +340,14 @@ func (w *World) dropByID(id DropID) *Drop {
 	return nil
 }
 
-// pickAimed picks up the pile under p's pointer, if there is one in reach.
-func (w *World) pickAimed(p *Player) (acted, found bool) {
-	ax, ay, aim := p.Aim()
-	if !aim {
-		return false, false
-	}
-	id, ok := AimedDrop(p.X, p.Y, ax, ay, w.dropCandidates(p.X, p.Y))
-	d := w.dropByID(id)
-	if !ok || d == nil {
-		return false, false
-	}
-	p.Dir = dirToward(d.X-p.X, d.Y-p.Y)
-	return w.pickUp(p, d, true), true
-}
-
-// act is one Action by p: on what is pointed at, else as before a pile on
-// the ground, then the soil in front for a held hoe, then the nearest
-// target. found is false when there was nothing to work on; cd is the wait
-// before the next.
+// act is one Action by p: on what is pointed at, else the soil in front for
+// a held hoe, then the nearest target. It never picks anything up: that is
+// E's (see pickup.go). found is false when there was nothing to work on; cd
+// is the wait before the next.
 func (w *World) act(p *Player) (acted, found bool, cd int) {
 	cd = ActionCooldownTicks
-	if a, ok := w.pickAimed(p); ok {
-		return a, true, PickCooldown
-	}
 	e, c, aimed := w.aimedTarget(p)
 	if !aimed {
-		if a, ok := w.pickNearest(p); ok { // a pile on the ground comes first; see drops.go
-			return a, true, PickCooldown
-		}
 		if w.dig(p) { // a held hoe tills the free soil in front
 			return true, true, cd
 		}
@@ -389,18 +369,13 @@ func (w *World) act(p *Player) (acted, found bool, cd int) {
 	return acted, true, cd
 }
 
-// interactKey is E: get off the beast or out of the boat p is on; else pick
-// up the pile pointed at, use the chest, bed or body pointed at, or get on
-// the beast pointed at; else the nearest pile, then the nearest chest, then
-// the nearest boat or beast to get on.
+// interactKey is E: pick up the pile or loose thing pointed at (see
+// pickup.go); else get off the beast or out of the boat p is on; else use
+// the chest, bed or body pointed at, or get on the beast pointed at; else
+// the nearest pile or loose thing, then the nearest chest, then the nearest
+// boat or beast to get on.
 func (w *World) interactKey(p *Player) {
 	if p.Dead || p.Asleep {
-		return
-	}
-	if p.boat != 0 || p.mount != 0 {
-		if !w.board(p) {
-			w.ride(p)
-		}
 		return
 	}
 	did := func(acted bool) {
@@ -408,8 +383,15 @@ func (w *World) interactKey(p *Player) {
 			p.actedAt = w.tick
 		}
 	}
-	if a, ok := w.pickAimed(p); ok {
-		did(a)
+	pick, canPick := w.pickUpTarget(p) // see pickup.go
+	if canPick && pick.Aimed {
+		did(w.takePickup(p, pick))
+		return
+	}
+	if p.boat != 0 || p.mount != 0 {
+		if !w.board(p) {
+			w.ride(p)
+		}
 		return
 	}
 	usable := func(e *Entity, aimed bool) bool {
@@ -438,8 +420,8 @@ func (w *World) interactKey(p *Player) {
 			}
 		}
 	}
-	if a, ok := w.pickNearest(p); ok {
-		did(a)
+	if canPick {
+		did(w.takePickup(p, pick))
 		return
 	}
 	var near *Entity

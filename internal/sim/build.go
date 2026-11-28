@@ -55,7 +55,7 @@ func blocksBeasts(k EntityKind) bool {
 // beastBlocked is blocked for creatures: doors and village fires stop them too.
 func (w *World) beastBlocked(tx, ty int) bool {
 	e := w.entityAt(tx, ty)
-	return e != nil && blocksBeasts(e.Kind)
+	return e != nil && (blocksBeasts(e.Kind) || solidProp(e))
 }
 
 // stepTrapsAndSpikes runs the stakes and snares around c, a few times a second.

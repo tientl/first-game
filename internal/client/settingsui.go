@@ -42,6 +42,7 @@ const (
 	setFootY     = setH - 52
 	setFootH     = 36
 	setFootBtnW  = 150
+	setCtrlRowY  = 402 // the controls tab's one row, under its keys
 	setLabelSize = 1.15
 	setValueSize = 1.1
 )
@@ -75,8 +76,8 @@ const (
 	rowShake
 	rowPostFX
 	rowGrade
-	rowGround
-	rowCaveLight
+	rowBrightness
+	rowTutorial // the first minutes' guide; on the controls tab, under the keys
 )
 
 // setRowKind is the control a row has.
@@ -117,12 +118,14 @@ func setRows(t int) []setRow {
 			{rowVSync, kindToggle, "VSync", ""},
 			{rowZoom, kindSteps, "Thu phóng camera", "Hình ảnh"},
 			{rowShake, kindToggle, "Rung màn hình", ""},
-			{rowPostFX, kindToggle, "Ánh sáng và chỉnh màu", ""},
+			{rowPostFX, kindToggle, "Hiệu ứng toả sáng", ""},
 		}
 		if len(colourGrades) > 0 {
 			rows = append(rows, setRow{rowGrade, kindChoice, "Tông màu", ""})
 		}
-		return append(rows, setRow{rowGround, kindChoice, "Kiểu mặt đất", ""}, setRow{rowCaveLight, kindChoice, "Độ sáng hang", ""})
+		return append(rows, setRow{rowBrightness, kindChoice, "Độ sáng", ""})
+	case setTabControls:
+		return []setRow{{rowTutorial, kindToggle, "Hướng dẫn chơi vài phút đầu", ""}}
 	}
 	return nil
 }
@@ -162,6 +165,9 @@ func setTabRect(i int) (x, y, w, h float64) {
 // rowY is the top of row i of rows.
 func rowY(rows []setRow, i int) float64 {
 	y := float64(setRowsY)
+	if len(rows) > 0 && rows[0].id == rowTutorial {
+		y = setCtrlRowY // under the list of keys
+	}
 	for j := 0; j <= i && j < len(rows); j++ {
 		if rows[j].section != "" {
 			y += setSectionH
@@ -262,13 +268,9 @@ func (s *settingsScreen) choices(id setRowID) []setChoice {
 		for _, g := range colourGrades {
 			out = append(out, setChoice{label: g.label, on: cur.Grade == g.name, put: func(st *Settings) { st.Grade = g.name }})
 		}
-	case rowGround:
-		out = append(out,
-			setChoice{label: "Cỏ xanh", on: cur.Ground != "warm", put: func(st *Settings) { st.Ground = "" }},
-			setChoice{label: "Đất ấm", on: cur.Ground == "warm", put: func(st *Settings) { st.Ground = "warm" }})
-	case rowCaveLight:
-		for i, name := range [...]string{"Tối (cần đuốc)", "Mờ", "Sáng"} {
-			out = append(out, setChoice{label: name, on: cur.CaveLight == i, put: func(st *Settings) { st.CaveLight = i }})
+	case rowBrightness:
+		for i, name := range [len(brightnessLevels)]string{"Bình thường", "Sáng hơn", "Sáng nhất"} {
+			out = append(out, setChoice{label: name, on: cur.Brightness == i, put: func(st *Settings) { st.Brightness = i }})
 		}
 	}
 	return out
@@ -354,6 +356,8 @@ func isOn(id setRowID) bool {
 		return !st.NoShake
 	case rowPostFX:
 		return st.PostFX
+	case rowTutorial:
+		return !st.NoTutorial
 	}
 	return false
 }
@@ -370,6 +374,8 @@ func flip(id setRowID) {
 			st.NoShake = !st.NoShake
 		case rowPostFX:
 			st.PostFX = !st.PostFX
+		case rowTutorial:
+			st.NoTutorial = !st.NoTutorial
 		}
 	})
 }
@@ -468,7 +474,7 @@ func (s *settingsScreen) update() bool {
 		}
 	default: // the foot
 		switch {
-		case (left || right) && len(rows) > 0:
+		case (left || right) && len(rows) > 0 && s.tab != setTabControls:
 			s.foot = 1 - s.foot
 			snd.ui("ui_move")
 		case enter:
@@ -496,7 +502,7 @@ func (s *settingsScreen) setTab(t int) {
 	case s.line >= 0:
 		s.line = min(s.line, n-1)
 	}
-	if n == 0 {
+	if n == 0 || t == setTabControls || s.tab == setTabControls {
 		s.foot = 1 // "Xong": there is nothing to reset here
 	}
 	snd.ui("ui_move")
@@ -537,7 +543,7 @@ func (s *settingsScreen) mouse() bool {
 		}
 	}
 	for i := range 2 {
-		if i == 0 && len(rows) == 0 {
+		if i == 0 && (len(rows) == 0 || s.tab == setTabControls) {
 			continue // "Mặc định" is off where there is nothing to reset
 		}
 		if in(footRect(i)) {
@@ -734,10 +740,10 @@ func (s *settingsScreen) help() string {
 		return "Lửa, đuốc toả sáng và màu theo giờ trong ngày. Tốn máy hơn một chút."
 	case rowGrade:
 		return "Tông màu của thế giới."
-	case rowGround:
-		return "Cỏ xanh mướt, hoặc đất vàng ấm lốm đốm cỏ."
-	case rowCaveLight:
-		return "Chỗ không có đèn trong hang tối đến đâu. Tối: phải cầm đuốc mới thấy đường."
+	case rowTutorial:
+		return "Bảng nhiệm vụ nhỏ ở góc trên bên trái và vài lời nhắc cho người mới. F1 vẫn hiện bảng phím."
+	case rowBrightness:
+		return "Cho màn hình tối: đêm và hang bớt tối một chút. Trong hang vẫn phải cầm đuốc mới thấy đường."
 	}
 	return ""
 }
@@ -854,7 +860,7 @@ var setKeysLeft = []setKey{
 	{keys: []string{"Chuột trái", "Space"}, does: "chặt, đập, hái, đánh (giữ: làm liền tay)"},
 	{keys: []string{"Chuột phải"}, does: "dùng món đang cầm: ăn, cắm đuốc…"},
 	{keys: []string{"Q"}, does: "giữ để giơ khiên đỡ đòn"},
-	{keys: []string{"E"}, does: "nhặt đồ, mở rương, cưỡi thú, lên thuyền"},
+	{keys: []string{"E"}, does: "nhặt đồ (giữ: nhặt liền), mở rương"},
 	{keys: []string{"R"}, does: "cưỡi thú, lên thuyền"},
 	{keys: []string{"V"}, does: "đặt món đang cầm xuống đất"},
 	{keys: []string{"G"}, does: "vứt một món (Shift + G: cả chồng)"},

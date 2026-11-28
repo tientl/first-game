@@ -338,4 +338,11 @@ func (vm *voiceMemory) keepEngaged(cur protocol.Snapshot) {
 			vm.engaged[c.ID] = now
 		}
 	}
+	if len(vm.engaged) > 256 { // warriors long gone from view must not pile up
+		for id, t := range vm.engaged {
+			if now.Sub(t) > time.Minute {
+				delete(vm.engaged, id)
+			}
+		}
+	}
 }

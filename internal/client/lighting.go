@@ -28,7 +28,7 @@ func (g *Game) drawLighting(screen drawTarget, cam camera) {
 	if g.caveIn() < 0.5 {
 		night = math.Max(night, g.weatherDim()) // an overcast sky
 	}
-	dark := math.Max(night, cave)
+	dark := math.Max(night, cave) * float64(brightnessLevels[brightnessSetting()].night) // a dim screen's setting: see settings.go
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
 
 	// Lava lights up its surroundings.

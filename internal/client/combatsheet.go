@@ -95,6 +95,14 @@ var fxSheetRows = []struct {
 	bg   color.RGBA
 }{
 	{"hit spark", fxInst{kind: fxSpark, z: 14, k: 1}, reelGrass},
+	{"hit flesh fur", fxInst{kind: fxHit, z: 14, k: 1, mat: matFlesh, matter: mtFurBrown, pal: dustGrass}, reelGrass},
+	{"hit flesh scale", fxInst{kind: fxHit, z: 14, k: 1, mat: matFlesh, matter: mtScaleGreen, pal: dustGrass}, reelGrass},
+	{"hit flesh feather", fxInst{kind: fxHit, z: 14, k: 1, mat: matFlesh, matter: mtFeatherRust, pal: dustGrass}, reelGrass},
+	{"hit flesh heavy", fxInst{kind: fxHit, z: 14, k: 1.2, lvl: 1, mat: matFlesh, matter: mtScaleOlive, pal: dustGrass}, reelGrass},
+	{"hit flesh crit", fxInst{kind: fxHit, z: 14, k: 1.2, lvl: 2, mat: matFlesh, matter: mtFurBrown, pal: dustGrass}, reelGrass},
+	{"hit shell", fxInst{kind: fxHit, z: 12, k: 1, mat: matChitin, matter: mtShellDark}, reelGrass},
+	{"hit bone", fxInst{kind: fxHit, z: 12, k: 1, mat: matBone}, reelGrass},
+	{"hit wood", fxInst{kind: fxHit, z: 14, k: 1, mat: matWood}, reelGrass},
 	{"crit hit", fxInst{kind: fxCrit, z: 14, k: 1}, reelGrass},
 	{"hit flash lines", fxInst{kind: fxLines, z: 16, k: 1}, reelGrass},
 	{"claw swipe", fxInst{kind: fxClaw, z: 16, ang: 0.9, k: 1}, reelGrass},

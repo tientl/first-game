@@ -215,7 +215,7 @@ func (w *World) nearWorks(tx, ty int) bool {
 			return true
 		}
 	}
-	return false
+	return w.lairReserved(tx, ty) // the temple's courtyard, the camps: see temple.go
 }
 
 // crowdedBy reports whether a tall thing of crown c on (tx, ty) would stand

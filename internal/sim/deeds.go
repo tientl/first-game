@@ -14,6 +14,7 @@ const (
 	DeedEat        // ate (or drank) one of DeedItem
 	DeedScoop      // filled a bowl or a flask at the water: DeedItem is what it holds now
 	DeedToss       // threw DeedItem out of the bag
+	DeedThrow      // threw the spear DeedItem: see throw.go
 )
 
 // did notes that p did d with item k.

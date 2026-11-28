@@ -40,15 +40,10 @@ const (
 
 var groundStyle GroundStyle
 
-// SetGroundStyle picks the look of the ground and keeps it with the
-// settings. The ground in view is baked again in the new look.
-func SetGroundStyle(s GroundStyle) {
-	name := ""
-	if s == GroundWarm {
-		name = "warm"
-	}
-	changeSettings(func(st *Settings) { st.Ground = name }) // sets groundStyle: see settings.go
-}
+// SetGroundStyle picks the look of the ground, for this run only: the warm
+// ground is a trial (shot -warm), not a setting. The ground in view is
+// baked again in the new look (groundCache.draw).
+func SetGroundStyle(s GroundStyle) { groundStyle = s }
 
 // CurrentGroundStyle is the look of the ground now.
 func CurrentGroundStyle() GroundStyle { return groundStyle }
@@ -317,6 +312,12 @@ func (b *bake) pixel(x, y int, u, v float64) (color.RGBA, bool) {
 		if b.rock != nil {
 			if o := b.rock.over[y*chunkPW+x]; o > 0 {
 				c = mix(c, colInk, rockShadow(int(o))) // at the foot of a mountain's face
+			}
+		}
+		if t.relief != nil { // the Megalodon's reef: coral rock awash (see atollart.go)
+			wu, wv := u+(vnoise(u*1.7, v*1.9, 1510)-0.5)*0.6, v+(vnoise(u*1.9, v*1.7, 1511)-0.5)*0.6 // ragged, not by the tile
+			if tx, ty := int(math.Floor(wu)), int(math.Floor(wv)); t.tile(tx, ty) == sim.TileSand && t.rel(tx, ty).Variant() == sim.VarReef {
+				return reefFlat(hx, hy, u, v, s), true
 			}
 		}
 		if s < surfLand && t.pondAt(u, v) > 0.5 { // a swamp pond's bank: wet mud, and no surf

@@ -98,6 +98,9 @@ func (g *Game) classifySwings(old, cur protocol.Snapshot) {
 	for _, p := range cur.Players {
 		if p.Acting && (first || !was[p.ID]) {
 			w := g.whatSwing(old, oldAt, p)
+			if pickedUp(old, cur, p) {
+				w = swingInfo{kind: swingHand} // E picked something up: a crouch, not a blow; see pickup.go
+			}
 			if last := g.swingWhat[p.ID]; w.beast && last.beast {
 				w.cross = !last.cross // jab, cross, jab
 			}

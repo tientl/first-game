@@ -263,7 +263,7 @@ func (s *Server) handle(p *peer, m protocol.ClientMsg) bool {
 		// Nothing was sent to p before, so the buffered channel has room.
 		return s.send(p, protocol.ServerMsg{
 			Kind:    protocol.ServerWelcome,
-			Welcome: protocol.Welcome{PlayerID: p.player, Width: w, Height: h, Tiles: s.world.Tiles(), Relief: s.world.Relief(), Explored: s.world.Explored(p.player), SurfaceH: surfaceH(s.world), Difficulty: s.world.Difficulty(), Caves: s.world.CaveCells()},
+			Welcome: protocol.Welcome{PlayerID: p.player, Width: w, Height: h, Tiles: s.world.Tiles(), Relief: s.world.Relief(), Explored: s.world.Explored(p.player), SurfaceH: surfaceH(s.world), Difficulty: s.world.Difficulty(), Caves: s.world.CaveCells(), Style: s.world.Style()},
 		})
 	case protocol.ClientInput:
 		if !p.joined {
@@ -355,3 +355,6 @@ func surfaceH(w *sim.World) int {
 	}
 	return 0
 }
+
+// Seed is the seed of the world being played.
+func (s *Server) Seed() uint64 { return s.cfg.Seed }

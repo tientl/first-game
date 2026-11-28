@@ -661,11 +661,7 @@ func (w *World) freshWater(tx, ty int) bool {
 	case w.relief != nil && w.relief[i].Variant() == VarLake:
 		return true
 	}
-	if !w.wx.pondDone {
-		w.wx.pond = PondMask(w.width, w.height, w.tiles)
-		w.wx.pondDone = true
-	}
-	return w.wx.pond[ty*w.width+tx]
+	return w.ponds()[ty*w.width+tx]
 }
 
 func (w *World) stepStation(e *Entity, s *Station) {
@@ -1192,7 +1188,7 @@ func (w *World) scatterClay(r *rand.Rand) {
 	for ty := 0; ty < top; ty++ {
 		for tx := 0; tx < w.width; tx++ {
 			roll := r.Float64()
-			if roll >= clayByPond || !w.canPlace(tx, ty) {
+			if roll >= clayByPond || !w.canPlace(tx, ty) || w.style >= StyleLairs && w.lairReserved(tx, ty) {
 				continue
 			}
 			t := w.tiles[ty*w.width+tx]

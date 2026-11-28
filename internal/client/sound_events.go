@@ -51,6 +51,9 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		if !p.Acting || wasActing[p.ID] || wasFishing[p.ID] {
 			continue // a strike on a line is heard in fishingSounds
 		}
+		if pickedUp(old, cur, p) {
+			continue // E picked something up: no blow; my own pick-up is heard from the bag below
+		}
 		hasWood := true
 		if p.ID == g.myID {
 			hasWood = old.Self.Inv.HasFuel()
@@ -80,6 +83,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		}
 		e := oldEnts[tg.Entity]
 		x, y := at(e)
+		g.toolHitFX(e, x, y, math.Atan2((y-py)*TileH, (x-px)*TileW), g.swingWhat[p.ID].kind)
 		switch e.Kind {
 		case sim.EntityTree:
 			snd.playAt("chop", x, y, 0.75, 0.06)
@@ -342,11 +346,12 @@ func (g *Game) frameSounds(alpha float64) {
 	}
 	snd.setLoop("wind", wind*out)
 	snd.setLoop("rain", rain*out)
-	snd.setLoop("crickets", math.Pow(night, 1.5)*0.3*(1-g.sm.ocean)*out)
+	quiet := g.lairQuiet() // the jungle holds its breath near Titanoboa: see lairfight.go
+	snd.setLoop("crickets", math.Pow(night, 1.5)*0.3*(1-g.sm.ocean)*out*quiet)
 	snd.setLoop("cave", 0.5*g.caveIn())
 
 	// Birdsong by day, more of it near the woods.
-	if out > 0.5 && amb > 0.6 && !g.paused && snd.rng.Float64() < (0.004+0.01*g.sm.forest)*(1-g.sm.ocean) {
+	if out > 0.5 && amb > 0.6 && !g.paused && snd.rng.Float64() < (0.004+0.01*g.sm.forest)*(1-g.sm.ocean)*quiet {
 		snd.play("bird", 0.1+snd.rng.Float64()*0.2, snd.rng.Float64()*1.6-0.8, 0.9+snd.rng.Float64()*0.25)
 	}
 
@@ -354,6 +359,7 @@ func (g *Game) frameSounds(alpha float64) {
 	switch {
 	case g.curr.Boss.Kind.Boss() && !g.curr.Self.Dead:
 		snd.setMusic(bossTrack(g.curr.Boss.Kind)) // a boss fight; see bossmusic.go
+		snd.setMusicRate(bossTrack(g.curr.Boss.Kind), g.lf.rate) // harder as it weakens: see lairfight.go
 	case g.caveIn() > 0.5:
 		snd.setMusic("cave")
 	case amb < 0.35:

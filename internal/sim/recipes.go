@@ -492,6 +492,11 @@ const (
 
 	NoticeStolen // Arg: ItemKind a flying reptile snatched; see skills.go
 
+	NoticeGuarded // Arg: CreatureKind guarding the chest; it stays shut while it lives (cavefight.go)
+	NoticeCollapse // the roof came down on them
+	// The bosses' lairs since StyleLairs: see throw.go, sharkfight.go.
+	NoticeSpearHit // Arg: CreatureKind a thrown spear struck
+
 	NoticeWrongSide // Arg: EntityKind used only from its front: a bed's open side, a tent's door, a furnace's or an oven's mouth; see facing.go
 )
 
@@ -514,7 +519,7 @@ const (
 	CmdPlace                     // set down what I hold: a head on a post, a torch in the ground, a seed
 	CmdVictorySeen               // I have closed the game-beaten screen; see bosses.go
 	CmdToss                      // throw Count of the stack in Slot on the ground in front; see toss.go
-	CmdInteract                  // E: pick up a pile, open a chest, get on or off a beast or boat; see aim.go
+	CmdInteract                  // E: pick up a pile or loose thing, open a chest, get on or off a beast or boat; see aim.go
 	CmdCookPut                   // move Count (0: all) of the stack in my Slot into my open cooking station; see cooking.go
 	CmdCookTake                  // move the stack in the station's Slot into my inventory
 	CmdCookClose                 // close my open station
@@ -523,6 +528,8 @@ const (
 	CmdFeed                      // give the held food to the beast pointed at, or the nearest that eats it; see aim.go
 	CmdDevBuild                  // free build: put build palette piece Slot on tile (TX, TY) when At, else in front; see devbuild.go
 	CmdDevRemove                 // free build: take the structure on tile (TX, TY) away when At, else the one in front
+	CmdPickUp                    // E held down: pick up the next pile or loose thing, and nothing else; see pickup.go
+	CmdThrow                     // throw the spear held at where the player points; see throw.go
 )
 
 // Command is a discrete player request. Fields not used by Kind are ignored.
@@ -544,7 +551,7 @@ type Command struct {
 // Input is the continuously held player input, sampled every tick.
 type Input struct {
 	MoveX, MoveY int8 // each -1, 0 or 1
-	Action       bool // work on the target: the one pointed at, else the nearest (chop, mine, pick, refuel)
+	Action       bool // work on the target: the one pointed at, else the nearest (chop, mine, gather, strike, refuel); it never picks up, E does
 	// Aim is where the mouse points, in world tiles, when Aim is set: the
 	// player faces it and Action works on what is under it if in reach.
 	// See aim.go.
@@ -553,11 +560,15 @@ type Input struct {
 	// Guard holds a shield up while it is set (right button or Q): see
 	// shield.go.
 	Guard bool
+	// Draw holds a spear drawn back to throw (the button held down with a
+	// spear in hand): the player faces where they aim; CmdThrow lets it go.
+	// See throw.go.
+	Draw bool
 }
 
 func (in Input) sanitized() Input {
 	clamp := func(v int8) int8 { return max(-1, min(1, v)) }
-	out := Input{MoveX: clamp(in.MoveX), MoveY: clamp(in.MoveY), Action: in.Action, Guard: in.Guard}
+	out := Input{MoveX: clamp(in.MoveX), MoveY: clamp(in.MoveY), Action: in.Action, Guard: in.Guard, Draw: in.Draw}
 	if in.Aim && finite(float64(in.AimX), float64(in.AimY)) { // aim from the network may be anything
 		out.Aim, out.AimX, out.AimY = true, in.AimX, in.AimY
 	}

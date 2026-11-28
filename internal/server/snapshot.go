@@ -180,8 +180,9 @@ func (s *Server) snapshotFor(id sim.PlayerID, players []sim.Player) (protocol.Sn
 			MaxHP:    int16(min(c.Kind.MaxHP(), 32767)),
 		})
 	})
-	s.skillViews(&snap, self.X, self.Y, r) // the beasts' moves: see skills.go
-	s.bossViews(&snap, id)                 // see bosses.go
+	s.skillViews(&snap, self.X, self.Y, r)     // the beasts' moves: see skills.go
+	s.hazardViews(&snap, self.X, self.Y, r+20) // the bosses' fights: see bosses.go
+	s.bossViews(&snap, id)                     // see bosses.go
 	return snap, true
 }
 
