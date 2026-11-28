@@ -88,23 +88,23 @@ func crocDrawHD(lk crocHD, pose, f int) (*canvas, float64, float64) {
 	}
 	tail := newCTube(tp).shape()
 	body := sBlend(2.2, tail, aEll(24+hx0*0.3, 10.7, 8.4, 3.9*g), aEll(33+hx0*0.7, 10.3-0.5*open, 3.5, 2.9*g))
-	hide := func(s shape, bias float64) shader {
-		sc := scaly(lk.skin, s, 2.6, bias, 4, 3, 91)
-		return func(x, y int, d float64) color.RGBA {
-			ax, ay := (float64(x)+0.5)/cK, (float64(y)+0.5)/cK
-			if ay > 13.05 && ax > 9 { // the pale belly, in plates
-				l := s.lum(x, y, 2.4*cK) + 0.22
-				if x%4 == 0 {
-					l -= 0.14
-				}
-				return toneOf(lk.belly, l)
+	skin := newSurf(lk.skin, sScale, 0.25, 91).with(4.4, 0)
+	skin.grain = 2.2
+	belly := newSurf(lk.belly, sPlate, 0.3, 92)
+	band := newSurf(ramp{mix(lk.skin[0], colInk, 0.45), mix(lk.skin[0], colInk, 0.2), lk.skin[0], lk.skin[1]}, sScale, 0.2, 94).with(4.4, 0)
+	// hide paints a part of the body: armoured scales, the pale belly in
+	// plates, dark bands down the tail
+	hide := func(s shape, o look) {
+		q.body(s, skin, o)
+		q.coatBy(s, func(ax, ay float64) *surf {
+			if ay > 12.9 && ax > 9 {
+				return belly
 			}
-			col := sc(x, y, d)
 			if ax < 21 && math.Mod(ax+0.25*ay, 3.6) < 1.3 && ay < 12.4 {
-				col = mix(col, lk.skin[0], 0.3) // dark bands down the tail
+				return band
 			}
-			return col
-		}
+			return nil
+		})
 	}
 	leg := func(hx, hy, off, size float64, near bool, bend float64) {
 		dx, up := 0.0, 0.0
@@ -114,25 +114,23 @@ func crocDrawHD(lk crocHD, pose, f int) (*canvas, float64, float64) {
 		fx, fy := hx+0.9+dx, gy-up
 		kx, ky := ik2(hx, hy, fx, fy, 2.7*size, 2.7*size, bend)
 		lg := aLeg(hx, hy, kx, ky, fx, fy, 1.55*size, 1.15*size, 0.8*size).or(aCap(fx, fy, fx+1.7*size, fy+0.25, 0.75*size, 0.5*size))
-		bias := -0.2
-		if near {
-			bias = -0.02
-		}
-		q.fill(lg, scaly(lk.skin, lg, 1.2, bias, 3, 3, 93))
+		q.body(lg, skin.with(3, 0), look{round: 1.1, far: !near, bias: -0.02})
 		for k := 0.0; k < 3; k++ { // claws
 			q.dot(fx+1.2*size+0.5*k, fy+0.5, 0, 0, colBone)
 		}
 	}
 	leg(19.6, 12.2, 0.55, 1, false, -1)
 	leg(30.4, 12.1, 0.05, 0.88, false, 1)
-	q.fill(body, hide(body, 0))
+	hide(body, look{round: 2 * g, bias: -0.04})
+	q.shade(body.and(sBelow(12.9*cK)).and(sRightOf(9*cK)), 0.16) // the pale belly catches the light off the ground
+	q.shade(body.and(aCap(9, 13.6, 33, 13.4, 0.18, 0.18)), -0.2) // where the flank turns under to the belly
 
 	// The jaws, hinged behind the eye.
 	hx, hy := 34.5+hx0, 10.9-0.5*open
 	L := lk.snout
 	up, down := -0.46*open, 0.2*open
 	lower := aCap(hx-0.6, hy+1.25, hx+L-0.7, hy+1.15, lk.r0*0.75, lk.r1*0.7).turned(hx, hy, down)
-	q.fill(lower, func(x, y int, _ float64) color.RGBA { return toneOf(lk.belly, lower.lum(x, y, 1.2*cK)+0.12) })
+	q.body(lower, belly, look{round: 1, bias: 0.06})
 	if open > 0.1 {
 		ux, uy := turnXY(hx+L-0.8, hy, hx, hy, up)
 		lx, ly := turnXY(hx+L-1, hy+0.6, hx, hy, down)
@@ -144,7 +142,8 @@ func crocDrawHD(lk crocHD, pose, f int) (*canvas, float64, float64) {
 		q.flat(aCap(hx+0.4, hy+0.55, hx+L-0.4, hy+0.6, 0.45, 0.4), plain(mix(lk.skin[0], colInk, 0.5)))
 	}
 	upper := sBlend(0.7, aCap(hx-0.6, hy-0.95, hx+L, hy-0.3, lk.r0*1.1, lk.r1), aEll(hx+L-0.5, hy-1.05, 1.05, 0.75), aEll(hx+0.9, hy-2.4, 1.45, 1.25)).turned(hx, hy, up)
-	q.fill(upper, scaly(lk.skin, upper, 1.6, 0.03, 4, 3, 95))
+	q.body(upper, skin.with(3.4, 0), look{round: 1.5, bias: 0.04})
+	q.shade(upper.and(aEll(hx+0.9, hy-2.4, 1.6, 1.3).turned(hx, hy, up)), 0.06) // the bony knob round the eye
 	teeth := 0.8 + 0.3*open
 	for k := 1.4; k < L-0.6; k += 1.25 {
 		ty := hy - 0.3 + lerpf(lk.r0*1.1, lk.r1, k/L) - 0.3
@@ -163,8 +162,7 @@ func crocDrawHD(lk crocHD, pose, f int) (*canvas, float64, float64) {
 	for x := 4.0; x <= 31.5; x += 1.55 {
 		if y, ok := topOf(body, x, 2); ok {
 			h := 0.75 + 0.5*clamp01((x-4)/10)
-			col := lk.skin.at(3 + int(x/1.55)%2)
-			q.fill(aPoly(x-0.75, y+0.5, x-0.1, y-h, x+0.85, y+0.5), plain(col))
+			q.body(aPoly(x-0.75, y+0.5, x-0.1, y-h, x+0.85, y+0.5), skin, look{round: 0.5, bias: 0.06 * float64(int(x/1.55)%2), soft: true})
 		}
 	}
 	leg(18.2, 12.7, 0, 1, true, -1)
@@ -180,15 +178,11 @@ func crocLurkHD(lk crocHD) (*canvas, float64, float64) {
 	L := lk.snout
 	water := sAbove(5.6 * cK)
 	head := sBlend(0.8, aEll(8.5, 5.2, 2.5, 2.2), aEll(8.3, 3, 1.25, 1.15), aCap(9.5, 5.3, 8.4+L, 5.5, 1.15, 0.85), aEll(8+L, 4.7, 0.95, 0.75)).and(water)
-	q.fill(head, func(x, y int, d float64) color.RGBA {
-		l := head.lum(x, y, 1.5*cK)
-		if float64(y)/cK > 4.9 {
-			l -= 0.2 // wet at the waterline
-		}
-		return toneOf(lk.skin, l+0.05)
-	})
+	skin := newSurf(lk.skin, sScale, 0.9, 96).with(3.4, 0)
+	q.body(head, skin, look{round: 1.4, bias: 0.05})
+	q.shade(head.and(sBelow(4.9 * cK)), -0.18) // wet at the waterline
 	for i, x := range [3]float64{1.4, 3.3, 5.3} {
-		q.fill(aPoly(x-0.9, 5.6, x, 4.4-0.25*float64(i), x+0.9, 5.6), plain(lk.skin.at(2+i%2)))
+		q.body(aPoly(x-0.9, 5.6, x, 4.4-0.25*float64(i), x+0.9, 5.6), skin, look{round: 0.5, bias: 0.04 * float64(i%2), soft: true})
 	}
 	q.eye(8.5, 2.9, 1.5, crocEye)
 	q.dot(8+L, 4.3, 0, 0, lk.skin[0])

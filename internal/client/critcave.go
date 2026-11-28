@@ -30,6 +30,14 @@ func gloss(r ramp, a shape, round, bias float64) shader {
 	}
 }
 
+var (
+	spiderLegS  = newSurf(spiderRamp, sShell, 0.7, 801)
+	spiderShell = newSurf(spiderRamp, sShell, 1, 802)
+	spiderHair  = newSurf(spiderRamp, sFur, 0.15, 803).with(3, math.Pi/2)
+	spiderMarkS = newSurf(spiderMark, sShell, 0.9, 804)
+	scorpShell  = newSurf(scorpRamp[2:], sShell, 1, 805)
+)
+
 // --- the cave spider ---------------------------------------------------------------
 
 func spiderHD(pose, f int) (*canvas, float64, float64) {
@@ -72,7 +80,7 @@ func spiderHD(pose, f int) (*canvas, float64, float64) {
 			kx, ky := hip+(fi-1.5)*3.2*k+dx*0.5, 4.4+lift*0.2-up*0.5
 			fx := hip + (fi-1.5)*5.6*k + dx
 			lg := aLeg(hip, 8.4, kx, ky, fx, fy-up, 0.75, 0.6, 0.25)
-			q.fill(lg, gloss(spiderRamp, lg, 0.6, b+0.25))
+			q.body(lg, spiderLegS, look{round: 0.55, bias: b - 0.06, far: far})
 			for h := 0.3; h < 1; h += 0.3 { // bristles
 				q.dot(lerpf(kx, fx, h), lerpf(ky, fy-up, h), 2, 0, spiderRamp[4])
 			}
@@ -80,22 +88,18 @@ func spiderHD(pose, f int) (*canvas, float64, float64) {
 	}
 	legs(true)
 	ab := aEll(8, 8+lift, 6.2, 4.6)
-	q.fill(ab, func(x, y int, d float64) color.RGBA {
-		col := gloss(spiderRamp, ab, 4, 0.2)(x, y, d)
-		if hashf(x/2, y/3, 77) < 0.12 && d < -3 {
-			col = mix(col, spiderRamp[4], 0.5) // short hairs
-		}
-		return col
-	})
+	q.body(ab.furry(0.22, 0.7, 76), spiderHair, look{round: 4.2, bias: 0.04}) // a velvet of short hairs
 	// The red mark on its back: an hourglass.
 	mk := aPoly(5.4, 6.4+lift, 7.6, 7.6+lift, 9.8, 6.4+lift, 9.8, 8.8+lift, 7.6, 7.7+lift, 5.4, 8.8+lift)
-	q.mark(mk, func(x, y int, _ float64) color.RGBA { return toneOf(spiderMark, 0.75-(float64(y)/cK-6.4-lift)*0.25) })
+	q.coat(mk, spiderMarkS)
+	q.shade(mk, 0.1)
 	if pose == spiderSpit && (f == 0 || f >= 3) {
 		web := aEll(2.5, 4.5, 1.6, 1.4)
 		q.fill(web, shd(ramp{hex(0xa8a8b4), hex(0xc8c8d0), hex(0xf4f4f8)}, web, 1, 0.1))
 	}
 	head := sBlend(1, aEll(hx, hy, 3.4, 2.8), aEll(hx+2.2, hy+0.9, 1.5, 1.3))
-	q.fill(head, gloss(spiderRamp, head, 2.2, 0.26))
+	q.body(head, spiderShell, look{round: 2.2, bias: 0.02})
+	q.shade(aCap(hx-1.8, hy-1.6, hx+1, hy-2.2, 0.22, 0.2), -0.12) // the groove down its back
 	// Fangs, and a cluster of red eyes.
 	for _, o := range [2]float64{0, 0.9} {
 		q.fill(aCap(hx+2+o, hy+1.6, hx+2.6+o, hy+2.6+1.6*fang, 0.4, 0.15), plain(hex(0xd8d0c0)))
@@ -155,7 +159,7 @@ func scorpionHD(pose, f int) (*canvas, float64, float64) {
 			p = lerpScorp(back, p, smooth((blowAmt(f)+1)/2))
 		}
 	}
-	shell := func(s shape, b float64) shader { return gloss(scorpRamp, s, 2, b-0.36) }
+	shell := func(s shape, b, round float64) { q.body(s, scorpShell, look{round: round, bias: b - 0.3}) }
 	bx, by := p.dx, p.dy
 	leg := func(i int, far bool) {
 		fi := float64(i)
@@ -175,20 +179,20 @@ func scorpionHD(pose, f int) (*canvas, float64, float64) {
 		fx := hx + (fi-1.6)*4.4*k + dx
 		kx, ky := lerpf(hx, fx, 0.45), 17-up*0.4+by
 		lg := aLeg(hx, hy, kx, ky, fx, gy-up, 1.45, 1.15, 0.35)
-		q.fill(lg, shell(lg, b))
+		shell(lg, b, 0.8)
 		q.flat(aEll(kx-0.2, ky-0.2, 0.6, 0.6), plain(scorpRamp[5]))
 	}
 	claw := func(c scorpClaw, b float64) {
 		arm := aLeg(39+bx, 21+by, c.ex+bx, c.ey+by, c.x+bx, c.y+by, 2.1, 1.9, 1.8)
-		q.fill(arm, shell(arm, b))
+		shell(arm, b, 1)
 		x, y := c.x+bx, c.y+by
 		T := func(s shape, a float64) shape { return s.turned(x, y, a) }
 		hand := T(aEll(x+2.6, y, 4.2, 3.3), c.ang)
-		q.fill(hand, shell(hand, b+0.06))
+		shell(hand, b+0.06, 2.2)
 		up := T(aPoly(x+3.6, y-3.2, x+7, y-2.9, x+11, y-1.2, x+10, y-0.1, x+4, y+0.3), c.ang-c.open*0.5)
 		lo := T(aPoly(x+3.6, y+3.1, x+7, y+2.7, x+10.4, y+1.4, x+9.6, y+0.3, x+4, y), c.ang+c.open*0.5)
-		q.fill(lo, shell(lo, b-0.02))
-		q.fill(up, shell(up, b+0.08))
+		shell(lo, b-0.02, 1)
+		shell(up, b+0.08, 1)
 	}
 	for i := range 4 {
 		leg(i, true)
@@ -198,12 +202,12 @@ func scorpionHD(pose, f int) (*canvas, float64, float64) {
 	for i := 0; i < 5; i++ {
 		a, b := p.tail[i], p.tail[i+1]
 		seg := aCap(a[0]+bx*0.5, a[1]+by, lerpf(a[0], b[0], 0.8)+bx*0.5, lerpf(a[1], b[1], 0.8)+by, 3-0.2*float64(i), 2.5-0.2*float64(i))
-		q.fill(seg, shell(seg, 0.26))
+		shell(seg, 0.26, 1.8)
 	}
 	bulb := aEll(p.tail[5][0]+bx*0.5+1.2, p.tail[5][1]+by+0.3, 3.1, 2.6)
-	q.fill(bulb, shell(bulb, 0.34))
+	shell(bulb, 0.34, 1.9)
 	tb := newCTube(bez(8, 1, 0.2, [2]float64{p.tail[5][0] + bx*0.5 + 2.6, p.tail[5][1] + by}, p.sting[0], p.sting[0], p.sting[1]))
-	q.fill(tb.shape(), shell(tb.shape(), 0.4))
+	shell(tb.shape(), 0.4, 0.6)
 	if pose == scorpionSting {
 		q.dot(p.sting[1][0], p.sting[1][1], 0, 1, venomGreen)
 		q.dot(p.sting[1][0], p.sting[1][1], 0, 3, venomGreen)
@@ -212,10 +216,10 @@ func scorpionHD(pose, f int) (*canvas, float64, float64) {
 	for i := 0; i < 7; i++ {
 		fi := float64(i)
 		pl := aEll(16+fi*3.6+bx, 20.6-0.25*fi+0.04*fi*fi+by, 3, 4.5+0.6*math.Sin(fi*0.5))
-		q.fill(pl, shell(pl, 0.26))
+		shell(pl, 0.26, 2.4)
 	}
 	head := aEll(40.5+bx, 20.4+by, 3.8, 3.9)
-	q.fill(head, shell(head, 0.3))
+	shell(head, 0.3, 2.4)
 	q.flat(aEll(41.6+bx, 18.8+by, 0.5, 0.5), plain(hex(0xffb030)))
 	q.dot(41.6+bx, 18.8+by, -1, -1, colWhite)
 	q.flat(aEll(39.9+bx, 18.6+by, 0.4, 0.4), plain(hex(0xd88020)))
