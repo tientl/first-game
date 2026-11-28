@@ -19,6 +19,10 @@ import (
 // flood of idle sockets cannot use up the host's file handles.
 const maxConns = 64
 
+// helloLimit is how long a connection that has shaken hands may go without
+// saying Hello before it is let go.
+const helloLimit = 10 * time.Second
+
 // Listener puts a running server on the network. Every accepted connection
 // is a client of the same server the host plays on.
 type Listener struct {
@@ -171,11 +175,15 @@ func (l *Listener) serve(nc net.Conn) {
 
 	br := bufio.NewReader(deadlineReader{c: nc, idle: idleTimeout, n: &l.in})
 	var buf []byte
+	sawHello, helloBy := false, time.Now().Add(helloLimit)
 	for !closing.Load() {
 		var err error
 		buf, err = readFrame(br, buf)
 		if err != nil {
 			break
+		}
+		if !sawHello && time.Now().After(helloBy) {
+			break // keepalives alone do not hold a place in the room
 		}
 		if len(buf) == 0 {
 			continue // keepalive
@@ -184,6 +192,7 @@ func (l *Listener) serve(nc net.Conn) {
 		if err != nil {
 			break
 		}
+		sawHello = sawHello || m.Kind == protocol.ClientHello
 		if err := lc.Send(m); errors.Is(err, server.ErrConnClosed) {
 			break
 		} // a full inbox just drops the message: the client is flooding
