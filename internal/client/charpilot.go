@@ -7,82 +7,64 @@ import (
 	"strings"
 )
 
-// A style pilot for the player's figure: three redrawn looks of the same
-// jointed caveman (limbs.go), for the player to choose between. Each keeps
-// the rig, the poses, the layers and every motion; only the painters
-// change: the head, the face, the hair and the beard (charpilot_head.go),
-// the bare trunk, the loincloth and a woman's fur top (charpilot_body.go),
-// the arms, the hands, the legs and the feet (charpilot_limbs.go), the
-// colours, the fine lines between parts and the outline (here).
+// The player's figure as it is painted (the look the user chose from a
+// pilot of three, "A"): the jointed caveman of limbs.go with its rig, its
+// poses, its layers and every motion, drawn with real anatomy. The painters
+// are here and in charpilot_head.go (the head, the face, the hair and the
+// beard), charpilot_body.go (the bare trunk, the loincloth, a woman's fur
+// top) and charpilot_limbs.go (the arms, the hands, the legs and the feet)
+// and charpilot_wear.go (the clothes: the tunic and the dress, the sleeves,
+// the trousers and their wraps, the boots).
 //
-//	A, refined:    the same build, real anatomy: a bigger face with clear
-//	               eyes, a brow, a nose; a short shaped beard; muscles lit
-//	               as forms; elbows, wrists, hands, knees, calves, feet; a
-//	               fur loincloth of locks on a dark thong; hue-shifted skin
-//	               with a cool rim light; a selective outline.
-//	B, heroic:     stockier and more readable small: about five heads tall,
-//	               broad in the shoulder and the chest, thick limbs, big
-//	               hands and feet, a sprite hero's dark glinting eyes,
-//	               chunky shading in fewer tones and a heavier outline.
-//	C, painterly:  as the HD dinosaurs are painted: softer, more tones with
-//	               wandering edges, warm where the light turns and red at
-//	               the hands, feet, knees, elbows and face, cooler shadows,
-//	               brushy texture, fine fur and hair in clumps, a lighter
-//	               outline.
+// The look: a bigger face with bold dark eyes that catch a glint, a brow,
+// a nose; a beard that goes with the hair; muscles lit as forms; elbows,
+// wrists, hands, knees, calves and feet; warm where the blood shows (the
+// cheeks, the nose, the hands, the knees and the feet); fur and hair in
+// soft locks and strands; hue-shifted OKLab skin with a cool rim light; a
+// selective outline that is a deep shade of what it bounds.
 //
 // Every part is a surface (pHeight: a slab of its outline with each muscle
 // a rise on it) lit from the top left and cut into an OKLab ramp, then
 // tidied of specks as a pixel artist would (pClean); the face is set pixel
 // by pixel over the lit skull.
 //
-// The switch is pilotStyle; at charCurrent, the default, every hook (in
-// cavefig.go, tallhead.go, look.go's rimLayers and pix.go's outline) falls
-// through and nothing changes. cmd/shot takes -charstyle; CHAR_PILOT=dir
-// go test -run CharPilotSheets writes the comparison sheets.
+// pilotStyle is a developer's switch to set the old figure (charCurrent)
+// beside this one: every hook (in cavefig.go, tallhead.go, tallfig.go,
+// limbs.go, look.go's rimLayers and pix.go's outline) falls through to the
+// old painters there. cmd/shot takes -charstyle old.
 
 type charStyle uint8
 
 const (
-	charCurrent   charStyle = iota
-	charRefined             // A
-	charHeroic              // B
-	charPainterly           // C
+	charCurrent charStyle = iota // the old figure, for comparison only
+	charRefined                  // the figure as it is drawn
 )
 
-var pilotStyle = charCurrent
+var pilotStyle = charRefined
 
-// SetCharStyle picks the player figure's style by name: current, A
-// (refined), B (heroic) or C (painterly). Art already drawn keeps its
-// style: set it before the game draws a player.
+// SetCharStyle picks the player figure's painters by name, for comparing:
+// A (the default) or old. Art already drawn keeps its style: set it before
+// the game draws a player.
 func SetCharStyle(name string) error {
 	switch strings.ToLower(name) {
-	case "", "current", "0":
-		pilotStyle = charCurrent
-	case "a", "refined":
+	case "", "a", "refined", "new":
 		pilotStyle = charRefined
-	case "b", "heroic":
-		pilotStyle = charHeroic
-	case "c", "painterly":
-		pilotStyle = charPainterly
+	case "old", "current", "0":
+		pilotStyle = charCurrent
 	default:
-		return fmt.Errorf("unknown character style %q: current, A, B or C", name)
+		return fmt.Errorf("unknown character style %q: A or old", name)
 	}
-	pilotSkinHold = map[*figGen]ramp{}
-	pilotHoles = nil
-	pilotOwned = map[*canvas]*figLayer{}
-	pilotOwner = map[*canvas]*figGen{}
 	return nil
 }
 
 func pilotOn() bool { return pilotStyle != charCurrent }
 
-// pSpec is what a style changes: proportions in image pixels, and how it
-// shades.
+// pSpec is how the figure is built and shaded: proportions in image pixels,
+// and the shading.
 type pSpec struct {
 	// The head: the skull's half width and half height about (27, headY),
 	// a woman's narrower by fHead.
 	headRX, headRY, headY, fHead float64
-	eyeBig                       bool // the heroic face: dark eyes with a glint
 	// The trunk, a man's from the front: half widths at the shoulders (y
 	// 47.5), under the arms (53), the waist (66) and the hips (75).
 	shoulder, chest, waist, hips float64
@@ -91,52 +73,37 @@ type pSpec struct {
 	arm, fore, thigh, calf, fist, foot float64
 	// The loincloth's top and hem rows, a man's.
 	loinTop, loinHem float64
-	// Shading: tones in the skin's ramp; how far the skin's band edges
-	// wander (0 clean); brushwork on the skin; the strength of the cool rim
+	// Shading: tones in the skin's ramp; the strength of the cool rim
 	// light; how dark the outline is below and right, and above and left.
-	tones              int
-	dither, grain, rim float64
-	inkDark, inkLit    float64
-	lineK              float64 // how much darker the fine line between two parts is
-	contrast, muscleK  float64
-	furTones           int
-	hairTones          int
-	chunkyHi           bool    // a brighter core to the hair's sheen
-	shadeTurn          float64 // how far the skin's darks turn their hue, towards red
-	shadeSat           float64 // and how saturated they are
-	warmEdge           float64 // how much warmer and richer the skin is where it turns from the light
-	warmZones          float64 // how much redder the hands, feet, elbows, knees and face are
-	furK               float64 // how strongly the locks of fur stand out from each other
+	tones           int
+	rim             float64
+	inkDark, inkLit float64
+	lineK           float64 // how much darker the fine line between two parts is
+	contrast        float64
+	muscleK         float64
+	furTones        int
+	hairTones       int
+	shadeTurn       float64 // how far the skin's darks turn their hue, towards red
+	shadeSat        float64 // and how saturated they are
+	warmEdge        float64 // how much warmer and richer the skin is where it turns from the light
+	warmZones       float64 // how much redder the hands, feet, elbows, knees and face are
+	furK            float64 // how strongly the locks of fur stand out from each other
+	furClump        float64 // how wide a lock of fur is
+	hairClump       float64 // how wide a clump of hair is where it hangs
+	hairGrain       float64 // the fine strands through the hair's clumps
 }
 
-var pSpecs = [...]pSpec{
-	charRefined: {
-		headRX: 7.4, headRY: 9, headY: 35.2, fHead: 0.5,
-		shoulder: 10.6, chest: 9.6, waist: 7.4, hips: 9,
-		arm: 1.08, fore: 1.08, thigh: 1.05, calf: 1.1, fist: 6, foot: 1.12,
-		loinTop: 68.5, loinHem: 84,
-		tones: 6, rim: 1, inkDark: 0.62, inkLit: 0.42, lineK: 0.28, contrast: 1, muscleK: 0.85,
-		furTones: 7, hairTones: 6, shadeTurn: -0.05, shadeSat: 0.92, warmEdge: 0.15, warmZones: 0.4, furK: 1,
-	},
-	charHeroic: {
-		headRX: 8.2, headRY: 10, headY: 34.4, fHead: 0.6, eyeBig: true,
-		shoulder: 12.8, chest: 11.2, waist: 8.6, hips: 9.8,
-		arm: 1.32, fore: 1.3, thigh: 1.25, calf: 1.32, fist: 7.6, foot: 1.32,
-		loinTop: 69.5, loinHem: 88,
-		tones: 5, rim: 0.8, inkDark: 0.8, inkLit: 0.66, lineK: 0.45, contrast: 1.2, muscleK: 1.25,
-		furTones: 5, hairTones: 5, chunkyHi: true, shadeTurn: -0.06, shadeSat: 1.0, warmZones: 0.3, furK: 1.15,
-	},
-	charPainterly: {
-		headRX: 7.4, headRY: 9, headY: 35.2, fHead: 0.5,
-		shoulder: 10.8, chest: 9.8, waist: 7.5, hips: 9.1,
-		arm: 1.1, fore: 1.1, thigh: 1.06, calf: 1.12, fist: 6, foot: 1.14,
-		loinTop: 68.5, loinHem: 84.5,
-		tones: 9, dither: 0.25, grain: 0.06, rim: 0.8, inkDark: 0.5, inkLit: 0.3, lineK: 0.2, contrast: 0.85, muscleK: 0.9,
-		furTones: 9, hairTones: 8, shadeTurn: -0.26, shadeSat: 0.8, warmEdge: 0.5, warmZones: 1, furK: 1.7,
-	},
+var pSpecA = pSpec{
+	headRX: 7.4, headRY: 9, headY: 35.2, fHead: 0.5,
+	shoulder: 10.6, chest: 9.6, waist: 7.4, hips: 9,
+	arm: 1.08, fore: 1.08, thigh: 1.05, calf: 1.1, fist: 6, foot: 1.12,
+	loinTop: 68.5, loinHem: 84,
+	tones: 6, rim: 1, inkDark: 0.62, inkLit: 0.42, lineK: 0.28, contrast: 1, muscleK: 0.85,
+	furTones: 9, hairTones: 8, shadeTurn: -0.12, shadeSat: 0.9, warmEdge: 0.3, warmZones: 0.85,
+	furK: 1.7, furClump: 2.6, hairClump: 2.2, hairGrain: 0.12,
 }
 
-func pspec() *pSpec { return &pSpecs[pilotStyle] }
+func pspec() *pSpec { return &pSpecA }
 
 // --- colour --------------------------------------------------------------------
 
@@ -294,19 +261,11 @@ func pTone(r ramp, v float64, _, _ int) color.RGBA {
 	return r.at(max(0, min(len(r)-1, int(math.Floor(v*float64(len(r)))))))
 }
 
-// pToneI is the index of the skin's tone for light v at pixel (x, y): in
-// clean bands, or, painterly, with the band edges wandering a little.
-func pToneI(n int, v float64, x, y int) int {
-	sp := pspec()
-	v = 0.5 + (v-0.5)*sp.contrast
-	p := v * float64(n)
-	if sp.dither > 0 {
-		// A noise of two scales, so the bands wander like brushwork rather
-		// than a regular dither.
-		w := vnoise(float64(x)*0.5, float64(y)*0.5, 77)*0.8 + hashf(x, y, 91)*0.2
-		p += (w - 0.5) * sp.dither
-	}
-	return max(0, min(n-1, int(math.Floor(p))))
+// pToneI is the index of the skin's tone for light v at pixel (x, y), in
+// clean bands.
+func pToneI(n int, v float64, _, _ int) int {
+	v = 0.5 + (v-0.5)*pspec().contrast
+	return max(0, min(n-1, int(math.Floor(v*float64(n)))))
 }
 
 // pHeight is a surface over the figure: its height at a point, in image
@@ -363,110 +322,14 @@ func ellQ(x, y, cx, cy, ux, uy, ra, rb float64) float64 {
 	return math.Sqrt(a*a + b*b)
 }
 
-// --- the hands' fix ------------------------------------------------------------
+// --- the fine lines and the outline -----------------------------------------
 
-// limbs.go draws a fist over each arm after bareArm, in the skin's tones,
-// with three dots of shade. A pilot paints its own hand with the arm, then
-// hides the old fist by giving the generator a transparent skin until its
-// next painter runs; the three dots it still sets are put back at the end
-// (rimLayers). The skin is held per generator.
-var (
-	pilotSkinHold = map[*figGen]ramp{}
-	pilotHoles    []pilotHole
-	pilotOwned    = map[*canvas]*figLayer{} // the upper half's layers: their lines and rim are the pilot's
-	pilotOwner    = map[*canvas]*figGen{}   // and the generator that drew them
-	clearSkin     = ramp{{}, {}, {}, {}, {}, {}}
-)
-
-type pilotHole struct {
-	c    *canvas
-	l    *figLayer
-	i    int
-	px   color.RGBA
-	part uint16
-}
-
-// pRestoreSkin gives g its skin back, if a hand took it.
-func (g *figGen) pRestoreSkin() {
-	if sk, ok := pilotSkinHold[g]; ok {
-		g.sk = sk
-		delete(pilotSkinHold, g)
-	}
-}
-
-// pHideFist keeps limbs.go's fist of arm a (on hd) from showing: see above.
-func (g *figGen) pHideFist(hd *figLayer, a armGeom, d pView) {
-	f := &g.f
-	fw, fh := a.size, a.size
-	if g.look.Female {
-		fw, fh = fw-1, fh-1
-	}
-	if !d.side && a.size <= 6 && math.Abs(a.swing) < 0.6 {
-		fw--
-	}
-	x0, y0 := math.Round(a.hx-fw/2), math.Round(a.hy-fh/2)
-	x, y := int(x0), int(y0)
-	if !a.open {
-		for _, p := range [3][2]int{{x + 2, y + 3}, {x + 3, y + 3}, {x + 3, y + 4}} {
-			cx, cy := f.canvasAt(p[0], p[1])
-			if !hd.c.in(cx, cy) {
-				continue
-			}
-			i := cy*hd.c.w + cx
-			pilotHoles = append(pilotHoles, pilotHole{hd.c, hd, i, hd.c.px[i], hd.part[i]})
-		}
-	}
-	pilotSkinHold[g] = g.sk
-	g.sk = clearSkin
-}
-
-// pilotRimLayers is rimLayers for a pilot's figure: the fine lines between
-// its parts redrawn in the colours of the parts, the fists' dots put back,
-// then the outline. It reports whether the layers were the pilot's.
-func pilotRimLayers(layers []*canvas) bool {
-	if !pilotOn() || len(layers) == 0 || pilotOwned[layers[0]] == nil {
-		return false
-	}
-	fl := make([]*figLayer, len(layers))
-	if g := pilotOwner[layers[0]]; g != nil {
-		g.pRestoreSkin() // the last hand's skin, held back from limbs.go's fist
-	}
-	for i, c := range layers {
-		fl[i] = pilotOwned[c]
-		delete(pilotOwner, c)
-		delete(pilotOwned, c)
-	}
-	lines := pilotInnerLines(fl)
-	keep := pilotHoles[:0]
-	for _, h := range pilotHoles {
-		mine := false
-		for _, c := range layers {
-			if c == h.c {
-				mine = true
-			}
-		}
-		if mine {
-			h.c.px[h.i], h.l.part[h.i] = h.px, h.part
-		} else {
-			keep = append(keep, h)
-		}
-	}
-	pilotHoles = keep
-	lines()
-	pilotOutline(layers...)
-	return true
-}
-
-// pilotInnerLines undoes innerLines(0.4, layers...) as limbs.go ran it on
-// the same layers, and returns what draws the lines again: each a deeper
-// shade of the part it is drawn on, rather than that part mixed with ink
-// (a light skin went grey).
-func pilotInnerLines(layers []*figLayer) func() {
-	for _, l := range layers {
-		if l == nil {
-			return func() {}
-		}
-	}
+// pLines draws the fine lines between the parts laid on layers (one over
+// the next), as innerLines does for the old figure: but each a deeper shade
+// of the part it is drawn on rather than that part mixed with ink (a light
+// skin went grey), and none round a shoulder (pBlendShoulder). Then the
+// shared outline round them all (pilotOutline).
+func (g *figGen) pLines(layers ...*figLayer) {
 	c0 := layers[0].c
 	type key struct {
 		l int
@@ -501,22 +364,19 @@ func pilotInnerLines(layers []*figLayer) func() {
 			}
 		}
 	}
-	un := func(v, ink uint8) uint8 { // v = x + (ink - x) * 0.4, so x = (v - 0.4 ink) / 0.6
-		return uint8(math.Max(0, math.Min(255, math.Round((float64(v)-0.4*float64(ink))/0.6))))
-	}
+	zones := pilotZonesOf == g
+	k := pspec().lineK
 	for _, m := range marks {
 		p := &layers[m.l].c.px[m.i]
-		*p = color.RGBA{un(p.R, colInk.R), un(p.G, colInk.G), un(p.B, colInk.B), p.A}
-	}
-	return func() {
-		k := pspec().lineK
-		for _, m := range marks {
-			p := &layers[m.l].c.px[m.i]
-			if !inZone(m.i, layers[m.l].c.w) {
-				*p = pLineOf(*p, k)
-			}
+		if !zones || !inZone(m.i, layers[m.l].c.w) {
+			*p = pLineOf(*p, k)
 		}
 	}
+	cs := make([]*canvas, len(layers))
+	for i, l := range layers {
+		cs[i] = l.c
+	}
+	pilotOutline(cs...)
 }
 
 // pLineOf is the fine line's colour on colour c: c darker by k, a little
@@ -526,35 +386,6 @@ func pLineOf(c color.RGBA, k float64) color.RGBA {
 	return okColor(L*(1-k), math.Min(C*1.02, 0.14), h-0.04)
 }
 
-// pOwn marks g's upper layers as a pilot's, for their lines and rim.
-func (g *figGen) pOwn() {
-	for _, l := range []*figLayer{g.FA, g.B, g.U, g.S, g.A, g.T, g.AO, g.TO} {
-		if l != nil {
-			pilotOwned[l.c] = l
-			pilotOwner[l.c] = g
-		}
-	}
-}
-
-// pilotLegs marks the legs' layer, for their lines and outline (see
-// outline).
-var pilotLegs = map[*canvas]*figLayer{}
-
-// pilotOutlineOf is canvas.outline for the pilot's legs: it reports
-// whether c was theirs.
-func pilotOutlineOf(c *canvas) bool {
-	l := pilotLegs[c]
-	if l == nil {
-		return false
-	}
-	delete(pilotLegs, c)
-	keep := pilotZones
-	pilotZones = nil
-	pilotInnerLines([]*figLayer{l})()
-	pilotZones = keep
-	pilotOutline(c)
-	return true
-}
 
 // pInkOf is the outline's colour next to colour c: c much darker, its
 // chroma kept and its hue turned a little towards purple, so the line is

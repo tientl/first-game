@@ -331,9 +331,6 @@ var colInk = hex(0x1b1424)
 // outline adds a dark rim around every opaque region, tinted by the colour
 // it borders, the usual "selective outline" of pixel art.
 func (c *canvas) outline(strength float64) {
-	if pilotStyle != charCurrent && pilotOutlineOf(c) { // a style pilot's legs: see charpilot.go
-		return
-	}
 	src := make([]color.RGBA, len(c.px))
 	copy(src, c.px)
 	get := func(x, y int) color.RGBA {

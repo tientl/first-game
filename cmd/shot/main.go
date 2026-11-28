@@ -105,7 +105,7 @@ func main() {
 	aimAt := flag.String("aim", "", "dx,dy: hold the mouse pointer this many tiles from the player (the hover brackets, a held torch's ghost)")
 	buildID := flag.Int("build", -1, "recipe id of a structure to place (0 campfire, 8 wall, 9 bed…): build mode with its ghost under -aim, the ingredients given")
 	herohd := flag.Bool("herohd", false, "draw the players as the trial hero: bigger, with a run, a sword blow and firelight (a trial; see internal/client/herohd.go)")
-	charStyle := flag.String("charstyle", "current", "the player figure's style, a pilot to choose between: current, A (refined), B (heroic) or C (painterly); see internal/client/charpilot.go")
+	charStyle := flag.String("charstyle", "A", "the player figure's painters, to compare: A (as the game draws it) or old (the figure before it; see internal/client/charpilot.go)")
 	chestFlag := flag.String("chest", "", "open a chest next to the player, with things in it: chest, or treasure (an old chest from a cave with its hoard)")
 	statusFlag := flag.String("status", "", "status effects on the player, comma-separated: cold, poison, web, starving, hungry, bees")
 	running := flag.Bool("run", false, "the player is on the move (with -herohd: mid-stride)")

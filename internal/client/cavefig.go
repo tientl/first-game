@@ -100,10 +100,6 @@ func bareTrunk(female bool, d sim.Dir) shape {
 // bareBody draws the bare trunk and the neck on U, and over it the
 // loincloth, or a woman's fur wrap and skirt.
 func (g *figGen) bareBody(d sim.Dir, sk skirt) {
-	if pilotOn() { // a style pilot's figure: see charpilot.go
-		g.pBody(d, sk)
-		return
-	}
 	f := &g.f
 	female, up, side := g.look.Female, d == sim.DirUp, d == sim.DirRight
 	U := g.U
@@ -528,10 +524,6 @@ type armMuscle struct {
 // limb, and each muscle as a bulge on it. A woman's is slighter and less
 // marked.
 func (g *figGen) bareArm(l *figLayer, a armGeom, bias float64, d sim.Dir, i int) {
-	if pilotOn() {
-		g.pArm(l, a, bias, d, i)
-		return
-	}
 	f := &g.f
 	side, back := d == sim.DirRight, d == sim.DirUp
 	k, mk := 1.0, 1.0 // how thick the arm is, and how marked its muscles
@@ -678,10 +670,6 @@ func (g *figGen) bareArm(l *figLayer, a armGeom, bias float64, d sim.Dir, i int)
 // bareLeg draws a bare leg on L: the thigh, the knee, the calf and the
 // shin down to the ankle. view is the facing; dim darkens the far leg.
 func (g *figGen) bareLeg(lg legGeom, dim float64, view sim.Dir) {
-	if pilotOn() {
-		g.pLeg(lg, dim, view)
-		return
-	}
 	f := &g.f
 	side, back := view == sim.DirRight, view == sim.DirUp
 	rt0, rt1, rk, rc, ra := 5.2, 4.2, 3.3, 4.2, 2.4
@@ -755,10 +743,6 @@ func (g *figGen) bareLeg(lg legGeom, dim float64, view sim.Dir) {
 // the toes in a row; from behind the heel. toe is how far the toes point
 // sideways.
 func (g *figGen) bareFoot(lg legGeom, dim, toe float64, view sim.Dir) {
-	if pilotOn() {
-		g.pFoot(lg, dim, toe, view)
-		return
-	}
 	f := &g.f
 	ax, ay := math.Round(lg.ax*2)/2, lg.ay
 	k := 1.0

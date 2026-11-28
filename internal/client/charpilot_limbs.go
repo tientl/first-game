@@ -86,8 +86,6 @@ var (
 
 // pArm draws arm i of a figure facing d bare on l, and its hand.
 func (g *figGen) pArm(l *figLayer, a armGeom, bias float64, d sim.Dir, i int) {
-	g.pRestoreSkin()
-	g.pOwn()
 	f := &g.f
 	sp := pspec()
 	v := viewOf(d)
@@ -185,15 +183,14 @@ func (g *figGen) pArm(l *figLayer, a armGeom, bias float64, d sim.Dir, i int) {
 		return g.pSkinShade(&rp, arm, h, x, y, b)
 	})
 	f.pClean(l, f.n, 2)
-	g.pHand(l, a, v, &rp, bias)
-	g.pHideFist(l, a, v)
+	g.pHand(l, a, v, &rp, bias, false)
 	g.pBlendShoulder(sx, sy, 4.4*ku)
 }
 
 // pHand draws the hand at the end of arm a: a fist, its fingers curled
 // and the thumb over them, seen from its back sideways and from its thumb's
-// side from the front; or open, the fingers out.
-func (g *figGen) pHand(l *figLayer, a armGeom, v pView, rp *pRamps, bias float64) {
+// side from the front; or open, the fingers out. cuff: out of a sleeve.
+func (g *figGen) pHand(l *figLayer, a armGeom, v pView, rp *pRamps, bias float64, cuff bool) {
 	f := &g.f
 	sp := pspec()
 	female := g.look.Female
@@ -248,7 +245,11 @@ func (g *figGen) pHand(l *figLayer, a armGeom, v pView, rp *pRamps, bias float64
 	})
 	fist.x0, fist.y0, fist.x1, fist.y1 = cx-L-B, cy-L-B, cx+L+B, cy+L+B
 	// the wrist into it
-	wx0, wy0 := at(-L-1.6, 0)
+	wt := -L - 1.6
+	if cuff { // out of a sleeve: no more of the wrist than shows under the cuff
+		wt = -L - 0.5
+	}
+	wx0, wy0 := at(wt, 0)
 	wx1, wy1 := at(-L+0.8, 0)
 	wrist := sCap(wx0, wy0, wx1, wy1, 1.5*k, 1.9*k)
 	shape := fist.or(wrist)
@@ -299,8 +300,6 @@ var (
 // pLeg draws a bare leg on L: the thigh, the knee, the calf and the shin
 // down to the ankle. dim darkens the far leg.
 func (g *figGen) pLeg(lg legGeom, dim float64, view sim.Dir) {
-	g.pRestoreSkin()
-	pilotLegs[g.L.c] = g.L
 	f := &g.f
 	sp := pspec()
 	v := viewOf(view)

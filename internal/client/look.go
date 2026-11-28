@@ -1029,9 +1029,6 @@ func playerLayersPose(l sim.Look, d sim.Dir, frame int, asleep bool, hide armSid
 // round their joint silhouette: each rim pixel goes in the layer it borders,
 // so the rim of the clothes takes the player's colour too.
 func rimLayers(layers ...*canvas) {
-	if pilotRimLayers(layers) { // a style pilot's figure: see charpilot.go
-		return
-	}
 	type rim struct {
 		c    *canvas
 		x, y int

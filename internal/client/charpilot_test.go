@@ -28,10 +28,10 @@ var pilotStyles = []struct {
 	s    charStyle
 	name string
 }{
-	{charCurrent, "current"},
-	{charRefined, "a refined"},
-	{charHeroic, "b heroic"},
-	{charPainterly, "c painterly"},
+	{charCurrent, "old"},
+	{charRefined, "a"},
+
+
 }
 
 var pilotLooks = []struct {
@@ -47,11 +47,6 @@ var pilotLooks = []struct {
 func setPilot(t *testing.T, s charStyle) {
 	t.Helper()
 	pilotStyle = s
-	pilotSkinHold = map[*figGen]ramp{}
-	pilotHoles = nil
-	pilotOwned = map[*canvas]*figLayer{}
-	pilotOwner = map[*canvas]*figGen{}
-	pilotLegs = map[*canvas]*figLayer{}
 }
 
 // pilotShot puts one frame of the jointed figure together on img, its feet
@@ -215,7 +210,7 @@ func pFillRect(img *image.RGBA, r image.Rectangle, c color.RGBA) {
 // the ground line, and keep its pixels opaque where the old fist's dots
 // were put back.
 func TestCharPilotBakes(t *testing.T) {
-	defer setPilot(t, charCurrent)
+	defer setPilot(t, charRefined)
 	lo2, up2 := moChop.keys(sim.DirRight, 2)
 	type pose struct {
 		up upKey
@@ -237,10 +232,6 @@ func TestCharPilotBakes(t *testing.T) {
 					} {
 						uc := bakeUpper(l, w, p.up, headCache{})
 						lc, _ := bakeLower(l, w, p.lo)
-						if len(pilotSkinHold) != 0 || len(pilotHoles) != 0 || len(pilotOwned) != 0 || len(pilotOwner) != 0 || len(pilotLegs) != 0 {
-							t.Fatalf("%s %+v wear %d facing %d %+v: left behind %d skins, %d dots, %d layers, %d legs", st.name, l, w, d, p.up,
-								len(pilotSkinHold), len(pilotHoles), len(pilotOwned), len(pilotLegs))
-						}
 						if uc.layer[upTop] == nil || lc == nil {
 							t.Fatalf("%s: no drawing", st.name)
 						}
@@ -268,7 +259,7 @@ func TestCharPilotSheets(t *testing.T) {
 	if dir == "" {
 		t.Skip("set CHAR_PILOT to a folder")
 	}
-	defer setPilot(t, charCurrent)
+	defer setPilot(t, charRefined)
 	white := color.RGBA{255, 255, 255, 255}
 	dark := color.RGBA{24, 22, 30, 255}
 
@@ -374,7 +365,7 @@ func TestCharPilotSheets(t *testing.T) {
 			l := sim.Look{Hair: sim.HairBun, HairColor: 0, Skin: uint8(s)}
 			pilotShot(img, l, upKey{dir: sim.DirRight}, loKey{dir: sim.DirRight}, (8+s)*cw+cw/2, 2*ch+ch-16, k, false)
 		}
-		name := []string{"", "a", "b", "c"}[st.s]
+		name := []string{"old", "a"}[st.s]
 		limbPNG(t, filepath.Join(dir, "hair_"+name+".png"), img)
 	}
 
@@ -398,7 +389,7 @@ func TestCharPilotSheets(t *testing.T) {
 		for i, s := range shots {
 			pilotShot(img, s.l, s.up, s.lo, i*cw+cw/2, ch+(limbGround-86)*k, k, false)
 		}
-		name := []string{"cur", "a", "b", "c"}[st.s]
+		name := []string{"old", "a"}[st.s]
 		limbPNG(t, filepath.Join(dir, "close_"+name+".png"), img)
 	}
 
@@ -483,7 +474,7 @@ func TestCharPilotSheets(t *testing.T) {
 				pilotShot(img, l, upKey{dir: d}, loKey{dir: d}, (li*3+di)*cw+cw/2, ch-10, k, false)
 			}
 		}
-		name := []string{"cur", "a", "b", "c"}[st.s]
+		name := []string{"old", "a"}[st.s]
 		limbPNG(t, filepath.Join(dir, "detail_"+name+".png"), img)
 	}
 }

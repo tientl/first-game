@@ -35,41 +35,13 @@ type pFace struct {
 	rows []string
 }
 
-// The faces, by facing and build: front (columns 20 to 33), side. Letters:
-// B brow, b brow faint, K lash and lid, k lid faint, W white, w white in
-// shade, H glint, I iris, i iris lit, P pupil, - a tone darker, = two, +
-// a tone lighter, N nostril, M mouth, U lip, u lip lit, . nothing.
+// The faces, by facing and build: front (columns 20 to 33), side. The eyes
+// are bold: dark, with a glint, under a strong brow. Letters: B brow, b
+// brow faint, K lash and lid, k lid faint, W white, w white in shade, H
+// glint, I iris, i iris lit, P pupil, - a tone darker, = two, + a tone
+// lighter, N nostril, M mouth, U lip, u lip lit, . nothing.
 var (
-	faceManA = pFace{20, 31, []string{
-		".bBBB....BBBb.",
-		"..-........-..",
-		"...KK....KK...",
-		"..KHP....HPK..",
-		"..wII....IIw..",
-		"...-..+-..-...",
-		"......+-......",
-		".....-+--.....",
-		"......NN......",
-		"..............",
-		".....-MM-.....",
-	}}
-	faceWomanA = pFace{20, 31, []string{
-		"..bBb....bBb..",
-		"..............",
-		".kKKK....KKKk.",
-		"..KHP....HPK..",
-		"..wII....IIw..",
-		"..............",
-		"...u......u...",
-		"......+.......",
-		"......-=......",
-		"..............",
-		".....UUUU.....",
-		"......uu......",
-	}}
-	// The heroic face: the eyes dark with a glint, as a sprite hero's are,
-	// under a heavy brow.
-	faceManB = pFace{20, 30, []string{
+	faceMan = pFace{20, 30, []string{
 		"..............",
 		".BBBB....BBBB.",
 		"..-BB+..+BB-..",
@@ -83,7 +55,7 @@ var (
 		"..............",
 		".....-MM-.....",
 	}}
-	faceWomanB = pFace{20, 30, []string{
+	faceWoman = pFace{20, 30, []string{
 		"..............",
 		"..bBB....BBb..",
 		"..............",
@@ -98,32 +70,7 @@ var (
 		".....UUUU.....",
 		"......uu......",
 	}}
-	faceManSideA = pFace{29, 31, []string{
-		"..BBBBB.",
-		"...=--..",
-		"...KKK..",
-		"...wHP..",
-		"...-IP..",
-		"....-...",
-		"........",
-		"......N.",
-		"........",
-		"....-M..",
-	}}
-	faceWomanSideA = pFace{29, 31, []string{
-		"...bBB..",
-		"........",
-		"...KKKK.",
-		"...wHP..",
-		"...-IP..",
-		"........",
-		"...u....",
-		"......N.",
-		"........",
-		".....U..",
-		".....u..",
-	}}
-	faceManSideB = pFace{29, 30, []string{
+	faceManSide = pFace{29, 30, []string{
 		"........",
 		"..BBBBB.",
 		"...-BB..",
@@ -137,7 +84,7 @@ var (
 		"........",
 		"....-M..",
 	}}
-	faceWomanSideB = pFace{29, 30, []string{
+	faceWomanSide = pFace{29, 30, []string{
 		"........",
 		"...bBB..",
 		"........",
@@ -234,9 +181,7 @@ func (g *figGen) pHead(d sim.Dir, shut bool) {
 		if l.Female {
 			nose = sPoly(34, fy(35.8), 35.7, fy(38.4), 35.5, fy(39.2), 34.2, fy(39.4))
 		}
-		if sp.eyeBig {
-			nose = nose.grow(0.2)
-		}
+		nose = nose.grow(0.2)
 		skull = skull.or(nose)
 	default:
 		skull = sSuper(27, cy, rx, ry, 2.5)
@@ -326,24 +271,14 @@ func (g *figGen) pHead(d sim.Dir, shut bool) {
 
 	// The face.
 	if !v.back {
-		var fc pFace
+		fc := faceMan
 		switch {
-		case v.side && l.Female && sp.eyeBig:
-			fc = faceWomanSideB
 		case v.side && l.Female:
-			fc = faceWomanSideA
-		case v.side && sp.eyeBig:
-			fc = faceManSideB
+			fc = faceWomanSide
 		case v.side:
-			fc = faceManSideA
-		case l.Female && sp.eyeBig:
-			fc = faceWomanB
+			fc = faceManSide
 		case l.Female:
-			fc = faceWomanA
-		case sp.eyeBig:
-			fc = faceManB
-		default:
-			fc = faceManA
+			fc = faceWoman
 		}
 		if shut {
 			fc = pShut(fc)
@@ -456,13 +391,7 @@ func (g *figGen) pStampFace(l *figLayer, fc pFace, rp *pRamps) {
 // whole as the mass s bulges.
 func (g *figGen) pHairShade(r ramp, s shape, round, cx, cy float64, seed uint32) shader {
 	sp := pspec()
-	cw := 2.6 // a clump's width, where the hair hangs
-	switch pilotStyle {
-	case charHeroic:
-		cw = 3.4
-	case charPainterly:
-		cw = 2.2
-	}
+	cw := sp.hairClump // a clump's width, where the hair hangs
 	return func(x, y int, _ float64) color.RGBA {
 		v := s.lum(x, y, round)*0.8 + 0.1
 		fx, fy := float64(x)+0.5-cx, float64(y)+0.5-cy
@@ -485,14 +414,9 @@ func (g *figGen) pHairShade(r ramp, s shape, round, cx, cy float64, seed uint32)
 			e := math.Abs(rr - band - (h-0.5)*1.8)
 			if e < 0.9 && fx < 3.5 && fx > -9 && (j == 0 || fy > 10) && fr < 0.8 {
 				v += 0.2
-				if sp.chunkyHi && e < 0.5 {
-					v += 0.12
-				}
 			}
 		}
-		if sp.grain > 0 {
-			v += (vnoise(float64(x)*0.5, float64(y)*0.25, seed+3) - 0.5) * 0.12
-		}
+		v += (vnoise(float64(x)*0.5, float64(y)*0.25, seed+3) - 0.5) * sp.hairGrain // the strands through the clumps
 		return pTone(r, v, x, y)
 	}
 }
@@ -861,9 +785,7 @@ func (g *figGen) pBeard(d sim.Dir, rp *pRamps) {
 			if dd > -1.1 && fy > my+3 {
 				v -= 0.1 // the ends
 			}
-			if sp.grain > 0 {
-				v += (hashf(x, y, seed+5) - 0.5) * 0.08
-			}
+			v += (hashf(x, y, seed+5) - 0.5) * sp.hairGrain * 0.7 // fine hairs
 			return pTone(br, v, x, y)
 		}
 	}

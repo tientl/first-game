@@ -541,6 +541,10 @@ func legGeo(d sim.Dir, i int, p lowerPose) legGeom {
 // the far leg; toe is how far the toe points sideways. From the side a
 // foot is seen at its full length.
 func (g *figGen) leg(lg legGeom, dim, toe float64, view sim.Dir) {
+	if pilotOn() { // the figure as it is painted: see charpilot.go
+		g.pLegFig(lg, dim, toe, view)
+		return
+	}
 	if g.wear&sim.WearLegWraps != 0 {
 		g.wrappedLeg(lg, dim)
 	} else {
@@ -592,6 +596,10 @@ func (g *figGen) wrappedLeg(lg legGeom, dim float64) {
 
 // boot draws a leg's boot and its fur cuff.
 func (g *figGen) boot(lg legGeom, dim, toe float64, side bool) {
+	if pilotOn() {
+		g.pBoot(lg, dim, toe, side)
+		return
+	}
 	f := &g.f
 	sx, sy := lg.ax-lg.kx, lg.ay-lg.ky
 	ax, ay := math.Round(lg.ax*2)/2, lg.ay
@@ -766,6 +774,10 @@ func (a armGeom) sleeve(female bool) shape {
 // arm draws arm i: its sleeve on sl, in the shirt's greys, and its fist on
 // hd; without a tunic the arm is bare, on hd too.
 func (g *figGen) arm(sl, hd *figLayer, d sim.Dir, i int, a armGeom) {
+	if pilotOn() {
+		g.pArmFig(sl, hd, d, i, a)
+		return
+	}
 	f := &g.f
 	bias, lit := 0.12, 0.1
 	switch {
@@ -885,7 +897,11 @@ func (hc headCache) get(l sim.Look, k headKey) *headArt {
 	g := newLimbGen(l, 0)
 	g.lagX, g.lagY = k.lagX, k.lagY
 	g.f.xf = k.bend.head(k.dir, l.Female)
-	g.tallHead(k.dir, k.shut)
+	if pilotOn() {
+		g.pHead(k.dir, k.shut)
+	} else {
+		g.tallHead(k.dir, k.shut)
+	}
 	k.bend.mouth(&g.f, g.T, k.dir, l)
 	h := &headArt{g.B, g.T, g.f.n}
 	if hc != nil {
@@ -976,10 +992,15 @@ func bakeUpper(l sim.Look, w sim.Wear, k upKey, heads headCache) upperCanvas {
 	f.n += h.n
 	each(armOver, func(i int, a armGeom) { g.arm(g.AO, g.TO, k.dir, i, a) })
 
-	innerLines(0.4, g.FA, g.B, g.U, g.S, g.A, g.T)
-	innerLines(0.4, g.AO, g.TO)
-	rimLayers(g.FA.c, g.B.c, g.U.c, g.S.c, g.A.c, g.T.c)
-	rimLayers(g.AO.c, g.TO.c)
+	if pilotOn() {
+		g.pLines(g.FA, g.B, g.U, g.S, g.A, g.T)
+		g.pLines(g.AO, g.TO)
+	} else {
+		innerLines(0.4, g.FA, g.B, g.U, g.S, g.A, g.T)
+		innerLines(0.4, g.AO, g.TO)
+		rimLayers(g.FA.c, g.B.c, g.U.c, g.S.c, g.A.c, g.T.c)
+		rimLayers(g.AO.c, g.TO.c)
+	}
 	out.layer = [numUpLayers]*canvas{g.FA.c, g.B.c, g.U.c, g.S.c, g.A.c, g.T.c, g.AO.c, g.TO.c}
 	for i := range out.arm { // where the hands went with the trunk
 		a := &out.arm[i]
@@ -1006,8 +1027,12 @@ func bakeLower(l sim.Look, w sim.Wear, k loKey) (*canvas, lowerPose) {
 	default:
 		g.legs(k.dir, p)
 	}
-	innerLines(0.4, g.L)
-	g.L.c.outline(0.72)
+	if pilotOn() {
+		g.pLines(g.L)
+	} else {
+		innerLines(0.4, g.L)
+		g.L.c.outline(0.72)
+	}
 	return g.L.c, p
 }
 

@@ -83,6 +83,10 @@ func tallTorso(female bool, d sim.Dir, sk skirt) (torso shape, hemAt func(x floa
 // on T; then the mantle on T, if one is worn. The hook is run before the
 // mantle, for the arms.
 func (g *figGen) tallBody(d sim.Dir, sk skirt) {
+	if pilotOn() { // the figure as it is painted: see charpilot.go
+		g.pTallBody(d, sk)
+		return
+	}
 	f := &g.f
 	female, up, side := g.look.Female, d == sim.DirUp, d == sim.DirRight
 	if g.wear&sim.WearTunic == 0 {

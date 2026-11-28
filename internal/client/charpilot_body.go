@@ -162,9 +162,6 @@ func (g *figGen) pSkinShade(rp *pRamps, s shape, h pHeight, x, y int, bias float
 	if c := pCrease(h, x, y, 1.8); c > 0.3 {
 		v -= math.Min(0.22, (c-0.3)*0.4)
 	}
-	if sp.grain > 0 {
-		v += (vnoise(fx*0.45, fy*0.28, 3) - 0.5) * sp.grain * 1.4 // brushwork, along the body
-	}
 	col := rp.skin[pToneI(len(rp.skin), v, x, y)]
 	if pWarm != nil && sp.warmZones > 0 {
 		if w := pWarm(fx, fy) * sp.warmZones; w > 0.02 {
@@ -177,8 +174,6 @@ func (g *figGen) pSkinShade(rp *pRamps, s shape, h pHeight, x, y int, bias float
 // pBody draws the bare trunk and the neck on U, and over it the loincloth,
 // or a woman's fur top and skirt.
 func (g *figGen) pBody(d sim.Dir, sk skirt) {
-	g.pRestoreSkin()
-	g.pOwn()
 	f := &g.f
 	v := viewOf(d)
 	female := g.look.Female
@@ -338,13 +333,7 @@ func (g *figGen) pLoin(d sim.Dir, sk skirt, rp *pRamps) {
 	if v.side {
 		bias = -0.05
 	}
-	clump := 3.0
-	switch pilotStyle {
-	case charHeroic:
-		clump = 3.6
-	case charPainterly:
-		clump = 2.6
-	}
+	clump := pspec().furClump
 	f.fill(g.U, s, func(x, y int, _ float64) color.RGBA {
 		fy := float64(y) + 0.5
 		lv := s.lum(x, y, 6)*0.6 + 0.24 + bias
