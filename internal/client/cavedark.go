@@ -26,13 +26,10 @@ import (
 // the light: drawCaveEyes.
 
 // caveAmbient is the light of the natural caves away from any light, by
-// level (the deep caves are darker still), before the cave brightness
-// setting: near black, a little blue.
+// level (the deep caves are darker still), before the brightness setting
+// (brightnessLevels): near black, a little blue.
 var caveAmbient = [sim.CaveLevels][3]float32{{0.068, 0.078, 0.125}, {0.052, 0.062, 0.102}}
 
-// caveBrightness is how much each choice of the cave brightness setting
-// (Settings.CaveLight: dark, dim, light) raises the dark.
-var caveBrightness = [...]float32{1, 1.9, 2.9}
 
 // The reach of the lights in the caves, in tiles. They are wider than the
 // warmth the server gives (sim.TorchRadius and the like): light carries
@@ -132,10 +129,6 @@ func (g *Game) caveDarkOn() bool {
 	return ok
 }
 
-// caveLightSetting is the cave brightness setting, within its choices.
-func caveLightSetting() int {
-	return max(0, min(len(caveBrightness)-1, settings.CaveLight))
-}
 
 // drawCaveDark lights the natural caves: see the top of this file.
 func (g *Game) drawCaveDark(dst drawTarget, cam camera) {
@@ -146,7 +139,7 @@ func (g *Game) drawCaveDark(dst drawTarget, cam camera) {
 
 	// Coming down, the dark closes in as the cave fades in.
 	s := float32(smooth(g.caveIn()))
-	k := caveBrightness[caveLightSetting()]
+	k := brightnessLevels[brightnessSetting()].cave
 	for i, a := range caveAmbient[level] {
 		cd.amb[i] = 1 + (min(1, a*k)-1)*s
 	}

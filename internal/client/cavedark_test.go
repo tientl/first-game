@@ -20,15 +20,27 @@ func TestTheCavesAreDarkAwayFromLight(t *testing.T) {
 			t.Errorf("level %d: the dark is %v (light %.3f): want 4-9%%, bluish", k, a, l)
 		}
 	}
-	if DefaultSettings().CaveLight != 0 {
-		t.Errorf("the cave brightness starts at %d, not dark", DefaultSettings().CaveLight)
+	if DefaultSettings().Brightness != 0 {
+		t.Errorf("the brightness starts at %d, not as the game is", DefaultSettings().Brightness)
 	}
-	for _, c := range []struct{ in, want int }{{-3, 0}, {1, 1}, {9, len(caveBrightness) - 1}} {
+	for _, c := range []struct{ in, want int }{{-3, 0}, {1, 1}, {9, len(brightnessLevels) - 1}} {
 		s := DefaultSettings()
-		s.CaveLight = c.in
-		if got := s.valid().CaveLight; got != c.want {
-			t.Errorf("cave brightness %d kept as %d, want %d", c.in, got, c.want)
+		s.Brightness = c.in
+		if got := s.valid().Brightness; got != c.want {
+			t.Errorf("brightness %d kept as %d, want %d", c.in, got, c.want)
 		}
+	}
+	// Even at the brightest the caves away from any light stay too dark to
+	// see by: a torch is still needed.
+	top := brightnessLevels[len(brightnessLevels)-1]
+	for k := range sim.CaveLevels {
+		a := caveAmbient[k]
+		if l := float32(0.2126*a[0]+0.7152*a[1]+0.0722*a[2]) * top.cave; l > 0.15 {
+			t.Errorf("level %d at the brightest: light %.3f, want 15%% or less", k, l)
+		}
+	}
+	if top.night < 0.7 {
+		t.Errorf("the brightest keeps %.2f of the night's dark, want 0.7 or more", top.night)
 	}
 }
 

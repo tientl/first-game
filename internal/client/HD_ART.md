@@ -433,7 +433,7 @@ chamber, rock and whether the main route runs over it):
   daylight down the ways up, and lava from a tile mask); the scene is
   multiplied by it, then a little haze is added round the lamps. The
   eyes of spiders, bears and bats shine where it is dark
-  (`drawCaveEyes`). The "Độ sáng hang" setting raises the dark.
+  (`drawCaveEyes`). The "Độ sáng" setting (Settings.Brightness, brightnessLevels) raises the dark a little, never enough to see without a torch.
 - The map bakes each level as its own layer (`cavemap.go`).
 
 `go test ./internal/client -bench BakeCaveChunk` times a cave chunk. Look at

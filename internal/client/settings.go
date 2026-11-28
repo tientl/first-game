@@ -66,11 +66,24 @@ type Settings struct {
 	NoShake bool   `json:"noshake,omitempty"` // screen shake turned off; see feel.go
 	PostFX  bool   `json:"postfx"`            // the lighting shaders: glow and grading; see postfx.go
 	Grade   string `json:"grade,omitempty"`   // a colour grade of the world: "" (the game's own) or "comfy"
-	Ground  string `json:"ground,omitempty"`  // the look of the ground: "" (green) or "warm"; see groundhd.go
-	// CaveLight is how dark the caves are away from any light: 0 dark (a
-	// torch is needed), 1 dim, 2 light; see cavedark.go.
-	CaveLight int `json:"caveLight,omitempty"`
+	// Brightness lifts the dark of the night and of the caves for a dim
+	// screen: 0 as the game is, 1 brighter, 2 brightest. Even at 2 a cave
+	// away from any light is too dark to find the way without a torch; see
+	// brightnessLevels.
+	Brightness int `json:"brightness,omitempty"`
 }
+
+// brightnessLevels is what each choice of Settings.Brightness does: how
+// much it raises the dark of the natural caves (cavedark.go), and how much
+// of the night's dark it keeps (lighting.go).
+var brightnessLevels = [...]struct{ cave, night float32 }{
+	{1, 1},
+	{1.35, 0.88},
+	{1.7, 0.76},
+}
+
+// brightnessSetting is the brightness setting, within its choices.
+func brightnessSetting() int { return max(0, min(len(brightnessLevels)-1, settings.Brightness)) }
 
 // The choices the settings screen offers.
 var (
@@ -163,10 +176,7 @@ func (s Settings) valid() Settings {
 		s.FPS = nearest(fpsChoices[:len(fpsChoices)-1], s.FPS, 0)
 	}
 	s.Zoom = max(minZoom, min(maxZoom, s.Zoom))
-	if s.Ground != "warm" {
-		s.Ground = ""
-	}
-	s.CaveLight = max(0, min(len(caveBrightness)-1, s.CaveLight))
+	s.Brightness = max(0, min(len(brightnessLevels)-1, s.Brightness))
 	if !gradeKnown(s.Grade) {
 		s.Grade = ""
 	}
@@ -241,10 +251,6 @@ func setSettings(s Settings) {
 	old := settings
 	settings = s
 	viewZoom = s.Zoom
-	groundStyle = GroundGreen
-	if s.Ground == "warm" {
-		groundStyle = GroundWarm
-	}
 	postFX = s.PostFX
 	uiScaleSetting = float64(s.UIScale) / 100
 	applyScreenShake(!s.NoShake)
