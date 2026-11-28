@@ -122,6 +122,7 @@ Lần đầu chạy: toàn màn hình theo độ phân giải màn hình, chất
 | = / − (hoặc Ctrl + lăn chuột) | Thu phóng: nhìn gần hơn hoặc xa hơn; lưu trong settings.json. Khi mở bản đồ (M): lăn chuột hoặc = / − để phóng to bản đồ quanh chỗ bạn |
 | Esc | Đang xây thì thôi xây; đang mở bảng nào thì đóng bảng đó; không thì tạm dừng: tiếp tục, lưu game, cài đặt, về menu, thoát |
 | F1 | Hiện / ẩn bảng phím tắt đầy đủ (góc dưới bên trái); mặc định ẩn |
+| (tự động) | Game mới có **bảng hướng dẫn** nhỏ dưới thanh máu (nhặt đồ, rìu đá, lửa trại, ăn, đuốc, lều, hang) và vài lời nhắc một lần; tắt ở Cài đặt > Điều khiển |
 | F11 / Alt+Enter | Toàn màn hình hoặc cửa sổ (lưu trong cài đặt) |
 
 **Giao diện** (`internal/client/hud.go`, `uiscale.go`): giao diện (HUD, túi đồ, rương, bảng chế tạo, bản đồ, menu, màn tạo nhân vật, bảng tạm dừng) vẽ thẳng ở độ phân giải màn hình, bố cục tính theo điểm UI: tự động chiều cao màn hình chia 540, làm tròn xuống từng phần tư (1,25 ở 720p, 2 ở 1080p với khung 960×540, 2,5 ở 1440p, 4 ở 4K), hoặc theo "Cỡ giao diện" trong cài đặt. Tỉ lệ lẻ vẫn nét: khung, thanh, biểu tượng vẽ đúng cỡ trên màn hình, chữ đặt đúng cỡ. Chuột được quy đổi theo đúng tỉ lệ đó nên nhấp đâu trúng đó. Chữ trên đầu thú, số sát thương, tên người chơi vẫn nằm trong thế giới nhưng to theo cùng tỉ lệ.

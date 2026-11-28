@@ -71,6 +71,8 @@ type Settings struct {
 	// away from any light is too dark to find the way without a torch; see
 	// brightnessLevels.
 	Brightness int `json:"brightness,omitempty"`
+	// NoTutorial turns the first minutes' guide off; see tutorial.go.
+	NoTutorial bool `json:"noTutorial,omitempty"`
 }
 
 // brightnessLevels is what each choice of Settings.Brightness does: how

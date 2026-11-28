@@ -308,7 +308,7 @@ func TestTheSettingsScreenChangesTheSettings(t *testing.T) {
 	if st.Master != 0.95 || !st.MuteUnfocused {
 		t.Errorf("Mặc định on Hiển thị changed the sound: %+v", st)
 	}
-	if s.setTab(setTabControls); len(s.rows()) != 0 || s.line != 0 || s.foot != 1 {
+	if s.setTab(setTabControls); len(s.rows()) != 1 || s.line != 0 || s.foot != 1 { // the one row: the guide's switch
 		t.Errorf("the controls tab: %d rows, line %d, foot %d", len(s.rows()), s.line, s.foot)
 	}
 }

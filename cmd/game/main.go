@@ -100,6 +100,7 @@ type app struct {
 	// the saved player for "Chơi tiếp" (who keeps the saved look).
 	look      sim.Look
 	join      string
+	newGame   bool   // the session being made is a new game, not "Chơi tiếp": see client/tutorial.go
 	savedName string // the player in the save, from openMenu
 
 	// loading delivers the server being made or loaded in the background, so
@@ -158,7 +159,7 @@ func (a *app) Update() error {
 
 	switch a.menu.Update() {
 	case client.MenuContinue:
-		a.look, a.join = sim.Look{}, a.name
+		a.look, a.join, a.newGame = sim.Look{}, a.name, false
 		if a.join == "" {
 			a.join = a.savedName
 		}
@@ -172,7 +173,7 @@ func (a *app) Update() error {
 			return loaded{srv, err, "Không mở được bản lưu"}
 		})
 	case client.MenuNew:
-		a.look, a.join = a.menu.NewLook(), a.menu.NewName()
+		a.look, a.join, a.newGame = a.menu.NewLook(), a.menu.NewName(), true
 		cfg := a.config()
 		cfg.Seed = a.seed
 		if cfg.Seed == 0 {
@@ -234,6 +235,9 @@ func (a *app) start(srv *server.Server) {
 	g.SetLook(a.look)
 	g.SetPauseHook(srv.SetPaused)
 	g.SetDev(a.dev)
+	if !a.dev {
+		g.SetTutorial(srv.Seed(), a.join, a.newGame) // the first minutes' guide
+	}
 	a.sess = &session{srv: srv, cancel: cancel, done: done, conn: conn, game: g}
 	a.menu = nil
 }

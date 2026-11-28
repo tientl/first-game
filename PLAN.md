@@ -27,7 +27,7 @@ Bản demo cho người khác chơi thử. Chỉ làm những mục dưới đâ
   - **Màn ra mắt**: camera khựng và kéo về phía trùm, màn hình tối viền, chữ to "TITANOBOA — Chúa rừng rậm", trùm gầm / phóng lên, nhạc chiến đấu bắt đầu.
   - **Đấu trường**: khi trận bắt đầu, lối ra bị chắn (rễ, dây leo; với Megalodon là vùng nước xoáy) cho tới khi hạ trùm hoặc người chơi chạy thật xa.
   - Lúc không đánh, trùm có hoạt động: Titanoboa săn thú quanh hang, cuộn ngủ; Megalodon lượn vòng, đớp cá.
-- [ ] **Hướng dẫn chơi** vài phút đầu.
+- [x] **Hướng dẫn chơi** vài phút đầu: bảng nhiệm vụ nhỏ (9 bước) dưới thanh máu, lời nhắc một lần (đêm, lạnh, đói, vùng đỏ, hang tối, ổ trùm); tắt được ở Cài đặt > Điều khiển; không chạy ở -dev.
 - [x] **Menu cài đặt** ("Cài đặt" ở menu chính và menu tạm dừng; `settings.go`, `settingsui.go`, `display.go`): thẻ **Âm thanh** (âm lượng chung, nhạc, hiệu ứng, tiếng thú; tắt tiếng khi chuyển cửa sổ), **Hiển thị** và **Điều khiển** (bảng phím, chỉ xem). Đổi là có hiệu lực ngay và lưu vào `settings.json` (file cũ vẫn đọc được); "Mặc định" đặt lại từng thẻ; cờ dòng lệnh (`-window`, `-res`, `-quality`, `-ui`, `-fps`, `-vsync`, `-postfx`) chỉ dùng cho lần chạy đó. Phần **Hiển thị**:
   - Chế độ màn hình: Toàn màn hình / Toàn màn hình không viền / Cửa sổ (F11 hoặc Alt+Enter đổi nhanh); không viền là cửa sổ không khung to bằng màn hình, Alt+Tab nhanh. Vẽ theo điểm ảnh thật của màn hình (cả khi Windows phóng 125–150%).
   - Độ phân giải: danh sách theo màn hình (1280×720, 1600×900, 1920×1080, 2560×1440…). Sắc nét nhất ở 1080p và các mức gấp nguyên lần (4K).
