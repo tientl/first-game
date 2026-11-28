@@ -166,7 +166,7 @@ func (g *figGen) pArm(l *figLayer, a armGeom, bias float64, d sim.Dir, i int) {
 	}
 	arm := upper.or(fore)
 	pWarm = func(x, y float64) float64 {
-		return math.Max(0.65*warmNear(x, y, a.hx, a.hy, 5.5), 0.4*warmNear(x, y, a.ex, a.ey, 3))
+		return math.Max(0.5*warmNear(x, y, a.hx, a.hy, 5.5), 0.4*warmNear(x, y, a.ex, a.ey, 3))
 	}
 	defer func() { pWarm = nil }()
 	f.fill(l, arm, func(x, y int, _ float64) color.RGBA {

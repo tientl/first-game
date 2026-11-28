@@ -99,7 +99,7 @@ var pSpecA = pSpec{
 	arm: 1.08, fore: 1.08, thigh: 1.05, calf: 1.1, fist: 6, foot: 1.12,
 	loinTop: 68.5, loinHem: 84,
 	tones: 6, rim: 1, inkDark: 0.62, inkLit: 0.42, lineK: 0.28, contrast: 1, muscleK: 0.85,
-	furTones: 9, hairTones: 8, shadeTurn: -0.12, shadeSat: 0.9, warmEdge: 0.3, warmZones: 0.85,
+	furTones: 9, hairTones: 8, shadeTurn: -0.07, shadeSat: 0.92, warmEdge: 0.2, warmZones: 0.75,
 	furK: 1.7, furClump: 2.6, hairClump: 2.2, hairGrain: 0.12,
 }
 
@@ -347,8 +347,9 @@ func (g *figGen) pLines(layers ...*figLayer) {
 		}
 		return key{}, false
 	}
-	type mark struct{ l, i int }
+	type mark struct{ l, i, shade int } // shade: the pixel behind the line, in the shadow of the part over it (-1: none)
 	var marks []mark
+	isMark := make([]bool, c0.w*c0.h)
 	for y := 0; y < c0.h; y++ {
 		for x := 0; x < c0.w; x++ {
 			a, ok := top(x, y)
@@ -358,7 +359,12 @@ func (g *figGen) pLines(layers ...*figLayer) {
 			for _, d := range [4][2]int{{0, 1}, {1, 0}, {-1, 0}, {0, -1}} {
 				b, ok := top(x+d[0], y+d[1])
 				if ok && (b.l > a.l || b.l == a.l && b.p > a.p) {
-					marks = append(marks, mark{a.l, y*c0.w + x})
+					sh := -1
+					if c, ok := top(x-d[0], y-d[1]); ok && c == a && b.l > a.l {
+						sh = (y-d[1])*c0.w + x - d[0]
+					}
+					marks = append(marks, mark{a.l, y*c0.w + x, sh})
+					isMark[y*c0.w+x] = true
 					break
 				}
 			}
@@ -368,9 +374,23 @@ func (g *figGen) pLines(layers ...*figLayer) {
 	k := pspec().lineK
 	for _, m := range marks {
 		p := &layers[m.l].c.px[m.i]
-		if !zones || !inZone(m.i, layers[m.l].c.w) {
-			*p = pLineOf(*p, k)
+		if zones && inZone(m.i, layers[m.l].c.w) {
+			continue
 		}
+		kk := k
+		if _, C, _ := okLCh(*p); C < 0.025 {
+			// Cloth under cloth: the greys the player's colour goes on want
+			// a deeper line, and a shadow a pixel wide behind it.
+			kk = 0.4
+			if m.shade >= 0 && !isMark[m.shade] {
+				q := &layers[m.l].c.px[m.shade]
+				if _, C, _ := okLCh(*q); C < 0.025 {
+					*q = pLineOf(*q, 0.14)
+					isMark[m.shade] = true
+				}
+			}
+		}
+		*p = pLineOf(*p, kk)
 	}
 	cs := make([]*canvas, len(layers))
 	for i, l := range layers {

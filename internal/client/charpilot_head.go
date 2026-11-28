@@ -235,14 +235,14 @@ func (g *figGen) pHead(d sim.Dir, shut bool) {
 	}
 	cheek := 0.5
 	if l.Female {
-		cheek = 0.75
+		cheek = 0.6
 	}
 	pWarm = func(x, y float64) float64 {
 		if v.back {
 			return 0
 		}
 		if v.side {
-			return math.Max(cheek*warmNear(x, y, 31.2, cy+2, 2.8), 0.6*warmNear(x, y, 35.4, cy+2.8, 2.2))
+			return math.Max(cheek*warmNear(x, y, 31.2, cy+2, 2.8), 0.45*warmNear(x, y, 35.4, cy+2.8, 2.2))
 		}
 		return math.Max(cheek*math.Max(warmNear(x, y, 22.2, cy+2, 2.6), warmNear(x, y, 31.8, cy+2, 2.6)), 0.55*warmNear(x, y, 27, cy+2.8, 1.8))
 	}

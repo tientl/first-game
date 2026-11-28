@@ -162,18 +162,22 @@ func armorLayersBent(t sim.Tier, female bool, d sim.Dir, xf []figMap) (B, H *can
 	skull := sSuper(m.cx, headMapY, 18*m.kx, 8.5, 2.5)
 	switch t {
 	case sim.TierPlatinum: // a hide band round the brow with an agate set in it
-		band := skull.grow(0.7).and(sBox(0, 30, 60, 32, 0))
+		by := 30 // the band's top row: above the brow
+		if pilotOn() {
+			by = 28 // the figure's brow is higher (charpilot_head.go)
+		}
+		band := skull.grow(0.7).and(sBox(0, float64(by), 60, float64(by+2), 0))
 		f.fill(T, band, func(x, y int, _ float64) color.RGBA {
 			i := 4 - (x-19)/5
-			if y == 31 {
+			if y == by+1 {
 				i--
 			}
 			return hide.at(i)
 		})
 		gem := func(cx float64) {
-			s := sEll(cx, 31, 1.7, 1.7)
+			s := sEll(cx, float64(by+1), 1.7, 1.7)
 			f.fill(T, s, bevel(agateHD, s, 1.6, 0.1))
-			f.dot(T, int(cx-1), 30, agateHD[5])
+			f.dot(T, int(cx-1), by, agateHD[5])
 		}
 		if d == sim.DirDown {
 			gem(27)

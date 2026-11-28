@@ -478,3 +478,60 @@ func TestCharPilotSheets(t *testing.T) {
 		limbPNG(t, filepath.Join(dir, "detail_"+name+".png"), img)
 	}
 }
+
+// TestCharWearSheet writes the figure in its clothes: wear_poses.png (all
+// of them on, a man and a woman, in the poses besides walking: blows, a
+// throw, swimming, sitting a mount, asleep, struck down) and
+// wear_armor.png (every armour over the clothes and over bare skin, in
+// three facings), three times the size:
+//
+//	CHAR_WEAR=dir go test ./internal/client -run CharWearSheet
+func TestCharWearSheet(t *testing.T) {
+	dir := os.Getenv("CHAR_WEAR")
+	if dir == "" {
+		t.Skip("set CHAR_WEAR to a folder")
+	}
+	defer func(w sim.Wear) { limbWear = w }(limbWear)
+	man := sim.Look{Hair: sim.HairShort, HairColor: 0, Skin: 1}
+	woman := sim.Look{Female: true, Hair: sim.HairPonytail, HairColor: 3, Skin: 2}
+	type pose struct {
+		up upKey
+		lo loKey
+	}
+	var poses []pose
+	for _, d := range []sim.Dir{sim.DirRight, sim.DirDown, sim.DirUp} {
+		lo2, up2 := moChop.keys(d, 2)
+		poses = append(poses,
+			pose{upKey{d, upPunch, 0}, loKey{dir: d}}, pose{upKey{d, upPunch, atkFrames - 1}, loKey{dir: d}},
+			pose{upKey{d, upChop, 0}, loKey{dir: d}}, pose{up2, lo2},
+			pose{upKey{d, upThrust, 3}, loKey{dir: d}}, pose{upKey{dir: d, anim: upFling}, loKey{dir: d}},
+			pose{upKey{d, upSwim, 1}, loKey{dir: d}}, pose{upKey{d, upStand, upSit}, loKey{dir: d, anim: loSit}},
+			pose{upKey{d, upRun, 2}, loKey{d, loRun, 4}}, pose{upKey{dir: d, anim: upFallen}, loKey{dir: d}})
+	}
+	limbWear = sim.WearAll
+	img := limbBackdrop(10*170, 6*330)
+	for i, p := range poses {
+		for li, l := range []sim.Look{man, woman} {
+			limbShot(img, l, p.up, p.lo, headCache{}, i%10*170+85, (i/10*2+li)*330+300, 3, 0, 0)
+		}
+	}
+	limbPNG(t, filepath.Join(dir, "wear_poses.png"), img)
+
+	dirs := []sim.Dir{sim.DirDown, sim.DirRight, sim.DirUp}
+	img = limbBackdrop(4*3*150, 4*330)
+	for wi, w := range []sim.Wear{sim.WearAll, 0} {
+		limbWear = w
+		for li, l := range []sim.Look{man, woman} {
+			for ti := sim.TierCopper; ti <= sim.TierDiamond; ti++ {
+				for di, d := range dirs {
+					fx, fy := ((int(ti)-1)*3+di)*150+75, (wi*2+li)*330+300
+					limbShot(img, l, upKey{dir: d}, loKey{dir: d}, headCache{}, fx, fy, 3, 0, 0)
+					B, H := armorLayersTall(ti, l.Female, d)
+					tallOver(img, B, fx, fy, 3)
+					tallOver(img, H, fx, fy, 3)
+				}
+			}
+		}
+	}
+	limbPNG(t, filepath.Join(dir, "wear_armor.png"), img)
+}

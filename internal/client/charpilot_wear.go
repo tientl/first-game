@@ -29,8 +29,8 @@ var (
 	pTrouser = hueRamp(mkRamp(0x221812, 0x2c2019, 0x443227, 0x5c4636, 0x765c47, 0x8e735a), 7, 0.25, 0.62, -0.16, 0.1, 1.1, 0.9)
 	pWrap    = hueRamp(mkRamp(0x5e4e36, 0x7d6a4c, 0xa8936c, 0xcdb98f, 0xe6d8b4), 7, 0.45, 0.9, -0.2, 0.08, 1.15, 0.85)
 	pBootR   = hueRamp(bootHD, 7, 0.2, 0.62, -0.18, 0.12, 1.15, 0.9)
-	pMantleR = hueRamp(furHD, 9, 0.24, 0.9, -0.12, 0.08, 1.1, 0.8)
-	pCuffR   = hueRamp(mkRamp(0x3a2a20, 0x5c4532, 0x86694c, 0xae9070, 0xd2b893), 7, 0.3, 0.86, -0.2, 0.12, 1.1, 0.8)
+	pMantleR = hueRamp(furHD, 9, 0.3, 0.84, -0.12, 0.08, 1.1, 0.8)
+	pCuffR   = hueRamp(mkRamp(0x3a2a20, 0x5c4532, 0x86694c, 0xae9070, 0xd2b893), 7, 0.4, 0.82, -0.2, 0.12, 1.1, 0.8)
 )
 
 // pClothTone is the tone of cloth ramp r for light v.
@@ -72,7 +72,7 @@ func (g *figGen) pArmFig(sl, hd *figLayer, d sim.Dir, i int, a armGeom) {
 	}
 	g.pSleeve(sl, a, bias*0.6, d, i)
 	rp := g.pRamps()
-	pWarm = func(x, y float64) float64 { return 0.65 * warmNear(x, y, a.hx, a.hy, 5.5) }
+	pWarm = func(x, y float64) float64 { return 0.5 * warmNear(x, y, a.hx, a.hy, 5.5) }
 	g.pHand(hd, a, viewOf(d), &rp, bias*0.5, true)
 	pWarm = nil
 }
@@ -139,8 +139,8 @@ func (g *figGen) pSleeve(l *figLayer, a armGeom, bias float64, d sim.Dir, i int)
 	}
 	cut := sFn(func(x, y float64) float64 { return (x-a.ex)*vx + (y-a.ey)*vy - (m + 0.7) })
 	sleeve := sLimb(sx, sy, a.ex, a.ey, px, py, uo, ui).or(sLimb(a.ex, a.ey, a.wx, a.wy, qx, qy, fo, fi).and(cut))
-	hU := limbHt(sx, sy, a.ex, a.ey, px, py, uo, ui)
-	hF := limbHt(a.ex, a.ey, a.wx, a.wy, qx, qy, fo, fi)
+	hU := clothHt(sx, sy, a.ex, a.ey, px, py, uo, ui)
+	hF := clothHt(a.ex, a.ey, a.wx, a.wy, qx, qy, fo, fi)
 	foreTop := !v.back
 
 	// The crook of the elbow: the side the forearm bends to. The more it
@@ -192,7 +192,7 @@ func (g *figGen) pSleeve(l *figLayer, a armGeom, bias float64, d sim.Dir, i int)
 		}
 		return pClothTone(pCloth, lv)
 	})
-	f.pClean(l, f.n, 1)
+	f.pClean(l, f.n, 2)
 }
 
 // pTunic draws a man's tunic or a woman's dress on S, as tunic does: its
@@ -229,12 +229,12 @@ func (g *figGen) pTunic(d sim.Dir, sk skirt) {
 		skirtFrom = 67
 	}
 	h := func(x, y float64) float64 {
-		hh := edgeH(torso.d(x, y), 6.5) + 0.35*under(x, y)
+		hh := edgeH(torso.d(x, y), 8) + 0.1*under(x, y)
 		dx := x - 27
 		if y > skirtFrom {
 			e := clamp01((y - skirtFrom) / 5)
 			for _, k := range folds {
-				hh -= 0.8 * e * math.Exp(-math.Pow((dx-k*(y-fold0))/0.75, 2))
+				hh -= 1.2 * e * math.Exp(-math.Pow((dx-k*(y-fold0))/1.05, 2))
 			}
 		}
 		if !female && y > beltY-6 && y < beltY { // gathered into the belt
@@ -304,7 +304,7 @@ func (g *figGen) pTunic(d sim.Dir, sk skirt) {
 		}
 		return pClothTone(pCloth, lv)
 	})
-	f.pClean(g.S, f.n, 1)
+	f.pClean(g.S, f.n, 2)
 
 	switch {
 	case female:
@@ -390,7 +390,7 @@ func (g *figGen) pMantle(d sim.Dir) {
 	}
 	f.fill(g.T, m, func(x, y int, _ float64) color.RGBA {
 		lv := m.lum(x, y, 4.5)*0.7 + 0.18
-		return pFurAt(pMantleR, x, y, lv, 31, 2.4, top)
+		return pFurAt(pMantleR, x, y, lv, 31, 3, top)
 	})
 	f.dropSpecks(g.T, f.n, 5)
 	switch {
@@ -461,8 +461,8 @@ func (g *figGen) pWrappedLeg(lg legGeom, dim float64, view sim.Dir) {
 	shin := sLimb(lg.kx, lg.ky, lg.ax, lg.ay, qx, qy, so, si)
 	along := func(x, y float64) float64 { return (x-lg.kx)*sx + (y-lg.ky)*sy }
 	trouser := thigh.or(shin.and(sFn(func(x, y float64) float64 { return along(x, y) - k })))
-	hT := limbHt(lg.hx, lg.hy, lg.kx, lg.ky, px, py, to, ti)
-	hS := limbHt(lg.kx, lg.ky, lg.ax, lg.ay, qx, qy, so, si)
+	hT := clothHt(lg.hx, lg.hy, lg.kx, lg.ky, px, py, to, ti)
+	hS := clothHt(lg.kx, lg.ky, lg.ax, lg.ay, qx, qy, so, si)
 	// The trouser leg: soft folds behind the knee and where it is tucked
 	// into the wraps, a crease down the thigh.
 	ht := func(x, y float64) float64 {
@@ -472,7 +472,7 @@ func (g *figGen) pWrappedLeg(lg legGeom, dim float64, view sim.Dir) {
 		}
 		t := ((x-lg.hx)*tx + (y-lg.hy)*ty) / tn
 		c := (x-lg.hx)*px + (y-lg.hy)*py
-		hh -= 0.35 * math.Exp(-math.Pow((c-to.at(t)*0.2)/0.7, 2)) * b01(t*tn, 4, tn-3) // the crease
+		hh -= 0.2 * math.Exp(-math.Pow((c-to.at(t)*0.2)/0.8, 2)) * b01(t*tn, 4, tn-3) // the crease
 		if s := along(x, y); s > -4 && s < k {
 			for _, r := range [2]float64{-2.2, 0.6} { // at the knee
 				hh -= 0.5 * math.Exp(-math.Pow((s-r-0.3*c)/0.55, 2))
@@ -490,22 +490,13 @@ func (g *figGen) pWrappedLeg(lg legGeom, dim float64, view sim.Dir) {
 		}
 		return pClothTone(pTrouser, lv)
 	})
-	f.pClean(g.L, f.n, 1)
+	f.pClean(g.L, f.n, 2)
 
-	// The wraps: strips wound slanting round the shin, each a little roll
-	// lit on its top, and the thong crossed over them.
+	// The wraps: strips wound slanting round the shin, each lit on its top
+	// edge and shaded under, a dark line between two; and the thong crossed
+	// over them in front.
 	wr := shin.and(sFn(func(x, y float64) float64 { return wrapAt - along(x, y) }))
-	const pitch = 2.3
-	hw := func(x, y float64) float64 {
-		hh := hS(x, y)
-		if hh <= 0 {
-			return 0
-		}
-		c := (x-lg.kx)*qx + (y-lg.ky)*qy
-		u := (along(x, y) + 0.38*c) / pitch
-		fr := u - math.Floor(u)
-		return hh + 0.55*math.Sin(math.Pi*fr)
-	}
+	const pitch = 3.1
 	f.fill(g.L, wr, func(x, y int, _ float64) color.RGBA {
 		fx, fy := float64(x)+0.5, float64(y)+0.5
 		s, c := along(fx, fy), (fx-lg.kx)*qx+(fy-lg.ky)*qy
@@ -513,16 +504,21 @@ func (g *figGen) pWrappedLeg(lg legGeom, dim float64, view sim.Dir) {
 		if c < 0 {
 			w = si.at(s / sn)
 		}
-		lv := pLight(hw, x, y) - dim + 0.02
-		u := (s + 0.38*c) / pitch
-		if u-math.Floor(u) > 0.82 {
-			lv -= 0.18 // between two strips
+		lv := pLight(hS, x, y)*0.9 - dim + 0.06
+		u := (s - wrapAt + 0.42*c) / pitch
+		switch fr := u - math.Floor(u); {
+		case fr < 0.3:
+			lv += 0.1 // the strip's top, rounded to the light
+		case fr > 0.74:
+			lv -= 0.26 // tucked under the next
+		case fr > 0.55:
+			lv -= 0.08
 		}
 		// the thong, crossing over the front of the shin
-		if s > wrapAt+1.5 && s < sn-1 && math.Abs(c) < w-0.6 {
-			a, b := s+1.1*c, s-1.1*c
-			if math.Abs(a-6*math.Round(a/6)) < 0.55 || math.Abs(b-6*math.Round(b/6)-3) < 0.55 && !v.back {
-				return pClothTone(pTrouser, lv*0.6+0.12)
+		if !v.back && s > wrapAt+2 && s < sn-1.5 && math.Abs(c) < w*0.8 {
+			a, b := s+0.9*c, s-0.9*c
+			if math.Abs(a-9*math.Round(a/9)) < 0.55 || math.Abs(b-9*math.Round(b/9)) < 0.55 {
+				return pBootR[2+int(clamp01(lv)*2.9)]
 			}
 		}
 		return pClothTone(pWrap, lv)
@@ -586,7 +582,36 @@ func (g *figGen) pBoot(lg legGeom, dim, toe float64, side bool) {
 	cuff := sRot(sBox(ax-cw, ay-4.6, ax+cw, ay+0.6, 2.4).jag(1.2, 2.8, ay-1.6, 5), ax, ay, -math.Atan2(sx, sy)*0.7)
 	f.fill(g.L, cuff, func(px, py int, _ float64) color.RGBA {
 		lv := cuff.lum(px, py, 3)*0.75 + 0.15 - dim
-		return pFurAt(pCuffR, px, py, lv, 11, 2.2, ay-4.8)
+		return pFurAt(pCuffR, px, py, lv, 11, 2.8, ay-4.8)
 	})
 	f.dropSpecks(g.L, f.n, 4)
+}
+
+// clothHt is limbHt for cloth over a limb: as high across its middle on
+// either side, however much further it reaches on one (limbHt's surface
+// steps where out and in differ, which cloth, smooth, shows).
+func clothHt(ax, ay, bx, by, px, py float64, out, in prof) pHeight {
+	ux, uy, n := unitOf(bx-ax, by-ay)
+	return func(x, y float64) float64 {
+		dx, dy := x-ax, y-ay
+		s, c := dx*ux+dy*uy, dx*px+dy*py
+		t := clamp01(s / n)
+		ro, ri := out.at(t), in.at(t)
+		r := ro
+		if c < 0 {
+			r = ri
+		}
+		e := math.Abs(c)
+		switch {
+		case s < 0:
+			e = math.Hypot(s, c)
+		case s > n:
+			e = math.Hypot(s-n, c)
+		}
+		if e >= r {
+			return 0
+		}
+		q := e / r
+		return (ro + ri) / 2 * math.Sqrt(1-q*q)
+	}
 }
