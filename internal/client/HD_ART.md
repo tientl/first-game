@@ -124,6 +124,19 @@ it and pick one with a flag, or make both from the same code with
   -run DumpCave` writes sheets of both figures, each of the clothes, the
   poses, and GIFs of the walk and the run from the side, the front and the
   back.
+- The figure as it is painted now ("A", chosen from a pilot of three) is
+  `charpilot*.go`: the same rig and layers, every part a lit surface cut
+  into a hue-shifted OKLab ramp, a bigger face with bold glinting eyes, fur
+  and hair in soft locks, warm hands, knees and cheeks, the fine lines and
+  the outline a deep shade of what they bound (`pLines`). The hooks in
+  `limbs.go` (`arm`, `leg`, `boot`, the head and the lines) and
+  `tallfig.go` (`tallBody`) send every painter there; the old ones above
+  stay for `shot -charstyle old`. The clothes are `charpilot_wear.go`, the
+  armour `charpilot_armor.go`: hide, bone (a beast's skull for a cap),
+  agate scales (a crested helm), the tyrant's teeth (its skull for a helm),
+  and, when no better armour is carried, dinosaur hide or the fur coat.
+  `CHAR_PILOT`, `CHAR_WEAR` and `CHAR_ARMOR` (`-run CharPilotSheets`,
+  `CharWearSheet`, `ArmorSetSheet`) write the sheets.
 - The fallen body and its bones (`bodyart.go`) are the jointed figure laid
   down, in what it wore; the map's head marker is its head. Not
   density-aware yet: the sprite export in `export.go`.
