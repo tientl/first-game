@@ -173,6 +173,7 @@ type ghostView struct {
 	tx, ty int
 	valid  bool
 	why    sim.NoticeKind
+	face   sim.Dir // which way it would face; see facing.go
 }
 
 // ghost is what a left click would build, and where: in build mode the
@@ -196,6 +197,7 @@ func (g *Game) ghost() ghostView {
 		}
 		gv.ok, gv.kind, gv.v, gv.item, gv.piece = true, pc.Kind, pc.Var, pc.Item, true
 		gv.valid, gv.why = sim.DevBuildSpot(float64(me.X), float64(me.Y), gv.tx, gv.ty, pc, g.tileAt, g.kindAt, g.standers())
+		gv.face = g.facingFor(gv.kind, gv.v)
 		return gv
 	}
 	if g.build.on {
@@ -219,6 +221,7 @@ func (g *Game) ghost() ghostView {
 	}
 	gv.ok = true
 	gv.valid, gv.why = sim.BuildSpotWithin(g.placeReach(), float64(me.X), float64(me.Y), gv.tx, gv.ty, gv.kind, soft, g.tileAt, g.taken, g.standers())
+	gv.face = g.facingFor(gv.kind, gv.v)
 	return gv
 }
 
@@ -294,7 +297,7 @@ func (g *Game) placeGhost(gv ghostView) {
 		g.showNotice(buildRefusal(gv.why))
 		return
 	}
-	c := sim.Command{Kind: sim.CmdPlace, At: true, TX: int16(gv.tx), TY: int16(gv.ty)}
+	c := sim.Command{Kind: sim.CmdPlace, At: true, TX: int16(gv.tx), TY: int16(gv.ty), Face: gv.face}
 	switch {
 	case gv.piece:
 		c.Kind, c.Slot = sim.CmdDevBuild, uint8(g.build.piece) // see buildpalette.go
@@ -338,6 +341,7 @@ type useContext struct {
 	aim    bool      // the pointer is in the world: dung goes on what it is on
 	aimTX  int
 	aimTY  int
+	face   sim.Dir // which way what is held faces when set down; see facing.go
 }
 
 // cookRecipeFor is the fire recipe that cooks item on its own, if any.
@@ -382,14 +386,14 @@ func rightClickUse(held sim.ItemKind, slot int, ctx useContext) (cmd sim.Command
 		return c, ""
 	}
 	if cookPlaced(held) { // a pot onto the fire, a bowl into the sea; see cookrender.go
-		c := sim.Command{Kind: sim.CmdPlace}
+		c := sim.Command{Kind: sim.CmdPlace, Face: ctx.face}
 		if ctx.aim {
 			c.At, c.TX, c.TY = true, int16(ctx.aimTX), int16(ctx.aimTY)
 		}
 		return c, ""
 	}
 	if _, _, ok := sim.PlacedBy(held); ok {
-		c := sim.Command{Kind: sim.CmdPlace}
+		c := sim.Command{Kind: sim.CmdPlace, Face: ctx.face}
 		if ctx.spot.ok && ctx.spot.valid && held != sim.ItemTorch {
 			c.At, c.TX, c.TY = true, int16(ctx.spot.tx), int16(ctx.spot.ty)
 		}
@@ -404,6 +408,9 @@ func rightClickUse(held sim.ItemKind, slot int, ctx useContext) (cmd sim.Command
 // useContextNow is the right button's context in this frame.
 func (g *Game) useContextNow() useContext {
 	ctx := useContext{byFire: g.byFire()}
+	if k, v, ok := g.placing(); ok {
+		ctx.face = g.facingFor(k, v) // see facing.go
+	}
 	me, ok := g.me()
 	if !ok {
 		return ctx
@@ -542,7 +549,8 @@ func (g *Game) drawGhost(dst drawTarget, cam camera) {
 	pulse := uint8(150 + 70*math.Sin(float64(g.frame)*0.15))
 	fillRect(dst, float32(x)+1, float32(y)+1, TileW-2, TileH-2, color.RGBA{col.R / 3, col.G / 3, col.B / 3, 90}, false)
 	strokeRect(dst, float32(x)+1.5, float32(y)+1.5, TileW-3, TileH-3, 1, color.RGBA{uint8(int(col.R) * int(pulse) / 255), uint8(int(col.G) * int(pulse) / 255), uint8(int(col.B) * int(pulse) / 255), pulse}, false)
-	ev := protocol.EntityView{Kind: gv.kind, Var: gv.v, TX: int16(gv.tx), TY: int16(gv.ty), Ready: true}
+	defer g.drawFacingArrow(dst, gv.kind, gv.v, gv.face, x, y, col) // over it; see facing.go
+	ev := protocol.EntityView{Kind: gv.kind, Var: gv.v, TX: int16(gv.tx), TY: int16(gv.ty), Ready: true, Face: gv.face}
 	switch gv.kind {
 	case sim.EntityCampfire, sim.EntityBonfire:
 		ev.Fuel = sim.FireStartFuel
@@ -621,6 +629,9 @@ func (g *Game) drawAimCues(screen *ebiten.Image, cam camera, scale float64, tg, 
 			name = gv.item.Def().Name
 		}
 		label, col := "Đặt "+name, colGhostOK
+		if fn := facingName(gv.kind, gv.v, gv.face); fn != "" { // see facing.go
+			label += " · " + fn
+		}
 		switch {
 		case !gv.valid && gv.why == sim.NoticeTooFar:
 			label, col = name+" — xa quá", colFarText

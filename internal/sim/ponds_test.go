@@ -62,7 +62,7 @@ func TestAnOldSaveHasItsSeaLiliesPulled(t *testing.T) {
 		t.Fatalf("no lily on the sea in the older world: pick another seed")
 	}
 	d := w.Save()
-	d.Version = SaveVersion - 1
+	d.Version = 29 // the last before the sea's lilies were pulled
 	w2, err := Load(d)
 	if err != nil {
 		t.Fatal(err)

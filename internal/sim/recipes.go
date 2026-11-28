@@ -496,6 +496,8 @@ const (
 	NoticeCollapse // the roof came down on them
 	// The bosses' lairs since StyleLairs: see throw.go, sharkfight.go.
 	NoticeSpearHit // Arg: CreatureKind a thrown spear struck
+
+	NoticeWrongSide // Arg: EntityKind used only from its front: a bed's open side, a tent's door, a furnace's or an oven's mouth; see facing.go
 )
 
 // CommandKind is a discrete player request, as opposed to held input.
@@ -541,6 +543,9 @@ type Command struct {
 	// the tile in front is used, as before. See aim.go.
 	At     bool
 	TX, TY int16
+	// Face is which way a structure put down by CmdCraft, CmdPlace or
+	// CmdDevBuild faces, for the kinds that turn (see facing.go).
+	Face Dir
 }
 
 // Input is the continuously held player input, sampled every tick.

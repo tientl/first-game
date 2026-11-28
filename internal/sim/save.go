@@ -89,7 +89,13 @@ import (
 //     (PondMaskFor). An older save has the lilies and lotus that grew on
 //     water joined to the sea pulled up once on loading (pullSeaLilies);
 //     its lairs stay as they were made.
-const SaveVersion = 30
+//   - 31: built things face a way (Entity.Face; facing.go): doors, beds,
+//     tents, chests, furnaces, ovens, mortars, drying racks, walls and
+//     fences, a grill on a fire, a head on a post. What an older save
+//     holds faces south, as everything was drawn, but for a door in a wall
+//     running north–south, turned east so it is passed as it was
+//     (turnOldDoors); an older game would lose the facings.
+const SaveVersion = 31
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -378,6 +384,7 @@ func Load(d SaveData) (*World, error) {
 		case EntityOven:
 			e.Fuel = min(max(e.Fuel, 0), OvenMaxFuel)
 		}
+		e.Face = FacingOf(e.Kind, e.Var, e.Face) // older saves face south: see facing.go
 		ent := e
 		w.entities[e.ID] = &ent
 		w.occ[e.TY*w.width+e.TX] = e.ID
@@ -402,6 +409,9 @@ func Load(d SaveData) (*World, error) {
 	}
 	if d.Version < 30 {
 		w.pullSeaLilies() // lilies and lotus that grew on the sea: see flora.go
+	}
+	if d.Version < 31 {
+		w.turnOldDoors() // doors in walls running north–south let one through as before: see facing.go
 	}
 	for _, ps := range d.Players {
 		if d.Version < 4 {

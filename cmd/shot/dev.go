@@ -30,7 +30,7 @@ func showDevConsole(game *client.Game, w *sim.World) {
 // heads on posts in front.
 var devBasePlan = func() []devBasePart {
 	var out []devBasePart
-	add := func(k sim.EntityKind, v uint8, dx, dy int) { out = append(out, devBasePart{k, v, dx, dy}) }
+	add := func(k sim.EntityKind, v uint8, dx, dy int) { out = append(out, devBasePart{kind: k, v: v, dx: dx, dy: dy}) }
 	for dx := -3; dx <= 3; dx++ {
 		add(sim.EntityWall, 0, dx, -6)
 		if dx != 0 {
@@ -82,6 +82,7 @@ var devBasePlan = func() []devBasePart {
 }()
 
 type devBasePart struct {
+	face   sim.Dir // which way it faces, if it turns: see sim/facing.go
 	kind   sim.EntityKind
 	v      uint8
 	dx, dy int
@@ -91,7 +92,7 @@ type devBasePart struct {
 // does, through the world's own commands: a builder in dev mode clears the
 // ground (Shift and the right button), then puts down each piece from the
 // build palette, standing a few tiles south of it.
-func buildDevBase(w *sim.World, sx, sy float64) {
+func buildDevBase(w *sim.World, sx, sy float64, plan []devBasePart) {
 	w.SetDevMode(true)
 	id := w.AddPlayer("Builder")
 	if !w.DevSetFreeBuild(id, true) {
@@ -117,7 +118,7 @@ func buildDevBase(w *sim.World, sx, sy float64) {
 		byKind[kv{pc.Kind, pc.Var}] = i
 	}
 	placed, skipped := 0, 0
-	for _, part := range devBasePlan {
+	for _, part := range plan {
 		i, ok := byKind[kv{part.kind, part.v}]
 		if !ok {
 			log.Fatalf("no piece %v %d in the build palette", part.kind, part.v)
@@ -128,11 +129,11 @@ func buildDevBase(w *sim.World, sx, sy float64) {
 			continue // already built on: the planks go round the furniture
 		}
 		at(tx, ty)
-		w.Apply(id, sim.Command{Kind: sim.CmdDevBuild, Slot: uint8(i), At: true, TX: int16(tx), TY: int16(ty)})
+		w.Apply(id, sim.Command{Kind: sim.CmdDevBuild, Slot: uint8(i), At: true, TX: int16(tx), TY: int16(ty), Face: part.face})
 		if e, ok := w.EntityAt(tx, ty); ok && e.Kind == pieces[i].Kind {
 			placed++
 		}
 	}
 	w.RemovePlayer(id)
-	log.Printf("free build: %d of %d pieces of the base put down", placed, len(devBasePlan)-skipped)
+	log.Printf("free build: %d of %d pieces of the base put down", placed, len(plan)-skipped)
 }

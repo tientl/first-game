@@ -507,6 +507,9 @@ func (g *Game) drawSprites(dst drawTarget, cam camera, alpha float64, target tar
 }
 
 func (g *Game) shadowWidth(e protocol.EntityView) float64 {
+	if w, ok := g.facedShadow(e); ok {
+		return w // see facedart.go
+	}
 	if sim.IsFruitStump(e.Kind, e.Var) {
 		return 14 * stumpScale[fruitStumpSize(e.Kind)]
 	}
@@ -624,6 +627,9 @@ func drawSwaying(dst drawTarget, s sprite, x, y, skew float64) {
 // entitySprite returns the sprite for e and how much it sways in the wind.
 func (g *Game) entitySprite(e protocol.EntityView) (sprite, float64) {
 	a := g.art
+	if s, ok := g.facedSprite(e); ok {
+		return s, 0 // what turns, the way it faces: see facedart.go
+	}
 	if sim.IsFruitStump(e.Kind, e.Var) {
 		return a.stumps[fruitStumpSize(e.Kind)], 0 // a felled fruit tree; see fruitart.go
 	}
@@ -778,7 +784,7 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		return // under the ice
 	}
 	g.drawFloraUnder(dst, e, d)                                       // see florarender.go
-	if g.drawTribalEntity(dst, e, d) || g.drawCookEntity(dst, e, d) { // a pot on the fire; see cookrender.go
+	if g.drawFacedEntity(dst, e, d) || g.drawTribalEntity(dst, e, d) || g.drawCookEntity(dst, e, d) { // a pot on the fire; see cookrender.go
 		return
 	}
 	if g.drawTentEntity(dst, e, d) { // see tentart.go
@@ -821,9 +827,8 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		}
 		drawAt(dst, g.art.campFront, d.sx, d.sy, 1, 1, 0, nil)
 	}
-	if e.Kind == sim.EntityFurnace && e.Fuel > 0 && !g.drawFireOf(dst, e, fireMouth, d.sx, d.sy-2.5) {
-		f := g.art.flames[(g.frame/4+int(e.ID))%flameFrames]
-		drawAt(dst, f, d.sx, d.sy-1, 0.45, 0.4, 0, nil) // in its mouth
+	if e.Kind == sim.EntityFurnace && e.Fuel > 0 {
+		g.drawMouthFire(dst, e, d) // in its mouth, the way it faces (the HD fire of fireart.go); see facedart.go
 	}
 	if hasHive(e) {
 		g.drawHive(dst, e, s, d.sx, d.sy, solid) // see jungleart.go
@@ -967,6 +972,10 @@ func (g *Game) drawSleeper(dst drawTarget, p protocol.PlayerView, d drawable) {
 		return
 	}
 	if e, ok := g.tentUnder(p); ok { // in a tent: lying further in, its shell over them; see tentart.go
+		if tentShut(e) { // turned: out of sight; see tentturn.go
+			g.drawShutSleeper(dst, p, e, math.Round(d.sx), math.Round(d.sy), bedLie)
+			return
+		}
 		defer g.drawTentShell(dst, e, math.Round(d.sx), math.Round(d.sy))
 		d.sx, d.sy = d.sx+tentSleepDX, d.sy+tentSleepDY
 	}

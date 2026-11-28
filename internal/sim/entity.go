@@ -232,6 +232,7 @@ type Entity struct {
 	Cook     uint8  `json:",omitempty"` // a cooking station: CookFlag bits, what everyone sees of it; see cooking.go
 	Var      uint8  `json:",omitempty"` // which one of a kind: a corpse's or trophy's creature, a flower's colour, a seedling's seed; on a tree, 1 if bees nest in it; on a fruit tree, 1 while it is a stump
 	HoneyAt  uint64 `json:",omitempty"` // a beehive: the tick its honey is back
+	Face     Dir    `json:",omitempty"` // which way a built thing faces (see facing.go); DirDown, as everything faced before, for what does not turn
 }
 
 // Interactable reports whether a player can act on an entity of this kind and
