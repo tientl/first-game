@@ -77,6 +77,9 @@ func asVersion(d SaveData, v int) SaveData {
 		if v < 3 {
 			e.Big = false
 		}
+		if v < 31 {
+			e.Face = DirDown // nothing turned: see facing.go
+		}
 		kept = append(kept, e)
 	}
 	d.Entities = kept

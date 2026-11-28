@@ -173,6 +173,14 @@ func genStoneWallHD() (*canvas, float64, float64) {
 
 func genDoorHD() sprite {
 	const k = HDDensity
+	return mkUp(doorCanvasHD(false), 12*k, (wallArtH+4)*k)
+}
+
+// doorCanvasHD is the door in its frame seen from the front, or from
+// behind (back): there the battens and the braces are the other way about,
+// and a wooden bar in two cleats holds it shut in place of the ring.
+func doorCanvasHD(back bool) *canvas {
+	const k = HDDensity
 	const by = (wallArtH + 4) * k // the ground, as the walls'
 	c := hdCanvas(24, wallArtH+8)
 	// The frame: two posts and a lintel, like the wall's.
@@ -229,20 +237,53 @@ func genDoorHD() sprite {
 		}
 	}
 	const b0, b1, b2 = 8 * k, 22 * k, (wallArtH - 2) * k
-	brace(5*k+2, b1-1, 18*k, b0+2*k)
-	brace(18*k, b2-1, 5*k+2, b1+2*k)
+	if back {
+		brace(18*k, b1-1, 5*k+2, b0+2*k)
+		brace(5*k+2, b2-1, 18*k, b1+2*k)
+	} else {
+		brace(5*k+2, b1-1, 18*k, b0+2*k)
+		brace(18*k, b2-1, 5*k+2, b1+2*k)
+	}
 	batten(b0)
 	batten(b1)
 	batten(b2)
-	// The iron ring to pull it by, on its plate, at the height of a hand.
 	const ry = (wallArtH - 11) * k
-	c.ellipse(16.5*k, ry, 3, 3.6, func(x, y int, nx, ny float64) color.RGBA { return bandRamp.pick(0.3+lum(nx, ny)*0.5, x, y) })
-	for a := 0.0; a < 2*math.Pi; a += 0.1 {
-		x, y := int(16.5*k+math.Cos(a)*3.6), int(ry+2.2*k+math.Sin(a)*4.4)
-		c.put(x, y, bandRamp.pick(0.75-math.Sin(a)*0.3-math.Cos(a)*0.2, x, y))
+	if back {
+		// The bar: a squared timber across the door and the posts, in two
+		// cleats nailed to the frame.
+		const bh = 2 * k
+		for y := ry - bh; y < ry+bh; y++ {
+			for x := 1 * k; x < 23*k; x++ {
+				l := 0.72 - float64(y-(ry-bh))/float64(2*bh)*0.4
+				if y == ry+bh-1 {
+					l = 0.18
+				}
+				c.put(x, y, grainHD(woodRamp, x, y, l, false, 945))
+			}
+		}
+		for _, cx := range []int{2 * k, 21 * k} {
+			for y := ry - bh - 3; y < ry+bh+3; y++ {
+				for x := cx - 3; x < cx+4; x++ {
+					l := 0.45 - float64(x-cx)*0.04
+					if y == ry-bh-3 || x == cx-3 {
+						l += 0.15
+					}
+					c.put(x, y, grainHD(plankRamp, x, y, l, true, 946))
+				}
+			}
+			nailHD(c, cx-1, ry-bh-1)
+			nailHD(c, cx-1, ry+bh+1)
+		}
+	} else {
+		// The iron ring to pull it by, on its plate, at the height of a hand.
+		c.ellipse(16.5*k, ry, 3, 3.6, func(x, y int, nx, ny float64) color.RGBA { return bandRamp.pick(0.3+lum(nx, ny)*0.5, x, y) })
+		for a := 0.0; a < 2*math.Pi; a += 0.1 {
+			x, y := int(16.5*k+math.Cos(a)*3.6), int(ry+2.2*k+math.Sin(a)*4.4)
+			c.put(x, y, bandRamp.pick(0.75-math.Sin(a)*0.3-math.Cos(a)*0.2, x, y))
+		}
 	}
 	c.outline(0.7)
-	return mkUp(c, 12*k, by)
+	return c
 }
 
 func genFloorHD() sprite {
@@ -276,8 +317,14 @@ func genFloorHD() sprite {
 
 func genBedHD() sprite {
 	const k = HDDensity
+	return mkUp(bedCanvasHD(), 15*k, 16*k)
+}
+
+// bedCanvasHD is the bed lying across, its head to the left, anchored at
+// (15, 16) art pixels.
+func bedCanvasHD() *canvas {
+	const k = HDDensity
 	c := hdCanvas(30, 20)
-	const cx, by = 15 * k, 16 * k
 	// The frame of logs, lying: side rails, and the round ends of the cross logs.
 	for y := 6 * k; y < 17*k; y++ {
 		for x := 1 * k; x < 29*k; x++ {
@@ -327,7 +374,7 @@ func genBedHD() sprite {
 		c.ellipse(x, 15.2*k, 3.4, 4.2, func(px, py int, nx, ny float64) color.RGBA { return woodEndHD(px, py, nx, ny, 3, 7) })
 	}
 	c.outline(0.8)
-	return mkUp(c, cx, by)
+	return c
 }
 
 // chestHD draws a chest of planks w art pixels wide in a 24 by 22 canvas,

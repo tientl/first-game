@@ -331,7 +331,7 @@ func (w *World) swimmable(x, y float64) bool {
 		t := w.tiles[ty*w.width+tx]
 		return (t.Swimmable() || t.Walkable()) && !w.blocked(tx, ty)
 	}
-	return ok(x-r, y-r) && ok(x+r, y-r) && ok(x-r, y+r) && ok(x+r, y+r)
+	return ok(x-r, y-r) && ok(x+r, y-r) && ok(x-r, y+r) && ok(x+r, y+r) && w.jambsClear(x, y)
 }
 
 // inWater reports whether (x, y) is open water: someone there swims.

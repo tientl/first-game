@@ -73,6 +73,9 @@ func (w *World) sleep(p *Player, e *Entity) bool {
 		p.notify(NoticeNotTired, uint8(e.Kind))
 		return false
 	}
+	if !w.fromFront(p, e) { // climbed into from its open side; see facing.go
+		return false
+	}
 	p.Asleep, p.bed = true, e.ID
 	if p.home != e.ID {
 		p.home = e.ID // this is where p comes back after dying now

@@ -81,6 +81,47 @@ func TestDumpTent(t *testing.T) {
 	}
 }
 
+// TENT_DUMP=dir go test ./internal/client -run DumpTentFacings writes
+// tent_facings.png: every thatch facing south, west, north and east, as at
+// 1080p and twice as big.
+func TestDumpTentFacings(t *testing.T) {
+	dir := os.Getenv("TENT_DUMP")
+	if dir == "" {
+		t.Skip("set TENT_DUMP to a folder")
+	}
+	grounds := [numTentLeaves]color.RGBA{{92, 132, 74, 255}, {64, 100, 58, 255}, {214, 190, 140, 255}, {226, 234, 242, 255}}
+	const z = 2
+	cw, ch := tentW*HDDensity, tentHt*HDDensity
+	faces := []sim.Dir{sim.DirDown, sim.DirLeft, sim.DirUp, sim.DirRight}
+	img := image.NewRGBA(image.Rect(0, 0, len(faces)*cw*z, int(numTentLeaves)*ch*z))
+	for v := tentLeaf(0); v < numTentLeaves; v++ {
+		for col, face := range faces {
+			back, front := genTentFaced(v, face)
+			for y := 0; y < ch; y++ {
+				for x := 0; x < cw; x++ {
+					c := over(over(grounds[v], back.px[y*cw+x]), front.px[y*cw+x])
+					if (x == cw/2 || y == int(tentAY*tk)) && c == grounds[v] {
+						c = color.RGBA{grounds[v].R - 20, grounds[v].G - 20, grounds[v].B - 20, 255} // the tile's middle
+					}
+					for dy := 0; dy < z; dy++ {
+						for dx := 0; dx < z; dx++ {
+							img.Set(col*cw*z+x*z+dx, int(v)*ch*z+y*z+dy, c)
+						}
+					}
+				}
+			}
+		}
+	}
+	f, err := os.Create(filepath.Join(dir, "tent_facings.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := png.Encode(f, img); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // TestDumpTent also writes tent_dump1.png: every thatch as at 1080p, empty
 // and with someone asleep in it, then twice as big.
 func TestDumpTentAsleep(t *testing.T) {

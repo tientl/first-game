@@ -257,11 +257,12 @@ type EntityView struct {
 	Kind   sim.EntityKind
 	TX, TY int16
 	Ready  bool
-	Big    bool  // trees and boulders: the big size
-	Stage  uint8 // growing crops: 0 just planted to sim.CropStages-1
-	Fuel   int32 // campfires, furnaces and standing torches; a man-eater's ticks till it may snap again
-	Var    uint8 // a body's or trophy's creature kind, a flower's colour, a seedling's seed, a glowing plant's look; on a campfire, the sim.CookGear on it
-	Cook   uint8 // a cooking station: sim.CookFlag bits
+	Big    bool    // trees and boulders: the big size
+	Stage  uint8   // growing crops: 0 just planted to sim.CropStages-1
+	Fuel   int32   // campfires, furnaces and standing torches; a man-eater's ticks till it may snap again
+	Var    uint8   // a body's or trophy's creature kind, a flower's colour, a seedling's seed, a glowing plant's look; on a campfire, the sim.CookGear on it
+	Cook   uint8   // a cooking station: sim.CookFlag bits
+	Face   sim.Dir // which way a built thing faces: see sim/facing.go
 }
 
 // CreatureView is what clients see of an animal.
