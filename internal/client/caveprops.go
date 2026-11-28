@@ -1,6 +1,7 @@
 package client
 
 import (
+	"image/color"
 	"math"
 	"sync"
 
@@ -48,7 +49,7 @@ func caveProps() *cavePropArt {
 			a.props[sim.PropObsidian] = append(a.props[sim.PropObsidian], mk(obsidianCanvas(v), 14, 16))
 		}
 		a.props[sim.PropEggSac] = []sprite{mk(eggSacCanvas(), 14, 20)}
-		a.props[sim.PropFossil] = []sprite{mk(fossilCanvas(), 40, 26)}
+		a.props[sim.PropFossil] = []sprite{mk(fossilCanvas(), fossilAX, fossilAY)}
 		a.props[sim.PropSarcophagus] = []sprite{mk(sarcophagusCanvas(), 26, 30)}
 		a.props[sim.PropRoost] = []sprite{mk(roostCanvas(), 18, 14)}
 		for p := range sim.PaintingHerds + 1 {
@@ -208,7 +209,6 @@ var (
 	cpShroom = mkRamp(0x1a1f2e, 0x1e314b, 0x2f4c6c, 0x39275e, 0x5c3a6f, 0x7e659b, 0xb8a1c2)
 	cpGlow   = mkRamp(0x2f4c6c, 0x3d80a3, 0x63c4cc, 0x9ae5d5, 0xe5efef)
 	cpStem   = mkRamp(0x533b41, 0x7d595d, 0xb49d7e, 0xc4c6b8, 0xe3e6ac)
-	cpBone   = mkRamp(0x533b41, 0x867066, 0xb49d7e, 0xc4c6b8, 0xe3e6ac)
 	cpClay   = mkRamp(0x3c252b, 0x684039, 0x8d4830, 0xb77862, 0xc57835, 0xeecb90)
 	cpSand   = mkRamp(0x3c252b, 0x5c2b34, 0x8d4830, 0xb77862, 0xe1a845, 0xeecb90, 0xe3e6ac)
 	cpOchre  = mkRamp(0x8d3649, 0xb23657, 0xc33c40, 0xc57835)
@@ -403,23 +403,6 @@ func eggSacCanvas() *canvas {
 	return c
 }
 
-// caveBone draws a bone from (x0, y0) to (x1, y1), w thick, with knobs at its
-// ends.
-func caveBone(c *canvas, x0, y0, x1, y1, w float64) {
-	eachHD(c, func(x, y int, px, py float64) {
-		t, d := segParam(px, py, x0, y0, x1, y1)
-		r := w
-		if t < 0.12 || t > 0.88 {
-			r = w * 1.6
-		}
-		if d > r {
-			return
-		}
-		l := 0.62 - 0.4*(py-math.Min(y0, y1))/math.Max(1, math.Abs(y1-y0)+2*w) - 0.15*d/r
-		c.put(x, y, cpBone.pick(clamp01(l), x, y))
-	})
-}
-
 // segParam is where point (px, py) lies along segment (x0, y0)-(x1, y1),
 // 0 to 1, and how far from it.
 func segParam(px, py, x0, y0, x1, y1 float64) (t, d float64) {
@@ -431,96 +414,858 @@ func segParam(px, py, x0, y0, x1, y1 float64) (t, d float64) {
 	return t, math.Hypot(px-x0-t*vx, py-y0-t*vy)
 }
 
-// bonesCanvas draws bones of a beast's meal strewn on the floor, look v.
+// bonesCanvas draws bones of a beast's meal strewn on the floor, look v: the
+// long bones of its legs, a rib or two, and in one look its skull; drawn in
+// the style of the fossil's bones.
 func bonesCanvas(v int) *canvas {
 	c := hdCanvas(36, 22)
-	sets := [][][5]float64{
-		{{6, 12, 20, 9, 1.1}, {14, 15, 27, 17, 1}, {22, 6, 30, 12, 0.9}},
-		{{5, 8, 17, 14, 1.2}, {19, 9, 31, 7, 1}, {10, 16, 22, 18, 0.9}},
-		{{8, 15, 28, 11, 1.2}, {12, 7, 16, 16, 0.8}, {24, 15, 31, 18, 0.8}},
+	b := newBoneArt(c)
+	// long draws a bone of a leg: a shaft r thick (halved), swelling at
+	// each end into a pair of knobs.
+	long := func(x0, y0, x1, y1, r float64) {
+		b.bone(0, 0.15)
+		dx, dy := x1-x0, y1-y0
+		l := math.Hypot(dx, dy)
+		tx, ty, a := dx/l, dy/l, math.Atan2(dy, dx)
+		b.tube(x0, y0, x1, y1, r*0.8, r*0.7)
+		for _, e := range [][3]float64{{x0, y0, -1}, {x1, y1, 1}} {
+			ex, ey := e[0]+e[2]*tx*r*0.2, e[1]+e[2]*ty*r*0.2
+			b.knob(ex-ty*r*0.7, ey+tx*r*0.7, r*0.95, r*0.8, a)
+			b.knob(ex+ty*r*0.7, ey-tx*r*0.7, r*0.95, r*0.8, a)
+		}
 	}
-	for _, b := range sets[v%len(sets)] {
-		caveBone(c, b[0], b[1], b[2], b[3], b[4])
+	rib := func(x0, y0, x1, y1, x2, y2 float64) {
+		b.bone(-0.04, 0.2)
+		b.curve(boneArc(x0, y0, x1, y1, x2, y2, 0, 1), 0.55, 0.32)
 	}
-	if v == 0 { // and a skull
-		eachHD(c, func(x, y int, px, py float64) {
-			dx, dy := (px-27)/4.5, (py-15)/3.4
-			if d := dx*dx + dy*dy; d <= 1 {
-				l := 0.65 - 0.3*dx - 0.3*dy
-				if math.Hypot(px-26, py-14.5) < 1.1 {
-					l = 0.05 // its eye
-				}
-				c.put(x, y, cpBone.pick(clamp01(l), x, y))
-			}
-		})
+	switch v % 3 {
+	case 0:
+		rib(11, 16.5, 15, 13.5, 20, 17)
+		long(6, 12, 20, 9, 1.1)
+		long(22, 5.5, 30, 10.5, 0.9)
+		// A skull, its jaw gone: the snout, the window before the eye and the
+		// eye, a few teeth.
+		b.bone(0, 0.2)
+		b.plate(boneLoop([]float64{21.6, 16.2, 22.2, 14.6, 24.5, 13.4, 27.6, 12.6, 30, 12.9, 31.4, 14.4, 31.2, 16.6,
+			29.4, 17.6, 26.2, 17.4, 23.2, 17}, 4), 0.7)
+		for k := range 4 {
+			x := 23 + float64(k)*1.2
+			b.plate([]float64{x - 0.35, 16.8, x + 0.35, 16.9, x + 0.05, 18}, 0.25)
+		}
+		b.hole(boneOval(22.9, 15.2, 0.55, 0.42, -0.3), 0.3)
+		b.hole(boneOval(25.4, 15.4, 1.1, 0.65, -0.2), 0.35)
+		b.hole(boneOval(28.6, 14.6, 1.25, 1.15, 0), 0.4)
+	case 1:
+		long(5, 8, 17, 14, 1.2)
+		rib(18, 15.5, 22, 12.5, 28, 14.5)
+		long(19, 9, 31, 6.5, 1)
+		long(10, 16.5, 21, 18.5, 0.85)
+	default:
+		long(12, 7, 16, 16, 0.8)
+		long(8, 15, 28, 11, 1.2)
+		rib(23, 17.5, 27, 14.5, 31.5, 17.5)
 	}
-	c.outline(0.55)
+	b.paint(c, 5500+uint32(v))
 	return c
 }
 
-// fossilCanvas draws a great skeleton half bared in a slab of the floor:
-// skull with its teeth, a curving spine, ribs, legs and a long tail.
+// --- the fossil: a great skeleton half bared in the rock ----------------------------
+//
+// Its bones are drawn in a style for every skeleton of the caves to share
+// (the ramps and inks below, and boneArt): old bone, ivory where it is
+// cleanest and ochre where the earth has stained it, modelled as rounded
+// shapes lit from the top left in four tones and a highlight, porous and
+// cracked; each bone ringed by a fine dark line, darkest on its side away
+// from the light, and casting a short shadow down and to the right onto
+// whatever it lies on. A skeleton is built up on a boneArt bone by bone,
+// those further off first, and painted onto a canvas over what lies under
+// it.
+
+var (
+	// fossilBoneRamp is clean old bone, from the shade in its cracks to the
+	// highlight on a knob.
+	fossilBoneRamp = mkRamp(0x5b3a2a, 0x8a6446, 0xb39470, 0xd6c197, 0xeadfbe, 0xf8f3e0)
+	// fossilStainRamp is the same bone stained by the earth it lay in, tone
+	// for tone.
+	fossilStainRamp = mkRamp(0x4d2b1f, 0x7a482c, 0xa2683a, 0xc28e55, 0xd9b077, 0xead09c)
+	// fossilInk rings a bone on its side away from the light, fossilInkLit
+	// on its lit side.
+	fossilInk    = hex(0x22161a)
+	fossilInkLit = hex(0x4e3329)
+	// fossilRockRamp is the bed of grey-brown sandstone the skeleton lies in.
+	fossilRockRamp = mkRamp(0x221a1b, 0x382b2a, 0x514038, 0x6b5747, 0x857058, 0x9e886c, 0xb6a082, 0xccb898)
+)
+
+// The fossil's size and anchor, in art pixels: the anchor, the middle of
+// its slab, stands on the middle of the prop's tile.
+const (
+	fossilW, fossilH   = 100, 60
+	fossilAX, fossilAY = 50.0, 31.0
+)
+
+// boneArt is a skeleton being drawn at HD. Each pixel knows the bone on it
+// (numbered in the order drawn, a later bone lying over an earlier), how
+// high that bone's surface stands there and how its tone is shifted; and
+// whether rock shows deep in a hole through a bone there.
+type boneArt struct {
+	w, h     int
+	ox, oy   float64   // added to every point drawn, in art pixels
+	id       []int32   // 0: no bone
+	ht       []float64 // in image pixels
+	shift    []float64
+	stain    []float64
+	deep     []bool
+	cur      int32   // the bone being drawn
+	curShift float64 // and its shift and stain
+	curStain float64
+}
+
+func newBoneArt(c *canvas) *boneArt {
+	n := c.w * c.h
+	return &boneArt{w: c.w, h: c.h, id: make([]int32, n), ht: make([]float64, n),
+		shift: make([]float64, n), stain: make([]float64, n), deep: make([]bool, n)}
+}
+
+// bone starts the next bone, which lies over those drawn before it. shift
+// darkens it (below 0: a bone further off) or lightens it; stain is how much
+// of the earth's ochre it has taken up, about 0 to 1.
+func (b *boneArt) bone(shift, stain float64) {
+	b.cur++
+	b.curShift, b.curStain = shift, stain
+}
+
+// each calls f for the pixels of the box (x0, y0)-(x1, y1), in art pixels,
+// with the point each stands for.
+func (b *boneArt) each(x0, y0, x1, y1 float64, f func(i int, px, py float64)) {
+	ix0, iy0 := max(0, int((x0+b.ox)*hdK3)-1), max(0, int((y0+b.oy)*hdK3)-1)
+	ix1, iy1 := min(b.w-1, int((x1+b.ox)*hdK3)+1), min(b.h-1, int((y1+b.oy)*hdK3)+1)
+	for y := iy0; y <= iy1; y++ {
+		for x := ix0; x <= ix1; x++ {
+			f(y*b.w+x, (float64(x)+0.5)/hdK3-b.ox, (float64(y)+0.5)/hdK3-b.oy)
+		}
+	}
+}
+
+// fill lays the current bone over the box (x0, y0)-(x1, y1) where f says it
+// is, f giving its surface's height there in art pixels. Where it meets
+// another part of the same bone, the higher surface shows.
+func (b *boneArt) fill(x0, y0, x1, y1 float64, f func(px, py float64) (float64, bool)) {
+	b.each(x0, y0, x1, y1, func(i int, px, py float64) {
+		h, ok := f(px, py)
+		if h *= hdK3; !ok || b.id[i] == b.cur && b.ht[i] >= h {
+			return
+		}
+		b.id[i], b.ht[i], b.shift[i], b.stain[i] = b.cur, h, b.curShift, b.curStain
+	})
+}
+
+// tube adds a round shaft from (x0, y0) to (x1, y1), r0 thick (halved) at
+// its start and r1 at its end, its ends rounded.
+func (b *boneArt) tube(x0, y0, x1, y1, r0, r1 float64) {
+	r := max(r0, r1)
+	b.fill(min(x0, x1)-r, min(y0, y1)-r, max(x0, x1)+r, max(y0, y1)+r, func(px, py float64) (float64, bool) {
+		t, d := segParam(px, py, x0, y0, x1, y1)
+		rr := lerpf(r0, r1, t)
+		return math.Sqrt(max(0, rr*rr-d*d)), d < rr
+	})
+}
+
+// knob adds a rounded lump: an ellipse rx by ry (halved) about (cx, cy),
+// turned a radians clockwise.
+func (b *boneArt) knob(cx, cy, rx, ry, a float64) {
+	r := max(rx, ry)
+	sa, ca := math.Sincos(a)
+	b.fill(cx-r, cy-r, cx+r, cy+r, func(px, py float64) (float64, bool) {
+		dx, dy := px-cx, py-cy
+		u, v := (dx*ca+dy*sa)/rx, (dy*ca-dx*sa)/ry
+		d := u*u + v*v
+		return min(rx, ry) * math.Sqrt(max(0, 1-d)), d < 1
+	})
+}
+
+// curve adds a shaft along the line through pts (x, y pairs), tapering from
+// r0 thick (halved) to r1.
+func (b *boneArt) curve(pts []float64, r0, r1 float64) {
+	n := len(pts) / 2
+	at := make([]float64, n) // how far along the line each point lies
+	for i := 1; i < n; i++ {
+		at[i] = at[i-1] + math.Hypot(pts[2*i]-pts[2*i-2], pts[2*i+1]-pts[2*i-1])
+	}
+	x0, y0, x1, y1 := polyBox(pts)
+	r := max(r0, r1)
+	b.fill(x0-r, y0-r, x1+r, y1+r, func(px, py float64) (float64, bool) {
+		d, s := math.Inf(1), 0.0
+		for i := 0; i+1 < n; i++ {
+			if t, e := segParam(px, py, pts[2*i], pts[2*i+1], pts[2*i+2], pts[2*i+3]); e < d {
+				d, s = e, lerpf(at[i], at[i+1], t)
+			}
+		}
+		rr := lerpf(r0, r1, s/max(at[n-1], 1e-9))
+		return math.Sqrt(max(0, rr*rr-d*d)), d < rr
+	})
+}
+
+// plate adds a flat bone, the polygon pts, its edge rounded over bev art
+// pixels and its face swelling a little towards its middle.
+func (b *boneArt) plate(pts []float64, bev float64) {
+	x0, y0, x1, y1 := polyBox(pts)
+	b.fill(x0, y0, x1, y1, func(px, py float64) (float64, bool) {
+		in, d := polyDist(pts, px, py)
+		return bevelH(d, bev) + 0.12*min(d, 4), in
+	})
+}
+
+// hole cuts an opening, the polygon pts, through the current bone: rock
+// shows deep in it, and the bone round it slopes down into it over bev.
+func (b *boneArt) hole(pts []float64, bev float64) {
+	x0, y0, x1, y1 := polyBox(pts)
+	b.each(x0-bev, y0-bev, x1+bev, y1+bev, func(i int, px, py float64) {
+		if b.id[i] != b.cur {
+			return
+		}
+		switch in, d := polyDist(pts, px, py); {
+		case in:
+			b.id[i], b.ht[i], b.deep[i] = 0, 0, true
+		case d < bev:
+			b.ht[i] = min(b.ht[i], hdK3*bevelH(d, bev))
+		}
+	})
+}
+
+// dent presses a shallow hollow into the current bone: an ellipse rx by ry
+// (halved) about (cx, cy), depth art pixels deep in its middle.
+func (b *boneArt) dent(cx, cy, rx, ry, depth float64) {
+	b.each(cx-rx, cy-ry, cx+rx, cy+ry, func(i int, px, py float64) {
+		u, v := (px-cx)/rx, (py-cy)/ry
+		if d := u*u + v*v; d < 1 && b.id[i] == b.cur {
+			b.ht[i] -= hdK3 * depth * (1 - d) * (1 - d)
+		}
+	})
+}
+
+// crack breaks the current bone across, along (x0, y0)-(x1, y1).
+func (b *boneArt) crack(x0, y0, x1, y1 float64) {
+	b.each(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1), func(i int, px, py float64) {
+		if _, d := segParam(px, py, x0, y0, x1, y1); d < 0.2 && b.id[i] == b.cur {
+			b.id[i], b.ht[i], b.deep[i] = 0, 0, true
+		}
+	})
+}
+
+// bury hides what lies inside polygon pts of every bone drawn so far under
+// the rock it lies in.
+func (b *boneArt) bury(pts []float64) {
+	x0, y0, x1, y1 := polyBox(pts)
+	b.each(x0, y0, x1, y1, func(i int, px, py float64) {
+		if in, _ := polyDist(pts, px, py); in {
+			b.id[i], b.ht[i], b.deep[i] = 0, 0, false
+		}
+	})
+}
+
+// shadeIn darkens the rock inside polygon pts where no bone lies over it: an
+// open mouth.
+func (b *boneArt) shadeIn(pts []float64) {
+	x0, y0, x1, y1 := polyBox(pts)
+	b.each(x0, y0, x1, y1, func(i int, px, py float64) {
+		if in, _ := polyDist(pts, px, py); in {
+			b.deep[i] = true
+		}
+	})
+}
+
+// paint shades the skeleton onto c, over what is drawn there: each bone in
+// its tones, lit from the top left by the slope of its surface, porous,
+// cracked here and there and stained in patches; the line round it; the
+// shadow it casts; and the rock deep in its holes. seed varies the grain.
+func (b *boneArt) paint(c *canvas, seed uint32) {
+	under := make([]color.RGBA, len(c.px))
+	copy(under, c.px)
+	idAt := func(x, y int) int32 {
+		if x < 0 || y < 0 || x >= b.w || y >= b.h {
+			return 0
+		}
+		return b.id[y*b.w+x]
+	}
+	htAt := func(x, y int, id int32) float64 {
+		if idAt(x, y) != id {
+			return 0
+		}
+		return b.ht[y*b.w+x]
+	}
+	darken := func(x, y int, k float64) {
+		if u := under[y*b.w+x]; u.A >= 128 {
+			c.put(x, y, mix(u, fossilInk, k))
+		} else {
+			c.put(x, y, withAlpha(fossilInk, uint8(200*k)))
+		}
+	}
+	L := lightDir
+	for y := range b.h {
+		for x := range b.w {
+			i := y*b.w + x
+			id := b.id[i]
+			if id == 0 {
+				shadow := idAt(x-1, y-2) != 0 || idAt(x-2, y-3) != 0 || idAt(x-3, y-4) != 0
+				switch {
+				case idAt(x-1, y) != 0 || idAt(x, y-1) != 0:
+					c.put(x, y, fossilInk) // the line on a bone's shaded side
+				case idAt(x+1, y) != 0 || idAt(x, y+1) != 0:
+					c.put(x, y, fossilInkLit) // and on its lit side
+				case b.deep[i] && shadow:
+					darken(x, y, 0.75)
+				case b.deep[i]:
+					darken(x, y, 0.55)
+				case shadow:
+					darken(x, y, 0.4)
+				}
+				continue
+			}
+			// The line where a bone drawn later lies over this one.
+			if idAt(x-1, y) > id || idAt(x, y-1) > id {
+				c.put(x, y, fossilInk)
+				continue
+			}
+			if idAt(x+1, y) > id || idAt(x, y+1) > id {
+				c.put(x, y, fossilBoneRamp[0])
+				continue
+			}
+			hx := (htAt(x+1, y, id) - htAt(x-1, y, id)) / 2
+			hy := (htAt(x, y+1, id) - htAt(x, y-1, id)) / 2
+			l := (L[2] - hx*L[0] - hy*L[1]) / math.Sqrt(hx*hx+hy*hy+1)
+			t := 0.63 + 0.85*(l-0.52) + b.shift[i] + 0.07*(hashf(x, y, seed)-0.5)
+			k := max(0, min(5, int(math.Floor(t*5+0.5))))
+			px, py := (float64(x)+0.5)/hdK3, (float64(y)+0.5)/hdK3
+			if k >= 3 && hashf(x, y, seed+1) < 0.035 {
+				k-- // a pore
+			}
+			if math.Abs(vnoise(px*0.9, py*0.9, seed+2)-0.5) < 0.016 && vnoise(px*0.3, py*0.3, seed+3) > 0.55 {
+				k = min(k, 1) // a hairline crack
+			}
+			rp := fossilBoneRamp
+			if b.stain[i]+1.3*(fbm2(px*0.25, py*0.32, seed+4, 3)-0.5)+0.3*(0.55-t)+0.08*hashf(x, y, seed+5) > 0.6 {
+				rp = fossilStainRamp
+			}
+			c.put(x, y, rp[k])
+		}
+	}
+}
+
+// bevelH is the height of a flat bone d in from its edge, rounded over bev.
+func bevelH(d, bev float64) float64 {
+	s := 1 - min(d, bev)/bev
+	return bev * math.Sqrt(1-s*s)
+}
+
+// polyDist reports whether (px, py) lies inside polygon pts (x, y pairs),
+// and how far it is from its edge.
+func polyDist(pts []float64, px, py float64) (in bool, d float64) {
+	d = math.Inf(1)
+	n := len(pts) / 2
+	for i, j := 0, n-1; i < n; j, i = i, i+1 {
+		xi, yi, xj, yj := pts[2*i], pts[2*i+1], pts[2*j], pts[2*j+1]
+		if (yi > py) != (yj > py) && px < (xj-xi)*(py-yi)/(yj-yi)+xi {
+			in = !in
+		}
+		_, e := segParam(px, py, xi, yi, xj, yj)
+		d = min(d, e)
+	}
+	return in, d
+}
+
+// polyBox is the box round points pts (x, y pairs).
+func polyBox(pts []float64) (x0, y0, x1, y1 float64) {
+	x0, y0, x1, y1 = pts[0], pts[1], pts[0], pts[1]
+	for i := 2; i+1 < len(pts); i += 2 {
+		x0, y0 = min(x0, pts[i]), min(y0, pts[i+1])
+		x1, y1 = max(x1, pts[i]), max(y1, pts[i+1])
+	}
+	return
+}
+
+// boneLoop rounds the polygon through pts (x, y pairs) into a smooth closed
+// curve, k points to a side; boneLine does the same for an open line.
+func boneLoop(pts []float64, k int) []float64 { return catmullPts(pts, k, true) }
+func boneLine(pts []float64, k int) []float64 { return catmullPts(pts, k, false) }
+
+func catmullPts(pts []float64, k int, closed bool) []float64 {
+	n := len(pts) / 2
+	p := func(i int) (float64, float64) {
+		if closed {
+			i = (i%n + n) % n
+		} else {
+			i = max(0, min(n-1, i))
+		}
+		return pts[2*i], pts[2*i+1]
+	}
+	segs := n
+	if !closed {
+		segs = n - 1
+	}
+	out := make([]float64, 0, 2*(segs*k+1))
+	for i := range segs {
+		x0, y0 := p(i - 1)
+		x1, y1 := p(i)
+		x2, y2 := p(i + 1)
+		x3, y3 := p(i + 2)
+		for s := range k {
+			t := float64(s) / float64(k)
+			out = append(out, catmull(x0, x1, x2, x3, t), catmull(y0, y1, y2, y3, t))
+		}
+	}
+	if !closed {
+		out = append(out, pts[2*n-2], pts[2*n-1])
+	}
+	return out
+}
+
+// catmull is the Catmull-Rom spline through b and c, a and d beyond them, t
+// of the way from b to c.
+func catmull(a, b, c, d, t float64) float64 {
+	return 0.5 * (2*b + (c-a)*t + (2*a-5*b+4*c-d)*t*t + (3*b-a-3*c+d)*t*t*t)
+}
+
+// boneOval is an ellipse rx by ry (halved) about (cx, cy), turned a radians,
+// as a polygon.
+func boneOval(cx, cy, rx, ry, a float64) []float64 {
+	sa, ca := math.Sincos(a)
+	out := make([]float64, 0, 48)
+	for k := range 24 {
+		s, c := math.Sincos(float64(k) * math.Pi / 12)
+		u, v := c*rx, s*ry
+		out = append(out, cx+u*ca-v*sa, cy+u*sa+v*ca)
+	}
+	return out
+}
+
+// boneArc is the curve from (x0, y0) to (x2, y2) bowed towards (x1, y1), as
+// points for curve; only the stretch from t0 to t1 of it (a broken bone).
+func boneArc(x0, y0, x1, y1, x2, y2, t0, t1 float64) []float64 {
+	out := make([]float64, 0, 26)
+	for k := range 13 {
+		t := lerpf(t0, t1, float64(k)/12)
+		u := 1 - t
+		out = append(out, u*u*x0+2*u*t*x1+t*t*x2, u*u*y0+2*u*t*y1+t*t*y2)
+	}
+	return out
+}
+
+// fossilCanvas draws the great skeleton of the fossil chamber: a tyrant
+// lizard longer than four men, lying on its side in a slab of the bone bed,
+// half dug out of it. Its head is raised on its curving neck, the jaws a
+// little open on their teeth; the ribs hang from its back, the little arms
+// fold under its chest, its legs stride, and the tail runs off into the
+// rock. A few bones have broken, gone or come loose.
 func fossilCanvas() *canvas {
-	c := hdCanvas(80, 44)
-	// The slab of rock it lies in.
-	eachHD(c, func(x, y int, px, py float64) {
-		dx, dy := (px-40)/37, (py-25)/14
-		if d := dx*dx + dy*dy + (vnoise(px*0.2, py*0.3, 4500)-0.5)*0.4; d < 1 {
-			l := 0.35 - 0.25*dy + (vnoise(px*0.6, py*0.8, 4501)-0.5)*0.15
-			if d > 0.85 {
-				l -= 0.12
-			}
-			c.put(x, y, cpSand.pick(clamp01(l)*0.6, x, y))
-		}
-	})
-	// The spine, from the neck to the tail's tip.
-	spine := func(t float64) (float64, float64) {
-		x := 18 + t*58
-		return x, 22 + 5*math.Sin(t*3.6-0.6) - 3*t
-	}
-	for t := 0.0; t <= 1; t += 0.035 {
-		x, y := spine(t)
-		r := 2.2 * (1 - 0.75*t)
-		eachHD(c, func(xx, yy int, px, py float64) {
-			if d := math.Hypot((px-x)/r, (py-y)/(r*0.8)); d <= 1 {
-				c.put(xx, yy, cpBone.pick(0.7-0.35*d-0.2*(py-y)/r, xx, yy))
-			}
-		})
-	}
-	// Ribs, arching from the back.
-	for k := range 8 {
-		t := 0.08 + float64(k)*0.04
-		x, y := spine(t)
-		for s := 0.0; s <= 1; s += 0.03 {
-			rx := x + 2*s - 1
-			ry := y + 2 + s*9*(1-0.25*float64(k%2))
-			rx += 3 * math.Sin(s*2.4)
-			xx, yy := int(rx*hdK3), int(ry*hdK3)
-			for d := 0; d < 3; d++ {
-				c.put(xx+d, yy, cpBone.pick(0.65-0.3*s, xx+d, yy))
-			}
-		}
-	}
-	// Legs.
-	for _, l := range [][4]float64{{26, 25, 22, 37}, {30, 26, 33, 38}, {50, 25, 46, 36}, {54, 24, 58, 35}} {
-		caveBone(c, l[0], l[1], l[2], l[3], 1.1)
-	}
-	// The skull, with its teeth and the hole of its eye.
-	eachHD(c, func(x, y int, px, py float64) {
-		dx, dy := (px-11)/8, (py-21)/4.5
-		if d := dx*dx + dy*dy; d <= 1 && !(py > 22 && px < 9) {
-			l := 0.66 - 0.3*dx - 0.3*dy
-			if math.Hypot(px-13, py-19.5) < 1.6 {
-				l = 0.05
-			}
-			c.put(x, y, cpBone.pick(clamp01(l), x, y))
-		}
-		if py > 23.4 && py < 25 && px > 4 && px < 16 && math.Mod(px, 1.6) < 0.8 {
-			c.put(x, y, cpBone.pick(0.85, x, y)) // the teeth
-		}
-	})
+	c := hdCanvas(fossilW, fossilH)
+	b := newBoneArt(c)
+	b.oy = -2
+	fossilSkeleton(b)
+	fossilSlab(c, b)
+	b.paint(c, 5200)
 	c.outline(0.5)
+	fossilDust(c)
 	return c
+}
+
+// fossilSkeleton lays the fossil's bones on b, the furthest first.
+func fossilSkeleton(b *boneArt) {
+	// The spine, from the back of the skull to the tail's tip, and where
+	// along it a point lies.
+	sp := boneLine([]float64{23, 16, 26.5, 14.6, 30.5, 15.2, 34, 17.8, 37.5, 20.3, 43, 21.4, 49, 21, 55, 20.6,
+		60, 21.2, 65.5, 22.8, 71, 25, 77, 26.8, 83, 27.2, 88.5, 26, 93.5, 23.6}, 10)
+	n := len(sp) / 2
+	at := make([]float64, n)
+	for i := 1; i < n; i++ {
+		at[i] = at[i-1] + math.Hypot(sp[2*i]-sp[2*i-2], sp[2*i+1]-sp[2*i-1])
+	}
+	// along is the point s art pixels along the spine, and the way the spine
+	// runs there (tx, ty), towards the tail.
+	along := func(s float64) (x, y, tx, ty float64) {
+		i := 0
+		for i < n-2 && at[i+1] < s {
+			i++
+		}
+		f := (s - at[i]) / max(at[i+1]-at[i], 1e-9)
+		dx, dy := sp[2*i+2]-sp[2*i], sp[2*i+3]-sp[2*i+1]
+		l := math.Hypot(dx, dy)
+		return sp[2*i] + f*dx, sp[2*i+1] + f*dy, dx / l, dy / l
+	}
+	// sAt is how far along the spine it is to where it crosses column x.
+	sAt := func(x float64) float64 {
+		for i := 1; i < n; i++ {
+			if sp[2*i] >= x {
+				return lerpf(at[i-1], at[i], (x-sp[2*i-2])/max(sp[2*i]-sp[2*i-2], 1e-9))
+			}
+		}
+		return at[n-1]
+	}
+	// vertebra draws one bone of the spine s along it: its body half long
+	// and r high (halved), its spine reaching up ns and its chevron down nc.
+	vertebra := func(s, half, r, ns, nc float64) {
+		x, y, tx, ty := along(s)
+		ux, uy := ty, -tx // up, the way the back faces
+		b.bone(0, 0.25)
+		if nc > 0 { // the chevron under a bone of the tail, raked back
+			b.tube(x-ux*r*0.6, y-uy*r*0.6, x-ux*(r+nc)+tx*nc*0.45, y-uy*(r+nc)+ty*nc*0.45, 0.42, 0.25)
+		}
+		if ns > 0 { // the spine, raked back, a little knob on its tip
+			ex, ey := x+ux*(r+ns)+tx*ns*0.25, y+uy*(r+ns)+ty*ns*0.25
+			b.tube(x+ux*r*0.5, y+uy*r*0.5, ex, ey, min(0.62, half*0.75), min(0.5, half*0.6))
+			b.knob(ex, ey, min(0.6, half*0.7), 0.42, math.Atan2(ty, tx))
+		}
+		b.knob(x, y, half, r, math.Atan2(ty, tx))
+	}
+
+	// The far leg, striding back, in the shadow of the body.
+	far := -0.24
+	b.bone(far, 0.45)
+	b.tube(60, 22.4, 63.6, 33, 1.15, 1.0)
+	b.knob(60, 22.4, 1.5, 1.4, 0)
+	b.knob(63.6, 33.2, 1.6, 1.2, 0.3)
+	b.bone(far, 0.45)
+	b.tube(63.9, 34, 70.4, 41.6, 0.95, 0.75)
+	b.knob(64.2, 34.3, 1.4, 1, 0.8)
+	b.knob(70.4, 41.8, 1.15, 0.85, 0.8)
+	for _, m := range [][4]float64{{71.2, 42.4, 68.6, 47.9}, {70.2, 42.6, 67.4, 48}} {
+		b.bone(far, 0.45)
+		b.tube(m[0], m[1], m[2], m[3], 0.55, 0.48)
+	}
+	for _, t := range [][]float64{{68.2, 48.3, 66.4, 49, 65, 49.6, 63.6, 50.6}, {67.2, 48.3, 65.6, 48.4, 64.3, 48.6, 63.1, 49.3}} {
+		for k := 0; k+3 < len(t); k += 2 {
+			b.bone(far, 0.45)
+			if k+4 < len(t) {
+				b.tube(t[k], t[k+1], t[k+2], t[k+3], 0.5, 0.42)
+			} else {
+				b.curve(boneArc(t[k], t[k+1], t[k+2]-0.2, t[k+3]-0.5, t[k+2]-0.4, t[k+3]+0.5, 0, 1), 0.42, 0.1)
+			}
+		}
+	}
+
+	// The ribs, hanging from the back and sweeping back, one of them
+	// broken and one snapped short.
+	sDorsal, sSacrum := sAt(37.5), sAt(55)
+	const dorsals = 9
+	gap := (sSacrum - sDorsal) / dorsals
+	ribLen := [dorsals]float64{7.5, 10, 11.8, 12.8, 13.2, 12.8, 11.6, 9.6, 7.2}
+	for k := range dorsals {
+		x, y, tx, ty := along(sDorsal + (float64(k)+0.5)*gap)
+		dx, dy := -ty, tx // down, the way the belly faces
+		L := ribLen[k]
+		x0, y0 := x+dx*0.4, y+dy*0.4
+		x1, y1 := x0+dx*0.45*L+tx*0.42*L, y0+dy*0.45*L+ty*0.42*L
+		x2, y2 := x0+dx*L+tx*0.28*L, y0+dy*L+ty*0.28*L
+		b.bone(0, 0.2)
+		switch k {
+		case 2: // broken, its lower half slipped
+			b.curve(boneArc(x0, y0, x1, y1, x2, y2, 0, 0.55), 0.62, 0.45)
+			b.bone(-0.04, 0.35)
+			b.curve(boneArc(x0+0.5, y0+0.6, x1+0.5, y1+0.6, x2+0.5, y2+0.6, 0.64, 1), 0.44, 0.34)
+		case 6: // snapped short
+			b.curve(boneArc(x0, y0, x1, y1, x2, y2, 0, 0.6), 0.62, 0.46)
+		default:
+			b.curve(boneArc(x0, y0, x1, y1, x2, y2, 0, 1), 0.62, 0.36)
+		}
+	}
+
+	// The spine: the neck, the back, the hips and the tail, two bones of it
+	// gone and the last of it still in the rock.
+	sNeck := sAt(23.8)
+	for k := range 7 {
+		g := (sDorsal - sNeck) / 7
+		s := sNeck + (float64(k)+0.5)*g
+		x, y, tx, ty := along(s)
+		b.bone(0, 0.2)
+		b.tube(x-ty*0.7, y+tx*0.7, x+tx*g*1.1-ty*1.2, y+ty*g*1.1+tx*1.2, 0.3, 0.14) // a neck rib
+		vertebra(s, 0.43*g, 1.05+0.05*float64(k), 0.7+0.12*float64(k), 0)
+	}
+	for k := range dorsals {
+		vertebra(sDorsal+(float64(k)+0.5)*gap, 0.42*gap, 1.2, 2.9+0.35*math.Sin(float64(k)/8*math.Pi), 0)
+	}
+	sTail := sAt(61.5)
+	for k := range 5 {
+		g := (sTail - sSacrum) / 5
+		vertebra(sSacrum+(float64(k)+0.5)*g, 0.45*g, 1.15, 3.1, 0) // their spines showing over the hip
+	}
+	s, g := sTail, 1.95
+	for k := range 23 {
+		kf := float64(k)
+		if k != 12 && k != 13 {
+			vertebra(s+g/2, 0.42*g, 1.15*(1-kf/42), 2.3*max(0, 1-kf/15), 2.5*max(0, 1-kf/19)*min(1, kf))
+		}
+		s += g
+		g *= 0.975
+	}
+	ex, ey, _, _ := along(s - 1)
+	b.bury(boneOval(ex+0.6, ey+0.2, 2.6, 2.4, 0.5)) // its tip, still in the rock
+
+	// The hips: the long blade of the ilium over the hip bones of the
+	// spine, the pubis reaching forward to its boot, the ischium back.
+	b.bone(0, 0.2)
+	b.plate(boneLoop([]float64{52.4, 21.4, 52.9, 19.6, 54.6, 18.5, 57.5, 18.2, 60.5, 17.8, 63.3, 17.9, 65.4, 18.6,
+		66.4, 19.9, 66.2, 21.4, 64.6, 22.2, 62.6, 22.5, 61.2, 23.3, 59.8, 22.7, 58.2, 22.5, 56.8, 23.3, 55.2, 23,
+		53.6, 22.6}, 4), 0.7)
+	b.dent(56.2, 20.2, 3, 1.3, 0.85)
+	b.dent(62.8, 20, 2.6, 1.2, 0.8)
+	b.curve(boneLine([]float64{58, 22, 59.6, 21.3, 61.4, 21.9}, 4), 0.95, 0.8) // the rim over the hip joint
+	b.bone(0, 0.3)
+	b.tube(56, 22.8, 51.6, 33.2, 1.0, 0.75)
+	b.knob(51.8, 34, 3, 1.15, -0.12)
+	b.bone(0, 0.3)
+	b.tube(62.6, 23.2, 66, 30.8, 0.95, 0.5)
+	b.knob(66, 30.8, 0.9, 0.7, 0)
+
+	// The shoulder: the strap of the scapula, the coracoid, and the
+	// little arm folded under the chest, two claws on its hand.
+	b.bone(0.02, 0.25)
+	b.tube(41, 18.2, 37.2, 28.2, 1.0, 0.7)
+	b.knob(40.8, 18.8, 1.3, 1.0, 1.2)
+	b.knob(37.3, 28.2, 1.5, 1.05, 1.0)
+	b.bone(0, 0.25)
+	b.knob(36, 30.3, 1.7, 1.25, 0.4)
+	b.bone(0, 0.2)
+	b.tube(36.8, 29.6, 38.6, 34.2, 0.6, 0.55)
+	b.knob(36.8, 29.6, 0.85, 0.75, 1.2)
+	b.knob(38.6, 34.2, 0.8, 0.7, 1.2)
+	b.bone(0, 0.2)
+	b.tube(39, 34.6, 37.1, 37.3, 0.42, 0.36)
+	b.bone(0, 0.2)
+	b.tube(38.4, 34.4, 36.5, 36.9, 0.4, 0.34)
+	for _, f := range [][4]float64{{36.6, 37.2, 35.2, 38}, {37.1, 37.6, 36, 38.9}} {
+		b.bone(0, 0.2)
+		b.tube(f[0], f[1], f[2], f[3], 0.38, 0.34)
+		b.curve(boneArc(f[2], f[3], f[2]-1.2, f[3]-0.1, f[2]-1.3, f[3]+1, 0, 1), 0.38, 0.1)
+	}
+
+	// The near leg, striding forward: the thighbone, cracked across, the
+	// shin with the fibula behind it, the long bones of the foot, and its
+	// toes, joint by joint, clawed.
+	b.bone(0, 0.2)
+	b.tube(59, 22.8, 55, 33.6, 1.25, 1.05)
+	b.knob(59, 22.6, 1.7, 1.55, 0.3)
+	b.knob(55, 33.8, 1.75, 1.3, 0.35)
+	b.crack(56.3, 28.3, 58.4, 29.4)
+	b.bone(-0.06, 0.3)
+	b.tube(54.4, 35.3, 58, 44.2, 0.45, 0.3)
+	b.bone(0, 0.2)
+	b.tube(55.3, 34.6, 59.2, 44, 1.0, 0.8)
+	b.knob(55.6, 34.9, 1.55, 1.1, 0.4)
+	b.knob(59.2, 44.2, 1.3, 0.9, 0.3)
+	for _, m := range [][4]float64{{59.9, 45, 57.2, 51.2}, {58.4, 45, 55.4, 51}, {59.2, 45.2, 56.4, 51.5}} {
+		b.bone(0, 0.25)
+		b.tube(m[0], m[1], m[2], m[3], 0.55, 0.48)
+		b.knob(m[2], m[3], 0.62, 0.5, 0.5)
+	}
+	for _, t := range [][]float64{
+		{55.4, 51, 53.4, 51.6, 52, 52.3, 50.6, 52.9},
+		{56.4, 51.6, 54.4, 52.6, 52.8, 53.4, 51.6, 53.9, 50.3, 54.5},
+		{57.2, 51.4, 55.6, 53, 54.4, 54, 53.3, 54.9},
+	} {
+		for k := 0; k+3 < len(t); k += 2 {
+			b.bone(0, 0.25)
+			if k+4 < len(t) {
+				b.tube(t[k], t[k+1], t[k+2], t[k+3], 0.5, 0.42)
+				b.knob(t[k+2], t[k+3], 0.5, 0.45, 0)
+			} else { // the claw, hooked
+				dx, dy := t[k+2]-t[k], t[k+3]-t[k+1]
+				b.curve(boneArc(t[k], t[k+1], t[k]+dx*1.1, t[k+1]+dy*0.4, t[k]+dx*1.2+0.1, t[k+1]+dy+0.8, 0, 1), 0.45, 0.1)
+			}
+		}
+	}
+
+	// The skull: the lower jaw first, a little open, then the skull over
+	// it, deep, its teeth in rows, holed by the nostril, the window before
+	// the eye, the eye and the window behind it.
+	b.bone(0, 0.3)
+	jaw := boneLoop([]float64{22.9, 19.6, 23.3, 20.9, 22.2, 22.4, 19.5, 23.4, 15.5, 23.7, 11.5, 23.3, 8.6, 22.8,
+		7.3, 22.2, 7.4, 21.3, 9.5, 21.4, 13, 21.2, 16.5, 20.8, 19, 20.3, 20.5, 19.4, 21.6, 19.9}, 4)
+	b.plate(jaw, 0.9)
+	for k := range 8 {
+		x := 8.6 + float64(k)*1.1
+		ln := []float64{0.9, 1.1, 1.15, 1.1, 1.05, 0.95, 0.85, 0.7}[k]
+		y := 21.5 - 0.03*float64(k)*float64(k)/2
+		b.plate([]float64{x - 0.4, y, x + 0.4, y, x - 0.1, y - ln}, 0.3)
+	}
+	b.hole(boneOval(19, 21.9, 1.25, 0.48, -0.12), 0.4)
+	b.shadeIn([]float64{7.5, 19, 16.5, 19.4, 21.5, 19.7, 19, 20.4, 13, 21.3, 7.4, 21.5})
+	b.bone(0, 0.3)
+	b.plate(boneLoop([]float64{6.8, 17.6, 7.2, 15.9, 8.6, 14.6, 11.5, 13.6, 14.5, 12.7, 16.6, 11.9, 17.6, 11.3,
+		18.8, 11.6, 20.6, 11, 22.6, 11.5, 23.7, 12.8, 23.9, 15, 23.2, 17.2, 22.6, 19.8, 21.2, 19.6, 19.5, 18.9,
+		16.5, 19.4, 13, 19.6, 9.8, 19.4, 7.6, 19}, 4), 1.0)
+	for k := range 9 {
+		x := 8 + float64(k)*1.1
+		ln := []float64{1, 1.25, 1.45, 1.5, 1.45, 1.35, 1.2, 1, 0.8}[k]
+		y := 19.1 + 0.5*math.Sin(float64(k)/8*math.Pi) - 0.1
+		b.plate([]float64{x - 0.45, y - 0.3, x + 0.45, y - 0.3, x + 0.2, y + ln}, 0.32)
+	}
+	b.hole(boneOval(8.7, 16, 0.95, 0.58, -0.35), 0.4)
+	b.hole(boneOval(11.2, 17.2, 0.55, 0.42, 0), 0.35)
+	b.hole(boneLoop([]float64{12.2, 18, 13.6, 15.6, 15.4, 14.3, 16.4, 15.4, 16.8, 17.9, 14.5, 18.4}, 4), 0.5)
+	b.hole(boneOval(18.5, 13.9, 1.25, 1.25, 0), 0.5)
+	b.hole([]float64{17.9, 14.6, 19.1, 14.6, 18.7, 16.9, 18.3, 16.9}, 0.4)
+	b.hole(boneLoop([]float64{19.9, 15, 21.5, 13.6, 22.6, 14.2, 22.4, 17.4, 20.9, 18.4, 20, 17.4}, 4), 0.5)
+
+	// Loose in the rock: a bone of the tail that came away, a tooth, a
+	// broken rib and a claw of the arm that is gone.
+	b.bone(-0.03, 0.4)
+	b.knob(80, 36.5, 1.0, 0.75, 1.1)
+	b.tube(80, 36.5, 81.7, 38.2, 0.45, 0.35)
+	b.bone(-0.03, 0.4)
+	b.curve(boneArc(87.5, 38.5, 88.5, 39.2, 89.8, 39.1, 0, 1), 0.4, 0.22)
+	b.bone(0, 0.3)
+	b.curve(boneArc(11, 27.4, 12.4, 27.1, 13.6, 27.9, 0, 1), 0.42, 0.1)
+	b.bone(-0.03, 0.4)
+	b.curve(boneArc(43.5, 40.5, 45.4, 40.6, 47, 41.6, 0, 1), 0.45, 0.35)
+	b.bone(-0.03, 0.3)
+	b.curve(boneArc(30, 32, 31.2, 31.6, 31.6, 32.8, 0, 1), 0.42, 0.1)
+	b.bone(-0.05, 0.45)
+	b.curve(boneArc(13.5, 41.5, 18.5, 39.8, 23.5, 43.5, 0, 1), 0.6, 0.4)
+	b.bone(-0.05, 0.45)
+	b.curve(boneArc(24.8, 44.4, 26.2, 45.6, 26.6, 47.4, 0, 1), 0.42, 0.36)
+}
+
+// fossilSlab draws the slab of the bone bed the skeleton lies in, a little
+// higher than the floor round it: grey-brown sandstone in beds, cracked
+// into plates, chipped by the diggers and brushed pale round the bones, its
+// edge crumbling into rubble on the floor. b says where the bones lie.
+func fossilSlab(c *canvas, b *boneArt) {
+	const seed = 5300
+	// inside is how far (px, py) lies inside the slab's top, in art pixels
+	// (below 0 outside): a block with rounded corners, worn uneven.
+	inside := func(px, py float64) float64 {
+		const a, b, p = 47.5, 25.0, 3.2
+		dx, dy := math.Abs(px-fossilAX)/a, math.Abs(py-fossilAY+0.5)/b
+		q := math.Pow(math.Pow(dx, p)+math.Pow(dy, p), 1/p)
+		return (1-q)*b + 2.4*(vnoise(px*0.14, py*0.18, seed)-0.5) + 0.9*(vnoise(px*0.6, py*0.7, seed+1)-0.5)
+	}
+	// Near the bones the rock was brushed clean: how near, in pixels.
+	near := make([]float64, len(c.px))
+	for i := range near {
+		near[i] = 99
+	}
+	for y := range c.h {
+		for x := range c.w {
+			if b.id[y*c.w+x] == 0 {
+				continue
+			}
+			for dy := -6; dy <= 6; dy++ {
+				for dx := -6; dx <= 6; dx++ {
+					if xx, yy := x+dx, y+dy; c.in(xx, yy) {
+						j := yy*c.w + xx
+						near[j] = min(near[j], math.Hypot(float64(dx), float64(dy)))
+					}
+				}
+			}
+		}
+	}
+	chisel := [][3]float64{{9, 24.5, 0.5}, {45, 36.5, 0.6}, {84, 28, 0.4}, {46.5, 49, 0.7}, {66.5, 36, 0.5}, {27, 26, 0.6}, {49, 12.5, 0.4}}
+	const rise = 2.0 // how far the slab stands above the floor
+	eachHD(c, func(x, y int, px, py float64) {
+		in := inside(px, py)
+		if in < 0 {
+			if inside(px, py-rise) >= 0 { // its face, turned to the south
+				l := 0.36 - 0.1*(py-math.Floor(py/rise)*rise)/rise
+				if math.Mod(py*1.7+1.2*math.Sin(px*0.31), 2.2) < 0.45 {
+					l -= 0.07 // the beds of the stone
+				}
+				l += 0.12 * (vnoise(px*0.9, py*1.6, seed+2) - 0.5)
+				c.put(x, y, fossilRockRamp.pick(l, x, y))
+				return
+			}
+			// Rubble crumbled off it on the floor round it, most below.
+			if in > -4 {
+				dens := 0.35 * (1 + in/4) * (0.5 + clamp01((py-fossilAY)/12))
+				if part, l := pebble(x, y, 8, 7, seed+5, dens, 1.3, 3); part == pebStone {
+					c.put(x, y, fossilRockRamp.pick(0.3+0.6*l, x, y))
+				}
+			}
+			return
+		}
+		// The top: beds of sandstone, cracked into plates.
+		l := 0.54 + 0.08*(fbm2(px*0.12, py*0.15, seed+6, 3)-0.5)
+		if math.Mod(py*0.55+1.3*math.Sin(px*0.08)+0.8*vnoise(px*0.1, py*0.1, seed+7), 2) < 0.18 {
+			l -= 0.05 // a bed's line
+		}
+		clean := near[y*c.w+x]
+		edge, id, nx, ny := plates(px/9, py/6.5, seed+8)
+		edge *= 7.5
+		l += 0.05 * (float64(id&255)/255 - 0.5)
+		// Cracked into plates, most of all towards its edge.
+		if clean > 7 && (in < 6 || vnoise(px*0.08, py*0.1, seed+10) > 0.45) {
+			switch {
+			case edge < 0.22:
+				l = 0.34 // a crack
+			case edge < 0.5 && nx*lightDir[0]+ny*lightDir[1] < 0:
+				l += 0.08 // the lip beyond it, catching the light
+			}
+		}
+		// The rim: lit along the top and left, shaded along the bottom and
+		// right, crumbling.
+		if in < 1.1 {
+			gx := inside(px+0.3, py) - inside(px-0.3, py)
+			gy := inside(px, py+0.3) - inside(px, py-0.3)
+			if -gx*lightDir[0]-gy*lightDir[1] < 0 {
+				l += 0.12
+			} else {
+				l -= 0.1
+			}
+		}
+		// Chisel marks, in rows.
+		for _, m := range chisel {
+			sa, ca := math.Sincos(m[2])
+			u, v := (px-m[0])*ca+(py-m[1])*sa, (py-m[1])*ca-(px-m[0])*sa
+			if math.Abs(u) < 2.2 && math.Abs(v) < 0.8 {
+				switch f := math.Mod(u+2.2, 0.75); {
+				case f < 0.22:
+					l = 0.3
+				case f < 0.42:
+					l += 0.12
+				}
+			}
+		}
+		// Brushed pale round the bones.
+		if clean < 7 {
+			l += 0.08 * (1 - clean/7)
+		}
+		// Its grain.
+		switch h := hashf(x, y, seed+9); {
+		case h < 0.05:
+			l -= 0.1
+		case h > 0.965:
+			l += 0.1
+		}
+		c.put(x, y, fossilRockRamp.pick(l, x, y))
+	})
+}
+
+// fossilDust scatters pale dust from the dig on the floor round the slab,
+// and lays the slab's shadow on it to the right and below.
+func fossilDust(c *canvas) {
+	src := make([]color.RGBA, len(c.px))
+	copy(src, c.px)
+	solid := func(x, y int) bool { return c.in(x, y) && src[y*c.w+x].A >= 128 }
+	for y := range c.h {
+		for x := range c.w {
+			if solid(x, y) {
+				continue
+			}
+			if solid(x-2, y-3) || solid(x-1, y-4) {
+				c.put(x, y, withAlpha(fossilInk, 70))
+				continue
+			}
+			d := 99.0
+			for dy := -6; dy <= 6; dy += 2 {
+				for dx := -6; dx <= 6; dx += 2 {
+					if solid(x+dx, y+dy) {
+						d = min(d, math.Hypot(float64(dx), float64(dy)))
+					}
+				}
+			}
+			if a := 1 - d/7; a > 0 && fbm2(float64(x)*0.08, float64(y)*0.1, 5400, 2)+0.25*a > 0.6 {
+				c.put(x, y, withAlpha(fossilRockRamp[5], uint8(60*a)))
+			}
+		}
+	}
 }
 
 // paintingCanvas draws pictures painted long ago on a pale patch of the
