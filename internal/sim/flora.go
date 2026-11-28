@@ -156,16 +156,29 @@ func (w *World) padAt(tx, ty int) bool {
 	return e != nil && e.Kind == EntityFlora && FloraKind(e.Var).Pad() && !w.frozenAt(tx, ty)
 }
 
+// pullSeaLilies takes up every lily and lotus standing on water joined to
+// the open sea: worlds made before StyleLairs counted the deep pockets of
+// the shallows as ponds and grew them there (see PondMaskFor). It runs once,
+// on loading such a save; it draws no random numbers.
+func (w *World) pullSeaLilies() {
+	sea := seaJoined(w.width, w.height, w.tiles)
+	var out []*Entity
+	for _, e := range w.entities {
+		if e.Kind == EntityFlora && FloraKind(e.Var).Pad() && w.inBounds(e.TX, e.TY) && sea[e.TY*w.width+e.TX] {
+			out = append(out, e)
+		}
+	}
+	for _, e := range out {
+		w.removeEntity(e)
+	}
+}
+
 // pondWater reports whether tile (tx, ty) is the water of a lake or pond.
 func (w *World) pondWater(tx, ty int) bool {
 	if !w.inBounds(tx, ty) {
 		return false
 	}
-	if !w.wx.pondDone {
-		w.wx.pond = PondMask(w.width, w.height, w.tiles)
-		w.wx.pondDone = true
-	}
-	return w.wx.pond[ty*w.width+tx]
+	return w.ponds()[ty*w.width+tx]
 }
 
 // byPond reports whether walkable tile (tx, ty) has pond water on one of
@@ -233,7 +246,7 @@ func (w *World) scatterFlora(rng *rand.Rand, seed uint32) {
 		for tx := 0; tx < w.width; tx++ {
 			i := ty*w.width + tx
 			r := rng.Float64()
-			if w.occ[i] != 0 || max(abs(tx-sx), abs(ty-sy)) <= floraSpawnClear {
+			if w.occ[i] != 0 || max(abs(tx-sx), abs(ty-sy)) <= floraSpawnClear || w.style >= StyleLairs && w.lairReserved(tx, ty) {
 				continue
 			}
 			x, y := float64(tx)+0.5, float64(ty)+0.5

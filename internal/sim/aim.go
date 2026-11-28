@@ -273,7 +273,7 @@ func (w *World) buildSpot(p *Player, tx, ty int, k EntityKind, soft bool) bool {
 // those keep their own facing.
 func (w *World) faceAim(p *Player) {
 	ax, ay, ok := p.Aim()
-	if !ok || !p.input.Action || !AimedItem(p.Held()) || p.mount != 0 || p.boat != 0 || p.line.state != CastNone {
+	if !ok || !(p.input.Action || p.input.Draw) || !AimedItem(p.Held()) || p.mount != 0 || p.boat != 0 || p.line.state != CastNone {
 		return
 	}
 	if dx, dy := ax-p.X, ay-p.Y; dx*dx+dy*dy > 0.04 {

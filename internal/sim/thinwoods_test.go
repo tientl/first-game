@@ -111,7 +111,11 @@ func TestOldSaveWoodsThinnedOnce(t *testing.T) {
 				}
 			}
 		}
+		sea := seaJoined(w.width, w.height, w.tiles)
 		for _, e := range w.entities {
+			if e.Kind == EntityFlora && FloraKind(e.Var).Pad() && sea[e.TY*w.width+e.TX] {
+				continue // a lily on the sea: pulled up on loading, see pullSeaLilies
+			}
 			if e.Kind != EntityTree && l.entities[e.ID] == nil {
 				t.Errorf("style %d: %s %d was taken away", style, e.Kind.Name(), e.ID)
 			}

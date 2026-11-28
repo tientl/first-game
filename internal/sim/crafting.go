@@ -63,7 +63,7 @@ func (w *World) blocked(tx, ty int) bool {
 		return true // the roots round a boss's arena: see lair.go
 	}
 	e := w.entityAt(tx, ty)
-	return e != nil && blocksPlayers(e.Kind)
+	return e != nil && (blocksPlayers(e.Kind) || solidProp(e)) // the temple's stones: see lairsite.go
 }
 
 // sleep puts p to bed in e, a bed or a tent (see tent.go). Beds are for

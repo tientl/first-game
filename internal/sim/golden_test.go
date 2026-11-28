@@ -54,7 +54,7 @@ func worldHash(w *World) uint64 {
 // StyleWoods: when StyleBeaches was; StyleBeaches, with its Ankylosaurus:
 // when StyleWilds was; StyleWilds: when StyleGround was; StyleGround: when
 // StyleCaves was; StyleCaves: when StyleFlint was; StyleFlint: when
-// StyleCaveWays was; StyleCaveWays: as it was first made). A
+// StyleCaveWays was; StyleCaveWays: when StyleCaveFight was; StyleCaveFight: when StyleLairs was; StyleLairs: as first made). A
 // change to generation must never change them: saves keep only the seed and
 // style, and regenerate the terrain from it; an older save's woods are
 // thinned by telling the trees of the world as it was made (thinwoods.go).
@@ -89,6 +89,10 @@ var goldenWorlds = []struct {
 	{StyleFlint, 11, SizeLarge, 0xe76033c8d98a16f4},
 	{StyleCaveWays, 7, SizeMedium, 0xa67847e7fcafa14e},
 	{StyleCaveWays, 11, SizeLarge, 0xad3913752b98dfb7},
+	{StyleCaveFight, 7, SizeMedium, 0xf128a7cb4df8b913},
+	{StyleCaveFight, 11, SizeLarge, 0x7199b11862419c4},
+	{StyleLairs, 7, SizeMedium, 0xe6c38c62265cfc46},
+	{StyleLairs, 11, SizeLarge, 0x26086884e713a768},
 }
 
 func TestOlderStylesGenerateAsBefore(t *testing.T) {

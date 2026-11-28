@@ -1,6 +1,9 @@
 package sim
 
-import "math"
+import (
+	"math"
+	"slices"
+)
 
 // The great beasts' moves. Each kind fights with two to four moves of its
 // own (skills): a bite, a tail sweep, a roar, a charge, a leap. Every move is
@@ -115,7 +118,7 @@ const (
 )
 
 // Effect is what a move does besides its damage.
-type Effect uint16
+type Effect uint32
 
 const (
 	FxPin      Effect = 1 << iota // holds the foe down and bites, till they break free (status.go)
@@ -134,6 +137,9 @@ const (
 	FxExpose                      // open to blows through its recovery
 	FxSummon                      // calls helpers
 	FxEnsnare                     // tangles the foe in web
+	FxCapsize                     // overturns the boat it lands on (the Megalodon)
+	FxSoak                        // drenches whoever it lands on: the torch in their hand goes out
+	FxReef                        // breaks the atoll's reef in its zone (sharkfight.go)
 )
 
 // Motion is how a beast moves through a move.
@@ -146,6 +152,9 @@ const (
 	MoveHover          // a flier holding still high over where it will dive
 	MoveSwim           // closes in under water through the wind-up: a ripple coming closer
 	MoveHopBack        // springs back from the foe through its recovery
+	MoveDive           // slides into its pool and comes up at the edge nearest the foe (Titanoboa: titanfight.go)
+	MoveBeach          // swims to a run-up, then lunges out over the edge where the foe stands, and lies beached (sharkfight.go)
+	MoveRam            // swims at the water by the target through the wind-up, and rams it
 )
 
 // Anchor is where a round zone lies.
@@ -171,6 +180,11 @@ const (
 	NeedCalm        // nobody has angered it yet (a warning)
 	NeedAngry       // angered
 	NeedFacing      // the foe before it, not at its tail
+	NeedPool        // Titanoboa near its temple's pool
+	NeedEdge        // the foe on dry land at the lagoon's edge (the Megalodon)
+	NeedReef        // the foe on the atoll's reef, which can be broken
+	NeedBoat        // the foe in a boat in the lagoon
+	NeedSwim        // the foe swimming in the lagoon
 )
 
 // SkillDef is one move. Times are in ticks, distances in tiles.
@@ -209,6 +223,18 @@ type SkillDef struct {
 	Stagger    bool // a heavy blow while it winds up knocks it out of the move
 	Weight     int  // how often it is picked among the moves ready
 	Torch      int  // extra wind-up at a foe holding a burning torch: it is seen coming
+	Cover      bool // the temple's stones stop it: who is behind one is spared
+
+	// A spray of puddles (Titanoboa's venom): Puddles circles of radius
+	// Reach in an arc Spread radians wide round it, at its foe's distance;
+	// each leaves a puddle of venom (HazardVenom).
+	Puddles int
+	Spread  float64
+
+	// A pin's hold (FxPin): ticks at most, a bite of PinBite every PinEvery
+	// ticks, and the presses of Action that break it; 0: the raptor's.
+	PinHold, PinEvery, Mash int
+	PinBite                 float64
 
 	Wind   CreatureState // its state through the wind-up; 0: CreatureStrike
 	After  CreatureState // its state when done; 0: back to what it was doing
@@ -386,6 +412,14 @@ var skillStages [NumCreatureKinds][]float64
 // boss's moves change as it weakens.
 func SetSkillStages(k CreatureKind, at ...float64) { skillStages[k] = at }
 
+// skillRage is, for each kind, the stage of its fight from which it winds
+// up its moves faster (a quarter less, never under rageWindup); 0: never.
+var skillRage [NumCreatureKinds]int
+
+// rageWindup is the shortest a wind-up gets in a rage: still a light
+// move's, so it can be read.
+const rageWindup = 8
+
 // addSkills adds moves to the table, for a boss (or any kind) that gets its
 // moves from its own file; it returns their ids in order.
 func addSkills(defs ...SkillDef) []SkillID {
@@ -497,6 +531,9 @@ type skillState struct {
 	hit    bool    // a dash ran into someone; a warning was not heeded
 	pin    PlayerID
 	struck [4]PlayerID // players a dash has struck already
+	ox, oy float64     // where it stood when it aimed: a spray's arc is round it
+	reach  float64     // a line's length this time, when it is not the move's own (a lunge)
+	bx, by float64     // where a beached beast slides back to
 	prev   CreatureState
 	prevT  int
 
@@ -553,15 +590,39 @@ func (w *World) Zones(x0, y0, x1, y1 float64) []Zone {
 		switch {
 		case s.phase == PhaseWindup:
 			left = s.wind - s.t
-		case s.phase == PhaseActive && d.Motion == MoveDash && s.act > s.t:
-			// the charge is under way: its line stays till it is run
+		case s.phase == PhaseActive && (d.Motion == MoveDash || d.Motion == MoveBeach || d.Motion == MoveLeap) && s.act > s.t:
+			// the charge or the leap is under way: its zone stays till it is done
 		default:
 			continue
 		}
-		out = append(out, Zone{Creature: c.ID, Kind: c.Kind, Skill: s.id, Shape: d.Shape, X: s.x, Y: s.y,
-			Angle: s.ang, Reach: d.Reach, Width: d.Width, Left: left, Total: s.wind})
+		z := Zone{Creature: c.ID, Kind: c.Kind, Skill: s.id, Shape: d.Shape, X: s.x, Y: s.y,
+			Angle: s.ang, Reach: d.Reach, Width: d.Width, Left: left, Total: s.wind}
+		if s.reach > 0 {
+			z.Reach = s.reach
+		}
+		if d.Puddles > 0 {
+			for i := range d.Puddles {
+				z.X, z.Y = s.puddle(d, i)
+				out = append(out, z)
+			}
+			continue
+		}
+		out = append(out, z)
 	}
 	return out
+}
+
+// puddle is where the i-th puddle of a spray d made as s lands: on an arc
+// round where it stood, at its foe's distance.
+func (s *skillState) puddle(d *SkillDef, i int) (float64, float64) {
+	r := math.Hypot(s.x-s.ox, s.y-s.oy)
+	k := 0.0
+	if d.Puddles > 1 {
+		k = float64(i)/float64(d.Puddles-1) - 0.5
+	}
+	a := s.ang + k*d.Spread
+	r += 0.45 * float64(i%2*2-1) // staggered, a row of blots, not a line
+	return s.ox + math.Cos(a)*r, s.oy + math.Sin(a)*r
 }
 
 // behind reports whether (x, y) is at c's tail: c faces left or right.
@@ -611,7 +672,11 @@ func (s *skillState) covers(d *SkillDef, x, y, r float64) bool {
 	case ZoneLine:
 		ux, uy := math.Cos(s.ang), math.Sin(s.ang)
 		along, across := dx*ux+dy*uy, math.Abs(-dx*uy+dy*ux)
-		return along >= -r && along <= d.Reach+r && across <= d.Width+r
+		reach := d.Reach
+		if s.reach > 0 {
+			reach = s.reach
+		}
+		return along >= -r && along <= reach+r && across <= d.Width+r
 	}
 	return false
 }
@@ -746,6 +811,10 @@ func (w *World) ready(c *Creature, i int, d *SkillDef, p *Player, dist float64) 
 		if behind(c, p.X) {
 			return false
 		}
+	case NeedPool, NeedEdge, NeedReef, NeedBoat, NeedSwim:
+		if !w.bossNeed(c, d.Need, p) { // see titanfight.go and sharkfight.go
+			return false
+		}
 	}
 	if d.Damage > 0 && packKind(c.Kind) && w.packBusy(c, p) {
 		return false
@@ -809,6 +878,10 @@ func (w *World) startSkill(c *Creature, id SkillID, p *Player) {
 	s.struck = [4]PlayerID{}
 	s.foe = 0
 	s.wind, s.act = d.Windup, d.Active
+	s.reach = 0
+	if r := skillRage[min(c.Kind, NumCreatureKinds-1)]; r > 0 && c.SkillStage() >= r {
+		s.wind = max(rageWindup, min(s.wind, s.wind*3/4)) // in its rage: quicker, but still to be read
+	}
 	if p != nil {
 		s.foe = p.ID
 		if d.Torch > 0 && p.torchFuel > 0 {
@@ -827,6 +900,12 @@ func (w *World) startSkill(c *Creature, id SkillID, p *Player) {
 // aimSkill turns move d of c towards p and sets its zone.
 func (w *World) aimSkill(c *Creature, d *SkillDef, p *Player) {
 	s := &c.sk
+	if p != nil {
+		s.ox, s.oy = c.X, c.Y
+	}
+	if p != nil && w.bossAim(c, d, p) { // a boss's own moves aim at its own ground: see titanfight.go, sharkfight.go
+		return
+	}
 	if p != nil {
 		switch {
 		case d.Behind:
@@ -900,9 +979,14 @@ func (w *World) stepSkills(c *Creature) bool {
 		if s.t >= s.wind {
 			s.phase, s.t = PhaseActive, 0
 			c.State, s.state = CreatureStrike, CreatureStrike
-			if d.Motion == MoveDash || d.Motion == MoveLeap {
+			switch d.Motion {
+			case MoveDash, MoveLeap, MoveBeach:
 				s.sx, s.sy = c.X, c.Y
-			} else {
+				s.bx, s.by = c.X, c.Y
+			case MoveDive:
+				w.surface(c) // up out of the pool at its edge: see titanfight.go
+				w.skillLand(c, d)
+			default:
 				w.skillLand(c, d)
 			}
 		}
@@ -912,6 +996,9 @@ func (w *World) stepSkills(c *Creature) bool {
 			s.phase, s.t = PhaseRecover, 0
 		}
 	case PhaseRecover:
+		if d.Motion == MoveBeach {
+			w.beachedStep(c, d) // lying on the reef, then sliding back: see sharkfight.go
+		}
 		if d.Motion == MoveHopBack && p != nil {
 			if l := math.Hypot(c.X-p.X, c.Y-p.Y); l > 1e-6 {
 				step := d.Back / float64(d.Recover)
@@ -945,6 +1032,10 @@ func breaksOff(c *Creature) bool {
 // windStep is a tick of c winding up move d at p.
 func (w *World) windStep(c *Creature, d *SkillDef, p *Player) {
 	s := &c.sk
+	switch d.Motion {
+	case MoveDive, MoveBeach, MoveRam: // into its pool, to its run-up, at the reef: see titanfight.go, sharkfight.go
+		w.bossWindMove(c, d)
+	}
 	if p == nil || d.Lock < 0 || s.wind-s.t <= d.Lock {
 		return
 	}
@@ -973,6 +1064,8 @@ func (w *World) activeStep(c *Creature, d *SkillDef, p *Player) {
 		return
 	}
 	switch d.Motion {
+	case MoveBeach:
+		w.beachDash(c, d) // see sharkfight.go
 	case MoveDash:
 		moved := w.moveCreature(c, math.Cos(s.ang)*d.Speed, math.Sin(s.ang)*d.Speed)
 		s.x, s.y = s.sx, s.sy // the line stays where it was drawn
@@ -1027,7 +1120,7 @@ func (w *World) skillTarget(c *Creature, p *Player) bool {
 	if p == nil || p.Dead || p.Asleep {
 		return false
 	}
-	if p.boat != 0 && c.Kind != CreaturePlesio {
+	if p.boat != 0 && c.Kind != CreaturePlesio && c.Kind != CreatureMegalodon {
 		return false // out on the water, out of reach
 	}
 	return true
@@ -1050,10 +1143,43 @@ func (w *World) skillLand(c *Creature, d *SkillDef) {
 	if d.Shape == ZoneNone {
 		return
 	}
+	if d.Fx&FxReef != 0 {
+		w.ramReef(c, s.x, s.y, d.Reach) // the footholds break under them: see sharkfight.go
+	}
+	if d.Puddles > 0 {
+		w.sprayLand(c, d)
+		return
+	}
 	for _, id := range w.playerOrder {
 		p := w.players[id]
-		if w.skillTarget(c, p) && s.covers(d, p.X, p.Y, PlayerRadius) {
-			w.skillHit(c, d, p, s.x, s.y)
+		if !w.skillTarget(c, p) || !s.covers(d, p.X, p.Y, PlayerRadius) {
+			continue
+		}
+		if d.Cover && w.coverBetween(c.X, c.Y, p.X, p.Y) {
+			continue // behind a stone of the temple: see lairsite.go
+		}
+		w.skillHit(c, d, p, s.x, s.y)
+	}
+}
+
+// sprayLand lands a spray of puddles: each strikes who stands in it (once
+// for the lot) and lies a while, slowing whoever steps in it.
+func (w *World) sprayLand(c *Creature, d *SkillDef) {
+	s := &c.sk
+	var hit []PlayerID
+	for i := range d.Puddles {
+		x, y := s.puddle(d, i)
+		if !w.TileAt(int(math.Floor(x)), int(math.Floor(y))).Walkable() {
+			continue // into the water: gone
+		}
+		w.addLairHazard(LairHazard{Kind: HazardVenom, X: x, Y: y, R: d.Reach, Ends: w.tick + VenomTicks})
+		for _, id := range w.playerOrder {
+			p := w.players[id]
+			if !w.skillTarget(c, p) || math.Hypot(p.X-x, p.Y-y) > d.Reach+PlayerRadius || slices.Contains(hit, id) {
+				continue
+			}
+			hit = append(hit, id)
+			w.skillHit(c, d, p, x, y)
 		}
 	}
 }
@@ -1067,7 +1193,13 @@ func (w *World) skillHit(c *Creature, d *SkillDef, p *Player, fx, fy float64) {
 	if d.Damage > 0 {
 		if p.boat != 0 {
 			if b := w.boatByID(p.boat); b != nil {
-				w.damageBoat(b, int(d.Damage/4+0.5)) // a sea beast's bite on a boat
+				dmg := int(d.Damage/4 + 0.5) // a sea beast's bite on a boat
+				if d.Fx&FxCapsize != 0 {
+					dmg = b.HP // over it goes, and its sailor into the water
+					struck(p, d.Damage/3)
+					p.notify(NoticeBitten, uint8(c.Kind))
+				}
+				w.damageBoat(b, dmg)
 			}
 		} else {
 			struck(p, d.Damage)
@@ -1090,10 +1222,16 @@ func (w *World) skillHit(c *Creature, d *SkillDef, p *Player, fx, fy float64) {
 	p.bleedFor(d.Bleed)
 	p.slowFor(d.Slow)
 	w.caveHit(c, d, p)
+	if d.Fx&FxSoak != 0 && p.Held() == ItemTorch {
+		p.torchFuel = 0 // drenched: the torch goes out
+	}
 	if d.Fx&FxPin != 0 && p.ID == s.foe && p.status.pin == 0 && p.mount == 0 && p.boat == 0 {
 		p.status.pin, p.status.mash = c.ID, 0
 		s.pin = p.ID
 		s.act = s.t + PinHold
+		if d.PinHold > 0 {
+			s.act = s.t + d.PinHold
+		}
 	}
 }
 
@@ -1188,14 +1326,24 @@ func (w *World) pinStep(c *Creature, d *SkillDef) {
 		w.releasePin(c)
 		return
 	}
-	side := 0.45 // on top of them, from the side it came
-	if c.X > p.X {
-		side = -side
+	every, bite := PinBiteEvery, PinBite
+	if d.PinEvery > 0 {
+		every, bite = d.PinEvery, d.PinBite
 	}
-	c.X, c.Y = p.X-side, p.Y
-	c.FaceLeft = side < 0
-	if s.t%PinBiteEvery == 0 {
-		struck(p, PinBite)
+	if c.Kind == CreatureTitanoboa {
+		if w.creatureFits(c.Kind, p.X, p.Y-0.05) {
+			c.X, c.Y = p.X, p.Y-0.05 // its coils round them, they in front
+		}
+	} else {
+		side := 0.45 // on top of them, from the side it came
+		if c.X > p.X {
+			side = -side
+		}
+		c.X, c.Y = p.X-side, p.Y
+		c.FaceLeft = side < 0
+	}
+	if s.t%every == 0 {
+		struck(p, bite)
 		p.notify(NoticeBitten, uint8(c.Kind))
 		if p.Dead {
 			w.releasePin(c)
@@ -1237,6 +1385,9 @@ func (w *World) endSkill(c *Creature) {
 	if c.Kind == CreatureAnkylo && d.Behind {
 		c.cool = AnkyloTurnTicks // swung round, it is slow to turn again
 	}
+	if d.Motion == MoveBeach || d.Motion == MoveRam || c.Kind == CreatureMegalodon {
+		w.sharkBack(c, d) // back into the deep: see sharkfight.go
+	}
 }
 
 // cancelSkill drops c's move at once, letting go of anyone it holds.
@@ -1250,9 +1401,13 @@ func (w *World) cancelSkill(c *Creature) {
 			p.status.pin = 0
 		}
 	}
+	d := Skill(s.id)
 	s.id, s.phase, s.t, s.pin = SkillNone, PhaseNone, 0, 0
 	if c.State == s.state {
 		c.State, c.timer = s.prev, s.prevT
+	}
+	if c.Kind == CreatureMegalodon {
+		w.sharkBack(c, d) // not left lying on the reef: see sharkfight.go
 	}
 }
 
