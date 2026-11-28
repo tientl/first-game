@@ -24,6 +24,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"slices"
 	"sort"
 	"strings"
@@ -220,6 +221,7 @@ func main() {
 	only := flag.String("only", "", "with -mode scenes: only the scenes whose name contains this")
 	gc := flag.Bool("gc", false, "collect at the end of each stage to see the live heap (a hitch the frame times leave out)")
 	every := flag.Duration("sample", 15*time.Second, "how often memory is sampled")
+	memProf := flag.String("memprofile", "", "write a heap profile (what is live at the end) to this file")
 	maxRun := flag.Duration("max", 40*time.Minute, "give up after this long")
 	flag.Parse()
 
@@ -276,6 +278,13 @@ func main() {
 	base := r.sample(true)
 	if err := ebiten.RunGame(r); err != nil && err != ebiten.Termination {
 		log.Print(err)
+	}
+	if *memProf != "" {
+		runtime.GC()
+		if f, err := os.Create(*memProf); err == nil {
+			_ = pprof.Lookup("heap").WriteTo(f, 0)
+			f.Close()
+		}
 	}
 	report(r, base, *mode, *size, *quality, *zoom, *w, *h, genTime, serverTime)
 	cancel()
