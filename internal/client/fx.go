@@ -41,6 +41,8 @@ const (
 	fxBlock                // a blow on a shield: chips and sparks
 	fxParry                // a parry: a crossed flash and gold sparks
 	fxStep                 // a footstep's dust on sand
+	fxHit                  // a blow on flesh, shell, bone or wood: see hitfx.go
+	fxSplat                // the splats of a blow's blood on the ground: see hitfx.go
 	numFXKinds
 )
 
@@ -69,6 +71,8 @@ var fxDefs = [numFXKinds]fxDef{
 	fxBlock:  {30, true, false},
 	fxParry:  {40, true, false},
 	fxStep:   {30, false, true},
+	fxHit:    {60, false, false},
+	fxSplat:  {100, false, true},
 }
 
 // fxInst is one effect in the world.
@@ -81,6 +85,11 @@ type fxInst struct {
 	seed uint32
 	k    float64 // its size, 1 as made
 	pal  int     // a colour variant: the ground of a dust puff, a blade's tier
+	// For fxHit and fxSplat (hitfx.go):
+	mat    hitMat // what was struck
+	lvl    int    // 0 a blow, 1 a heavy one, 2 a critical
+	matter int    // what it sheds: an index of matters
+	keep   bool   // seed is set: do not mix in the sequence (a splat shares its blow's)
 }
 
 // fxState is the effects playing.
@@ -95,7 +104,10 @@ func (g *Game) spawnFX(f fxInst) {
 		f.k = 1
 	}
 	g.fx.seq++
-	f.at, f.seed = g.frame, f.seed^(g.fx.seq*2654435761)
+	f.at = g.frame
+	if !f.keep {
+		f.seed ^= g.fx.seq * 2654435761
+	}
 	g.fx.live = append(g.fx.live, f)
 	if len(g.fx.live) > 160 { // a brawl: the oldest go first
 		g.fx.live = g.fx.live[len(g.fx.live)-160:]
@@ -168,6 +180,10 @@ func drawFXAt(b *fxBatch, f fxInst, x, y, gy, t float64) {
 		fxParryFlash(b, &r, x, y, f.ang, f.k, t)
 	case fxStep:
 		fxDustPuff(b, &r, x, y, f.ang, f.k, f.pal, t, true)
+	case fxHit:
+		hitFX(b, &r, x, y, gy, f.ang, f.k, f.lvl, f.mat, f.matter, f.pal, t)
+	case fxSplat:
+		splatFX(b, &r, x, y, gy, f.ang, f.k, f.lvl, t)
 	}
 }
 
@@ -1119,9 +1135,8 @@ func fxLeafFall(b *fxBatch, r *fxRng, x, y, gy, k, t float64) {
 	}
 }
 
-// fxImpactBits: what flies off a struck beast, stylised: a few small red
-// sparks, a puff of dust from its feet, and leaves in the woods (pal is
-// the ground's dust, or dustGrass+1 for the woods).
+// fxImpactBits: what flies off a struck rock: a few grey chips and a puff of
+// dust from its foot (pal is the ground's dust).
 func fxImpactBits(b *fxBatch, r *fxRng, x, y, gy, ang, k float64, pal int, t float64) {
 	for i := 0; i < 5; i++ {
 		a := ang + r.in(-0.7, 0.7) - 0.4
@@ -1134,7 +1149,7 @@ func fxImpactBits(b *fxBatch, r *fxRng, x, y, gy, ang, k float64, pal int, t flo
 		if py > gy {
 			continue
 		}
-		b.streak(px, py, vx, vy, 0.015, 0.8, band([]color.RGBA{palClaw[2], palClaw[3], palClaw[4]}, 1-t/life), 1, 0.2)
+		b.streak(px, py, vx, vy, 0.015, 0.9, band(palStone, 1-t/life*0.7), 1, 0)
 	}
 	if pal <= dustGrass {
 		puff(b, r, x+math.Cos(ang)*3, gy, math.Cos(ang)*18, t, 0.55, 0.7*k, dustPals[pal])
@@ -1145,40 +1160,40 @@ func fxImpactBits(b *fxBatch, r *fxRng, x, y, gy, ang, k float64, pal int, t flo
 
 var palWood = hexes(0x3a2414, 0x5e3c20, 0x8a5c32, 0xb88a52)
 
-// fxShieldBlock: a blow on a raised shield: a clack of white and gold
-// sparks thrown back off its face, splinters, and a short arc where it
-// was struck.
+// palCream: the pale of a flash, dark to white. palStone: chips of rock.
+var palCream = hexes(0xb8a888, 0xe8dcc0, 0xfff6e2, 0xffffff)
+var palStone = hexes(0x4a4a4c, 0x6e6e70, 0x9a9a98, 0xc8c6c0)
+
+// fxShieldBlock: a blow on a raised shield, wood and hide: a thud ring, an
+// arc where it was struck and splinters. No sparks.
 func fxShieldBlock(b *fxBatch, r *fxRng, x, y, ang, k, t float64) {
-	if t < 0.05 {
-		b.glow(x, y, 9*k, palGold[5], 0.6)
-		b.diamond(x, y, 2*k, palGold[6], 1, 0)
+	if t < 0.06 {
+		b.glow(x, y, 9*k, palCream[1], 0.45)
+		b.diamond(x, y, 2*k, palCream[3], 1, 0)
 	}
-	if t < 0.12 {
-		u := t / 0.12
-		rad := (3 + 6*outCubic(u)) * k
-		b.ring(x, y, rad-0.8*k, rad, 1, ang-math.Pi-0.9, ang-math.Pi+0.9, palGold[5], 1-u, 0.3)
+	if t < 0.14 { // the thud: a squashed ring and an arc where it was struck
+		u := t / 0.14
+		rad := (3 + 8*outCubic(u)) * k
+		b.ring(x, y, rad-1.3*k*(1-u)-0.4, rad, 0.6, 0, 2*math.Pi, palCream[2], 0.7*(1-u), 0.2)
+		b.ring(x, y, rad-1.2*k*(1-u)-0.3, rad, 1, ang-math.Pi-0.9, ang-math.Pi+0.9, palCream[3], 1-u, 0.2)
 	}
-	for i := 0; i < 9; i++ {
-		a := ang + math.Pi + r.in(-1, 1)
-		v := r.in(90, 200) * k
-		life := r.in(0.15, 0.35)
+	for i := 0; i < 8; i++ { // splinters and flecks of hide off the boards
+		a := ang + math.Pi + r.in(-1.1, 1.1) - 0.2
+		v := r.in(50, 130) * k
+		life := r.in(0.3, 0.5)
+		spin := r.in(10, 22)
 		if t >= life {
 			continue
 		}
-		px, py, vx, vy := ballistic(x, y, math.Cos(a)*v, math.Sin(a)*v-30, 300, 3, t)
-		b.streak(px, py, vx, vy, 0.018, 0.65, band(palGold[2:], 1-t/life), 1, 0.3)
-	}
-	for i := 0; i < 5; i++ {
-		a := ang + math.Pi + r.in(-1.2, 1.2) - 0.4
-		v := r.in(40, 90) * k
-		life := r.in(0.35, 0.5)
-		if t >= life {
-			continue
+		px, py, _, _ := ballistic(x, y, math.Cos(a)*v, math.Sin(a)*v-40, 420, 1.0, t)
+		th := t*spin + float64(i)
+		l := (1.2 + 1.4*float64(i%3)/2) * k
+		cs, sn := math.Cos(th)*l, math.Sin(th)*l
+		if i < 5 {
+			b.taper(px-cs, py-sn*0.7, px+cs, py+sn*0.7, 0.7*k, 0.2, palWood[1+i%3], 1-t/life*0.4, 0)
+		} else {
+			b.quad(px-cs*0.6, py-sn*0.4, px-sn*0.5, py+cs*0.4, px+cs*0.6, py+sn*0.4, px+sn*0.5, py-cs*0.4, palWood[i%3], 1-t/life*0.4, 0)
 		}
-		px, py, _, _ := ballistic(x, y, math.Cos(a)*v, math.Sin(a)*v-40, 420, 0.8, t)
-		th := t*20 + float64(i)
-		cs, sn := math.Cos(th)*1.1*k, math.Sin(th)*1.1*k
-		b.quad(px-cs, py-sn, px-sn*0.3, py+cs*0.3, px+cs, py+sn, px+sn*0.3, py-cs*0.3, palWood[1+i%3], 1, 0)
 	}
 }
 
@@ -1203,9 +1218,9 @@ func fxParryFlash(b *fxBatch, r *fxRng, x, y, ang, k, t float64) {
 		rad := (4 + 14*outCubic(u)) * k
 		b.ring(x, y, rad-1.2*k*(1-u), rad, 0.85, 0, 2*math.Pi, palGold[5], 1-u, 0.3)
 	}
-	for i := 0; i < 16; i++ {
+	for i := 0; i < 7; i++ {
 		a := r.in(0, 2*math.Pi)
-		if i < 8 {
+		if i < 4 {
 			a = ang + math.Pi + r.in(-0.8, 0.8)
 		}
 		v := r.in(100, 240) * k

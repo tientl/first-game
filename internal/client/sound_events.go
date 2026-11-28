@@ -83,6 +83,7 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		}
 		e := oldEnts[tg.Entity]
 		x, y := at(e)
+		g.toolHitFX(e, x, y, math.Atan2((y-py)*TileH, (x-px)*TileW), g.swingWhat[p.ID].kind)
 		switch e.Kind {
 		case sim.EntityTree:
 			snd.playAt("chop", x, y, 0.75, 0.06)
