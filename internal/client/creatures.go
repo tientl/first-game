@@ -401,8 +401,15 @@ func swingAtCreatureSound(c protocol.CreatureView) {
 		sim.CreatureTroodon, sim.CreatureTitanoboa, sim.CreatureSpino, sim.CreatureMammothKing,
 		sim.CreatureCarcharo, sim.CreatureGiganoto, sim.CreatureMegalodon, sim.CreatureAnkylo:
 		snd.playAt("whack", x, y, 0.6, 0.1)
-	default:
-		snd.playAt("rustle", x, y, 0.45, 0.1)
+	default: // by what it is made of: never a clang on flesh; see hitsound.go
+		switch hitMaterial(c.Kind) {
+		case matChitin:
+			snd.playAt("shell_crunch", x, y, 0.6, 0.08)
+		case matBone:
+			snd.playAt("bone_knock", x, y, 0.6, 0.08)
+		default:
+			snd.playAt("flesh_slap", x, y, 0.6, 0.1)
+		}
 	}
 }
 
