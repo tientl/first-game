@@ -1322,6 +1322,9 @@ func furnaceSceneYaw(lit bool, yaw float64) *rkScene {
 	stone(rkBlock(rng, rkVec{0, front(lz) - 0.5, lz}, rkEast, ln.cross(rkEast), ln, mw+1.4, 1.05, 1.3, 0.3))
 	hearth := rkChunk(rng, 0, front(0)-1.4, 0, mw+1.6, 1.7, 0.7, 7, 1, 0.04, 0.3)
 	hearth.mat, hearth.crack, hearth.decor = rkGraniteMat, 0.2, glow
+	if yaw != 0 {
+		hearth.decor = nil // seen from the side its top shows: plain stone, not a plate of firelight
+	}
 	s.add(hearth)
 	// The chimney: two rings of stones round a sooty flue.
 	top := rkVec{0, cy + 1.2, c - 0.8}

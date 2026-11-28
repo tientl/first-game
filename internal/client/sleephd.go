@@ -486,7 +486,11 @@ func (g *Game) drawSleeperHD(dst drawTarget, p protocol.PlayerView, d drawable) 
 	putSprite(dst, laidSprite(k), x, y)
 	shell()
 	if k.cover == 2 {
-		g.drawZzz(dst, headX+2, headY-8, float64(p.ID))
+		zx, zy := headX+2, headY-8
+		if lie.stand < 0 { // the head down the screen: off to the side, not over the fur
+			zx, zy = x+bedLongHW+2, headY-4
+		}
+		g.drawZzz(dst, zx, zy, float64(p.ID))
 	}
 	g.armourByBed(dst, p, x+lie.armourDX, y+lie.armourDY)
 }
