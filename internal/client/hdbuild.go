@@ -402,64 +402,6 @@ func chestHD(open bool, wood, lid, band ramp, lock ramp, seed uint32) *canvas {
 	return c
 }
 
-// stoneRingHD sets n stones in a ring rx by ry round (cx, cy): those of the
-// back half or the front half.
-func stoneRingHD(c *canvas, cx, cy, rx, ry float64, n int, r float64, front bool, seed uint32) {
-	for i := 0; i < n; i++ {
-		a := 2*math.Pi*float64(i)/float64(n) + 0.2
-		if (math.Sin(a) >= 0) != front {
-			continue
-		}
-		v := 0.85 + hashf(i, 0, seed)*0.3
-		stoneHD(c, cx+math.Cos(a)*rx, cy+math.Sin(a)*ry, r*v, r*0.78*v, 0.9+hashf(i, 1, seed)*0.15, stoneRamp, seed+uint32(i))
-	}
-}
-
-// fireLogHD lays a charred log from (x0, y0) to (x1, y1), w pixels half
-// thick, its cut ends pale.
-func fireLogHD(c *canvas, x0, y0, x1, y1, w float64, lit float64, seed uint32) {
-	drawLimbHD(c, limb{x0, y0, (x0 + x1) / 2, (y0 + y1) / 2, x1, y1, w, w}, trunkRamp, lit, seed)
-	for _, e := range [][2]float64{{x0, y0}, {x1, y1}} {
-		c.ellipse(e[0], e[1], w*0.75, w, func(x, y int, nx, ny float64) color.RGBA {
-			return woodRamp.pick(0.75-(nx*nx+ny*ny)*0.5, x, y)
-		})
-	}
-}
-
-func genCampfireHD() (back, front sprite) {
-	const k = HDDensity
-	const cx, cy = 15.0 * k, 10.0 * k
-	b, f := hdCanvas(30, 18), hdCanvas(30, 18)
-	stoneRingHD(b, cx, cy, 10*k, 4.5*k, 11, 2.6*k, false, 200)
-	b.ellipse(cx, cy, 7.5*k, 3.2*k, func(x, y int, nx, ny float64) color.RGBA {
-		if hashf(x/2, y/2, 200) < 0.1 {
-			return fireRamp[1+int(hashf(x, y, 201)*2)] // embers
-		}
-		if hashf(x, y, 202) < 0.06 {
-			return ashRamp[2]
-		}
-		return ashRamp.pick(0.3+nx*0.2+(vnoise(float64(x)*0.3, float64(y)*0.3, 203)-0.5)*0.5, x, y)
-	})
-	fireLogHD(b, cx-7*k, cy+2*k, cx+7*k, cy-2*k, 1.5*k, 0.7, 7)
-	fireLogHD(b, cx-7*k, cy-2*k, cx+7*k, cy+2*k, 1.5*k, 0.82, 8)
-	stoneRingHD(f, cx, cy, 10*k, 4.5*k, 11, 2.6*k, true, 200)
-	b.outline(0.7)
-	f.outline(0.7)
-	return mkUp(b, cx, cy), mkUp(f, cx, cy)
-}
-
-func genBonfireHD() sprite {
-	const k = HDDensity
-	c := hdCanvas(40, 24)
-	stoneRingHD(c, 20*k, 14*k, 15*k, 6.5*k, 12, 3*k, false, 210)
-	for i, l := range [][4]float64{{8, 17, 32, 9}, {8, 9, 32, 17}, {12, 19, 28, 7}} {
-		fireLogHD(c, l[0]*k, l[1]*k, l[2]*k, l[3]*k, 1.6*k, 0.7+float64(i)*0.06, 11+uint32(i))
-	}
-	stoneRingHD(c, 20*k, 14*k, 15*k, 6.5*k, 12, 3*k, true, 210)
-	c.outline(0.7)
-	return mkUp(c, 20*k, 14*k)
-}
-
 func genPostHD() sprite {
 	const k = HDDensity
 	c := hdCanvas(6, 30)

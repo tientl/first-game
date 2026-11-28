@@ -331,13 +331,15 @@ func (g *Game) drawTribalEntity(dst drawTarget, e protocol.EntityView, d drawabl
 		return true
 	case sim.EntityBonfire:
 		drawAt(dst, a.bonfire, d.sx, d.sy, 1, 1, 0, nil)
-		if g.drawFireOf(dst, e, fireBonfire, d.sx, d.sy+1) {
-			return true
+		if !g.drawFireOf(dst, e, fireBonfire, d.sx, d.sy+1) {
+			f := g.art.flames[(g.frame/4+int(e.ID))%flameFrames]
+			drawAt(dst, f, d.sx, d.sy+1, 1.35, 1.5, 0, nil)
+			f2 := g.art.flames[(g.frame/5+int(e.ID)+3)%flameFrames]
+			drawAt(dst, f2, d.sx-6, d.sy+2, 0.8, 0.9, 0, nil)
 		}
-		f := g.art.flames[(g.frame/4+int(e.ID))%flameFrames]
-		drawAt(dst, f, d.sx, d.sy+1, 1.35, 1.5, 0, nil)
-		f2 := g.art.flames[(g.frame/5+int(e.ID)+3)%flameFrames]
-		drawAt(dst, f2, d.sx-6, d.sy+2, 0.8, 0.9, 0, nil)
+		if a.bonfireFront.img != nil {
+			drawAt(dst, a.bonfireFront, d.sx, d.sy, 1, 1, 0, nil) // the near stones and logs, over the flames' root
+		}
 		return true
 	}
 	return false

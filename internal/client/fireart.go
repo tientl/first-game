@@ -52,29 +52,26 @@ const (
 	numFireKinds
 )
 
-// fireShape is how a kind of fire is built: its height and half-width in art
-// pixels, and its tongues.
+// fireShape is how a kind of fire is built, in art pixels: the height of
+// its tallest tongue and the half-width of the flames at their root, how
+// many tongues burn side by side, and the half-width of the bed of coals
+// glowing under them (0: none).
 type fireShape struct {
-	h, w    float64
-	tongues [][4]float64 // across (of w), base (art pixels up), height (of h), half-width (art pixels)
+	h, w  float64
+	lobes int
+	coals float64
 }
 
-// The campfire's tongues are pixelfx's eleven, a back row and a front row,
-// the middle tallest; the others are fewer.
-var campTongues = [][4]float64{
-	{-0.6, 0.5, 0.42, 1.25}, {0.6, 0.5, 0.46, 1.25}, {-0.24, 0.8, 0.78, 1.4}, {0.26, 0.8, 0.82, 1.4},
-	{-0.96, 0, 0.16, 0.9}, {1, 0, 0.18, 0.9}, {-0.76, 0.2, 0.32, 1.3}, {0.76, 0.2, 0.36, 1.3},
-	{-0.4, 0.4, 0.6, 1.8}, {0.42, 0.4, 0.66, 1.8}, {0, 0.5, 1, 2.3},
-}
-
+// A campfire is kept small: a few tongues off a bed of coals, well inside its
+// ring of stones, so the logs show round them.
 var fireShapes = [numFireKinds]fireShape{
-	fireCamp:    {h: 20, w: 7.5, tongues: campTongues},
-	fireCampLow: {h: 11, w: 6, tongues: campTongues},
-	fireBonfire: {h: 30, w: 11, tongues: append(append([][4]float64{}, campTongues...), [4]float64{-0.15, 0.6, 0.9, 2.6}, [4]float64{0.2, 0.7, 0.86, 2.4})},
-	fireCook:    {h: 10, w: 6.5, tongues: [][4]float64{{-0.8, 0, 0.45, 1.2}, {0.8, 0, 0.5, 1.2}, {-0.4, 0.2, 0.8, 1.6}, {0.4, 0.2, 0.75, 1.6}, {0, 0.3, 1, 1.9}}},
-	fireTorch:   {h: 10.5, w: 2.4, tongues: [][4]float64{{-0.45, 0, 0.6, 1.1}, {0.5, 0, 0.55, 1}, {0, 0.2, 1, 1.75}}},
-	fireMouth:   {h: 6.5, w: 4.5, tongues: [][4]float64{{-0.7, 0, 0.6, 1.1}, {0.7, 0, 0.55, 1.1}, {-0.25, 0.1, 0.9, 1.3}, {0.3, 0.1, 1, 1.3}}},
-	fireHand:    {h: 7, w: 1.9, tongues: [][4]float64{{-0.45, 0, 0.6, 0.85}, {0.5, 0, 0.55, 0.8}, {0, 0.15, 1, 1.35}}},
+	fireCamp:    {h: 12.5, w: 4.2, lobes: 3, coals: 5.6},
+	fireCampLow: {h: 6, w: 3.2, lobes: 3, coals: 5.6},
+	fireBonfire: {h: 21, w: 7, lobes: 5, coals: 9},
+	fireCook:    {h: 6.5, w: 4.4, lobes: 3, coals: 5.4},
+	fireTorch:   {h: 8, w: 1.9, lobes: 2, coals: 1.7},
+	fireMouth:   {h: 5.4, w: 3, lobes: 2, coals: 3.1},
+	fireHand:    {h: 5.8, w: 1.5, lobes: 2, coals: 1.2},
 }
 
 // The fire's bands, coolest first: pixelfx's campfire palette.
@@ -108,94 +105,183 @@ func fireSprite(k fireKind, f int) sprite {
 	return s
 }
 
-// paintFire paints shape sh at loop phase ph, rooted at its bottom middle.
-func paintFire(sh fireShape, ph float64, seed uint32) sprite {
+// The flame's bands, coolest first: a dark red rim, through orange and
+// amber, to a pale yellow heart (never white).
+var palFlame = hexes(0x8a2414, 0xbf3a18, 0xe5621f, 0xf68f2b, 0xfcb93f, 0xffd96e, 0xfff0b0)
+
+// The coals' tones: char, the dull red of a coal going grey, to the
+// yellow of one breathing hot.
+var palCoal = hexes(0x1c1210, 0x3a1410, 0x6a1c12, 0xa22e16, 0xd8561c, 0xf8902a, 0xffc85a)
+
+// paintFire paints shape sh at loop phase ph, rooted at its bottom middle:
+// the coals glowing first, breathing each on its own clock; then the
+// tongues, each a teardrop leaning and wavering, its edge licked by noise
+// that rises through the flame and comes round once a loop (pnoise tiles,
+// so the frames close on themselves); now and then a wisp breaks off a tip
+// and rises, shrinking. The bands go by heat, from a dark red rim to a pale
+// yellow heart, and the edge is soft (each pixel is nine samples).
+func paintFirePx(sh fireShape, ph float64, seed uint32) (px []color.RGBA, W, H int, ox, oy float64) {
 	const K = HDDensity
-	type tongue struct{ x, base, h, hw, sweep float64 }
-	ts := make([]tongue, len(sh.tongues))
+	type lobe struct{ x, h, w, lean, wisp float64 }
+	n := max(1, sh.lobes)
+	ls := make([]lobe, n)
+	mid := float64(n-1) / 2
 	lean := fireLean(ph)
-	for i, t := range sh.tongues {
-		o := float64(i)*1.7 + float64(seed%13)
-		h := sh.h * t[2] * (0.94 + 0.12*hashf(i, int(seed), 601))
-		leap := math.Max(0, loopWave(ph, 2+i%3, o+70)-0.55) * 1.4
-		flick := fireFlicker(ph + float64(i)*0.071)
-		h = (h + 0.22*h*loopWave(ph, 3+i%2, o) + 0.5*h*leap*0.5) * (0.9 + 0.1*flick)
-		sweep := loopWave(ph, 2+(i+1)%3, o+40)*(0.6+0.05*h) + 0.9*h*lean - math.Max(-1.5, math.Min(1.5, 0.25*t[0]*sh.w))
-		ts[i] = tongue{x: t[0] * sh.w, base: t[1], h: h, hw: t[3] * math.Max(1, sh.w/7.5*0.9), sweep: sweep * 0.55}
+	for i := range ls {
+		u := 0.0
+		if mid > 0 {
+			u = (float64(i) - mid) / mid // -1 to 1 across the bed
+		}
+		o := float64(i)*2.1 + float64(seed%17)
+		tall := 1 - 0.42*math.Pow(math.Abs(u), 1.2)
+		if n == 2 {
+			tall = []float64{1, 0.7}[i]
+		}
+		h := sh.h * tall * (0.86 + 0.14*loopWave(ph, 2+i%2, o)) * (0.94 + 0.06*fireFlicker(ph+float64(i)*0.13))
+		w := sh.w * (0.5 + 0.28*tall)
+		if n == 1 {
+			w = sh.w
+		}
+		x := u * sh.w * 0.62
+		if n == 2 {
+			x = []float64{-0.18, 0.42}[i] * sh.w
+		}
+		ls[i] = lobe{x: x, h: h, w: w, lean: lean + 0.08*loopWave(ph, 3, o+1), wisp: math.Mod(ph*float64(1+i%2)+hashf(i, 3, seed), 1)}
 	}
-	top := 0.0
-	for _, t := range ts {
-		top = math.Max(top, t.base+t.h*1.12)
-	}
-	wArt := 2*(sh.w+3.5) + 2
-	hArt := top + 3
-	W, H := int(math.Ceil(wArt*K)), int(math.Ceil(hArt*K))
-	ox, oy := wArt/2, hArt-1 // the root on the canvas, art pixels
+	top := sh.h * 1.45
+	half := math.Max(sh.w*1.5, sh.coals) + 2.5
+	wArt, hArt := 2*half, top+4
+	W, H = int(math.Ceil(wArt*K)), int(math.Ceil(hArt*K))
+	ox, oy = wArt/2, hArt-2.2 // the root on the canvas, art pixels
+	const P = 5                // the noise's period up the flame, cells: it rises P cells a loop
 	heatAt := func(x, y float64) float64 {
 		best := 0.0
-		for i, t := range ts {
-			v := (t.base - y) / t.h // 0 at its root, 1 at its tip
-			if v < -0.15 || v > 1 {
+		for i, l := range ls {
+			v := -y / l.h // 0 at its root, 1 at its tip
+			if v < -0.3 || v > 1.05 {
 				continue
 			}
-			vv := math.Max(v, 0)
-			cx := t.x + t.sweep*math.Pow(vv, 1.6)
-			w := t.hw * 1.3 * math.Pow(1-vv, 0.62) * math.Min(1, vv*3+0.75)
-			if w <= 0.05 {
-				continue
-			}
-			// Licks along the edge, on the loop's clock.
-			wob := 0.12*math.Sin(y*1.1+2*math.Pi*ph*3+float64(i)) + 0.06*math.Sin(y*2.3-2*math.Pi*ph*5+float64(i)*2)
-			d := math.Abs(x-cx)/w + wob*vv
-			h := (1-math.Pow(math.Max(0, d), 1.4))*(1.02-vv*0.62) + 0.12*(1-vv)
+			vv := math.Max(0, v)
+			// Licked by noise rising through it, more so further up.
+			ny := -y*0.42 + ph*P
+			nx := pnoise(x*0.55+float64(i)*7.3, ny, 64, P, seed+uint32(i)) - 0.5
+			cx := l.x + l.lean*l.h*vv*vv + 0.5*vv*math.Sin(2*math.Pi*ph*2+vv*3.5+float64(i)*1.9) + nx*2.2*vv
+			hw := l.w * math.Pow(1-math.Min(vv, 0.999), 0.8) * (0.9 + 0.7*vv*(1-vv))
 			if v < 0 {
-				h *= 1 + v/0.15 // rounded off below its root
+				hw = l.w * (1 + v/0.3) // rounded off below its root
 			}
-			best = math.Max(best, h+0.04*math.Max(0, best)) // where tongues meet, hotter
+			if hw <= 0.05 {
+				continue
+			}
+			d := math.Abs(x-cx) / hw
+			erode := (pnoise(x*0.9, ny*1.7, 64, P, seed+31+uint32(i)) - 0.5) * 0.9 * math.Pow(vv, 1.3)
+			h := (1-math.Pow(d, 1.6))*(1.0-0.74*vv) + 0.06 - erode
+			best = math.Max(best, h+0.05*math.Max(0, best)) // where tongues meet, hotter
+			// A wisp broken off the tip, rising and shrinking.
+			if l.wisp < 0.65 {
+				wy := -l.h * (0.92 + 0.55*l.wisp)
+				wx := l.x + l.lean*l.h*1.3 + nx*1.5
+				r := l.w * 0.42 * (1 - l.wisp/0.65)
+				if r > 0.25 {
+					if dd := math.Hypot((x-wx)/r, (y-wy)/(r*1.5)); dd < 1 {
+						best = math.Max(best, (1-dd)*0.42)
+					}
+				}
+			}
 		}
-		// The bed is rounded: thinner and cooler towards its ends.
-		end := clamp01(1.35 - math.Abs(x)/(sh.w+1.2))
-		return best * (0.55 + 0.45*end)
+		return best
 	}
-	px := make([]color.RGBA, W*H)
+	px = make([]color.RGBA, W*H)
+	// The coals, under the flames: lumps in a low mound, cracked dark
+	// between, each breathing on its own clock, hottest in the middle.
+	if sh.coals > 0 {
+		cr, cry := sh.coals, math.Max(0.9, sh.coals*0.34)
+		for y := 0; y < H; y++ {
+			for x := 0; x < W; x++ {
+				ax := (float64(x)+0.5)/K - ox
+				ay := (float64(y)+0.5)/K - oy + 0.35
+				r := math.Hypot(ax/cr, ay/cry)
+				if r >= 1 {
+					continue
+				}
+				// Lumps: a jittered grid of cells about an art pixel and a half across.
+				gx, gy := (ax+cr)/1.5, (ay+cry)/1.05
+				ix, iy := int(math.Floor(gx+0.5*hashf(int(gy), 7, seed))), int(math.Floor(gy))
+				fx := gx + 0.5*hashf(int(gy), 7, seed) - float64(ix)
+				fy := gy - float64(iy)
+				edge := math.Min(math.Min(fx, 1-fx)*1.5, math.Min(fy, 1-fy))
+				hot := 0.32 + 0.45*(1-r*r) + 0.25*hashf(ix, iy, seed+5) + 0.2*loopWave(ph, 1+int(hashf(ix, iy, seed+6)*3), hashf(ix, iy, seed+7)*6.3)
+				if ay < -cry*0.2 {
+					hot += 0.1 // the top of the mound, under the flames
+				}
+				if edge < 0.16 {
+					hot -= 0.45 // a crack between lumps
+				}
+				t := clamp01(hot) * float64(len(palCoal)-1)
+				i := int(t)
+				if t-float64(i) > dither(x, y) {
+					i++
+				}
+				c := palCoal[min(i, len(palCoal)-1)]
+				if r > 0.86 {
+					c.A = 200 // ash at the rim of the mound
+				}
+				px[y*W+x] = c
+			}
+		}
+	}
 	const ss = 3
 	for y := 0; y < H; y++ {
 		for x := 0; x < W; x++ {
-			n, hs := 0, 0.0
+			cnt, hs := 0, 0.0
 			for j := 0; j < ss; j++ {
 				for i := 0; i < ss; i++ {
 					ax := (float64(x)+(float64(i)+0.5)/ss)/K - ox
 					ay := (float64(y)+(float64(j)+0.5)/ss)/K - oy
-					if h := heatAt(ax, ay); h > 0.06 {
-						n++
+					if h := heatAt(ax, ay); h > 0.07 {
+						cnt++
 						hs += h
 					}
 				}
 			}
-			if n == 0 {
+			if cnt == 0 {
 				continue
 			}
-			heat := hs / float64(n)
-			c := fireBand(heat)
-			c.A = uint8(255 * float64(n) / (ss * ss))
+			heat := hs / float64(cnt)
+			c := flameBand(heat)
+			a := float64(cnt) / (ss * ss)
+			if heat < 0.2 {
+				a *= 0.8 // the rim thin, the ground or the coals showing through
+			}
+			if under := px[y*W+x]; under.A > 0 {
+				c = mix(under, c, a)
+				c.A = 255
+			} else {
+				c.A = uint8(255 * a)
+			}
 			px[y*W+x] = c
 		}
 	}
+	return px, W, H, ox, oy
+}
+
+func paintFire(sh fireShape, ph float64, seed uint32) sprite {
+	px, W, H, ox, oy := paintFirePx(sh, ph, seed)
 	img := ebiten.NewImage(W, H)
 	img.WritePixels(straightBytes(px))
 	artBytes.Add(int64(4 * W * H))
 	return spriteHD(img, ox, oy)
 }
 
-// fireBand is the colour of fire at heat h, in clean bands.
-func fireBand(h float64) color.RGBA {
-	steps := [...]float64{0.17, 0.33, 0.48, 0.61, 0.73, 0.85, 0.95}
+// flameBand is the colour of flame at heat h, in clean bands.
+func flameBand(h float64) color.RGBA {
+	steps := [...]float64{0.2, 0.34, 0.48, 0.62, 0.77, 0.92}
 	for i, s := range steps {
 		if h < s {
-			return palFire[i+1]
+			return palFlame[i]
 		}
 	}
-	return palFire[8]
+	return palFlame[6]
 }
 
 // drawFire draws frame f of fire k with its root at (x, y), art pixels.
@@ -257,7 +343,7 @@ func (g *Game) fireSources(cam camera) []fireSource {
 		case sim.EntityTorchStand:
 			out = append(out, fireSource{sx, sy - g.art.tribal.torchStick.ay + 4, fireTorch, uint32(e.ID)})
 		case sim.EntityFurnace:
-			out = append(out, fireSource{sx, sy - 1, fireMouth, uint32(e.ID)})
+			out = append(out, fireSource{sx, sy - 2.5, fireMouth, uint32(e.ID)})
 		}
 	}
 	return out
@@ -281,9 +367,11 @@ func (g *Game) drawFireFXOf(dst drawTarget, fs []fireSource, dark float64) {
 		sh := fireShapes[f.k]
 		br := g.fireBright(f.id)
 		// The ground lit warm.
-		gw := sh.w * 2.2
-		b.glowEll(f.x, f.y-0.5, gw*1.4*br, gw*0.5*br, palFire[4], (0.16+0.3*dark)*br)
-		b.glowEll(f.x, f.y-0.5, gw*0.7, gw*0.25, palFire[6], (0.1+0.2*dark)*br)
+		gw := math.Max(sh.w*1.6, sh.coals) * 2.2
+		b.glowEll(f.x, f.y-0.5, gw*1.4*br, gw*0.5*br, palFire[4], (0.14+0.3*dark)*br)
+		b.glowEll(f.x, f.y-0.5, gw*0.7, gw*0.25, palFire[6], (0.08+0.2*dark)*br)
+		// A soft glow round the flames themselves, in the air.
+		b.glow(f.x, f.y-sh.h*0.4, (sh.h*0.75+sh.w)*br, palFire[5], (0.07+0.16*dark)*br)
 		// Embers: rising, wandering, fading.
 		n := map[fireKind]int{fireCamp: 9, fireCampLow: 4, fireBonfire: 16, fireCook: 5, fireTorch: 3, fireMouth: 3}[f.k]
 		for i := 0; i < n; i++ {

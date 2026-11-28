@@ -39,7 +39,7 @@ var fbFires = []fbFire{
 	{name: "grill on the fire", e: protocol.EntityView{ID: 19, Kind: sim.EntityCampfire, Ready: true, Fuel: sim.FireStartFuel, Var: uint8(sim.GearGrill)}, k: fireCook, dy: 1},
 	{name: "bonfire", e: protocol.EntityView{ID: 14, Kind: sim.EntityBonfire, Ready: true}, k: fireBonfire, dy: 1},
 	{name: "torch stand", e: protocol.EntityView{ID: 13, Kind: sim.EntityTorchStand, Ready: true, Fuel: 100}, k: fireTorch},
-	{name: "furnace", e: protocol.EntityView{ID: 15, Kind: sim.EntityFurnace, Ready: true, Fuel: 100}, k: fireMouth, dy: -1},
+	{name: "furnace", e: protocol.EntityView{ID: 15, Kind: sim.EntityFurnace, Ready: true, Fuel: 100}, k: fireMouth, dy: -2.5},
 	{name: "oven", e: protocol.EntityView{ID: 16, Kind: sim.EntityOven, Ready: true, Fuel: 100}, k: fireMouth},
 	{name: "torch in hand", e: protocol.EntityView{ID: 20}, k: fireHand, hand: true},
 }

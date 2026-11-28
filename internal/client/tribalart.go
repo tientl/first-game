@@ -99,6 +99,7 @@ type tribalArt struct {
 	treasure     [2]sprite // shut, open
 	hut, totem   sprite
 	bonfire      sprite
+	bonfireFront sprite // the near stones and logs, over the flames (HD only)
 	blood        [3]sprite // pools under small, middling and big bodies
 	post         sprite    // the stake a trophy head sits on
 	web          sprite
@@ -141,7 +142,8 @@ func genTribalArt() tribalArt {
 	a.trapSet, a.trapSprung = genTrap(true), genTrap(false)
 	a.torchStick = genTorchStick()
 	a.treasure[0], a.treasure[1] = genTreasure(false), genTreasure(true)
-	a.hut, a.totem, a.bonfire = genHut(), genTotem(), genBonfire()
+	a.hut, a.totem = genHut(), genTotem()
+	a.bonfire, a.bonfireFront = genBonfire()
 	for i, w := range []float64{9, 15, 24} {
 		a.blood[i] = genBlood(w, uint32(i))
 	}
@@ -1582,7 +1584,7 @@ func genTotem() sprite {
 	return mkUp(c, 8, 44)
 }
 
-func genBonfire() sprite {
+func genBonfire() (back, front sprite) {
 	if envHD {
 		return genBonfireHD()
 	}
@@ -1597,7 +1599,7 @@ func genBonfire() sprite {
 		}
 	}
 	c.outline(0.7)
-	return mkUp(c, 20, 14)
+	return mkUp(c, 20, 14), sprite{}
 }
 
 // --- bodies, heads, weather ----------------------------------------------------

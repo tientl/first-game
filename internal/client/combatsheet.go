@@ -163,7 +163,7 @@ var fireSheetItems = []struct {
 	{"campfire low", protocol.EntityView{ID: 12, Kind: sim.EntityCampfire, Ready: true, Fuel: sim.FireStartFuel / 5}, fireCampLow, 1},
 	{"torch", protocol.EntityView{ID: 13, Kind: sim.EntityTorchStand, Ready: true, Fuel: 100}, fireTorch, 0},
 	{"bonfire", protocol.EntityView{ID: 14, Kind: sim.EntityBonfire, Ready: true}, fireBonfire, 1},
-	{"furnace", protocol.EntityView{ID: 15, Kind: sim.EntityFurnace, Ready: true, Fuel: 100}, fireMouth, -1},
+	{"furnace", protocol.EntityView{ID: 15, Kind: sim.EntityFurnace, Ready: true, Fuel: 100}, fireMouth, -2.5},
 	{"oven", protocol.EntityView{ID: 16, Kind: sim.EntityOven, Ready: true, Fuel: 100}, fireMouth, 0},
 	{"pot on the fire", protocol.EntityView{ID: 17, Kind: sim.EntityCampfire, Ready: true, Fuel: sim.FireStartFuel, Var: uint8(sim.GearPot)}, fireCook, 1},
 }

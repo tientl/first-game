@@ -800,7 +800,7 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		}
 		drawAt(dst, g.art.campFront, d.sx, d.sy, 1, 1, 0, nil)
 	}
-	if e.Kind == sim.EntityFurnace && e.Fuel > 0 && !g.drawFireOf(dst, e, fireMouth, d.sx, d.sy-1) {
+	if e.Kind == sim.EntityFurnace && e.Fuel > 0 && !g.drawFireOf(dst, e, fireMouth, d.sx, d.sy-2.5) {
 		f := g.art.flames[(g.frame/4+int(e.ID))%flameFrames]
 		drawAt(dst, f, d.sx, d.sy-1, 0.45, 0.4, 0, nil) // in its mouth
 	}
