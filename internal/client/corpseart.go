@@ -52,37 +52,39 @@ type corpseSpec struct {
 	flat  float64 // how high the body lies, as a share of its height standing (1: as drawn)
 	wound float64 // where the blood comes from, 0 at its tail end to 1 at its head
 	biped bool    // two legs: they fall one forward, one back
+	trunk bool    // a trunk reaches the ground before its fore legs (splayLegs)
+	pool  float64 // its blood as much as a body this long would leave (0: 1); a snake is long and thin
 }
 
 var corpseSpecs = map[sim.CreatureKind]corpseSpec{
-	sim.CreatureTrike:   {style: corpseSide, rig: "trike", dead: rigPose{head: 0.32, tail: -0.3, tilt: 0.05}, flat: 0.95, wound: 0.62},
-	sim.CreatureToro:    {style: corpseSide, rig: "toro", dead: rigPose{head: 0.22, tail: -0.15}, flat: 0.95, wound: 0.62},
-	sim.CreatureStego:   {style: corpseSide, rig: "stego", dead: rigPose{head: 0.45, tail: -0.25}, flat: 0.95, wound: 0.6},
-	sim.CreatureAnkylo:  {style: corpseSide, rig: "ankylo", dead: rigPose{head: 0.4, tail: -0.2}, flat: 0.95, wound: 0.6},
-	sim.CreatureBrachio: {style: corpseSide, rig: "brachio", dead: rigPose{neck: 0.85, head: -0.15, tail: -0.25}, flat: 0.95, wound: 0.55},
-	sim.CreatureRaptor:  {style: corpseSide, rig: "dakota", dead: rigPose{head: 0.5, tail: -0.2, open: 0.06, tilt: 0.12}, flat: 0.95, wound: 0.62, biped: true},
-	sim.CreatureAchero:  {style: corpseSide, rig: "achero", dead: rigPose{head: 0.55, tail: -0.14, open: 0.15}, flat: 0.95, wound: 0.62, biped: true},
-	sim.CreatureTroodon: {style: corpseSide, rig: "troodon", dead: rigPose{head: 0.5, tail: -0.14, open: 0.12}, flat: 0.95, wound: 0.62, biped: true},
-	sim.CreatureRex:     {style: corpseSide, rig: "rex", dead: rigPose{head: 0.45, tail: -0.14, open: 0.2}, flat: 0.95, wound: 0.62, biped: true},
-	sim.CreatureOrnitho: {style: corpseSide, rig: "ornitho", dead: rigPose{neck: 1.35, head: -0.3, tail: -0.22}, flat: 0.95, wound: 0.6, biped: true},
-	sim.CreatureThesc:   {style: corpseSide, rig: "thesc", dead: rigPose{head: 0.5, tail: -0.22}, flat: 0.95, wound: 0.6, biped: true},
-	sim.CreatureAnzu:    {style: corpseSide, rig: "anzu", dead: rigPose{head: 1.5, tail: -0.2, open: 0.15}, flat: 0.95, wound: 0.6, biped: true},
-	sim.CreatureQuetzal: {style: corpseSide, rig: "quetzal", dead: rigPose{neck: 1.3, head: 0.2}, flat: 0.95, wound: 0.55},
-	sim.CreaturePlesio:  {style: corpseSide, rig: "plesio", dead: rigPose{head: 0.6}, flat: 0.95, wound: 0.55},
+	sim.CreatureTrike:   {style: corpseSide, rig: "trike", dead: rigPose{head: 0.32, tail: -0.3, tilt: 0.05}, flat: 0.78, wound: 0.62},
+	sim.CreatureToro:    {style: corpseSide, rig: "toro", dead: rigPose{head: 0.22, tail: -0.15}, flat: 0.78, wound: 0.62},
+	sim.CreatureStego:   {style: corpseSide, rig: "stego", dead: rigPose{head: 0.45, tail: -0.25}, flat: 0.78, wound: 0.6},
+	sim.CreatureAnkylo:  {style: corpseSide, rig: "ankylo", dead: rigPose{head: 0.4, tail: -0.2}, flat: 0.78, wound: 0.6},
+	sim.CreatureBrachio: {style: corpseSide, rig: "brachio", dead: rigPose{neck: 0.85, head: -0.15, tail: -0.25}, flat: 0.78, wound: 0.55},
+	sim.CreatureRaptor:  {style: corpseSide, rig: "dakota", dead: rigPose{head: 0.5, tail: -0.2, open: 0.06, tilt: 0.12}, flat: 0.78, wound: 0.62, biped: true},
+	sim.CreatureAchero:  {style: corpseSide, rig: "achero", dead: rigPose{head: 0.55, tail: -0.14, open: 0.15}, flat: 0.78, wound: 0.62, biped: true},
+	sim.CreatureTroodon: {style: corpseSide, rig: "troodon", dead: rigPose{head: 0.5, tail: -0.14, open: 0.12}, flat: 0.78, wound: 0.62, biped: true},
+	sim.CreatureRex:     {style: corpseSide, rig: "rex", dead: rigPose{head: 0.45, tail: -0.14, open: 0.2}, flat: 0.78, wound: 0.62, biped: true},
+	sim.CreatureOrnitho: {style: corpseSide, rig: "ornitho", dead: rigPose{neck: 1.35, head: -0.3, tail: -0.22}, flat: 0.78, wound: 0.6, biped: true},
+	sim.CreatureThesc:   {style: corpseSide, rig: "thesc", dead: rigPose{head: 0.5, tail: -0.22}, flat: 0.78, wound: 0.6, biped: true},
+	sim.CreatureAnzu:    {style: corpseSide, rig: "anzu", dead: rigPose{head: 1.0, tail: -0.2, open: 0.15}, flat: 0.78, wound: 0.6, biped: true},
+	sim.CreatureQuetzal: {style: corpseSide, rig: "quetzal", dead: rigPose{neck: 1.3, head: 0.2}, flat: 0.78, wound: 0.55},
+	sim.CreaturePlesio:  {style: corpseSide, rig: "plesio", dead: rigPose{head: 0.6}, flat: 0.78, wound: 0.55},
 
-	sim.CreatureMammoth: {style: corpseSide, crit: "mammoth", pose: mammothWalkA, dead: rigPose{head: 0.3, tail: -0.3}, flat: 0.95, wound: 0.6},
-	sim.CreatureSabre:   {style: corpseSide, crit: "sabre", pose: sabreStand, dead: rigPose{head: 0.45, tail: -0.5}, flat: 0.95, wound: 0.62},
-	sim.CreatureBear:    {style: corpseSide, crit: "bear", pose: bearWalkA, dead: rigPose{head: 0.4, tail: -0.3}, flat: 0.95, wound: 0.62},
-	sim.CreatureMonkey:  {style: corpseSide, crit: "monkey", pose: monkeyWalkA, dead: rigPose{head: 0.4, tail: -0.4}, flat: 0.95, wound: 0.6},
-	sim.CreatureRabbit:  {style: corpseSide, crit: "rabbit", pose: rabbitSit, dead: rigPose{head: 0.35}, flat: 0.95, wound: 0.6},
-	sim.CreatureCroc:    {style: corpseSide, crit: "croc", pose: crocWalkA, dead: rigPose{head: 0.12, tail: -0.1}, flat: 0.95, wound: 0.58},
-	sim.CreatureBrachy:  {style: corpseSide, crit: "brachy", pose: crocWalkA, dead: rigPose{head: 0.12, tail: -0.1}, flat: 0.95, wound: 0.58},
-	sim.CreatureChampso: {style: corpseSide, crit: "champso", pose: crocWalkA, dead: rigPose{head: 0.12, tail: -0.1}, flat: 0.95, wound: 0.58},
+	sim.CreatureMammoth: {style: corpseSide, crit: "mammoth", pose: mammothWalkA, trunk: true, dead: rigPose{head: 0.1, tail: -0.3}, flat: 0.78, wound: 0.6},
+	sim.CreatureSabre:   {style: corpseSide, crit: "sabre", pose: sabreStand, dead: rigPose{head: 0.45, tail: -0.5}, flat: 0.78, wound: 0.62},
+	sim.CreatureBear:    {style: corpseSide, crit: "bear", pose: bearWalkA, dead: rigPose{head: 0.4, tail: -0.3}, flat: 0.78, wound: 0.62},
+	sim.CreatureMonkey:  {style: corpseSide, crit: "monkey", pose: monkeyWalkA, dead: rigPose{head: 0.4, tail: -0.4}, flat: 0.78, wound: 0.6},
+	sim.CreatureRabbit:  {style: corpseSide, crit: "rabbit", pose: rabbitHop, dead: rigPose{head: 0.35}, flat: 0.78, wound: 0.6},
+	sim.CreatureCroc:    {style: corpseBelly, crit: "croc", pose: crocWalkA, dead: rigPose{head: 0.12, tail: -0.1}, flat: 0.78, wound: 0.58},
+	sim.CreatureBrachy:  {style: corpseBelly, crit: "brachy", pose: crocWalkA, dead: rigPose{head: 0.12, tail: -0.1}, flat: 0.78, wound: 0.58},
+	sim.CreatureChampso: {style: corpseBelly, crit: "champso", pose: crocWalkA, dead: rigPose{head: 0.12, tail: -0.1}, flat: 0.78, wound: 0.58},
 
 	sim.CreatureCrab:     {style: corpseBack, crit: "crab", pose: crabWalkA, flat: 0.95, wound: 0.5},
 	sim.CreatureSpider:   {style: corpseBack, crit: "spider", pose: spiderWalkA, flat: 0.95, wound: 0.5},
 	sim.CreatureScorpion: {style: corpseBack, crit: "scorpion", pose: scorpionWalkA, flat: 0.95, wound: 0.55},
-	sim.CreatureSnake:    {style: corpseBelly, crit: "snake", pose: 0, flat: 1, wound: 0.7},
+	sim.CreatureSnake:    {style: corpseBelly, crit: "snake", pose: 0, flat: 1, wound: 0.55, pool: 0.45},
 
 	sim.CreatureTribesman: {style: corpseFlat, crit: "tribe", pose: tribeStand, flat: 1, wound: 0.62},
 }
@@ -176,7 +178,9 @@ func corpseRigCanvas(sp corpseSpec, t float64) (*canvas, float64, float64, bool)
 	p := sp.dead
 	e := smooth(t)
 	p.head, p.neck, p.tail, p.open, p.tilt = p.head*e, p.neck*e, p.tail*e, p.open*e, p.tilt*e
-	p.limp = t
+	if r.jointed() {
+		p.limp = t
+	}
 	c, ax, ay, ok := rigCanvas(r, p)
 	if !ok {
 		return nil, 0, 0, false
@@ -184,14 +188,19 @@ func corpseRigCanvas(sp corpseSpec, t float64) (*canvas, float64, float64, bool)
 	if c.dens == 0 {
 		c.dens = 1
 	}
+	if !r.jointed() && len(r.legs) > 0 { // legs with no joints measured: lifted off and turned whole
+		q := sp
+		q.dead = rigPose{}
+		c2, ax2, ay2, belly := splayLegs(c, ax, ay, t, q)
+		return lieDown(c2, ax2, ay2, belly, sp.flat, t)
+	}
 	kf := float64(c.dens)
 	// Where its legs leave the body: it lies on that.
 	belly := ay
 	if len(r.legs) > 0 {
-		low := dinoImage(r.file, false)
 		ay0 := r.ay
 		if r.ax == 0 && r.ay == 0 {
-			_, ay0 = underFeet(low)
+			_, ay0 = underFeet(dinoImage(r.file, false))
 		}
 		top := 0.0
 		for _, l := range r.legs {
@@ -202,15 +211,40 @@ func corpseRigCanvas(sp corpseSpec, t float64) (*canvas, float64, float64, bool)
 	return lieDown(c, ax, ay, belly, sp.flat, t)
 }
 
-// lieDown presses canvas c down onto the row belly by flat (all of it at t
-// 1), its anchor going from the ground under its feet (ay) to the belly.
+// lieDown sets canvas c on the ground, t of the way (all of it at 1): its
+// anchor goes from the ground under its feet (ay) to the row its belly
+// rests on (or the lowest stretch of it, if that is higher). Its legs,
+// splayed (limpJoints, splayLegs), lie on the ground out towards the
+// viewer, seen at a slant: what is below the belly is pressed to half its
+// height; and the flank it shows to the sky a little lower than it stood
+// (flat).
 func lieDown(c *canvas, ax, ay, belly, flat, t float64) (*canvas, float64, float64, bool) {
 	e := smooth(t)
-	g := lerpf(ay, belly, e)
-	// The legs lie along the ground out towards the viewer: seen from
-	// above they are shorter than they stood.
-	pressFlat(c, g, lerpf(1, flat, e), lerpf(1, 0.85, e))
+	g := lerpf(ay, math.Min(ay, math.Min(belly, float64(lowestRow(c))+0.5)), e)
+	pressFlat(c, g, lerpf(1, flat, e), lerpf(1, 0.5, e))
 	return c, ax, g, true
+}
+
+// lowestRow is the lowest row of c with a real stretch of the drawing on
+// it: not a claw or a stray pixel.
+func lowestRow(c *canvas) int {
+	widest := 0
+	n := make([]int, c.h)
+	for y := 0; y < c.h; y++ {
+		for x := 0; x < c.w; x++ {
+			if c.px[y*c.w+x].A >= 128 {
+				n[y]++
+			}
+		}
+		widest = max(widest, n[y])
+	}
+	need := max(3*c.dens, widest/14)
+	for y := c.h - 1; y >= 0; y-- {
+		if n[y] >= need {
+			return y
+		}
+	}
+	return c.h - 1
 }
 
 // pressFlat squeezes canvas c towards row g: what is above it to up of its
@@ -454,39 +488,50 @@ func colorDist(a, b color.RGBA) int {
 
 // --- legs ------------------------------------------------------------------------------
 
-// limpJoints is where the joints of leg i fall as a body goes down dead, t
-// of the way: each bone turned from the drawing, the leg loose at every
-// joint. Near and far legs fall apart, fore legs forwards and hind legs
-// back, so the body lying on its side shows them all.
-func (c *legCut) limpJoints(i int, t float64) ([]rigPt, []float64) {
-	n := len(c.P) - 1
-	// How far each bone turns from the drawing at full limp: + swings the
-	// foot backwards, - forwards (the drawings face right).
-	var a [5]float64
+// limpAim is the way a leg points on a body lying dead, radians from
+// straight down (+ towards the tail; the drawings face right), and how far
+// it is left bent at each joint. The legs go stiff and splay apart, fore
+// legs forwards and hind legs back, near ones further than far ones, so the
+// body lying on its side shows them all and none stands under it.
+func limpAim(fore, far, biped bool) (aim, bend float64) {
 	switch {
-	case c.fore && !c.far:
-		a = [5]float64{-0.9, -0.95, -0.8, -0.6, -0.4}
-	case c.fore:
-		a = [5]float64{-0.4, -0.3, -0.2, 0, 0.1}
-	case !c.far:
-		a = [5]float64{0.8, 0.9, 0.75, 0.55, 0.4}
-	default:
-		a = [5]float64{0.3, 0.5, 0.4, 0.25, 0.1}
+	case biped && far:
+		return 0.7, 0.15
+	case biped:
+		return 1.15, 0.15
+	case fore && far:
+		return -1.0, 0.08
+	case fore:
+		return -1.4, 0.08
+	case far:
+		return 0.95, 0.08
 	}
-	if len(c.P) == 5 || len(c.P) == 6 { // a biped's leg: on its toes, the foot long
-		if c.far {
-			a = [5]float64{0.75, 1.5, 1.0, 0.7, 0.5}
-		} else {
-			a = [5]float64{0.95, 1.75, 1.35, 1.0, 0.8}
-		}
-	}
+	return 1.35, 0.08
+}
+
+// limpJoints is where the joints of a leg fall as a body goes down dead, t
+// of the way: each bone turned from the drawing towards the leg's aim
+// (limpAim), straightening it; a biped's toes curl forward.
+func (c *legCut) limpJoints(t float64, biped bool) ([]rigPt, []float64) {
+	n := len(c.P) - 1
+	aim, bend := limpAim(c.fore, c.far, biped)
 	th := make([]float64, n)
 	J := make([]rigPt, n+1)
 	J[0] = c.P[0]
 	e := smooth(t)
 	for k := range n {
-		th[k] = a[min(k, 4)] * e
-		J[k+1] = J[k].add(turnPt(c.P[k+1].sub(c.P[k]), th[k]))
+		v := c.P[k+1].sub(c.P[k])
+		a0 := math.Atan2(-v.x, v.y) // as drawn, from straight down
+		to := aim + bend*float64(1-2*(k%2))
+		if !c.fore {
+			to = aim - bend*float64(1-2*(k%2)) // a knee bends the other way to an elbow
+		}
+		if biped && k == n-1 && n >= 3 {
+			to = aim - 1.3 // the toes, curled forward
+		}
+		d := math.Remainder(to-a0, 2*math.Pi)
+		th[k] = d * e
+		J[k+1] = J[k].add(turnPt(v, th[k]))
 	}
 	return J, th
 }
@@ -580,6 +625,18 @@ func splayLegs(src *canvas, ax, ay, t float64, sp corpseSpec) (*canvas, float64,
 		}
 	}
 	legs = keep
+	if sp.trunk && len(legs) > 1 { // the frontmost reaching the ground is its trunk: the body's
+		fi := 0
+		for i, l := range legs {
+			if l.x0 > legs[fi].x0 {
+				fi = i
+			}
+		}
+		for _, q := range legs[fi].px {
+			lab[q] = 0
+		}
+		legs = append(legs[:fi:fi], legs[fi+1:]...)
+	}
 	if len(legs) == 0 {
 		return in, ax, ay, float64(belly)
 	}
@@ -666,21 +723,8 @@ func splayLegs(src *canvas, ax, ay, t float64, sp corpseSpec) (*canvas, float64,
 	paint := func(l *leg, front bool) {
 		clear(layer.px)
 		// The angles: + swings the foot back.
-		a0, a1 := 0.6, 0.85
-		switch {
-		case biped && l.front:
-			a0, a1 = -0.55, 0.2
-		case biped:
-			a0, a1 = 0.55, 1.05
-		case l.hind && l.front:
-			a0, a1 = 0.8, 0.9
-		case l.hind:
-			a0, a1 = 0.3, 0.5
-		case l.front:
-			a0, a1 = -0.9, -0.95
-		default:
-			a0, a1 = -0.4, -0.3
-		}
+		aim, _ := limpAim(!l.hind, !l.front, biped) // stiff: the leg straight, turned whole
+		a0, a1 := aim, aim*1.05
 		a0, a1 = a0*e, a1*e
 		long := float64(l.bottom) - l.hipY
 		kneeY := l.hipY + long*0.5
@@ -831,7 +875,11 @@ func (g *Game) drawCorpse(dst drawTarget, e protocol.EntityView, d drawable) {
 		return
 	}
 	lying := corpseArtOf(k, e.Big, corpseSteps)
-	g.drawBlood(dst, e, x+lying.wx, y, lying.length, age)
+	pool := lying.length
+	if sp := corpseSpecOf(k); sp.pool > 0 {
+		pool *= sp.pool
+	}
+	g.drawBlood(dst, e, x+lying.wx, y, pool, age)
 	if step >= corpseSteps/2 {
 		drawGroundShade(dst, x, y, lying.length*0.4, math.Max(2, lying.length*0.07), 0.3*clamp01(float64(step)/corpseSteps))
 	}

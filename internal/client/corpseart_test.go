@@ -139,3 +139,62 @@ func TestDumpCorpses(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// CORPSE_DUMP=dir CORPSE_LYING=1 go test ./internal/client -run DumpLying
+// writes every body lying, beside its beast standing, four to a row, at
+// 1080p (lying_dump.png).
+func TestDumpLying(t *testing.T) {
+	dir := os.Getenv("CORPSE_DUMP")
+	if dir == "" || os.Getenv("CORPSE_LYING") == "" {
+		t.Skip("set CORPSE_DUMP and CORPSE_LYING")
+	}
+	type cell struct {
+		c              *canvas
+		ax, ay         float64
+		x0, y0, x1, y1 int
+	}
+	var cells []cell
+	only := os.Getenv("CORPSE_ONLY")
+	for _, k := range bodyKinds() {
+		if corpseSpecOf(k).style == corpseSprite {
+			continue
+		}
+		if only != "" && !strings.Contains(","+only+",", ","+fbKindName(k)+",") {
+			continue
+		}
+		for _, st := range []float64{0, 1} {
+			c, ax, ay, _ := corpseCanvas(k, st)
+			x0, y0, x1, y1 := opaqueBox(c)
+			cells = append(cells, cell{c, ax, ay, x0, y0, x1, y1})
+		}
+	}
+	const cols = 8
+	cw, ch := 0, 0
+	for _, c := range cells {
+		cw, ch = max(cw, c.x1-c.x0+12), max(ch, c.y1-c.y0+12)
+	}
+	rows := (len(cells) + cols - 1) / cols
+	sheet := image.NewRGBA(image.Rect(0, 0, cw*cols, ch*rows))
+	draw.Draw(sheet, sheet.Bounds(), &image.Uniform{color.RGBA{79, 106, 64, 255}}, image.Point{}, draw.Src)
+	for i, c := range cells {
+		ox, oy := (i%cols)*cw+6-c.x0, (i/cols)*ch+ch-6-c.y1
+		for y := c.y0; y <= c.y1; y++ {
+			for x := c.x0; x <= c.x1; x++ {
+				if p := c.c.px[y*c.c.w+x]; p.A >= 128 {
+					sheet.SetRGBA(ox+x, oy+y, color.RGBA{p.R, p.G, p.B, 255})
+				}
+			}
+		}
+		for d := -3; d <= 3; d++ { // the anchor: where it touches the ground
+			sheet.SetRGBA(ox+int(c.ax)+d, oy+int(c.ay), color.RGBA{255, 255, 0, 255})
+		}
+	}
+	f, err := os.Create(filepath.Join(dir, "lying_dump.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := png.Encode(f, sheet); err != nil {
+		t.Fatal(err)
+	}
+}
