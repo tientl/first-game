@@ -235,9 +235,9 @@ func bloodGlossSprite(size, variant int) sprite {
 	return s
 }
 
-// drawBlood draws the blood of body e, length art pixels long, seeping
+// drawBodyBlood draws the blood of body e, length art pixels long, seeping
 // from (x, y), age game frames after it fell.
-func (g *Game) drawBlood(dst drawTarget, e protocol.EntityView, x, y, length float64, age int) {
+func (g *Game) drawBodyBlood(dst drawTarget, e protocol.EntityView, x, y, length float64, age int) {
 	size := bloodSizeOf(length)
 	variant := int(uint32(e.ID)*2654435761>>29) % 3
 	stage := bloodStages

@@ -879,7 +879,7 @@ func (g *Game) drawCorpse(dst drawTarget, e protocol.EntityView, d drawable) {
 	if sp := corpseSpecOf(k); sp.pool > 0 {
 		pool *= sp.pool
 	}
-	g.drawBlood(dst, e, x+lying.wx, y, pool, age)
+	g.drawBodyBlood(dst, e, x+lying.wx, y, pool, age)
 	if step >= corpseSteps/2 {
 		drawGroundShade(dst, x, y, lying.length*0.4, math.Max(2, lying.length*0.07), 0.3*clamp01(float64(step)/corpseSteps))
 	}
@@ -904,7 +904,7 @@ func (g *Game) drawCorpseSprite(dst drawTarget, e protocol.EntityView, x, y floa
 	if e.Big {
 		wx = -wx
 	}
-	g.drawBlood(dst, e, x+wx, y, s.w(), age)
+	g.drawBodyBlood(dst, e, x+wx, y, s.w(), age)
 	drawGroundShade(dst, x, y, s.w()*0.4, math.Max(2, s.w()*0.07), 0.3*t)
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(-s.ax, -s.ay)
