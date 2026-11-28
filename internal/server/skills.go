@@ -23,6 +23,10 @@ func (s *Server) skillViews(snap *protocol.Snapshot, x, y, r float64) {
 			v.Skill, v.Phase, v.PhaseT, v.PhaseLen = id, ph, uint8(min(t, 255)), uint8(min(n, 255))
 		}
 	})
+	for _, h := range s.world.Hazards(x-r, y-r, x+r, y+r) {
+		snap.Hazards = append(snap.Hazards, protocol.HazardView{Kind: h.Kind, X: float32(h.X), Y: float32(h.Y), R: float32(h.R),
+			Left: uint16(max(0, min(h.Left, 65535))), Total: uint16(max(0, min(h.Total, 65535)))})
+	}
 	for _, z := range s.world.Zones(x-r, y-r, x+r, y+r) {
 		snap.Zones = append(snap.Zones, protocol.ZoneView{
 			Creature: z.Creature, Kind: z.Kind, Skill: z.Skill, Shape: z.Shape,

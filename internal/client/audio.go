@@ -456,3 +456,16 @@ func busFor(name string) bus {
 	}
 	return busSFX
 }
+
+// setMusicRate plays music track name at rate r (1 as composed): a boss's
+// battle music driven harder as it weakens. It shifts the pitch too.
+func (s *soundSystem) setMusicRate(name string, r float64) {
+	if s == nil {
+		return
+	}
+	s.mix.mu.Lock()
+	if v := s.music[name]; v != nil {
+		v.rate = r
+	}
+	s.mix.mu.Unlock()
+}

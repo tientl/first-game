@@ -176,41 +176,84 @@ func (w *World) Tornadoes() []Tornado {
 
 // PondMask marks the tiles of every lake and pond: bodies of water no
 // bigger than pondMaxTiles. The client calls it on the same tiles, so both
-// agree on what freezes.
-func PondMask(width, height int, tiles []Tile) []bool {
+// agree on what freezes. It is the rule of the worlds before StyleLairs:
+// see PondMaskFor.
+func PondMask(width, height int, tiles []Tile) []bool { return pondMask(width, height, tiles, false) }
+
+// PondMaskFor is PondMask for a world of style s. Since StyleLairs deep
+// water that the sea's shallows join to the open sea (a hole in a reef, a
+// lagoon's deep middle, the deep pockets in the shallows round an island)
+// is the sea, not a pond: no lily grows on it and it does not freeze. Lakes
+// (VarLake) are never joined to the sea by its shallows, so they stay ponds.
+func PondMaskFor(s WorldStyle, width, height int, tiles []Tile) []bool {
+	return pondMask(width, height, tiles, s >= StyleLairs)
+}
+
+// pondMask is PondMask; with seaJoins a body of water is flooded through
+// the sea's shallows too, and one that has any is the sea.
+func pondMask(width, height int, tiles []Tile, seaJoins bool) []bool {
+	return waterBodies(width, height, tiles, seaJoins, func(edge, sea bool, n int) bool {
+		return !edge && !sea && n <= pondMaxTiles
+	})
+}
+
+// waterBodies marks the tiles of the bodies of water keep says to: it is
+// told whether a body runs off the map, whether it holds the sea's
+// shallows, and how many tiles it has. A body is flooded over deep water,
+// and with seaJoins over the shallows too.
+func waterBodies(width, height int, tiles []Tile, seaJoins bool, keep func(edge, sea bool, n int) bool) []bool {
 	mask := make([]bool, len(tiles))
 	seen := make([]bool, len(tiles))
+	in := func(t Tile) bool { return t == TileWater || seaJoins && t == TileShallow }
 	var comp []int
 	for start, t := range tiles {
-		if t != TileWater || seen[start] {
+		if !in(t) || seen[start] {
 			continue
 		}
 		comp = append(comp[:0], start)
 		seen[start] = true
-		edge := false
+		edge, sea := false, false
 		for k := 0; k < len(comp); k++ {
 			x, y := comp[k]%width, comp[k]/width
 			if x == 0 || y == 0 || x == width-1 || y == height-1 {
 				edge = true
+			}
+			if tiles[comp[k]] == TileShallow {
+				sea = true
 			}
 			for _, d := range [4][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
 				nx, ny := x+d[0], y+d[1]
 				if nx < 0 || ny < 0 || nx >= width || ny >= height {
 					continue
 				}
-				if j := ny*width + nx; !seen[j] && tiles[j] == TileWater {
+				if j := ny*width + nx; !seen[j] && in(tiles[j]) {
 					seen[j] = true
 					comp = append(comp, j)
 				}
 			}
 		}
-		if !edge && len(comp) <= pondMaxTiles {
+		if keep(edge, sea, len(comp)) {
 			for _, i := range comp {
 				mask[i] = true
 			}
 		}
 	}
 	return mask
+}
+
+// ponds is the world's PondMaskFor, worked out the first time it is wanted.
+func (w *World) ponds() []bool {
+	if !w.wx.pondDone {
+		w.wx.pond = PondMaskFor(w.style, w.width, w.height, w.tiles)
+		w.wx.pondDone = true
+	}
+	return w.wx.pond
+}
+
+// seaJoined marks the water joined to the open sea, by the rule of
+// StyleLairs: what no pond plant may stand on, in a world of any style.
+func seaJoined(width, height int, tiles []Tile) []bool {
+	return waterBodies(width, height, tiles, true, func(edge, sea bool, _ int) bool { return edge || sea })
 }
 
 // Frozen reports whether ponds are frozen in season s.
@@ -221,11 +264,7 @@ func (w *World) frozenAt(tx, ty int) bool {
 	if !Frozen(w.Season()) || !w.inBounds(tx, ty) {
 		return false
 	}
-	if !w.wx.pondDone {
-		w.wx.pond = PondMask(w.width, w.height, w.tiles)
-		w.wx.pondDone = true
-	}
-	return w.wx.pond[ty*w.width+tx]
+	return w.ponds()[ty*w.width+tx]
 }
 
 // landAt reports whether a walker can stand on tile (tx, ty): walkable

@@ -78,7 +78,18 @@ import (
 //     from home (an old chest's Var is what kind of chest it is and its
 //     island's ring, not its depth). Nothing older changes, but an older
 //     game would make the wrong world of such a save, so it must refuse it.
-const SaveVersion = 28
+//   - 29: worlds of StyleCaveFight: the fighting of the caves (cavefight.go):
+//     new beasts, spider queens and cave bosses guarding the deep hoard
+//     (the chest stays shut while its guardian lives; the fallen stay
+//     fallen through the chest), walking skeletons, egg sacs, hazards. Nothing
+//     older changes, but an older game would make the wrong world of such a
+//     save, so it must refuse it.
+//   - 30: worlds of StyleLairs: Titanoboa's temple and the Megalodon's atoll
+//     (temple.go, atoll.go), and the deep pockets of the sea no ponds
+//     (PondMaskFor). An older save has the lilies and lotus that grew on
+//     water joined to the sea pulled up once on loading (pullSeaLilies);
+//     its lairs stay as they were made.
+const SaveVersion = 30
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -389,6 +400,9 @@ func Load(d SaveData) (*World, error) {
 			w.occ[e.TY*w.width+e.TX] = e.ID
 		}
 	}
+	if d.Version < 30 {
+		w.pullSeaLilies() // lilies and lotus that grew on the sea: see flora.go
+	}
 	for _, ps := range d.Players {
 		if d.Version < 4 {
 			ps.Slots, ps.Selected = legacyInventory(ps.Inv), 0
@@ -416,6 +430,7 @@ func Load(d SaveData) (*World, error) {
 	w.loadPets(d.Pets)
 	w.loadBoats(d.Boats)
 	w.loadBosses(d.Bosses) // the fallen stay fallen
+	w.afterLoadCaves() // see cavefight.go
 	for _, dr := range d.Drops {
 		if !dr.Item.Valid() || dr.Count <= 0 || !finite(dr.X, dr.Y, dr.FromX, dr.FromY) {
 			continue
