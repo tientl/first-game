@@ -105,7 +105,7 @@ func caveTestPlayer(w *World, x, y float64) *Player {
 }
 
 func TestCavesLavaBurnsWebsHoldBonesDigOut(t *testing.T) {
-	w := genStyle(t, StyleCaves, 42, SizeLarge)
+	w := genStyle(t, caveStyle, 42, SizeLarge)
 	// Lava: a player standing against it is burnt.
 	var lavaAt, webAt, fossilAt, paintAt [2]int
 	var found [4]bool

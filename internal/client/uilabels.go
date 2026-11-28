@@ -51,7 +51,7 @@ type labelFX struct {
 const labelFade = 140 * time.Millisecond
 
 // labelText is the size of a label's text, in screen pixels to a UI pixel.
-func labelScale() float64 { return 0.9 * uiK() }
+func labelScale() float64 { return 0.82 * uiK() }
 
 // showLabel draws this frame's label l, fading it in when it is new; with
 // none, the last fades out.
@@ -87,7 +87,7 @@ func drawFloatLabel(screen *ebiten.Image, l floatLabel, a float64) {
 		s *= 0.88
 	}
 	w := textWidthW(l.text, s, wText+30)
-	padX, h := 7*k, lineUI*s+5*k
+	padX, h := 6*k, lineUI*s+4*k
 	x := l.x - w/2 - padX
 	y := l.y - h + (1-a)*4*k
 	// Kept on the screen.
@@ -100,7 +100,7 @@ func drawFloatLabel(screen *ebiten.Image, l floatLabel, a float64) {
 		plateA(d, x, y, w+2*padX, h, h/2, 0.82*a)
 	}
 	c := fade(l.col, uint8(255*a))
-	uiTextW(d, l.text, x+padX, y+2.5*k, c, text.AlignStart, s, wText+30, fxShadow)
+	uiTextW(d, l.text, x+padX, y+2*k, c, text.AlignStart, s, wText+30, fxShadow)
 }
 
 // labelColor softens the interface's red for a label over the world.

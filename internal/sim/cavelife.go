@@ -186,6 +186,9 @@ func (w *World) stepBear(c *Creature) {
 	}
 	c.State = CreatureChase
 	c.faceToward(p.X)
+	if w.caveFights() && w.trySkill(c, p, dist) { // the rear-up swipe and the roar
+		return
+	}
 	if dist <= BearClawRange {
 		if c.biteCD == 0 {
 			// A swipe, then a bite, turn about.
@@ -342,11 +345,15 @@ func treasureLoot(id EntityID, depth int) []Ingredient {
 // like a chest for p to take what is inside (and put things in). Before save
 // version 14 the hoard spilled on the ground: those chests open empty.
 func (w *World) openTreasure(p *Player, e *Entity) bool {
+	if g := w.hoardGuardian(e); g != nil { // a cave boss stands on it: see cavefight.go
+		p.notify(NoticeGuarded, uint8(g.Kind))
+		return false
+	}
 	if e.Ready {
 		e.Ready = false
 		e.RegrowAt = math.MaxUint64 // never fills again
 		inv := &Inventory{}
-		for _, it := range treasureLoot(e.ID, int(e.Var)) {
+		for _, it := range w.chestLoot(e) { // by its depth, or since StyleCaveWays its kind and ring: see caveways.go
 			inv.Add(it.Item, it.Count)
 		}
 		w.chests[e.ID] = inv

@@ -98,6 +98,9 @@ func (g *Game) classifySwings(old, cur protocol.Snapshot) {
 	for _, p := range cur.Players {
 		if p.Acting && (first || !was[p.ID]) {
 			w := g.whatSwing(old, oldAt, p)
+			if pickedUp(old, cur, p) {
+				w = swingInfo{kind: swingHand} // E picked something up: a crouch, not a blow; see pickup.go
+			}
 			if last := g.swingWhat[p.ID]; w.beast && last.beast {
 				w.cross = !last.cross // jab, cross, jab
 			}
@@ -184,7 +187,8 @@ func (g *Game) drawSwing(dst drawTarget, p protocol.PlayerView, d drawable, bob,
 					fade = 1 - (age-chopStrike)/(chopBounce+4)
 				}
 				lead := min(a, chopImpact) // the bounce does not draw it on
-				swingArc(dst, gx, gy, side, lead, chopRaised, 1, 1.5, 7.5, 15, color.RGBA{0xe8, 0xe4, 0xd8, 0xff}, 0.55*fade)
+				r := hd.reachAt()
+				swingArc(dst, gx, gy, side, lead, chopRaised, 1, 1.5, r*0.5, r, color.RGBA{0xe8, 0xe4, 0xd8, 0xff}, 0.55*fade)
 			}
 			drawHeldDef(dst, hd, gx, gy, a, side, 1)
 			return

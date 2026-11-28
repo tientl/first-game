@@ -126,6 +126,14 @@ const (
 	FxWarn                        // a warning only: it turns on a foe who did not back off
 	FxTurnTail                    // it ends with its tail to the foe
 	FxTurtle                      // head in: a blow does a quarter through the active ticks
+	FxVenom                       // poisons (cavefight.go)
+	FxCloudPoison                 // leaves a poison cloud where it lands
+	FxCloudDust                   // leaves a cloud of itching hair
+	FxWebFloor                    // lays a web on the floor
+	FxDrain                       // heals it by what it takes
+	FxExpose                      // open to blows through its recovery
+	FxSummon                      // calls helpers
+	FxEnsnare                     // tangles the foe in web
 )
 
 // Motion is how a beast moves through a move.
@@ -621,7 +629,7 @@ func skillSlot(k CreatureKind, id SkillID) int {
 // packKind reports whether k hunts in packs that take turns: one or two go
 // in at a time.
 func packKind(k CreatureKind) bool {
-	return k == CreatureRaptor || k == CreatureAchero || k == CreatureTroodon
+	return k == CreatureRaptor || k == CreatureAchero || k == CreatureTroodon || k == CreatureHyena || k == CreatureSkelRaptor
 }
 
 // packLimit is how many of a pack of kind k strike at one foe at once.
@@ -1081,6 +1089,7 @@ func (w *World) skillHit(c *Creature, d *SkillDef, p *Player, fx, fy float64) {
 	p.stunFor(d.Stun)
 	p.bleedFor(d.Bleed)
 	p.slowFor(d.Slow)
+	w.caveHit(c, d, p)
 	if d.Fx&FxPin != 0 && p.ID == s.foe && p.status.pin == 0 && p.mount == 0 && p.boat == 0 {
 		p.status.pin, p.status.mash = c.ID, 0
 		s.pin = p.ID
@@ -1135,6 +1144,7 @@ func (w *World) skillCry(c *Creature, d *SkillDef) {
 	if d.Fx&FxTurnTail != 0 && p != nil {
 		c.FaceLeft = p.X > c.X
 	}
+	w.caveCry(c, d)
 }
 
 // smallAnimal reports whether k runs from a tyrant's roar.
@@ -1278,7 +1288,7 @@ func (w *World) skillProvoked(c *Creature, p *Player) {
 
 // turtled reports whether c has its head in, shrugging off most of a blow.
 func (c *Creature) turtled() bool {
-	return c.sk.id == SkillAnkyloTurtle && c.sk.phase == PhaseActive
+	return c.sk.phase == PhaseActive && (c.sk.id == SkillAnkyloTurtle || c.sk.id != SkillNone && Skill(c.sk.id).Fx&FxTurtle != 0)
 }
 
 // inSkill reports whether c is making a move: it does not flinch from a blow.

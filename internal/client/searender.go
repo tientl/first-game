@@ -1,13 +1,11 @@
 package client
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/text/v2"
 
 	"survivalgame/internal/protocol"
 	"survivalgame/internal/sim"
@@ -220,39 +218,35 @@ func (g *Game) drawKrakenArms(dst drawTarget, c protocol.CreatureView, d drawabl
 
 // --- HUD -------------------------------------------------------------------------
 
-// drawSeaHUD draws, under the health bars, the boat's state and the wind
-// while aboard, or a swimmer's strength.
-func (g *Game) drawSeaHUD(screen *uiDst) {
-	self := g.curr.Self
-	y := float32(122)
-	if self.Boat != 0 {
+// myBoat is the boat this player is aboard.
+func (g *Game) myBoat() (protocol.BoatView, bool) {
+	if id := g.curr.Self.Boat; id != 0 {
 		for _, b := range g.curr.Boats {
-			if b.ID != self.Boat {
-				continue
-			}
-			max := b.Kind.MaxHP()
-			panel(screen, 12, y, 230, 56)
-			g.text(screen, b.Kind.Name(), 24, float64(y)+6, colWhite, text.AlignStart, 1)
-			frac := float32(b.HP) / float32(max)
-			well(screen, 24, float64(y)+29, 140, 12, 6)
-			drawBarFill(screen, 25.5, float64(y)+30.5, 137, 9, float64(max32(0, frac)), color.RGBA{180, 130, 70, 255}, barFX{}, g.frame)
-			g.text(screen, fmt.Sprintf("%d/%d", max32i(b.HP), max), 170, float64(y)+26, colMuted, text.AlignStart, 1)
-			// The wind: an arrow the way it blows.
-			cx, cy := float32(212), y+20
-			strokeCircle(screen, cx, cy, 14, 1, color.RGBA{255, 255, 255, 60}, true)
-			wd := float64(g.curr.WindDir)
-			l := float32(8 + 5*g.curr.Wind)
-			tx, ty := cx+float32(math.Cos(wd))*l, cy+float32(math.Sin(wd))*l
-			strokeLine(screen, cx-float32(math.Cos(wd))*l, cy-float32(math.Sin(wd))*l, tx, ty, 2, colKey, true)
-			for _, s := range []float64{2.6, -2.6} {
-				strokeLine(screen, tx, ty, tx+float32(math.Cos(wd+s))*5, ty+float32(math.Sin(wd+s))*5, 2, colKey, true)
-			}
-			g.text(screen, "gió", float64(cx), float64(cy)+16, colMuted, text.AlignCenter, 1)
-			if b.Held {
-				g.text(screen, "Bị mực khổng lồ giữ chặt! Đánh nó để thoát", 24, float64(y)+62, colBad, text.AlignStart, 1)
+			if b.ID == id {
+				return b, true
 			}
 		}
-		return
+	}
+	return protocol.BoatView{}, false
+}
+
+// boatItem is the item a boat of kind k is made as, for its picture.
+func boatItem(k sim.BoatKind) sim.ItemKind {
+	if k == sim.BoatSail {
+		return sim.ItemSailboat
+	}
+	return sim.ItemRaft
+}
+
+// seaVitals are the bars of the sea, under health and hunger (hud.go): the
+// boat's while aboard, or a swimmer's strength.
+func (g *Game) seaVitals() []vital {
+	self := g.curr.Self
+	if self.Dead {
+		return nil
+	}
+	if b, ok := g.myBoat(); ok {
+		return []vital{{id: vitalBoat, item: boatItem(b.Kind), cur: float64(max32i(b.HP)), max: float64(b.Kind.MaxHP()), fill: color.RGBA{180, 130, 70, 255}}}
 	}
 	swimming := false
 	for _, p := range g.curr.Players {
@@ -260,15 +254,50 @@ func (g *Game) drawSeaHUD(screen *uiDst) {
 			swimming = p.Swimming
 		}
 	}
-	if (swimming || self.Breath > 0 && self.Breath < 0.999) && !self.Dead {
-		panel(screen, 12, y, 230, 34)
-		g.text(screen, "Sức bơi", 24, float64(y)+8, colWhite, text.AlignStart, 1)
-		well(screen, 90, float64(y)+11, 140, 12, 6)
+	if swimming || self.Breath > 0 && self.Breath < 0.999 {
 		col := color.RGBA{110, 190, 240, 255}
 		if self.Breath <= 0 {
 			col = colBad
 		}
-		drawBarFill(screen, 91.5, float64(y)+12.5, 137, 9, float64(max32(0, self.Breath)), col, barFX{}, g.frame)
+		return []vital{{id: vitalBreath, cur: float64(max32(0, self.Breath)), max: 1, fill: col}}
+	}
+	return nil
+}
+
+// seaStatuses are the chips of the sea: the boat in a giant squid's arms,
+// and the wind while sailing.
+func (g *Game) seaStatuses() []status {
+	b, ok := g.myBoat()
+	if !ok || g.curr.Self.Dead {
+		return nil
+	}
+	var out []status
+	if b.Held {
+		out = append(out, status{statusHeld, "Bị mực giữ", "Bị mực khổng lồ giữ chặt! Đánh nó để thoát", colBad})
+	}
+	if b.Kind.Sails() {
+		word := "Gió nhẹ"
+		switch {
+		case g.curr.Wind > 0.66:
+			word = "Gió mạnh"
+		case g.curr.Wind > 0.33:
+			word = "Gió vừa"
+		}
+		out = append(out, status{statusWind, word, "", colKey})
+	}
+	return out
+}
+
+// drawWindArrow draws the wind as an arrow the way it blows, centred on
+// (cx, cy), longer the harder it blows, at most r from the middle.
+func (g *Game) drawWindArrow(dst *uiDst, cx, cy, r float64) {
+	wd := float64(g.curr.WindDir)
+	l := r * (0.6 + 0.4*float64(g.curr.Wind))
+	c, s := math.Cos(wd), math.Sin(wd)
+	tx, ty := float32(cx+c*l), float32(cy+s*l)
+	strokeLine(dst, float32(cx-c*l), float32(cy-s*l), tx, ty, 1.7, colKey, true)
+	for _, a := range []float64{2.5, -2.5} {
+		strokeLine(dst, tx, ty, tx+float32(math.Cos(wd+a)*4), ty+float32(math.Sin(wd+a)*4), 1.7, colKey, true)
 	}
 }
 

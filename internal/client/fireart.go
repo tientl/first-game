@@ -48,6 +48,7 @@ const (
 	fireCook                    // low and wide under a pot, a grill or a pan
 	fireTorch                   // a torch's flame, on its stand or in the hand
 	fireMouth                   // in the mouth of a furnace or an oven
+	fireHand                    // a torch's flame in the hand: the torch there is smaller than on its stand
 	numFireKinds
 )
 
@@ -73,6 +74,7 @@ var fireShapes = [numFireKinds]fireShape{
 	fireCook:    {h: 10, w: 6.5, tongues: [][4]float64{{-0.8, 0, 0.45, 1.2}, {0.8, 0, 0.5, 1.2}, {-0.4, 0.2, 0.8, 1.6}, {0.4, 0.2, 0.75, 1.6}, {0, 0.3, 1, 1.9}}},
 	fireTorch:   {h: 10.5, w: 2.4, tongues: [][4]float64{{-0.45, 0, 0.6, 1.1}, {0.5, 0, 0.55, 1}, {0, 0.2, 1, 1.75}}},
 	fireMouth:   {h: 6.5, w: 4.5, tongues: [][4]float64{{-0.7, 0, 0.6, 1.1}, {0.7, 0, 0.55, 1.1}, {-0.25, 0.1, 0.9, 1.3}, {0.3, 0.1, 1, 1.3}}},
+	fireHand:    {h: 7, w: 1.9, tongues: [][4]float64{{-0.45, 0, 0.6, 0.85}, {0.5, 0, 0.55, 0.8}, {0, 0.15, 1, 1.35}}},
 }
 
 // The fire's bands, coolest first: pixelfx's campfire palette.
