@@ -128,6 +128,22 @@ func cleanName(name string) string {
 	return name
 }
 
+// NameInUse reports whether a connected player already has the name a client
+// asking to join as name would get: co-op refuses a second player of the same
+// name, because the saved character is found by name.
+func (w *World) NameInUse(name string) bool {
+	name = cleanName(name)
+	if name == "" {
+		return false // a generated name is never taken
+	}
+	for _, p := range w.players {
+		if p.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 // AddPlayer creates a player at the spawn point and returns its id. An empty
 // name is replaced by a generated one.
 func (w *World) AddPlayer(name string) PlayerID { return w.AddPlayerWithLook(name, Look{}) }

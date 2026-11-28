@@ -9,6 +9,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -22,6 +23,7 @@ import (
 const (
 	DefaultWorldSize      = 128
 	DefaultInterestRadius = 44 // tiles; covers a 1920px-wide screen zoomed all the way out
+	DefaultMaxRemote      = 7  // friends joining over the network besides the host
 )
 
 // maxMsgsPerTick bounds how many messages one client may have handled per
@@ -53,6 +55,10 @@ type Config struct {
 	// dev.go. Without it the server refuses dev commands, free build's among
 	// them.
 	Dev bool
+
+	// MaxRemote is how many players may be connected over the network (see
+	// ConnectRemote) at once besides the host; 0 means DefaultMaxRemote.
+	MaxRemote int
 }
 
 // Server owns the world and the connected clients. All game state is touched
@@ -67,7 +73,8 @@ type Server struct {
 
 	running atomic.Bool
 	paused  atomic.Bool
-	peers   []*peer // owned by the Run goroutine
+	remotes atomic.Int32 // joined players that came over the network
+	peers   []*peer      // owned by the Run goroutine
 
 	nextAutosave uint64 // tick of the next autosave; 0 means never
 }
@@ -80,6 +87,7 @@ type peer struct {
 
 	joined bool // Hello accepted, player exists
 	player sim.PlayerID
+	remote bool // came in over the network (ConnectRemote), not the host's own client
 }
 
 // New generates the world and returns a server ready to Run.
@@ -171,7 +179,8 @@ func (s *Server) Run(ctx context.Context) error {
 func (s *Server) tick() {
 	s.acceptPending()
 	s.readClients()
-	if s.paused.Load() {
+	// The host's pause stops the clock only while nobody else is playing.
+	if s.paused.Load() && s.remotes.Load() == 0 {
 		s.broadcast()
 		return
 	}
@@ -253,11 +262,19 @@ func (s *Server) handle(p *peer, m protocol.ClientMsg) bool {
 		if p.joined {
 			return true // a repeated Hello is harmless
 		}
-		if m.Hello.Version != protocol.Version {
-			return false
+		switch {
+		case m.Hello.Version != protocol.Version:
+			return s.refuse(p, fmt.Sprintf("Khác phiên bản game: máy chủ %d, máy bạn %d. Hai bên cần cùng một bản game.", protocol.Version, m.Hello.Version))
+		case s.world.NameInUse(m.Hello.Name):
+			return s.refuse(p, "Trong phòng đang có người dùng tên này. Đổi tên khác, hoặc đợi vài giây nếu đó là bạn vừa bị rớt mạng.")
+		case p.remote && int(s.remotes.Load()) >= s.maxRemote():
+			return s.refuse(p, "Phòng đã đầy.")
 		}
 		p.player = s.world.AddPlayerWithLook(m.Hello.Name, m.Hello.Look)
 		p.joined = true
+		if p.remote {
+			s.remotes.Add(1)
+		}
 		s.devJoin(p) // see dev.go
 		w, h := s.world.Size()
 		// Nothing was sent to p before, so the buffered channel has room.
@@ -287,7 +304,10 @@ func (s *Server) handle(p *peer, m protocol.ClientMsg) bool {
 		if !p.joined {
 			return false
 		}
-		if s.cfg.SavePath != "" {
+		if p.remote {
+			// The save belongs to the host: a friend may not make it write.
+			s.send(p, protocol.ServerMsg{Kind: protocol.ServerSaved, Saved: protocol.SaveResult{Error: "chỉ chủ phòng lưu được"}})
+		} else if s.cfg.SavePath != "" {
 			s.notifySaved(s.save(), false, p)
 		}
 	default:
@@ -310,6 +330,23 @@ func (s *Server) broadcast() {
 	}
 }
 
+// refuse tells p why it may not join and reports false, so the caller drops
+// it; the message is queued before the channel closes, so p still gets it.
+func (s *Server) refuse(p *peer, why string) bool {
+	s.send(p, protocol.ServerMsg{Kind: protocol.ServerRefused, Refused: why})
+	return false
+}
+
+func (s *Server) maxRemote() int {
+	if s.cfg.MaxRemote > 0 {
+		return s.cfg.MaxRemote
+	}
+	return DefaultMaxRemote
+}
+
+// RemotePlayers is how many players are connected over the network.
+func (s *Server) RemotePlayers() int { return int(s.remotes.Load()) }
+
 // send queues m for p without blocking and reports whether it fit.
 func (s *Server) send(p *peer, m protocol.ServerMsg) bool {
 	select {
@@ -325,6 +362,9 @@ func (s *Server) send(p *peer, m protocol.ServerMsg) bool {
 func (s *Server) drop(p *peer) {
 	if p.joined {
 		s.world.RemovePlayer(p.player)
+		if p.remote {
+			s.remotes.Add(-1)
+		}
 	}
 	close(p.out)
 }

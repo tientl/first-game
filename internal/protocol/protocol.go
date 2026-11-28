@@ -16,7 +16,7 @@ package protocol
 import "survivalgame/internal/sim"
 
 // Version is bumped on every incompatible change to these types.
-const Version = 53
+const Version = 54
 
 // ClientMsgKind selects which payload of a ClientMsg is meaningful.
 type ClientMsgKind uint8
@@ -53,6 +53,11 @@ const (
 	ServerSnapshot
 	ServerSaved // the outcome of a save
 	ServerDev   // the answer to a ClientDev
+
+	// ServerRefused: the server will not take this client (wrong version,
+	// name in use, room full). The reason is in ServerMsg.Refused; the
+	// connection is closed right after.
+	ServerRefused
 )
 
 // ServerMsg is a message from the server to one client.
@@ -62,6 +67,7 @@ type ServerMsg struct {
 	Snapshot Snapshot
 	Saved    SaveResult
 	Dev      DevReply
+	Refused  string // ServerRefused: why, in words for the player
 }
 
 // SaveResult reports a save, requested by this client or automatic.
