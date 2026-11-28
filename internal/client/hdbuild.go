@@ -473,64 +473,6 @@ func genPostHD() sprite {
 	return mkUp(c, 3*k, 29*k)
 }
 
-func genTotemHD() sprite {
-	const k = HDDensity
-	c := hdCanvas(16, 70)
-	logHD(c, 4*k, 12*k, 6*k, 69*k-1, trunkRamp, 0.85, 960)
-	// Five carved, painted faces stacked up the post: a brow, sunken
-	// painted eyes, a nose and a mouth of teeth.
-	for i, fy := range []int{10, 22, 34, 46, 58} {
-		paint := []color.RGBA{hex(0xc83020), hex(0xf0e8d0), hex(0x2a6ab0), hex(0xe0a020), hex(0x2f8a4a)}[i]
-		y0 := fy * k
-		for x := 4*k + 2; x < 12*k-2; x++ { // the brow, and the groove above the face
-			c.put(x, y0-2*k, trunkRamp.at(0))
-			c.put(x, y0-2*k+1, trunkRamp.at(4))
-			c.put(x, y0-k-1, trunkRamp.at(1))
-		}
-		for _, ex := range []float64{6, 10} {
-			c.ellipse(ex*k, float64(y0), 3.4, 3.4, func(x, y int, nx, ny float64) color.RGBA { return trunkRamp.at(0) })
-			c.ellipse(ex*k, float64(y0), 2.6, 2.6, func(x, y int, nx, ny float64) color.RGBA {
-				return mix(paint, colBlack, clamp01((nx+ny)*0.25+0.1))
-			})
-			c.ellipse(ex*k, float64(y0), 0.9, 0.9, func(int, int, float64, float64) color.RGBA { return hex(0x1a0c08) })
-		}
-		for y := y0; y < y0+2*k+2; y++ { // the nose: a lit ridge
-			c.put(8*k-2, y, trunkRamp.at(4))
-			c.put(8*k-1, y, trunkRamp.at(3))
-			c.put(8*k, y, trunkRamp.at(1))
-			c.put(8*k+1, y, trunkRamp.at(0))
-		}
-		for x := 5 * k; x < 11*k; x++ { // the mouth, with teeth
-			for d := range 4 {
-				col := hex(0x1a0c08)
-				if (d == 1 || d == 2) && x%3 != 0 && x > 5*k+1 && x < 11*k-2 {
-					col = mix(paint, hex(0xf0e8d0), 0.6)
-				}
-				c.put(x, y0+3*k+d, col)
-			}
-		}
-		for x := 4 * k; x < 12*k; x++ { // a painted band under each face
-			if u := x - 4*k; (u/3)%2 == 0 {
-				c.put(x, y0+5*k+1, paint)
-				c.put(x, y0+5*k+2, mix(paint, colBlack, 0.3))
-			}
-		}
-	}
-	// Wings at the top, feathered.
-	for _, side := range []float64{-1, 1} {
-		x0 := 8*k + side*4*k
-		c.polygon([]float64{x0, 6 * k, x0 + side*4*k, 2 * k, x0 + side*4*k, 8 * k}, func(x, y int) color.RGBA {
-			l := 0.25
-			if (y+int(math.Abs(float64(x)-x0))/2)%4 == 0 {
-				l = 0.6 // the gaps between feathers
-			}
-			return mix(hex(0xe04030), hex(0x70140c), l+float64(y-2*k)/18*0.3)
-		})
-	}
-	c.outline(0.8)
-	return mkUp(c, 8*k, 68*k)
-}
-
 // torchStickHD is the torch stand at HD: a stake as high as the player's
 // shoulder, its head a bundle of dry grass bound on with two thongs and
 // charred at the top, where the flame sits (see tribalrender.go).
