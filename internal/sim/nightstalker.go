@@ -38,6 +38,7 @@ var troodonDef = creatureDef{
 
 func init() {
 	creatureDefs[CreatureTroodon] = troodonDef
+	nameHead(CreatureTroodon)
 }
 
 // inLight reports whether (x, y) is lit against the dark: by a fire, a lit

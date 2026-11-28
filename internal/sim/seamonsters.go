@@ -62,6 +62,8 @@ var (
 func init() {
 	creatureDefs[CreatureMosa] = mosaDef
 	creatureDefs[CreatureKraken] = krakenDef
+	nameHead(CreatureMosa)
+	nameHead(CreatureKraken)
 }
 
 // seaPrey returns the nearest player on the water within sight of c: in a
