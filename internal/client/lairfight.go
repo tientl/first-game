@@ -30,6 +30,8 @@ type lairFight struct {
 	rate    float64 // the battle music's speed
 	drawPull float64       // the pull this frame is drawn at
 	up       *ebiten.Image // the world drawn back, shrunk to the screen
+	clampK    float64            // how far the camera is held in the arena: 0 free, 1 held
+	clampLair protocol.LairView // the arena it is held in
 }
 
 type phaseSeen struct {
@@ -113,7 +115,7 @@ func (g *Game) lairFightUpdate() {
 	// player both fit; and the music is driven harder as the boss weakens.
 	want, rate := 1.0, 1.0
 	if b := g.curr.Boss; b.Kind.Boss() && !g.curr.Self.Dead {
-		want = 0.8
+		want = 0.9
 		if l, ok := g.lairOf(b.Kind); ok && l.Layout != sim.LayoutHollow {
 			switch {
 			case b.Kind == sim.CreatureTitanoboa && b.Stage >= 2:
@@ -332,7 +334,7 @@ func b2i(b bool) int {
 func (g *Game) drawLairFloor(dst drawTarget, cam camera) {
 	w, h := float64(dst.Bounds().Dx()), float64(dst.Bounds().Dy())
 	if t, ok := g.lairOf(sim.CreatureTitanoboa); ok && t.Layout == sim.LayoutTemple {
-		g.drawPaving(dst, cam, templeOf(t.X, t.Y, t.Radius, t.PoolX, t.PoolY, t.PoolRX, t.PoolRY), w, h)
+		g.drawPaving(dst, cam, templeOf(t.X, t.Y, t.RX, t.RY, t.PoolX, t.PoolY, t.PoolRX, t.PoolRY), w, h)
 		g.drawPool(dst, cam, t)
 	}
 	for _, e := range g.curr.Entities {
@@ -366,7 +368,7 @@ func (g *Game) drawPaving(dst drawTarget, cam camera, t templeLook, w, h float64
 	}
 	p := f.pave
 	const bw, bh = paveBlockTiles * TileW, paveBlockTiles * TileH
-	R := t.r + 1
+	R := math.Max(t.cx, t.cy) + 1
 	bx0, by0 := int(math.Floor((t.x-R)/paveBlockTiles)), int(math.Floor((t.y-R)/paveBlockTiles))
 	bx1, by1 := int(math.Floor((t.x+R)/paveBlockTiles)), int(math.Floor((t.y+R)/paveBlockTiles))
 	baked := 0
@@ -451,9 +453,15 @@ func (g *Game) drawFlood(dst drawTarget, cam camera, hz protocol.HazardView, w, 
 	if R < 0.5 {
 		return
 	}
+	rx, ry := R, R // the courtyard's oblong, as it rises
+	if l, ok := g.lairOf(sim.CreatureTitanoboa); ok && l.RX > 0 {
+		rx, ry = float64(l.RX)*rise, float64(l.RY)*rise
+		R = max(rx, ry)
+	}
+	m := min(rx, ry)
+	in := func(x, y float64) float64 { return (1 - sim.ArenaQ(sim.LayoutTemple, rx, ry, x-cx, y-cy)) * m } // tiles in from its edge
 	shade := func(x, y float64) float32 {
-		d := math.Hypot(x-cx, y-cy)
-		return float32(0.5 * fall * smooth(clamp01((R-d)/1.6)) * (0.85 + 0.15*vnoise(x*0.6, y*0.6+float64(g.frame)*0.004, 1821)))
+		return float32(0.5 * fall * smooth(clamp01(in(x, y)/1.6)) * (0.85 + 0.15*vnoise(x*0.6, y*0.6+float64(g.frame)*0.004, 1821)))
 	}
 	var vs []ebiten.Vertex
 	var is []uint16
@@ -483,15 +491,15 @@ func (g *Game) drawFlood(dst drawTarget, cam camera, hz protocol.HazardView, w, 
 	// Ripples running across it, catching the light.
 	for i := range 40 {
 		a := hashf(i, 0, 1822) * 2 * math.Pi
-		r := math.Sqrt(hashf(i, 1, 1822)) * (R - 0.8)
-		x, y := cx+math.Cos(a)*r, cy+math.Sin(a)*r
+		r := math.Sqrt(hashf(i, 1, 1822))
+		x, y := cx+math.Cos(a)*r*(rx-0.8), cy+math.Sin(a)*r*(ry-0.8)
 		ph := math.Mod(float64(g.frame)/80+hashf(i, 2, 1822), 1)
 		sx, sy := cam.toScreen(x, y)
 		v := uint8(70 * math.Sin(ph*math.Pi) * fall)
 		strokeLine(dst, float32(sx-4-ph*3), float32(sy), float32(sx+4+ph*3), float32(sy), 0.8, color.RGBA{v, v, v, v}, true)
 	}
 	for _, p := range g.curr.Players { // rings round who wades
-		if math.Hypot(float64(p.X)-cx, float64(p.Y)-cy) < R {
+		if in(float64(p.X), float64(p.Y)) > 0 {
 			sx, sy := cam.toScreen(float64(p.X), float64(p.Y))
 			ph := math.Mod(float64(g.frame)/50, 1)
 			v := uint8(110 * (1 - ph))
@@ -512,11 +520,14 @@ var venomPuddle = newBHAnim(3, func(i int) (*canvas, float64, float64) {
 		if edge > 1 {
 			return color.RGBA{}
 		}
-		l := 0.6 - 0.45*smooth(clamp01((edge-0.65)/0.35)) + (vnoise(lx*0.5, ly*0.6, seed+1)-0.5)*0.2
-		if nx < -0.1 && ny < -0.2 && nx > -0.55 && ny > -0.6 {
-			l += 0.3 // the sheen
+		l := 0.3 + 0.12*smooth(clamp01((0.8-edge)/0.5)) + (vnoise(lx*0.5, ly*0.6, seed+1)-0.5)*0.16
+		if edge > 0.86 {
+			l = 0.55 // a wet lip, catching the light
 		}
-		return withAlpha(rq(vr, l, x, y), 230)
+		if s := math.Hypot(nx+0.35, ny+0.42); s < 0.2 {
+			l = 0.85 - s // the sheen
+		}
+		return withAlpha(rq(vr, l, x, y), uint8(170+60*smooth(clamp01((edge-0.3)/0.6))))
 	})
 	return hdCrop(c, 20, 13)
 })
@@ -889,3 +900,132 @@ func (g *Game) bossBarMarks(k sim.CreatureKind) []float64 {
 // QuietZoom takes the zoom set by SetZoom without the notice that tells
 // of it: for the screenshot tool.
 func (g *Game) QuietZoom() { g.zoomNoticed = viewZoom }
+
+// --- the camera in a fight: the whole screen is the arena -------------------------
+
+// fightLair is the lair of StyleLairs whose fight this player is in: the
+// boss bar up for its boss, or its boss awake with the player in its arena.
+func (g *Game) fightLair() (protocol.LairView, bool) {
+	if g.curr.Self.Dead {
+		return protocol.LairView{}, false
+	}
+	me, ok := g.me()
+	for _, l := range g.curr.Lairs {
+		if l.Layout == sim.LayoutHollow || l.RX <= 0 || l.Defeated {
+			continue
+		}
+		if g.curr.Boss.Kind == l.Kind {
+			return l, true
+		}
+		if ok && l.Awake && sim.ArenaQ(l.Layout, float64(l.RX), float64(l.RY), float64(me.X-l.X), float64(me.Y-l.Y)) < 1.1 {
+			return l, true
+		}
+	}
+	return protocol.LairView{}, false
+}
+
+// arenaClampUpdate eases the camera into its arena as a fight starts and
+// out of it as the fight ends, over half a second.
+func (g *Game) arenaClampUpdate() {
+	f := &g.lf
+	l, ok := g.fightLair()
+	if ok {
+		f.clampLair = l
+	}
+	if ok {
+		f.clampK = min(1, f.clampK+1.0/30)
+	} else {
+		f.clampK = max(0, f.clampK-1.0/30)
+	}
+}
+
+// arenaCamera keeps a view of half widths hw, hh (tiles) about (cx, cy)
+// inside the arena of the fight: the whole screen is arena. Where the view
+// would cross its edge it is held back towards its middle, sliding along
+// the edge as far as it can.
+func (g *Game) arenaCamera(cx, cy, hw, hh float64) (float64, float64) {
+	f := &g.lf
+	if f.clampK <= 0 || g.demo {
+		return cx, cy
+	}
+	l := f.clampLair
+	lx, ly := float64(l.X), float64(l.Y)
+	rx, ry := float64(l.RX), float64(l.RY)
+	fits := func(x, y float64) bool {
+		for _, c := range [8][2]float64{{-1, -1}, {1, -1}, {-1, 1}, {1, 1}, {0, -1}, {0, 1}, {-1, 0}, {1, 0}} {
+			if sim.ArenaQ(l.Layout, rx, ry, x+c[0]*hw-lx, y+c[1]*hh-ly) > 1 {
+				return false
+			}
+		}
+		return true
+	}
+	// along finds the furthest of the way from (ax, ay) to (bx, by) the
+	// view fits, by halving.
+	along := func(ax, ay, bx, by float64) (float64, float64) {
+		if fits(bx, by) {
+			return bx, by
+		}
+		lo, hi := 0.0, 1.0
+		for range 14 {
+			if m := (lo + hi) / 2; fits(ax+(bx-ax)*m, ay+(by-ay)*m) {
+				lo = m
+			} else {
+				hi = m
+			}
+		}
+		return ax + (bx-ax)*lo, ay + (by-ay)*lo
+	}
+	x, y := cx, cy
+	if !fits(cx, cy) {
+		if !fits(lx, ly) {
+			x, y = lx, ly // the view is bigger than the arena: on its middle
+		} else {
+			x, y = along(lx, ly, cx, cy)
+			x, _ = along(x, y, cx, y) // and as far along the edge as it lets
+			_, y = along(x, y, x, cy)
+		}
+	}
+	k := smooth(f.clampK)
+	return cx + (x-cx)*k, cy + (y-cy)*k
+}
+
+// drawBossArrow points to the boss at the edge of the screen when it is out
+// of view in a fight.
+func (g *Game) drawBossArrow(screen *ebiten.Image, cam camera, fs float64, sw, sh int) {
+	if _, ok := g.fightLair(); !ok {
+		return
+	}
+	c, ok := g.bossOf(g.lf.clampLair.Kind)
+	if !ok {
+		return
+	}
+	bx, by := cam.toScreen(float64(c.X), float64(c.Y))
+	bx, by = bx*fs, (by-20)*fs
+	W, H := float64(sw), float64(sh)
+	const pad = 70.0
+	if bx > pad && bx < W-pad && by > pad && by < H-pad {
+		return
+	}
+	mx, my := W/2, H/2
+	dx, dy := bx-mx, by-my
+	k := math.Min((W/2-pad)/math.Max(math.Abs(dx), 1e-6), (H/2-pad)/math.Max(math.Abs(dy), 1e-6))
+	ax, ay := mx+dx*k, my+dy*k
+	a := math.Atan2(dy, dx)
+	pulse := 0.85 + 0.15*math.Sin(float64(g.frame)*0.15)
+	s := 26 * pulse * fs / 3
+	pt := func(r, t float64) (float32, float32) {
+		return float32(ax + math.Cos(a+t)*r*s), float32(ay + math.Sin(a+t)*r*s)
+	}
+	for i, col := range []color.RGBA{{20, 12, 10, 220}, {214, 58, 48, 255}} {
+		g := float64(1-i) * 0.25
+		x0, y0 := pt(1+g, 0)
+		x1, y1 := pt(0.9+g, 2.4)
+		x2, y2 := pt(0.9+g, -2.4)
+		var vs = []ebiten.Vertex{
+			{DstX: x0, DstY: y0, SrcX: 1, SrcY: 1, ColorR: float32(col.R) / 255, ColorG: float32(col.G) / 255, ColorB: float32(col.B) / 255, ColorA: float32(col.A) / 255},
+			{DstX: x1, DstY: y1, SrcX: 1, SrcY: 1, ColorR: float32(col.R) / 255, ColorG: float32(col.G) / 255, ColorB: float32(col.B) / 255, ColorA: float32(col.A) / 255},
+			{DstX: x2, DstY: y2, SrcX: 1, SrcY: 1, ColorR: float32(col.R) / 255, ColorG: float32(col.G) / 255, ColorB: float32(col.B) / 255, ColorA: float32(col.A) / 255},
+		}
+		screen.DrawTriangles(vs, []uint16{0, 1, 2}, whitePixel(), nil)
+	}
+}

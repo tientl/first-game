@@ -31,7 +31,7 @@ func (s *Server) bossViews(snap *protocol.Snapshot, id sim.PlayerID) {
 			PoolRX: float32(l.PoolRX), PoolRY: float32(l.PoolRY), Lagoon: float32(l.Lagoon),
 			MarkX: float32(l.MarkX), MarkY: float32(l.MarkY),
 			Camp: l.Camp, CampX: float32(l.CampX), CampY: float32(l.CampY),
-			Stage: uint8(l.Stage), Flooded: l.Flooded,
+			Stage: uint8(l.Stage), Flooded: l.Flooded, RX: float32(l.RX), RY: float32(l.RY),
 		})
 	}
 	if show, day, beaten := s.world.Victory(id); show {

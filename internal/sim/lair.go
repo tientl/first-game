@@ -108,6 +108,7 @@ type LairStatus struct {
 	CampX, CampY                 float64
 	Stage                        int
 	Flooded                      bool
+	RX, RY                       float64 // the bounds a view of its fight is kept in: see viewRX
 }
 
 // LairsNear returns the lairs within r tiles of player id.
@@ -129,6 +130,7 @@ func (w *World) LairsNear(id PlayerID, r float64) []LairStatus {
 			Lagoon: l.site.lagoon, MarkX: l.site.markX, MarkY: l.site.markY,
 			Camp: l.site.camp, CampX: l.site.campX, CampY: l.site.campY,
 			Stage: w.lairStage(l), Flooded: w.flooded(l),
+			RX: l.viewRX(), RY: l.viewRY(),
 			Closed: l.arena, Awake: l.awake && l.c != nil, Defeated: l.defeated,
 		})
 	}
@@ -145,6 +147,9 @@ func ArenaTile(lx, ly, r float64, tx, ty int) bool {
 // arenaBlocks reports whether risen roots stand on tile (tx, ty).
 func (w *World) arenaBlocks(tx, ty int) bool {
 	l := &w.bosses.lairs[0] // only Titanoboa's ring is a wall
+	if l.site.layout == LayoutTemple {
+		return l.arena && ArenaTileShape(LayoutTemple, l.x, l.y, l.site.rx, l.site.ry, tx, ty)
+	}
 	return l.arena && ArenaTile(l.x, l.y, l.arenaR(CreatureTitanoboa), tx, ty)
 }
 
@@ -443,4 +448,24 @@ func (w *World) raiseSandbar(l *bossLair) {
 		l.bar, l.barX, l.barY = true, cx, cy
 		return
 	}
+}
+
+// viewRX and viewRY are the half widths of the bounds a view of the fight
+// at lair l is kept in (the client's camera, in a fight): the courtyard, or
+// the atoll to its shelf; 0 for a lair of the older worlds.
+func (l *bossLair) viewRX() float64 {
+	switch l.site.layout {
+	case LayoutTemple:
+		return l.site.rx
+	case LayoutAtoll:
+		return AtollLagoon + AtollReef + 2.5
+	}
+	return 0
+}
+
+func (l *bossLair) viewRY() float64 {
+	if l.site.layout == LayoutTemple {
+		return l.site.ry
+	}
+	return l.viewRX()
 }

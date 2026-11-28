@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
+
+	"survivalgame/internal/sim"
 )
 
 // Titanoboa's temple (sim/temple.go), drawn at HD in the manner of the
@@ -28,17 +30,18 @@ var (
 	tplBlack  = mkRamp(0x05080c, 0x0a0f16, 0x111a22, 0x1a2a30, 0x24403f)
 	tplStoneM = &rkMat{tone: tplGrey, ink: hex(0x1a1f2e), rim: hex(0x414453), glint: hex(0xe5efef)}
 	tplWarmM  = &rkMat{tone: tplWarm, ink: hex(0x2b222a), rim: hex(0x533b41), glint: hex(0xeecb90), bias: 0.06}
+	tplPillarM = &rkMat{tone: mkRamp(0x343f41, 0x4d5459, 0x696f80, 0x8d99a4, 0xb4b8b0, 0xd5d6cc), ink: hex(0x1a1f2e), rim: hex(0x414453), glint: hex(0xe5efef), bias: 0.24}
 )
 
 // templeLook is what the bake of the courtyard needs to know of a temple.
 type templeLook struct {
-	x, y, r        float64 // the courtyard's middle and radius, tiles
+	x, y, cx, cy   float64 // the courtyard's middle and half widths, tiles (sim.ArenaQ's oblong)
 	px, py, rx, ry float64 // the black pool
 }
 
 // templeOf is the temple of lair l.
-func templeOf(x, y, r, px, py, rx, ry float32) templeLook {
-	return templeLook{float64(x), float64(y), float64(r), float64(px), float64(py), float64(rx), float64(ry)}
+func templeOf(x, y, cx, cy, px, py, rx, ry float32) templeLook {
+	return templeLook{float64(x), float64(y), float64(cx), float64(cy), float64(px), float64(py), float64(rx), float64(ry)}
 }
 
 // poolQ is how far (u, v) lies out from the pool's middle, 1 at its edge.
@@ -57,8 +60,9 @@ const (
 // the paving, the coping round the pool and the black water in it. ok is
 // false where none of that lies (outside the courtyard, a flag gone).
 func (t templeLook) pavePixel(u, v float64, hx, hy int) (color.RGBA, bool) {
-	d := math.Hypot(u-t.x, v-t.y)
-	rim := t.r + (vnoise(u*0.9, v*0.9, 911)-0.5)*1.4 // ragged where the jungle takes it back
+	m := math.Min(t.cx, t.cy)
+	d := sim.ArenaQ(sim.LayoutTemple, t.cx, t.cy, u-t.x, v-t.y) * m // how far out, in tiles at its narrower
+	rim := m + (vnoise(u*0.9, v*0.9, 911)-0.5)*1.4 // ragged where the jungle takes it back
 	if d > rim {
 		return color.RGBA{}, false
 	}
@@ -353,8 +357,8 @@ func tplFlutes(cx, cy float64, n int, along bool) rkDecor {
 			a = math.Atan2(p[1]-cy, p[0]-cx)
 		}
 		f := a / (2 * math.Pi) * float64(n)
-		if f-math.Floor(f) < 0.32 {
-			l -= 0.12
+		if f-math.Floor(f) < 0.3 {
+			l -= 0.07
 		}
 		if m := vnoise(p[0]*0.3, p[1]*0.4+p[2]*0.3, 941); m > 0.62 {
 			return tplMoss, l*0.8 + 0.05, true
@@ -412,22 +416,22 @@ func genPillar(v int) sprite { return mkUp(templePillarCanvas(v)) }
 func templePillarCanvas(v int) (*canvas, float64, float64) {
 	s := &rkScene{seed: uint32(3100 + v*17)}
 	rng := rand.New(rand.NewPCG(uint64(s.seed), 0x9111))
-	mat := tplStoneM
+	mat := tplPillarM
 	if v == 2 {
-		mat = tplWarmM
+		mat = &rkMat{tone: tplWarm, ink: hex(0x2b222a), rim: hex(0x533b41), glint: hex(0xeecb90), bias: 0.26}
 	}
-	if p := s.add(rkBlock(rng, rkVec{0, 0, 2.6}, rkVec{1, 0, 0}, rkVec{0, 1, 0}, rkVec{0, 0, 1}, 9.5, 8.5, 2.6, 0.25)); p != nil {
+	if p := s.add(rkBlock(rng, rkVec{0, 0, 3}, rkVec{1, 0, 0}, rkVec{0, 1, 0}, rkVec{0, 0, 1}, 11, 9.5, 3, 0.25)); p != nil {
 		p.mat, p.decor = mat, rkMoss(s.seed+1)
 	}
-	if p := s.add(rkBlock(rng, rkVec{0, 0, 6.4}, rkVec{1, 0, 0}, rkVec{0, 1, 0}, rkVec{0, 0, 1}, 8, 7.2, 1.3, 0.3)); p != nil {
+	if p := s.add(rkBlock(rng, rkVec{0, 0, 7.3}, rkVec{1, 0, 0}, rkVec{0, 1, 0}, rkVec{0, 0, 1}, 9.4, 8.4, 1.3, 0.3)); p != nil {
 		p.mat = mat
 	}
-	drums := []int{3, 2, 4}[v]
-	z := 7.7
+	drums := []int{4, 3, 5}[v]
+	z := 8.6
 	for i := range drums {
 		h := 11 + rng.Float64()*3
 		dx, dy := (rng.Float64()-0.5)*0.8, (rng.Float64()-0.5)*0.6
-		p := rkDrum(dx, dy, z, 6.4-0.25*float64(i), h, rng.Float64(), 16)
+		p := rkDrum(dx, dy, z, 7.4-0.2*float64(i), h, rng.Float64(), 18)
 		if i == drums-1 { // broken off: a slant across its top
 			a := rng.Float64() * 2 * math.Pi
 			p.pl = append(p.pl, rkPlaneAt(rkVec{math.Cos(a) * 0.7, math.Sin(a) * 0.7, 1}, rkVec{dx, dy, z + h*0.62}))
@@ -472,22 +476,22 @@ func genFallenColumn(v int) sprite { return mkUp(fallenColumnCanvas(v)) }
 func fallenColumnCanvas(v int) (*canvas, float64, float64) {
 	s := &rkScene{seed: uint32(3200 + v*29)}
 	rng := rand.New(rand.NewPCG(uint64(s.seed), 0x9222))
-	const r = 6.2
-	x := -27.0
+	const r = 8.2
+	x := -28.0
 	for i := range 3 {
 		ln := 15 + rng.Float64()*3
 		yaw := (rng.Float64() - 0.5) * 0.16
 		dy := (rng.Float64() - 0.5) * 2.4
 		p := rkLog(x, x+ln, dy, r-0.2*float64(i), yaw, 16)
 		if q := s.add(p); q != nil {
-			q.mat, q.decor = tplStoneM, tplFlutes(0, 0, 10, true)
+			q.mat, q.decor = tplPillarM, tplFlutes(0, 0, 12, true)
 			q.nudge = (rng.Float64() - 0.5) * 0.08
 			q.crack = 1.4
 		}
 		x += ln + 0.8 + rng.Float64()*1.4
 	}
 	// The capital, tumbled at the foot end: a block over a short neck.
-	if p := s.add(rkBlock(rng, rkVec{-33, 0.5, 5.2}, rkVec{1, 0.1, 0}, rkVec{-0.1, 1, 0}, rkVec{0, 0, 1}, 5, 8.5, 5.2, 0.35)); p != nil {
+	if p := s.add(rkBlock(rng, rkVec{-34, 0.5, 6.6}, rkVec{1, 0.1, 0}, rkVec{-0.1, 1, 0}, rkVec{0, 0, 1}, 6, 10, 6.6, 0.35)); p != nil {
 		p.mat, p.decor = tplWarmM, rkMoss(s.seed+3)
 	}
 	for i := range 4 { // chips knocked off it as it fell
@@ -622,7 +626,7 @@ func deadGiantCanvas() (*canvas, float64, float64) {
 	girth := 9.5 * k
 	top := by - 150*k
 	trunk := limb{bx, by, bx - 6*k, by - 80*k, bx + 4*k, top, girth, girth * 0.5}
-	tk := trunkFrom(trunk, barkDead, barkSnag, 0.9, 3503)
+	tk := trunkFrom(trunk, barkDead, barkGrey, 0.9, 3503)
 	// The limbs: three great ones out of the crown, each forking twice,
 	// twisting up and out; some snapped short.
 	var limbs []limb
@@ -646,9 +650,9 @@ func deadGiantCanvas() (*canvas, float64, float64) {
 		grow(tx, ty, a+r(-0.15, 0.15), r(42, 56)*k, girth*0.55, 3)
 	}
 	lx, ly := trunk.at(0.5) // a low limb, long dead, snapped
-	limbs = append(limbs, limb{lx, ly, lx + 18*k, ly - 4*k, lx + 30*k, ly + 6*k, girth * 0.4, girth * 0.25})
+	limbs = append(limbs, limb{lx, ly, lx - 10*k, ly - 8*k, lx - 16*k, ly - 22*k, girth * 0.42, girth * 0.3})
 	for _, l := range limbs {
-		drawLimbHD(c, l, barkSnag, 0.85, 3504)
+		drawLimbHD(c, l, barkGrey, 0.8, 3504)
 	}
 	tk.draw(c, 6, girth*2.6)
 	// Roots gripping the stones: the stones laid over the roots' foot, then
@@ -657,7 +661,7 @@ func deadGiantCanvas() (*canvas, float64, float64) {
 	for i := range 5 {
 		x0 := bx + float64(i-2)*6*k
 		x1 := bx + float64(i-2)*17*k + r(-4, 4)*k
-		drawLimbHD(c, limb{x0, by - 10*k, (x0 + x1) / 2, by - 12*k, x1, by + r(-1, 4)*k, girth * 0.32, girth * 0.12}, barkSnag, 0.8, 3505+uint32(i))
+		drawLimbHD(c, limb{x0, by - 10*k, (x0 + x1) / 2, by - 12*k, x1, by + r(-1, 4)*k, girth * 0.32, girth * 0.12}, barkGrey, 0.75, 3505+uint32(i))
 	}
 	// Beards of grey moss hanging from the limbs.
 	for i, l := range limbs {
@@ -668,7 +672,7 @@ func deadGiantCanvas() (*canvas, float64, float64) {
 			x, y := l.at(0.3 + 0.3*float64(j))
 			ln := r(6, 16) * k
 			for d := 0.0; d < ln; d += k * 0.5 {
-				c.dot(x+math.Sin(d*0.08+float64(i))*1.2*k, y+d, (0.8-0.6*d/ln)*k, mkRamp(0x4d6659, 0x739a70, 0xa5c67c).at(int(hashf(i, int(d), 3506)*3)))
+				c.dot(x+math.Sin(d*0.08+float64(i))*1.2*k, y+d, (0.55-0.4*d/ln)*k, mkRamp(0x3f4328, 0x4d6659, 0x5f7132, 0x739a70).at(int(hashf(i, int(d), 3506)*4)))
 			}
 		}
 	}

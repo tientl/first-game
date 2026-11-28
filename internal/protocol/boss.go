@@ -47,6 +47,7 @@ type LairView struct {
 	CampX, CampY   float32
 	Stage          uint8 // the stage of its boss's fight; 0 asleep
 	Flooded        bool  // the temple's courtyard is under water
+	RX, RY         float32 // the bounds the camera is kept in through its fight (sim.ArenaQ's shape): half widths, tiles
 }
 
 // HazardView is something a boss's fight left on the ground for a while

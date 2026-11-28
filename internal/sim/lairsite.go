@@ -68,7 +68,8 @@ func solidProp(e *Entity) bool { return e != nil && e.Kind == EntityLairProp && 
 // deaths and returns (raiseBoss keeps it).
 type lairSite struct {
 	layout       LairLayout
-	r            float64 // the arena's radius: the courtyard's, the atoll's to past its reef
+	r            float64 // the arena's outer radius: the courtyard's longer half width, the atoll's to past its reef
+	rx, ry       float64 // the arena's half widths: the courtyard is a rounded oblong (see ArenaQ), the atoll round
 	poolX, poolY float64 // the temple's black pool, and its half widths
 	poolRX       float64
 	poolRY       float64
@@ -225,7 +226,8 @@ func (w *World) stepHazards() {
 				}
 			case HazardFlood:
 				risen := min(1, float64(w.tick-h.Born)/FloodRise)
-				if math.Hypot(p.X-h.X, p.Y-h.Y) <= h.R*risen {
+				s := &w.bosses.lairs[0].site // the temple's courtyard, rising from the pool
+				if s.layout == LayoutTemple && s.q(p.X-h.X, p.Y-h.Y) <= risen {
 					p.status.wade = 2
 				}
 			}
@@ -258,4 +260,33 @@ func (w *World) flooded(l *bossLair) bool {
 		}
 	}
 	return false
+}
+
+// ArenaQ is how far out (dx, dy) lies in the arena of a lair of layout lo
+// and half widths rx, ry, from its middle: 1 at its edge. The temple's
+// courtyard is a rounded oblong (a superellipse of power four), wider than
+// it is deep, so that the whole of a screen fits in it; the atoll and the
+// older lairs are round.
+func ArenaQ(lo LairLayout, rx, ry, dx, dy float64) float64 {
+	if lo == LayoutTemple {
+		a, b := dx/rx, dy/ry
+		return math.Sqrt(math.Sqrt(a*a*a*a + b*b*b*b))
+	}
+	return math.Hypot(dx/rx, dy/ry)
+}
+
+// q is ArenaQ for site s.
+func (s *lairSite) q(dx, dy float64) float64 { return ArenaQ(s.layout, s.rx, s.ry, dx, dy) }
+
+// edge is how far the arena's edge lies from its middle along angle a.
+func (s *lairSite) edge(a float64) float64 {
+	return 1 / s.q(math.Cos(a), math.Sin(a))
+}
+
+// ArenaTileShape reports whether tile (tx, ty) is part of the ring round
+// the arena of a lair at (lx, ly) of layout lo and half widths rx, ry: where
+// its roots rise. The client draws them on the same tiles.
+func ArenaTileShape(lo LairLayout, lx, ly, rx, ry float64, tx, ty int) bool {
+	q := ArenaQ(lo, rx, ry, float64(tx)+0.5-lx, float64(ty)+0.5-ly)
+	return math.Abs(q-1)*min(rx, ry) < ArenaHalfWidth
 }

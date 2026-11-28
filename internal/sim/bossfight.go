@@ -184,12 +184,13 @@ func (w *World) arenaFoe(c *Creature, l *bossLair, wounded bool) (*Player, float
 	if w.dev.calm {
 		return nil, math.Inf(1) // dev mode: asleep whoever comes (boss calm)
 	}
-	r := l.arenaR(c.Kind) - 0.5
+	m := min(l.site.rx, l.site.ry)
+	lim := 1 - 0.5/m // asleep: who comes into the courtyard, onto the atoll
 	if l.awake {
-		r += 4
+		lim = 1 + 4/m
 	}
 	in := func(p *Player) bool {
-		return w.bossCanFight(c, l, p) && math.Hypot(p.X-l.x, p.Y-l.y) <= r
+		return w.bossCanFight(c, l, p) && l.site.q(p.X-l.x, p.Y-l.y) <= lim
 	}
 	if p := w.players[l.foe]; l.awake && p != nil && in(p) {
 		return p, math.Hypot(p.X-c.X, p.Y-c.Y)

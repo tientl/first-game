@@ -183,7 +183,7 @@ func wreckDeckCanvas() (*canvas, float64, float64) {
 			}
 			l += (vnoise(x*0.6, y*2.4, 1606) - 0.5) * 0.25 // grain
 			rp := wreckDeck
-			if hashf(id, 2, 1605) < 0.45 {
+			if hashf(id, 2, 1605) < 0.2 {
 				rp = deckGrey // bleached by the sun
 			}
 			col := rq(rp, l, px, py)
@@ -199,7 +199,7 @@ func wreckDeckCanvas() (*canvas, float64, float64) {
 				col = rq(wreckDeck, 0.75-math.Abs(across+0.93)*3, px, py)
 			}
 			// Weed and gull droppings.
-			if hashf(px/3, py/3, 1608) < 0.03 {
+			if hashf(px/3, py/3, 1608) < 0.006 {
 				col = mix(col, hex(0xe5efef), 0.6)
 			}
 			c.px[py*c.w+px] = col

@@ -193,6 +193,8 @@ func runBossFight(which, dir string, seed uint64, size, winW, winH int) {
 		lx, ly := titan.LairX, titan.LairY
 		a := math.Atan2(titan.CampY-ly, titan.CampX-lx)
 		in := func(d float64) string { return tp(lx+math.Cos(a)*d, ly+math.Sin(a)*d) }
+		// The courtyard's edge along the way in (its rounded oblong: sim.ArenaQ).
+		edge := 1 / sim.ArenaQ(sim.LayoutTemple, titan.RX, titan.RY, math.Cos(a), math.Sin(a))
 		steps = []bfStep{
 			{at: 20, cmds: append(setup, in(7.5))},
 			{at: 40, zoom: z(-1)},
@@ -203,21 +205,26 @@ func runBossFight(which, dir string, seed uint64, size, winW, winH int) {
 			{at: 470, shot: "titan_camp"},
 			// The fight: into the courtyard, the snake wakes, its moves.
 			{at: 480, cmds: []string{in(6.5), "boss calm off"}},
-			{at: 800, cmds: []string{"boss skill strike"}, gifOn: "titan_fight", every: 6},
-			{at: 940, cmds: []string{"boss skill tail"}},
-			{at: 1080, cmds: []string{"boss skill venom"}},
-			{at: 1220, cmds: []string{"boss skill coil"}},
-			{at: 1440, gifOff: true},
-			{at: 1450, cmds: []string{"heal", "boss phase 2", in(6.5)}},
-			{at: 1470, cmds: []string{"boss skill dive"}, gifOn: "titan_phase2", every: 6},
-			{at: 1640, cmds: []string{"boss skill slam"}},
-			{at: 1800, cmds: []string{"boss phase 3"}},
-			{at: 1830, cmds: []string{"boss skill slam"}},
-			{at: 2000, cmds: []string{"boss skill strike"}},
-			{at: 2120, gifOff: true},
-			{at: 2125, shot: "titan_flood"},
+			// The whole screen is arena: in the middle of the courtyard, and at its edge.
+			{at: 760, shot: "titan_arena_middle"},
+			{at: 770, cmds: []string{in(edge - 1.5)}},
+			{at: 900, shot: "titan_arena_edge"},
+			{at: 905, cmds: []string{in(6.5)}},
+			{at: 960, cmds: []string{"boss skill strike"}, gifOn: "titan_fight", every: 6},
+			{at: 1100, cmds: []string{"boss skill tail"}},
+			{at: 1240, cmds: []string{"boss skill venom"}},
+			{at: 1380, cmds: []string{"boss skill coil"}},
+			{at: 1600, gifOff: true},
+			{at: 1610, cmds: []string{"heal", "boss phase 2", in(6.5)}},
+			{at: 1630, cmds: []string{"boss skill dive"}, gifOn: "titan_phase2", every: 6},
+			{at: 1800, cmds: []string{"boss skill slam"}},
+			{at: 1960, cmds: []string{"boss phase 3"}},
+			{at: 1990, cmds: []string{"boss skill slam"}},
+			{at: 2160, cmds: []string{"boss skill strike"}},
+			{at: 2280, gifOff: true},
+			{at: 2285, shot: "titan_flood"},
 		}
-		end = 2130
+		end = 2290
 	case "shark":
 		lx, ly := shark.LairX, shark.LairY
 		a := math.Atan2(shark.CampY-ly, shark.CampX-lx) // the side towards home
@@ -228,20 +235,26 @@ func runBossFight(which, dir string, seed uint64, size, winW, winH int) {
 			{at: 200, shot: "shark_atoll"},
 			{at: 210, zoom: z(0), cmds: []string{"tp trại 2"}},
 			{at: 330, shot: "shark_camp"},
-			// On the reef by the lagoon: it wakes, lunges at the edge, breaches.
-			{at: 340, cmds: []string{at(16.9), "boss calm off"}},
-			{at: 660, cmds: []string{"boss skill lunge"}, gifOn: "shark_fight", every: 6},
-			{at: 840, cmds: []string{"boss skill breach"}},
-			{at: 1040, cmds: []string{"boss skill lunge"}},
-			{at: 1200, gifOff: true},
+			// On the reef by the lagoon: it wakes; the whole screen is arena,
+			// at its edge and out in the middle of the lagoon.
+			{at: 340, cmds: []string{at(sim.AtollLagoon + 0.7), "boss calm off"}},
+			{at: 640, shot: "shark_arena_edge"},
+			{at: 650, cmds: []string{tp(lx+0.5, ly+0.5), "boat"}},
+			{at: 760, shot: "shark_arena_middle"},
+			// Back on the reef: it lunges at the edge, breaches.
+			{at: 770, cmds: []string{"heal", at(sim.AtollLagoon + 0.7)}},
+			{at: 820, cmds: []string{"boss skill lunge"}, gifOn: "shark_fight", every: 6},
+			{at: 1000, cmds: []string{"boss skill breach"}},
+			{at: 1200, cmds: []string{"boss skill lunge"}},
+			{at: 1360, gifOff: true},
 			// The reef broken under them, and settling again.
-			{at: 1210, cmds: []string{"heal", at(17.6)}},
-			{at: 1240, cmds: []string{"boss skill ram"}, gifOn: "shark_reefbreak", every: 5},
-			{at: 1420, gifOff: true},
-			{at: 1420 + 9*60, gifOn: "shark_reefbreak", every: 5},
-			{at: 1420 + 13*60, gifOff: true},
+			{at: 1370, cmds: []string{"heal", at(sim.AtollLagoon + 1.4)}},
+			{at: 1400, cmds: []string{"boss skill ram"}, gifOn: "shark_reefbreak", every: 5},
+			{at: 1580, gifOff: true},
+			{at: 1580 + 9*60, gifOn: "shark_reefbreak", every: 5},
+			{at: 1580 + 13*60, gifOff: true},
 		}
-		end = 1420 + 13*60 + 10
+		end = 1580 + 13*60 + 10
 	case "map":
 		steps = []bfStep{
 			{at: 20, cmds: append(setup, "tp trùm 1")},

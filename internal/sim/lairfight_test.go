@@ -26,14 +26,19 @@ func TestTheTempleAndTheAtollAreLaidOut(t *testing.T) {
 	if !l.ok || s.layout != LayoutTemple {
 		t.Fatalf("Titanoboa's lair: ok %v layout %d, want the temple", l.ok, s.layout)
 	}
-	if across := 2 * s.r; across < 25 || across > 35 {
-		t.Errorf("the courtyard is %.0f tiles across, want 25 to 35", across)
+	// The whole of a screen (27 by 20 tiles at 1080p, a little more drawn
+	// back in a fight) fits in the courtyard with room over.
+	if 2*s.rx < 34 || 2*s.ry < 26 {
+		t.Errorf("the courtyard is %.0f by %.0f tiles, want 34 by 26 at least", 2*s.rx, 2*s.ry)
+	}
+	if q := s.q(15, 11); q > 1 {
+		t.Errorf("a screen drawn back (30 by 22 tiles) does not fit in the courtyard: its corner at q %.2f", q)
 	}
 	trees, columns, pillars, tree := 0, 0, 0, false
 	for _, e := range w.entities {
 		d := math.Hypot(float64(e.TX)+0.5-l.x, float64(e.TY)+0.5-l.y)
 		switch {
-		case d < s.r-0.5 && (e.Kind == EntityTree || e.Kind == EntityGiantTree || e.Kind == EntityPalm):
+		case s.q(float64(e.TX)+0.5-l.x, float64(e.TY)+0.5-l.y) < 0.97 && (e.Kind == EntityTree || e.Kind == EntityGiantTree || e.Kind == EntityPalm):
 			trees++
 		case e.Kind == EntityLairProp && e.Var == LairColumnM && d < s.r:
 			columns++
@@ -71,8 +76,11 @@ func TestTheTempleAndTheAtollAreLaidOut(t *testing.T) {
 	if !m.ok || a.layout != LayoutAtoll {
 		t.Fatalf("the Megalodon's lair: ok %v layout %d, want the atoll", m.ok, a.layout)
 	}
-	if across := 2 * a.lagoon; across < 30 || across > 35 {
-		t.Errorf("the lagoon is %.0f tiles across, want 30 to 35", across)
+	if across := 2 * a.lagoon; across < 34 {
+		t.Errorf("the lagoon is %.0f tiles across, want 34 at least", across)
+	}
+	if d := math.Hypot(15, 11); d > m.viewRX() {
+		t.Errorf("a screen drawn back does not fit in the atoll's bounds (%.1f)", m.viewRX())
 	}
 	if len(a.reef) < 100 {
 		t.Errorf("only %d footholds of reef", len(a.reef))
@@ -126,7 +134,7 @@ func templeScene(t *testing.T) (*World, *Player, *bossLair) {
 	w.bosses.placed = true
 	l := &w.bosses.lairs[0]
 	l.x, l.y, l.ok = 48.5, 48.5, true
-	w.buildTemple(l, 13)
+	w.buildTemple(l, 0.75)
 	w.raiseBoss(0)
 	p := w.players[w.AddPlayer("Thử")]
 	p.Hunger = WellFedHunger - 5 // no hunger, no healing: what is lost is the boss's doing

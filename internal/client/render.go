@@ -164,6 +164,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	if !g.demo {
 		cx, cy = g.introCamera(cx, cy) // a boss waking: see bossintro.go
+		cx, cy = g.arenaCamera(cx, cy, float64(cw)/2/TileW, float64(ch)/2/TileH) // in a fight the screen is all arena: see lairfight.go
 		sx, sy := shake(g.frame)       // heavy blows, roars, stomps; see feel.go
 		cx, cy = cx+sx, cy+sy
 	}
@@ -273,6 +274,7 @@ func (g *Game) drawAfterWorld(screen *ebiten.Image, cam camera, fs float64, sw, 
 	g.drawAimCues(screen, cam, fs, target, far) // see mouse.go
 	g.drawDigLabel(screen, cam, fs)
 	g.drawFishingLabels(screen, cam, fs)
+	g.drawBossArrow(screen, cam, fs, sw, sh) // the boss off the screen: see lairfight.go
 	g.drawBossIntro(screen, sw, sh) // letterbox and title card; see bossintro.go
 
 	g.drawInterface(screen)

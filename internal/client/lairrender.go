@@ -146,6 +146,7 @@ func (g *Game) lairUpdate() {
 	}
 	g.introUpdate()     // see bossintro.go
 	g.lairFightUpdate() // see lairfight.go
+	g.arenaClampUpdate()
 }
 
 func b2f(b bool) float64 {
@@ -536,9 +537,14 @@ func (g *Game) lairDrawables(list []drawable, cam camera, w, h float64) []drawab
 	}
 	if t, ok := g.lairOf(sim.CreatureTitanoboa); ok && f.roots > 0 {
 		lx, ly, r := float64(t.X), float64(t.Y), float64(t.Radius)
+		ring := func(tx, ty int) bool { return sim.ArenaTile(lx, ly, r, tx, ty) }
+		if t.Layout == sim.LayoutTemple { // round the oblong courtyard
+			lo, rx, ry := t.Layout, float64(t.RX), float64(t.RY)
+			ring = func(tx, ty int) bool { return sim.ArenaTileShape(lo, lx, ly, rx, ry, tx, ty) }
+		}
 		for ty := int(ly-r) - 1; ty <= int(ly+r)+1; ty++ {
 			for tx := int(lx-r) - 1; tx <= int(lx+r)+1; tx++ {
-				if t := g.tileAt(tx, ty); !sim.ArenaTile(lx, ly, r, tx, ty) || t == sim.TileMountain || t == sim.TileLava {
+				if t := g.tileAt(tx, ty); !ring(tx, ty) || t == sim.TileMountain || t == sim.TileLava {
 					continue
 				}
 				hsh := sim.HashTile(tx, ty)

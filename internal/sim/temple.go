@@ -17,24 +17,25 @@ import "math"
 
 // Temple tuning.
 const (
-	TempleR       = 15.0 // the courtyard's radius, in tiles
-	templeMinR    = 12.0 // a smaller one where there is no room for that
-	templePoolRX  = 4.6  // the black pool's half widths
-	templePoolRY  = 3.4
-	templeRing    = 13.0 // the colonnade's radius
-	templeColumns = 14   // pillars round it, before the gate and the broken ones are left out
-	templeFallen  = 5    // columns fallen across the courtyard
+	TempleRX      = 20.0 // the courtyard's half widths, in tiles: 40 by 31 at full size, so the
+	TempleRY      = 15.5 // whole of a screen (27 by 20 tiles at 1080p) fits in it with room over
+	templeMinK    = 0.4  // its size, as a share of that, on a small world's jungle at the least
+	templePoolRX  = 5.4  // the black pool's half widths
+	templePoolRY  = 4.0
+	templeRingQ   = 0.88 // the colonnade stands this far out to the courtyard's edge (1)
+	templeTreeQ   = 0.84 // and so does the dead tree
+	templeColumns = 18   // pillars round it, before the gate and the broken ones are left out
+	templeFallen  = 6    // columns fallen across the courtyard
 	campNear      = 30.0 // the camp lies this far from the lair at least...
 	campFar       = 40.0 // ...and at most
 	campRoom      = 4    // and has this much flat ground round it
-	templeTreeIn  = 2.5  // the dead tree stands this far inside the courtyard's edge
 )
 
 // templeSite finds where Titanoboa's temple goes: on the biggest jungle
-// island, in the deepest of its woods, where a courtyard of radius r is
-// flat ground at one level with nothing in the way. ok is false where no
-// island has room for one even of templeMinR.
-func (w *World) templeSite() (x, y, r float64, ok bool) {
+// island, in the deepest of its woods, where its courtyard (k times the
+// full size) is flat ground at one level with nothing in the way. ok is
+// false where no island has room for one even of templeMinK.
+func (w *World) templeSite() (x, y, k float64, ok bool) {
 	isl := w.bossIsland(CreatureTitanoboa)
 	if isl < 0 {
 		return 0, 0, 0, false
@@ -48,35 +49,56 @@ func (w *World) templeSite() (x, y, r float64, ok bool) {
 			bx0, by0, bx1, by1 = min(bx0, x), min(by0, y), max(bx1, x+1), max(by1, y+1)
 		}
 	}
-	room := w.flatRoom(int(TempleR)+4, bx0-1, by0-1, bx1+1, by1+1)
+	room := w.flatRoom(int(math.Ceil(TempleRY))+4, bx0-1, by0-1, bx1+1, by1+1)
 	inland := w.landDistance(60)
 	size := float64(max(W, H))
 	step := 2
 	if W*H > 600*600 {
 		step = 3
 	}
+	// fits reports whether the courtyard of half widths (rx, ry) round
+	// tile (tx, ty), and a tile more, is all flat ground with nothing kept
+	// on it.
+	fits := func(tx, ty int, rx, ry float64) bool {
+		sx, sy := int(rx)+2, int(ry)+2
+		for y := ty - sy; y <= ty+sy; y++ {
+			for x := tx - sx; x <= tx+sx; x++ {
+				if ArenaQ(LayoutTemple, rx+1.2, ry+1.2, float64(x-tx), float64(y-ty)) > 1 {
+					continue
+				}
+				if room.at(x, y) < 1 || im[y*W+x] != int16(isl) {
+					return false
+				}
+				if e := w.entityAt(x, y); e != nil && kept(e.Kind) {
+					return false
+				}
+			}
+		}
+		return true
+	}
 	// The full courtyard where there is room; a smaller one on a small
-	// world's jungle (one of 256 tiles has room for a third of it).
-	for _, want := range []float64{TempleR, 14, 13, templeMinR, 10, 8, 6.5} {
-		need := int(want) + 2
+	// world's jungle.
+	for _, kk := range []float64{1, 0.92, 0.85, 0.75, 0.62, 0.5, templeMinK} {
+		rx, ry := TempleRX*kk, TempleRY*kk
+		need := int(ry) + 2
 		best := math.Inf(-1)
 		for ty := 6; ty < H-6; ty += step {
 			for tx := 6; tx < W-6; tx += step {
 				i := ty*W + tx
 				cx, cy := float64(tx)+0.5, float64(ty)+0.5
 				if im[i] != int16(isl) || room.at(tx, ty) < need || w.tiles[i] != TileForest ||
-					math.Hypot(cx-w.spawnX, cy-w.spawnY) < size/5 || w.nearVillage(cx, cy, want+8) {
+					math.Hypot(cx-w.spawnX, cy-w.spawnY) < size/5 || w.nearVillage(cx, cy, rx+8) {
 					continue
 				}
 				score, _ := w.lairScore(CreatureTitanoboa, tx, ty, nil, 0, 0)
 				score += 0.4*float64(min(int(inland[i]), 50)) + unit(hash2(int32(tx), int32(ty), uint32(w.seed)^0x7e3a1e))
-				if score > best && !w.keptNear(tx, ty, int(want)+3) {
-					best, x, y, r, ok = score, cx, cy, want, true
+				if score > best && fits(tx, ty, rx, ry) {
+					best, x, y, k, ok = score, cx, cy, kk, true
 				}
 			}
 		}
 		if ok {
-			return x, y, r, true
+			return x, y, k, true
 		}
 	}
 	return 0, 0, 0, false
@@ -227,19 +249,25 @@ func (w *World) titanPoolAt(tx, ty int) bool {
 
 // buildTemple lays out the temple round lair l, a courtyard of radius r,
 // and its camp and the trail between them.
-func (w *World) buildTemple(l *bossLair, r float64) {
+func (w *World) buildTemple(l *bossLair, k float64) {
 	s := &l.site
-	*s = lairSite{layout: LayoutTemple, r: r, poolX: l.x, poolY: l.y, poolRX: templePoolRX * r / TempleR, poolRY: templePoolRY * r / TempleR}
+	rx, ry := TempleRX*k, TempleRY*k
+	*s = lairSite{layout: LayoutTemple, r: max(rx, ry), rx: rx, ry: ry, poolX: l.x, poolY: l.y, poolRX: templePoolRX * k, poolRY: templePoolRY * k}
 	seed := uint32(w.seed) ^ 0x7e3b1e
 	h := func(a, b int) float64 { return unit(hash2(int32(a), int32(b), seed)) }
 	cx, cy := int(math.Floor(l.x)), int(math.Floor(l.y))
-	R := int(math.Ceil(r)) + 1
+	R := int(math.Ceil(s.r)) + 2
 
 	// The camp first: the gate faces it.
 	s.campX, s.campY, s.camp = w.campSite(l.x, l.y, campNear, campFar)
 	gate := math.Atan2(w.spawnY-l.y, w.spawnX-l.x)
 	if s.camp {
 		gate = math.Atan2(s.campY-l.y, s.campX-l.x)
+	}
+	// at is the point at q (1: the edge) out from the middle along angle a.
+	at := func(a, q float64) (int, int) {
+		d := s.edge(a) * q
+		return int(math.Floor(l.x + math.Cos(a)*d)), int(math.Floor(l.y + math.Sin(a)*d))
 	}
 
 	// The courtyard: paved (the client draws the flags on the path), the
@@ -250,8 +278,7 @@ func (w *World) buildTemple(l *bossLair, r float64) {
 				continue
 			}
 			fx, fy := float64(tx)+0.5, float64(ty)+0.5
-			d := math.Hypot(fx-l.x, fy-l.y)
-			if d > r+0.5 {
+			if s.q(fx-l.x, fy-l.y) > 1+0.5/ry {
 				continue
 			}
 			w.clearFor(tx, ty)
@@ -273,7 +300,7 @@ func (w *World) buildTemple(l *bossLair, r float64) {
 		}
 	}
 	for _, c := range w.fauna.creatures { // nothing lives in the courtyard but the snake
-		if c != l.c && math.Hypot(c.X-l.x, c.Y-l.y) <= r+1 {
+		if c != l.c && s.q(c.X-l.x, c.Y-l.y) <= 1.1 {
 			c.gone = true
 		}
 	}
@@ -285,13 +312,11 @@ func (w *World) buildTemple(l *bossLair, r float64) {
 		}
 		return !s.inPool(float64(tx)+0.5, float64(ty)+0.5)
 	}
-	nearGate := func(a float64) bool { return math.Abs(angDiff(a, gate)) < 0.42 }
+	nearGate := func(a float64) bool { return math.Abs(angDiff(a, gate)) < 0.38 }
 
 	// The dead tree, across the courtyard from the gate: its foot three
 	// tiles wide and two deep, roots gripping the colonnade.
-	ta := gate + math.Pi
-	tx, ty := int(math.Floor(l.x+math.Cos(ta)*(r-templeTreeIn))), int(math.Floor(l.y+math.Sin(ta)*(r-templeTreeIn)))
-	if free(tx, ty) {
+	if tx, ty := at(gate+math.Pi, templeTreeQ); free(tx, ty) {
 		w.addEntity(EntityLairProp, tx, ty).Var = LairDeadTree
 		for _, o := range [][2]int{{-1, 0}, {1, 0}, {-1, -1}, {0, -1}, {1, -1}} {
 			if free(tx+o[0], ty+o[1]) {
@@ -301,26 +326,27 @@ func (w *World) buildTemple(l *bossLair, r float64) {
 		s.markX, s.markY = float64(tx)+0.5, float64(ty)+0.5
 	}
 
-	// The colonnade: pillars round the ring, broken off, some gone, none
-	// in the gate.
-	ring := templeRing * r / TempleR
+	// The colonnade: pillars round the courtyard near its edge, broken off,
+	// some gone, none in the gate.
 	for i := range templeColumns {
 		a := gate + (float64(i)+0.5)*2*math.Pi/templeColumns
-		if nearGate(a) || h(i, 3) < 0.25 {
+		if nearGate(a) || h(i, 3) < 0.22 {
 			continue
 		}
-		px, py := int(math.Floor(l.x+math.Cos(a)*ring)), int(math.Floor(l.y+math.Sin(a)*ring))
-		if free(px, py) {
+		if px, py := at(a, templeRingQ); free(px, py) {
 			w.addEntity(EntityLairProp, px, py).Var = LairPillar
 		}
 	}
 
 	// Columns fallen across the courtyard, lying three tiles long: cover.
 	placed := 0
-	for i := 0; i < 3*templeFallen && placed < templeFallen; i++ {
-		a := gate + 0.6 + (float64(placed)+h(i, 7)*0.5)*(2*math.Pi-1.2)/templeFallen
-		d := s.poolRX + 2.2 + h(i, 8)*(ring-s.poolRX-4.4)
-		mx, my := int(math.Floor(l.x+math.Cos(a)*d)), int(math.Floor(l.y+math.Sin(a)*d*0.9))
+	for i := 0; i < 4*templeFallen && placed < templeFallen; i++ {
+		a := gate + 0.55 + (float64(placed)+h(i, 7)*0.6)*(2*math.Pi-1.1)/templeFallen
+		pq := 0.36 + h(i, 8)*0.34
+		mx, my := at(a, pq)
+		if s.inPool(float64(mx)+0.5, float64(my)+0.5) || math.Hypot((float64(mx)+0.5-l.x)/(s.poolRX+2.5), (float64(my)+0.5-l.y)/(s.poolRY+2)) < 1 {
+			continue
+		}
 		ok := true
 		for dy := -1; dy <= 1 && ok; dy++ { // a tile of paving all round it
 			for dx := -2; dx <= 2; dx++ {
@@ -347,15 +373,13 @@ func (w *World) buildTemple(l *bossLair, r float64) {
 		}
 	}
 	// What is left of its meals, and a skin, about the courtyard's edge.
-	for i := range 7 {
+	for i := range 9 {
 		a := gate + 0.5 + h(i, 11)*(2*math.Pi-1)
-		d := ring - 1.5 - h(i, 12)*3
-		bx, by := int(math.Floor(l.x+math.Cos(a)*d)), int(math.Floor(l.y+math.Sin(a)*d))
-		v := LairBones
-		if i == 2 || i == 5 {
-			v = LairSkin
-		}
-		if free(bx, by) {
+		if bx, by := at(a, 0.62+h(i, 12)*0.2); free(bx, by) {
+			v := LairBones
+			if i == 2 || i == 5 {
+				v = LairSkin
+			}
 			w.addEntity(EntityLairProp, bx, by).Var = v
 		}
 	}
@@ -377,7 +401,8 @@ func (w *World) templeTrail(l *bossLair, gate float64) {
 	if s.camp {
 		ex, ey = s.campX, s.campY
 	}
-	sx, sy := l.x+math.Cos(gate)*(s.r-1), l.y+math.Sin(gate)*(s.r-1)
+	ge := s.edge(gate) - 1
+	sx, sy := l.x+math.Cos(gate)*ge, l.y+math.Sin(gate)*ge
 	n := int(math.Hypot(ex-sx, ey-sy) * 2)
 	nx, ny := -(ey - sy), ex-sx // across the way, for its wandering
 	if d := math.Hypot(nx, ny); d > 0 {
@@ -422,14 +447,15 @@ func (w *World) templeTrail(l *bossLair, gate float64) {
 		}
 	}
 	// Trees it broke, on either side of the way in.
-	for ty := int(l.y) - 26; ty <= int(l.y)+26; ty++ {
-		for tx := int(l.x) - 26; tx <= int(l.x)+26; tx++ {
+	TR := int(s.r) + 12
+	for ty := int(l.y) - TR; ty <= int(l.y)+TR; ty++ {
+		for tx := int(l.x) - TR; tx <= int(l.x)+TR; tx++ {
 			e := w.entityAt(tx, ty)
 			if e == nil || e.Kind != EntityTree {
 				continue
 			}
-			d := math.Hypot(float64(tx)+0.5-l.x, float64(ty)+0.5-l.y)
-			if d < s.r+1 || d > s.r+11 {
+			dx, dy := float64(tx)+0.5-l.x, float64(ty)+0.5-l.y
+			if e := s.edge(math.Atan2(dy, dx)); math.Hypot(dx, dy) < e+1 || math.Hypot(dx, dy) > e+11 {
 				continue
 			}
 			if h(tx, ty) < 0.16 {
@@ -539,7 +565,7 @@ func (w *World) lairReserved(tx, ty int) bool {
 		if !l.ok || s.layout == LayoutHollow {
 			continue
 		}
-		if math.Abs(fx-l.x) <= s.r+2 && math.Abs(fy-l.y) <= s.r+2 && math.Hypot(fx-l.x, fy-l.y) <= s.r+1.5 {
+		if math.Abs(fx-l.x) <= s.r+2 && math.Abs(fy-l.y) <= s.r+2 && s.q(fx-l.x, fy-l.y) <= 1+1.5/min(s.rx, s.ry) {
 			return true
 		}
 		if s.camp && math.Hypot(fx-s.campX, fy-s.campY) <= campRoom+1 {

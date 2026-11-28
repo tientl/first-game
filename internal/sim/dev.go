@@ -173,11 +173,11 @@ func (w *World) DevFind(id PlayerID, place DevPlace, n int) (x, y float64, ok bo
 			if b.Kind == BossKind(n-1) {
 				switch s := &w.bosses.lairs[n-1].site; s.layout {
 				case LayoutTemple: // at the courtyard's gate, the temple before them
-					x, y := b.LairX, b.LairY+s.r+1.5
+					a := math.Pi / 2
 					if s.camp {
-						a := math.Atan2(s.campY-b.LairY, s.campX-b.LairX)
-						x, y = b.LairX+math.Cos(a)*(s.r+1.5), b.LairY+math.Sin(a)*(s.r+1.5)
+						a = math.Atan2(s.campY-b.LairY, s.campX-b.LairX)
 					}
+					x, y := b.LairX+math.Cos(a)*(s.edge(a)+1.5), b.LairY+math.Sin(a)*(s.edge(a)+1.5)
 					return w.devLanding(x, y, 0)
 				case LayoutAtoll: // on the reef, by the lagoon
 					return w.devLanding(b.LairX, b.LairY+AtollLagoon+1.2, 0)

@@ -559,13 +559,14 @@ type BossStatus struct {
 	Holds        PlayerID // the player in its coils, if any
 	Camp         bool     // its lair has a camp (since StyleLairs)...
 	CampX, CampY float64  // ...here
+	RX, RY       float64  // its arena's half widths, since StyleLairs (see viewRX)
 	Stage        int      // the stage of its fight (see SkillStage): its moves and its music change
 }
 
 func (w *World) bossStatus(i int) BossStatus {
 	l := &w.bosses.lairs[i]
 	k := BossKind(i)
-	s := BossStatus{Kind: k, X: l.x, Y: l.y, LairX: l.x, LairY: l.y, MaxHP: k.MaxHP(), Defeated: l.defeated, Camp: l.site.camp, CampX: l.site.campX, CampY: l.site.campY}
+	s := BossStatus{Kind: k, X: l.x, Y: l.y, LairX: l.x, LairY: l.y, MaxHP: k.MaxHP(), Defeated: l.defeated, Camp: l.site.camp, CampX: l.site.campX, CampY: l.site.campY, RX: l.viewRX(), RY: l.viewRY()}
 	if c := l.c; c != nil && !c.gone {
 		s.ID, s.X, s.Y, s.HP = c.ID, c.X, c.Y, c.HP
 		s.Awake, s.Enraged, s.Holds = l.awake, l.enraged, l.held

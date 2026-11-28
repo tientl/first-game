@@ -23,13 +23,13 @@ import "math"
 
 // Atoll tuning, in tiles.
 const (
-	AtollLagoon   = 16.0 // the deep lagoon's radius
+	AtollLagoon   = 19.0 // the deep lagoon's radius: 38 tiles across, more than a screen
 	AtollReef     = 3.6  // the reef ring's width
 	atollShelf    = 3.4  // the shallows outside it
 	atollChannels = 3    // gaps in the ring, of...
 	atollGap      = 2.6  // ...this width, about
 	atollBars     = 4    // sandbars along the ring
-	atollCay      = 34.0 // the camp's cay lies this far from the middle
+	atollCay      = 39.0 // the camp's cay lies this far from the middle
 	atollCayR     = 3.6  // and is this big
 	wreckLen      = 8    // the wreck's hull: tiles long...
 	wreckBeam     = 3    // ...and wide
@@ -41,7 +41,8 @@ func atollRing() float64 { return AtollLagoon + AtollReef/2 }
 // buildAtoll raises the atoll round lair l, out of the open sea.
 func (w *World) buildAtoll(l *bossLair) {
 	s := &l.site
-	*s = lairSite{layout: LayoutAtoll, lagoon: AtollLagoon, r: AtollLagoon + AtollReef + 1.5, reefAt: map[int32]bool{}}
+	r := AtollLagoon + AtollReef + 1.5
+	*s = lairSite{layout: LayoutAtoll, lagoon: AtollLagoon, r: r, rx: r, ry: r, reefAt: map[int32]bool{}}
 	seed := uint32(w.seed) ^ 0xa7011
 	h := func(a, b int) float64 { return unit(hash2(int32(a), int32(b), seed)) }
 	home := math.Atan2(w.spawnY-l.y, w.spawnX-l.x)
