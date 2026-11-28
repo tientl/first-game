@@ -975,6 +975,7 @@ func main() {
 		snap.Players[0].HurtSeq++
 	}
 	cookScene(&snap, sx, sy)   // see cook.go
+	firebloodScene(&snap, sx, sy) // see fireblood.go
 	tentScene(&snap, sx, sy)   // see tent.go
 	thinEntities(&snap, *thin) // see terrain.go
 	conn.ch <- protocol.ServerMsg{Kind: protocol.ServerSnapshot, Snapshot: snap}
@@ -1059,6 +1060,9 @@ func main() {
 	if *heldFit != "" {
 		g.heldFit, g.heldFitDir = game, *heldFit
 	}
+	if *firebloodSheetFlag != "" {
+		g.fireblood, g.firebloodDir = game, *firebloodSheetFlag
+	}
 	if *tentSheetFlag != "" {
 		g.tents, g.tentDir = game, *tentSheetFlag
 	}
@@ -1111,6 +1115,8 @@ type shooter struct {
 	icons      *client.Game // write its icon sheet instead of the frame
 	tents      *client.Game // write the leaf tent's sheet and GIF into tentDir instead of the frame
 	tentDir    string       // the folder they go in
+	fireblood  *client.Game // write the fire and body sheets into firebloodDir instead of the frame
+	firebloodDir string
 	cost       bool         // print what the art has cost
 
 	gifN, gifStep int           // -gif: frames to keep, and game frames between them
@@ -1155,6 +1161,13 @@ func (s *shooter) Draw(screen *ebiten.Image) {
 			return
 		}
 		log.Printf("wrote %s", gifPath(s.out))
+	}
+	if s.fireblood != nil {
+		s.err, s.done = s.fireblood.FireBloodSheets(s.firebloodDir), true
+		if s.err == nil {
+			log.Printf("wrote the fire and body sheets in %s", s.firebloodDir)
+		}
+		return
 	}
 	if s.tents != nil {
 		s.err, s.done = s.tents.TentSheets(s.tentDir), true

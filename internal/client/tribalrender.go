@@ -264,11 +264,15 @@ func (g *Game) tribalEntitySprite(e protocol.EntityView) (sprite, float64, bool)
 	return sprite{}, 0, false
 }
 
-// bodySprite is the standing sprite of a body's creature, before it is laid down.
+// bodySprite is the sprite of a body lying (see corpseart.go), or its
+// creature's own where it has none.
 func (g *Game) bodySprite(e protocol.EntityView) (sprite, bool) {
 	k := sim.CreatureKind(e.Var)
 	if k == sim.CreatureNone || k >= sim.NumCreatureKinds {
 		return sprite{}, false
+	}
+	if a := corpseArtOf(k, e.Big, corpseSteps); a.ok {
+		return a.s, true
 	}
 	s, _ := g.creatureSprite(protocol.CreatureView{Kind: k, State: sim.CreatureIdle, FaceLeft: e.Big}, false)
 	return s, true
@@ -339,34 +343,9 @@ func (g *Game) drawTribalEntity(dst drawTarget, e protocol.EntityView, d drawabl
 	return false
 }
 
-// drawBody draws a kill lying in its blood: a beast on its back, legs in
-// the air; a person on their side.
+// drawBody draws a kill lying in its blood, on its side; see corpseart.go.
 func (g *Game) drawBody(dst drawTarget, e protocol.EntityView, d drawable) {
-	k := sim.CreatureKind(e.Var)
-	pool := 1
-	switch w := creatureShadow(k); {
-	case w < 14:
-		pool = 0
-	case w > 26:
-		pool = 2
-	}
-	drawAt(dst, g.art.tribal.blood[pool], d.sx, d.sy, 1, 1, 0, nil)
-	s, ok := g.bodySprite(e)
-	if !ok {
-		return
-	}
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(-s.ax, -s.ay)
-	if k == sim.CreatureTribesman {
-		op.GeoM.Rotate(-math.Pi / 2)
-		op.GeoM.Translate(d.sx-6, d.sy-2)
-	} else {
-		const squash = 0.85
-		op.GeoM.Scale(1, -squash)
-		op.GeoM.Translate(d.sx, d.sy-s.ay*squash+3)
-	}
-	op.ColorScale.Scale(0.78, 0.72, 0.72, 1) // the colour gone out of it
-	drawSprite(dst, s, op)
+	g.drawCorpse(dst, e, d)
 }
 
 // drawFloors draws wooden floors flat on the ground, under everything.

@@ -130,6 +130,7 @@ type rigPose struct {
 	tilt   float64 // the whole body, radians, + = nose down
 	lift   float64 // pixels off the ground
 	sweep  float64 // the tail swung sideways about its root, radians, + = towards the viewer (ankylorig.go)
+	limp   float64 // a body falling dead, 0 to 1: the legs go loose (corpseart.go)
 }
 
 var (
@@ -196,7 +197,7 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 
 	bob := 0.0      // how far the body has sunk on its legs, in canvas pixels
 	var legs []bool // the pixels the legs drew, which no other part takes when it turns
-	if (p.step != 0 || p.cycle != 0) && len(r.legs) > 0 {
+	if (p.step != 0 || p.cycle != 0 || p.limp != 0) && len(r.legs) > 0 {
 		if r.jointed() {
 			bob, legs = stepJoints(w, r, p, pad, k)
 		} else {
