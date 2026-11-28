@@ -224,8 +224,8 @@ func icAmber(p *icv) {
 // drop of venom at the tip.
 func icCentipedeClaw(p *icv) {
 	// The joint it grows from: a stout yellow segment, banded dark.
-	a := mkAxis(1.8, 14.6, 4.6, 11.0)
-	p.fill(sCap(1.8, 14.6, 4.6, 11.0, 1.9, 1.75), func(f *ifrag) color.RGBA {
+	a := mkAxis(2.5, 13.8, 4.6, 11.0)
+	p.fill(sCap(2.5, 13.8, 4.6, 11.0, 1.8, 1.75), func(f *ifrag) color.RGBA {
 		u, v := a.uv(f.x, f.y)
 		l := a.rod(v, 1.9) + 0.06
 		if u > a.l-0.8 || math.Abs(u-a.l*0.3) < 0.36 {

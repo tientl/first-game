@@ -109,18 +109,35 @@ func spots(cell, r, share float64, seed uint32) func(x, y float64) float64 {
 	}
 }
 
-// neckCut paints the cut end of a neck at (x, y), rx by ry turned by ang:
-// a rim of hide r, the red flesh, the pale bone in its middle.
-func neckCut(p *icv, r ramp, x, y, rx, ry, ang float64) {
-	p.fill(iEll(x, y, rx, ry, ang), func(f *ifrag) color.RGBA {
-		d := math.Hypot((f.x-x)/rx, (f.y-y)/ry)
-		if -f.d < 0.3 {
-			return pick(r, 0.3)
+// neckCut cuts a neck off at its end (x, y), the neck running from there
+// towards (tx, ty), w its half width there: what lies past the cut is
+// wiped, and the cut face put in its place, seen a little from below: a
+// rim of hide r, the red flesh, the pale bone of the spine.
+func neckCut(p *icv, r ramp, x, y, tx, ty, w float64) {
+	ux, uy := x-tx, y-ty
+	l := math.Hypot(ux, uy)
+	ux, uy = ux/l, uy/l
+	for iy := 0; iy < p.n; iy++ {
+		for ix := 0; ix < p.n; ix++ {
+			dx, dy := (float64(ix)+0.5-p.o)/p.k-x, (float64(iy)+0.5-p.o)/p.k-y
+			if dx*ux+dy*uy > 0 && math.Hypot(dx, dy) < w*1.9 {
+				i := iy*p.n + ix
+				p.px[i], p.part[i] = color.RGBA{}, 0
+			}
 		}
-		if d < 0.32 {
-			return pick(icBoneR, 0.7-d)
+	}
+	ra, rb := w*0.45, w
+	p.fill(iEll(x, y, ra, rb, math.Atan2(uy, ux)), func(f *ifrag) color.RGBA {
+		dx, dy := f.x-x, f.y-y
+		a, b := (dx*ux+dy*uy)/ra, (-dx*uy+dy*ux)/rb
+		d := math.Hypot(a, b)
+		if -f.d < 0.28 {
+			return pick(r, 0.42+0.25*toward(f.gx, f.gy)) // the hide's edge
 		}
-		return pick(icNeckR, 0.75-d*0.5+0.1*toward(f.x-x, f.y-y))
+		if math.Hypot(a, b+0.3) < 0.3 {
+			return pick(icBoneR, 0.8-d*0.5) // the spine
+		}
+		return pick(icNeckR, 0.82-d*0.45+0.12*toward(-dx, -dy))
 	})
 }
 
@@ -250,7 +267,7 @@ func theropod(p *icv, t thero) {
 	if t.ridge {
 		brow(p, 8.9, 5.3, 0.8)
 	}
-	neckCut(p, sk.r, 4.1, 12.5, 1.1*d+0.2, 2.4*d, 0.95)
+	neckCut(p, sk.r, 4.0, 12.6, 6.8, 8.4, 2.5*d)
 	if t.after != nil {
 		t.after(p)
 	}
@@ -377,9 +394,9 @@ func icHeadCerato(p *icv, toro bool) {
 	}
 	// The frill, behind everything.
 	fx, fy := 5.2, 5.6
-	fr := 5.0
+	fr := 4.9
 	if toro {
-		fr = 5.4
+		fr = 5.1
 	}
 	frillS := sEll(fx, fy, fr*0.85, fr)
 	p.fill(frillS.jag(0.35, 0.9, -10, 661), func(f *ifrag) color.RGBA {
@@ -425,23 +442,25 @@ func icHeadCerato(p *icv, toro bool) {
 	horn(p, icToothR, 8.8, 6.6, 9.4, 3.8, 11.8, 1.2, 0.75)
 	horn(p, icToothR, 13.2, 8.8, 13.6, 7.6, 13.4, 6.8, 0.55)
 	eyeAt(p, 9.6, 8.0, 0.55, icEyeGold, false)
-	neckCut(p, body, 6.1, 12.8, 1.3, 2.2, 0.9)
+	neckCut(p, body, 6.0, 12.6, 8.0, 10.4, 2.4)
 }
 
 // icHeadStego is the plate-back's head: small and low on its neck, green
 // with dark bands, the first of its plates rising behind.
 func icHeadStego(p *icv) {
 	green := mkRamp(0x1a2a10, 0x2a4218, 0x3e5c22, 0x587a2c, 0x76983a, 0x98b44c)
-	plate := mkRamp(0x3a2414, 0x5e3a1c, 0x8a5a2a, 0xb07c3c, 0xd0a058)
-	for i, pl := range [][4]float64{{3.2, 7.4, 2.4, 3.6}, {6.0, 6.4, 2.0, 2.8}} {
-		x, y, w, h := pl[0], pl[1], pl[2], pl[3]
-		s := sPoly(x-w, y+h*0.2, x-w*0.2, y-h, x+w*0.5, y-h*0.8, x+w, y+h*0.2)
-		p.fill(iBlend(0.6, s), func(f *ifrag) color.RGBA {
-			l := 0.55 + 0.2*toward(f.gx, f.gy)*clamp01(1+f.d/0.5) - 0.04*float64(i)
-			if math.Abs(math.Sin((f.x-x)*2.6)) < 0.2 {
-				l -= 0.14 // veins up it
+	// The first plates of its back, rising from the top of the neck behind
+	// the head: kites of bone under red-brown skin, veined.
+	for _, pl := range [][5]float64{{3.8, 11.2, 7.4, 2.0, -1.78}, {6.0, 9.6, 5.8, 1.6, -1.62}, {8.0, 8.4, 3.0, 1.0, -1.35}} {
+		x, y, length, width, ang := pl[0], pl[1], pl[2], pl[3], pl[4]
+		a := mkAxis(x, y, x+math.Cos(ang)*length, y+math.Sin(ang)*length)
+		p.fill(leafShape(x, y, length, width, ang, formLance), func(f *ifrag) color.RGBA {
+			u, v := a.uv(f.x, f.y)
+			l := 0.52 - v/width*0.22 + 0.18*toward(f.gx, f.gy)*clamp01(1+f.d/0.45)
+			if math.Abs(math.Mod(math.Atan2(v, u+1.2)*7+20, 1)-0.5) < 0.1 {
+				l -= 0.12 // veins fanning up it
 			}
-			return pick(plate, l)
+			return pick(plateRamp, l)
 		})
 	}
 	neck := sCap(3.4, 13.0, 7.6, 9.4, 2.6, 2.0)
@@ -452,7 +471,7 @@ func icHeadStego(p *icv) {
 	mouthLine(p, 0.12, 10.6, 10.6, 12.6, 10.4, 14.6, 10.2)
 	nostril(p, 14.0, 9.4, 0.28)
 	eyeAt(p, 10.6, 8.8, 0.45, icEyeGold, false)
-	neckCut(p, green, 3.5, 13.0, 1.0, 2.4, 0.75)
+	neckCut(p, green, 3.4, 13.0, 7.6, 9.4, 2.6)
 }
 
 // icHeadAnkylo is the armoured one's head: broad and low, its top a shell
@@ -481,7 +500,7 @@ func icHeadAnkylo(p *icv) {
 	mouthLine(p, 0.12, 9.4, 11.0, 12.0, 10.8, 13.8, 10.4)
 	eyeAt(p, 10.2, 8.8, 0.45, icEyeGold, false)
 	brow(p, 10.2, 8.8, 0.6)
-	neckCut(p, hide, 3.9, 12.8, 1.1, 2.4, 0.85)
+	neckCut(p, hide, 3.8, 12.8, 6.8, 9.6, 2.6)
 }
 
 // icHeadBrachio is the long-neck's head: small, a dome of bone over the
@@ -496,7 +515,7 @@ func icHeadBrachio(p *icv) {
 	mouthLine(p, 0.11, 11.0, 6.9, 13.0, 6.8, 14.8, 6.6)
 	nostril(p, 11.2, 2.6, 0.32)
 	eyeAt(p, 11.6, 4.6, 0.45, icEyeGold, false)
-	neckCut(p, green, 3.7, 13.9, 1.0, 2.2, 0.6)
+	neckCut(p, green, 3.6, 14.0, 5.0, 8.0, 2.4)
 }
 
 // icHeadThesc is the gentle grazer's head: blunt, a beak at the front,
@@ -514,7 +533,7 @@ func icHeadThesc(p *icv) {
 	p.fill(iBlend(0.3, beak), func(f *ifrag) color.RGBA { return pick(beakRamp, bulge(f, 0.6)) })
 	mouthLine(p, 0.12, 10.4, 9.8, 12.4, 9.8, 13.6, 9.6)
 	eyeAt(p, 11.0, 6.8, 0.5, icEyeGold, false)
-	neckCut(p, thescRamp, 3.9, 13.0, 1.1, 2.4, 0.85)
+	neckCut(p, thescRamp, 3.8, 13.0, 7.0, 9.4, 2.6)
 }
 
 // icHeadOrnitho is the ostrich-dinosaur's head: small on a long bare neck,
@@ -522,6 +541,20 @@ func icHeadThesc(p *icv) {
 func icHeadOrnitho(p *icv) {
 	pink := mkRamp(0x5a3a3a, 0x845656, 0xaa7a74, 0xc89c94, 0xe2c0b6)
 	head := iBlend(1.0, sLock(3.6, 14.0, 4.6, 9.0, 7.6, 6.0, 1.9, 1.3), sEll(9.0, 5.4, 2.4, 2.0))
+	// A mane of brown feathers down the back of its neck.
+	for i := 0; i < 7; i++ {
+		t := 0.08 + 0.1*float64(i)
+		x, y := bezAt(t, 3.6, 14.0, 4.6, 9.0, 7.6, 6.0)
+		x2, y2 := bezAt(t+0.02, 3.6, 14.0, 4.6, 9.0, 7.6, 6.0)
+		tx, ty := x2-x, y2-y
+		tl := math.Hypot(tx, ty)
+		tx, ty = tx/tl, ty/tl
+		nx, ny := ty, -tx // the back of the neck
+		w := 1.9 - 0.6*t
+		rx, ry := x+nx*w*0.5, y+ny*w*0.5
+		lx, ly := 1.5-0.5*t, 1.1
+		lock(p, ornithoRamp, rx, ry, rx+nx*lx*0.8-tx*ly*0.3, ry+ny*lx*0.8-ty*ly*0.3, rx+nx*lx-tx*ly, ry+ny*lx-ty*ly, 0.75, 0.05*float64(i%2), icFill)
+	}
 	p.fill(head, skin{r: pink, round: 1.8}.sh())
 	beak := sPoly(10.2, 4.4, 15.0, 6.0, 14.6, 6.8, 10.4, 7.0)
 	p.fill(iBlend(0.4, beak), func(f *ifrag) color.RGBA {
@@ -532,12 +565,7 @@ func icHeadOrnitho(p *icv) {
 		return pick(beakRamp, l)
 	})
 	eyeAt(p, 9.0, 4.8, 0.55, icEyeGold, false)
-	// A ruff of brown feathers at the base of the neck.
-	for i := 0; i < 5; i++ {
-		x := 2.6 + float64(i)*1.0
-		lock(p, ornithoRamp, x, 10.6-float64(i)*0.3, x+0.6, 11.8, x+0.2, 13.4, 0.65, 0.02*float64(i), icFill)
-	}
-	neckCut(p, pink, 3.8, 13.8, 0.9, 1.8, 0.4)
+	neckCut(p, pink, 3.6, 14.0, 4.6, 9.0, 1.9)
 }
 
 // icHeadAnzu is the crested bird-dinosaur's head: dark blue-black, a tall
@@ -559,7 +587,7 @@ func icHeadAnzu(p *icv) {
 	p.fill(iBlend(0.4, beak), func(f *ifrag) color.RGBA { return pick(beakRamp, bulge(f, 0.8)+0.04) })
 	p.fill(iEll(11.0, 9.4, 1.0, 1.4, 0.2), shBulge(anzuCrest, 0.6, 0.0)) // the wattle
 	eyeAt(p, 10.2, 6.2, 0.5, icEyeGold, false)
-	neckCut(p, anzuRamp, 4.0, 13.8, 1.0, 2.1, 0.4)
+	neckCut(p, anzuRamp, 3.8, 14.0, 4.6, 9.4, 2.2)
 }
 
 // icHeadPtero is a flying reptile's head (quetzal: the giant): a long
@@ -598,7 +626,7 @@ func icHeadPtero(p *icv, quetzal bool) {
 	})
 	mouthLine(p, 0.1, 8.6, 5.9, 11.4, 6.4, bx-0.6, 7.0)
 	eyeAt(p, 7.6, 4.8, 0.5, icEyeGold, false)
-	neckCut(p, body, 3.7, 14.0, 0.8, 1.6, 0.3)
+	neckCut(p, body, 3.6, 14.2, 4.0, 10.0, 1.6)
 }
 
 // icHeadPlesio is the sea reptile's head: small and flat, teal above and
@@ -614,7 +642,7 @@ func icHeadPlesio(p *icv) {
 	nostril(p, 13.6, 5.6, 0.26)
 	eyeAt(p, 10.0, 5.0, 0.5, icEyeGold, false)
 	glintAt(p, 6.0, 8.0, 0.5, 0.2) // wet
-	neckCut(p, plesioRamp, 3.5, 14.0, 0.9, 2.0, 0.4)
+	neckCut(p, plesioRamp, 3.4, 14.2, 4.0, 8.6, 2.2)
 }
 
 // icHeadMosa is the Mosasaurus's head: long jaws full of teeth, dark sea
@@ -631,7 +659,7 @@ func icHeadMosa(p *icv) {
 	eyeAt(p, 9.0, 6.6, 0.55, icEyeGold, true)
 	brow(p, 9.0, 6.6, 0.7)
 	glintAt(p, 7.0, 5.6, 0.6, 0.22)
-	neckCut(p, mosaRamp, 3.7, 13.0, 1.2, 2.6, 0.9)
+	neckCut(p, mosaRamp, 3.6, 13.0, 6.8, 9.4, 2.8)
 }
 
 // icHeadCroc is a crocodile's head (long a snout's length, wide its
@@ -658,7 +686,7 @@ func icHeadCroc(p *icv, r, belly ramp, long, wide float64) {
 	p.fill(sEll(tip-0.9, 8.4, 0.6, 0.45), skin{r: r, round: 0.4}.sh())
 	nostril(p, tip-0.9, 8.3, 0.22)
 	glintAt(p, 6.4, 8.0, 0.5, 0.2)
-	neckCut(p, r, 3.5, 12.2, 1.0, 2.4, 0.7)
+	neckCut(p, r, 3.4, 12.2, 6.4, 9.6, 2.6)
 }
 
 // icHeadSnake is a snake's head (or the Titanoboa's, bigger): the scaled
@@ -698,5 +726,5 @@ func icHeadSnake(p *icv, r, blotch, belly ramp, titan bool) {
 	eyeAt(p, 10.8, 5.9, 0.5, iris, true)
 	brow(p, 10.8, 5.9, 0.6)
 	glintAt(p, 8.0, 5.0, 0.5, 0.2)
-	neckCut(p, r, 3.3, 14.0, 0.9, 1.9, 0.1)
+	neckCut(p, r, 3.2, 14.2, 3.4, 8.8, 2.0)
 }
