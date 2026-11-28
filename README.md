@@ -12,7 +12,7 @@ Trên Windows (cần Go 1.25+, không cần cgo):
     go run ./cmd/game -seed 42 -size 512    # seed và cỡ thế giới cho "Trò chơi mới" (bỏ -size thì luôn là 1024, cỡ lớn nhất)
     go run ./cmd/game -save D:\save.json     # dùng file lưu khác
 
-Mở game sẽ vào menu chính: **Chơi tiếp** (nếu đã có bản lưu), **Trò chơi mới** (thế giới luôn rộng nhất, 1024 × 1024 ô; chỉ chọn **độ khó**), **Thoát**.
+Mở game sẽ vào menu chính: **Chơi tiếp** (nếu đã có bản lưu), **Trò chơi mới** (thế giới luôn rộng nhất, 1024 × 1024 ô; chỉ chọn **độ khó**), **Chơi chung** (tạo phòng hoặc vào phòng bạn bè qua mạng: xem [Chơi chung qua mạng](#chơi-chung-qua-mạng)), **Thoát**.
 
 **Độ khó** (`internal/sim/difficulty.go`), chọn khi tạo thế giới và lưu cùng bản lưu (bản lưu cũ là Cơ bản). Đất đai, thú và máu của thú như nhau ở mọi cấp; chỉ khác những gì thiên nhiên làm với người chơi, và cái giá của cái chết:
 
@@ -36,6 +36,70 @@ Build `.exe` cho Windows từ Linux:
 Icon của game (khủng long cổ dài trên đảo dừa, cỡ 16 đến 256) vẽ bằng code trong `internal/client/gameicon.go`; game đặt nó cho cửa sổ và thanh tác vụ. Icon của file `.exe` trong Explorer nằm trong `cmd/game/rsrc_windows_amd64.syso`. Sửa icon xong thì chạy `go run ./cmd/icon -o <thư mục> -syso cmd/game/rsrc_windows_amd64.syso` để tạo lại file đó (kèm PNG từng cỡ, file `.ico` và ảnh xem trước trong thư mục).
 
 Chạy client trên Linux cần cgo và các gói X11/GL dev (xem tài liệu cài đặt của Ebitengine).
+
+## Chơi chung qua mạng
+
+Chơi chung 2 đến 8 người (chủ phòng cộng tối đa 7 bạn) trong **cùng một thế giới**: thấy nhau, cùng săn, cùng xây, cùng đánh trùm. Một người **tạo phòng** (máy đó chạy thế giới và giữ bản lưu, người đó vẫn chơi bình thường), những người còn lại **vào phòng** bằng địa chỉ của máy chủ phòng. Chơi 1 người không đổi gì.
+
+Trên menu chính bấm **Chơi chung**:
+
+- **Tạo phòng: chơi tiếp** mở thế giới đã lưu của bạn thành phòng; **Tạo phòng: thế giới mới** chọn độ khó và nhân vật như **Trò chơi mới** rồi mở phòng. Phòng mở ở cổng TCP **7777** (đổi bằng `-port`, ví dụ `go run ./cmd/game -port 9000`). Trong game nhấn **Esc**: khung bên trái liệt kê **địa chỉ để bạn bè gõ** (IP mạng nhà, IP Tailscale, IP ZeroTier kèm cổng); các địa chỉ cũng được in ra cửa sổ dòng lệnh. Chưa có ai vào thì Esc vẫn tạm dừng thời gian như chơi 1 người; **có bạn trong phòng thì thế giới không dừng** khi bạn mở menu.
+- **Vào phòng**: gõ địa chỉ chủ phòng đọc cho (`192.168.1.23`, hoặc `192.168.1.23:7777`; không gõ cổng thì là 7777), rồi màn hình **Tạo nhân vật** như bình thường (tên, giới tính, tóc, màu da; nút bắt đầu ghi **Vào phòng**). Địa chỉ lần trước được nhớ sẵn. Không vào được thì game nói lý do (sai địa chỉ, tường lửa, khác phiên bản, trùng tên, phòng đầy) và cho gõ lại. Đang chơi mà mạng đứt thì màn hình hiện **Đang chờ máy chủ…**, rồi **Mất kết nối** (Esc về menu, rồi vào lại).
+
+Quy tắc của phòng:
+
+- **Bản lưu thuộc chủ phòng**: chỉ chủ phòng lưu (tự lưu mỗi phút, khi về menu, khi đóng game); nút Lưu game của người vào bị khoá. Chủ phòng về menu hoặc thoát thì phòng đóng, ai đang chơi bị ngắt kết nối (thế giới và nhân vật của mọi người được lưu đúng chỗ đang đứng).
+- **Vào lại bằng đúng tên thì giữ nguyên nhân vật**: đồ, máu, chỗ đứng, bản đồ đã khám phá, giường đều ở lại với tên đó trong bản lưu; ngoại hình chọn lúc vào lại bị bỏ qua, nhân vật cũ giữ ngoại hình cũ. Tên mới là nhân vật mới. Hai người không được cùng tên trong phòng cùng lúc (người sau bị từ chối; nếu đó là bạn vừa rớt mạng thì đợi vài giây rồi vào lại, máy chủ cần chừng đó để nhận ra kết nối cũ đã chết).
+- Cả phòng cùng đi ngủ thì đêm trôi nhanh như chơi 1 người. Ở Thành thạo và Chúa tể, ai chết thì mất đồ ở xác của chính người đó (ai cũng nhặt được).
+- Mọi người phải chạy **cùng một bản game**: khác phiên bản thì bị từ chối ngay khi vào, kèm số phiên bản hai bên. Windows và Linux chơi chung được với nhau (cùng giao thức, không phụ thuộc hệ điều hành); chỉ cần cùng bản. Chủ phòng chạy trên Windows hay Linux đều được; client Linux cần cgo như trên.
+- **Không có mật khẩu**: ai tới được cổng của chủ phòng là vào được. Vì vậy chỉ dùng trong mạng nhà, Tailscale hoặc ZeroTier như dưới đây; đừng mở cổng thẳng ra Internet trên router.
+
+### Chơi trong cùng mạng nhà (LAN, Wi-Fi)
+
+1. Mọi người nối cùng một router (Wi-Fi hoặc dây).
+2. Chủ phòng: **Chơi chung > Tạo phòng**. Windows hỏi về tường lửa (xem dưới): bấm **Cho phép truy cập** (ít nhất ở mạng **Riêng tư**). Nhấn Esc trong game để xem địa chỉ, dạng `192.168.x.x:7777`.
+3. Bạn bè: **Chơi chung > Vào phòng**, gõ địa chỉ đó.
+
+Tự tìm địa chỉ nếu cần: Windows mở `cmd` gõ `ipconfig`, xem **IPv4 Address** của card đang dùng; Linux gõ `hostname -I` hoặc `ip -4 addr`.
+
+### Chơi qua Internet mà không phải mở cổng router
+
+Router nhà thường chặn kết nối từ ngoài vào, và mở cổng vừa rắc rối vừa kém an toàn (game không có mật khẩu). Cách dễ nhất: dùng một **mạng riêng ảo miễn phí**, ai cũng cài một chương trình nhỏ, rồi tất cả như ở cùng mạng nhà.
+
+**Tailscale** (dễ nhất, miễn phí cho dùng cá nhân):
+
+1. Mọi người cài Tailscale từ <https://tailscale.com/download> (Windows, Linux, macOS, điện thoại) và đăng nhập. Hai cách để bạn bè cùng một "mạng": (a) cùng đăng nhập chung một tài khoản (hợp khi chỉ có bạn với máy của bạn), hoặc (b) mỗi người một tài khoản và chủ phòng **chia sẻ máy** cho bạn: trong trang quản trị <https://login.tailscale.com/admin/machines>, bấm `...` cạnh máy chủ phòng, **Share**, gửi link mời; bạn bè mở link và chấp nhận. Có thể mời bạn vào luôn tailnet của mình (Users, Invite) nếu tin tưởng.
+2. Chủ phòng xem địa chỉ Tailscale của máy mình: biểu tượng Tailscale ở khay hệ thống (hoặc trang admin) hiện dạng `100.x.y.z`; dòng lệnh: `tailscale ip -4`. Game cũng liệt kê địa chỉ này (đánh dấu "Tailscale") khi nhấn Esc.
+3. Chủ phòng **Chơi chung > Tạo phòng**; bạn bè **Vào phòng**, gõ `100.x.y.z` (cổng 7777 tự có).
+4. Không vào được thì thử từ máy bạn: `tailscale ping 100.x.y.z` (phải thấy trả lời `pong`; lần đầu có thể chậm vài giây khi hai máy tìm đường tới nhau, có thể đi vòng qua máy chủ trung gian của Tailscale, vẫn chơi được nhưng trễ hơn) rồi xem phần tường lửa.
+
+**ZeroTier** (miễn phí cho nhóm nhỏ):
+
+1. Một người (không nhất thiết là chủ phòng) tạo tài khoản ở <https://my.zerotier.com>, bấm **Create A Network**, chép **Network ID** (16 ký tự).
+2. Mọi người cài **ZeroTier One** từ <https://www.zerotier.com/download/> và **Join Network** bằng Network ID đó (Windows: biểu tượng ZeroTier ở khay hệ thống > Join Network; Linux: `sudo zerotier-cli join <NetworkID>`).
+3. Người tạo mạng vào trang quản trị, mục **Members**, **tick Auth** cho từng máy vừa vào. Cột **Managed IPs** là địa chỉ của máy đó (thường `10.x.x.x` hoặc `172.x.x.x`).
+4. Chủ phòng **Tạo phòng**; bạn bè **Vào phòng** và gõ Managed IP của máy chủ phòng.
+
+### Tường lửa
+
+- **Windows**: lần đầu mở phòng, Windows Defender Firewall hỏi "Allow … to communicate on these networks". Bấm **Allow access** (tick **Private networks**; Tailscale và ZeroTier đôi khi bị Windows xếp là mạng **Public**, tick luôn nếu bạn bè không vào được). Lỡ bấm Cancel thì sửa bằng PowerShell chạy bằng quyền quản trị: `New-NetFirewallRule -DisplayName "Dino Isles" -Direction Inbound -Protocol TCP -LocalPort 7777 -Action Allow` (an toàn hơn: thêm `-RemoteAddress 192.168.0.0/16,100.64.0.0/10` để chỉ cho mạng nhà và Tailscale vào). Chỉ **chủ phòng** cần làm việc này; người vào phòng chỉ kết nối đi ra nên không bị hỏi.
+- **Linux**: `sudo ufw allow 7777/tcp` (ufw) hoặc `sudo firewall-cmd --add-port=7777/tcp` (firewalld; thêm `--permanent` để giữ lại). Đổi 7777 nếu bạn dùng `-port`.
+- Cùng một nhà mà vẫn không vào được: kiểm tra router có bật "AP isolation" / "Client isolation" (Wi-Fi khách) không, tính năng đó chặn các máy nói chuyện với nhau.
+
+### Khi không vào được
+
+| Thông báo | Thường là |
+| --- | --- |
+| "Không thấy phòng ở địa chỉ này (quá thời gian)" | sai IP, hai máy khác mạng, tường lửa chủ phòng chặn, hoặc chủ phòng chưa Tạo phòng |
+| "Máy đó có mở nhưng không có phòng nào ở cổng này" | đúng máy nhưng sai cổng, hoặc chưa Tạo phòng |
+| "Khác phiên bản game: máy chủ 54, máy bạn 53" | cập nhật cho cùng một bản game |
+| "Trong phòng đang có người dùng tên này" | đổi tên, hoặc đợi vài giây nếu là chính bạn vừa rớt mạng |
+| "Phòng đã đầy" | phòng có sẵn chủ cộng 7 bạn |
+| "Không mở được phòng ở cổng 7777" (chủ phòng) | đang có phòng khác hoặc chương trình khác dùng cổng; đổi bằng `-port` |
+
+### Cách hoạt động và băng thông
+
+Server vẫn là nơi duy nhất quyết định trạng thái; mạng chỉ là một đường ống nữa tới nó (`internal/netplay`, TCP, cổng 7777). Bắt tay bằng vài byte thuần (nhận ra khác phiên bản kể cả khi kiểu tin nhắn đã đổi), sau đó chiều lên (client gửi phím bấm khi đổi, lệnh) là khung có độ dài tối đa 64 KB, mỗi khung một tin gob; chiều xuống (server gửi) là một luồng gob nén DEFLATE xuyên suốt kết nối, xả sau mỗi tin, nên mỗi snapshot (20 lần một giây, chỉ gồm thứ trong bán kính nhìn của người chơi) chỉ tốn phần khác so với snapshot trước. Đo ở `go test -v -run TestBandwidth ./internal/netplay` (chủ phòng cộng 3 bạn, thế giới 256, khoảng 60 con thú trong tầm nhìn): xuống khoảng **9 KB/giây, tức khoảng 70 kbit/giây mỗi người**; lên dưới 0,1 KB/giây. Lúc vào phòng, bản đồ cả thế giới (nén) gửi một lần: thế giới khổng lồ 2048 × 2048 (kèm tầng hang, 12,8 triệu ô) nén còn khoảng **1,25 MB** (đo bằng `NETPLAY_BIG=1 go test -v -run TestWelcomeOfAColossalWorld ./internal/netplay`, 0,3 giây trên máy cục bộ), cỡ 1024 chỉ vài trăm KB; qua Internet là vài giây chờ ở màn hình "Đang tải". Máy nào đọc chậm thì bị bỏ bớt snapshot cũ (chỉ giữ cái mới nhất), không bao giờ làm chậm vòng lặp của server; kết nối im lặng 12 giây thì bị cắt.
 
 ## Chế độ dev
 
@@ -429,11 +493,12 @@ Giáp may từ đồ săn được; chỉ bộ tốt nhất trong túi có tác 
     internal/sim        luật chơi: sinh map, người chơi, tài nguyên, chế tạo, ngày/đêm
     internal/protocol   message giữa client và server
     internal/server     vòng tick 20Hz, kết nối, snapshot theo bán kính quan tâm
+    internal/netplay    chơi chung qua TCP: bắt tay kiểm tra phiên bản, nén luồng snapshot, `Listen` cho chủ phòng, `Dial` cho người vào
     internal/client     Ebitengine: input, vẽ, ánh sáng, HUD; nhân vật theo ngoại hình ở `look.go`, màn hình tạo nhân vật ở `charcreate.go`
 
 - `sim` không biết gì về đồ hoạ hay mạng, chỉ tính theo tick, nên test được và chạy được trong server riêng.
 - Server là nơi duy nhất quyết định trạng thái. Client gửi input, nhận snapshot và vẽ nội suy giữa hai snapshot gần nhất.
-- Chơi 1 người vẫn đi qua đúng ranh giới client–server (`server.ConnectLocal`). Thêm co-op LAN là viết một transport TCP thoả `client.Conn`, không đụng tới luật chơi.
+- Chơi 1 người vẫn đi qua đúng ranh giới client–server (`server.ConnectLocal`). Chơi chung qua mạng là một transport TCP thoả `client.Conn` (`internal/netplay`: `Listen` đặt server đang chạy lên mạng, mỗi người vào đi qua `server.ConnectRemote`; `Dial` là phía client), không đụng tới luật chơi: xem [Chơi chung qua mạng](#chơi-chung-qua-mạng).
 
 ## Test
 
