@@ -240,8 +240,7 @@ func (g *Game) drawWorld(screen, canvas *ebiten.Image, cam camera, scale, rr, cw
 func (g *Game) drawAfterWorld(screen *ebiten.Image, cam camera, scale, sw, sh int, alpha float64, target, far targetView) {
 
 	vop := &ebiten.DrawImageOptions{}
-	vb := g.art.vignette.Bounds()
-	vop.GeoM.Scale(float64(sw)/float64(vb.Dx()), float64(sh)/float64(vb.Dy()))
+	stretchOver(&vop.GeoM, g.art.vignette.Bounds(), sw, sh) // to the very edge: see overlay.go
 	vop.ColorScale.ScaleAlpha(0.38)
 	vop.Filter = ebiten.FilterLinear
 	screen.DrawImage(g.art.vignette, vop)

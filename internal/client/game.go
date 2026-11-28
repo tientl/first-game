@@ -155,6 +155,7 @@ type Game struct {
 	hd       *heroHDState  // the trial hero's frames and lights; see herohddraw.go
 	caveMask *ebiten.Image // one pixel per tile in view: where it is always dark
 	lavaMask *ebiten.Image // one pixel per tile in view: where lava glows
+	caveDark caveDarkState // the light of the natural caves this frame; see cavedark.go
 	canopy   *ebiten.Image // one pixel per tile in view: where the woods shade the ground
 	drawList []drawable
 	figures  []figure                 // who may be hidden behind a tree or a wall this frame; see occlude.go

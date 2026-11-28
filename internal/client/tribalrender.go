@@ -614,7 +614,7 @@ func (g *Game) drawLightning(dst drawTarget, cam camera) {
 	if flash > 0 {
 		b := dst.Bounds()
 		a := uint8(105 * flash)
-		fillRect(dst, 0, 0, float32(b.Dx()), float32(b.Dy()), color.RGBA{a, a, a, a}, false)
+		fillRect(dst, -overlayMargin, -overlayMargin, float32(b.Dx()+2*overlayMargin), float32(b.Dy()+2*overlayMargin), color.RGBA{a, a, a, a}, false) // the margin: see overlay.go
 	}
 }
 

@@ -76,8 +76,8 @@ func TestAnOldSettingsFileLoads(t *testing.T) {
 	if s.Music != 0.3 || s.Effects != 0.5 || s.Voices != 0.5 || s.Master != 1 {
 		t.Errorf("volumes from an old file: %+v", s)
 	}
-	if s.Zoom != 2 || viewZoom != 2 || s.Ground != "warm" || groundStyle != GroundWarm {
-		t.Errorf("zoom %d (view %d), ground %q (%v) from an old file", s.Zoom, viewZoom, s.Ground, groundStyle)
+	if s.Zoom != 2 || viewZoom != 2 || groundStyle != GroundGreen {
+		t.Errorf("zoom %d (view %d), ground %v from an old file: the warm ground is no longer a setting", s.Zoom, viewZoom, groundStyle)
 	}
 	if s.Window != WindowFullscreen || s.Quality != 100 || !s.VSync || s.NoShake {
 		t.Errorf("what an old file lacks is not the default: %+v", s)
@@ -94,7 +94,7 @@ func TestSettingsSurviveARestart(t *testing.T) {
 		s.Master, s.Voices, s.MuteUnfocused = 0.7, 0.25, true
 		s.Window, s.Width, s.Height = WindowWindowed, 1600, 900
 		s.Quality, s.UIScale, s.FPS, s.VSync = 75, 150, 60, false
-		s.Zoom, s.NoShake, s.PostFX, s.Ground = -1, true, true, "warm"
+		s.Zoom, s.NoShake, s.PostFX, s.Brightness = -1, true, true, 2
 	})
 	want := CurrentSettings()
 	if got := readSettingsFile(t, path); got != want {
@@ -287,13 +287,13 @@ func TestTheSettingsScreenChangesTheSettings(t *testing.T) {
 	s.step(row(rowWindow), 1)
 	s.step(row(rowZoom), 1)
 	flip(rowShake)
-	s.step(row(rowGround), 1)
+	s.step(row(rowBrightness), 1)
 	st := CurrentSettings()
-	if st.Quality != 75 || st.Window != WindowBorderless || st.Zoom != 1 || !st.NoShake || st.Ground != "warm" {
+	if st.Quality != 75 || st.Window != WindowBorderless || st.Zoom != 1 || !st.NoShake || st.Brightness != 1 {
 		t.Errorf("display: %+v", st)
 	}
-	if screenShake || groundStyle != GroundWarm || viewZoom != 1 {
-		t.Errorf("not in force: shake %v, ground %v, zoom %d", screenShake, groundStyle, viewZoom)
+	if screenShake || brightnessSetting() != 1 || viewZoom != 1 {
+		t.Errorf("not in force: shake %v, brightness %d, zoom %d", screenShake, brightnessSetting(), viewZoom)
 	}
 	s.step(row(rowUIScale), 1) // Tự động → 100%
 	if CurrentSettings().UIScale != 100 || uiScaleSetting != 1 {
@@ -302,7 +302,7 @@ func TestTheSettingsScreenChangesTheSettings(t *testing.T) {
 
 	s.resetTab() // the display's settings back; the sound's stay
 	st = CurrentSettings()
-	if st.Quality != 100 || st.Window != WindowFullscreen || st.Zoom != 0 || st.NoShake || st.Ground != "" || st.UIScale != 0 {
+	if st.Quality != 100 || st.Window != WindowFullscreen || st.Zoom != 0 || st.NoShake || st.Brightness != 0 || st.UIScale != 0 {
 		t.Errorf("after Mặc định on Hiển thị: %+v", st)
 	}
 	if st.Master != 0.95 || !st.MuteUnfocused {
