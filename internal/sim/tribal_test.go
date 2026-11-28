@@ -21,11 +21,18 @@ func TestFelledTreeDropsWoodAndBranchesToPickUp(t *testing.T) {
 	if wood != TreeYield {
 		t.Fatalf("%d wood on the ground, want %d", wood, TreeYield)
 	}
-	// Holding Space and walking past, the piles in reach are picked up one by one.
-	w.SetInput(id, Input{Action: true, MoveX: 1})
-	stepN(w, TicksPerSecond/2)
-	w.SetInput(id, Input{Action: true})
-	stepN(w, 2*TicksPerSecond)
+	// Holding E and walking past, the piles in reach are picked up one by one:
+	// the client sends CmdPickUp every PickCooldown (see pickup.go).
+	w.SetInput(id, Input{MoveX: 1})
+	for i := range TicksPerSecond/2 + 2*TicksPerSecond {
+		if i == TicksPerSecond/2 {
+			w.SetInput(id, Input{})
+		}
+		if i%PickCooldown == 0 {
+			w.Apply(id, Command{Kind: CmdPickUp})
+		}
+		w.Step()
+	}
 	if got := w.players[id].Inv.Count(ItemWood); got != TreeYield {
 		t.Fatalf("picked up %d wood, want %d", got, TreeYield)
 	}

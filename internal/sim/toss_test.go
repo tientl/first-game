@@ -115,14 +115,13 @@ func TestTossAtFeetWhenTheFrontIsBlocked(t *testing.T) {
 	}
 }
 
-func TestTossedPileIsPickedUpBySpaceAndByOthers(t *testing.T) {
+func TestTossedPileIsPickedUpByEAndByOthers(t *testing.T) {
 	w, p := tossWorld()
 	w.Apply(p.ID, Command{Kind: CmdToss, Slot: 0, Count: 3})
-	w.SetInput(p.ID, Input{Action: true})
+	w.Apply(p.ID, Command{Kind: CmdInteract}) // E; see pickup.go
 	w.Step()
-	w.SetInput(p.ID, Input{})
 	if p.Inv.Count(ItemStone) != 5 || len(w.drops) != 0 {
-		t.Fatalf("stone %d, %d piles after Space: want it back", p.Inv.Count(ItemStone), len(w.drops))
+		t.Fatalf("stone %d, %d piles after E: want it back", p.Inv.Count(ItemStone), len(w.drops))
 	}
 
 	w.Apply(p.ID, Command{Kind: CmdToss, Slot: 0, Count: 3})

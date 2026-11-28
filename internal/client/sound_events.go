@@ -51,6 +51,9 @@ func (g *Game) snapshotSounds(old, cur protocol.Snapshot) {
 		if !p.Acting || wasActing[p.ID] || wasFishing[p.ID] {
 			continue // a strike on a line is heard in fishingSounds
 		}
+		if pickedUp(old, cur, p) {
+			continue // E picked something up: no blow; my own pick-up is heard from the bag below
+		}
 		hasWood := true
 		if p.ID == g.myID {
 			hasWood = old.Self.Inv.HasFuel()

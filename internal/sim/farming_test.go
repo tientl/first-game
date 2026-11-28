@@ -13,8 +13,7 @@ func TestPebblesArePickedByHand(t *testing.T) {
 	w := flatWorld()
 	pebble := w.addEntity(EntityPebble, 17, 16)
 	id := w.AddPlayer("a")
-	w.SetInput(id, Input{Action: true})
-	w.Step()
+	w.Apply(id, Command{Kind: CmdInteract}) // E picks it up: see pickup.go
 	if p := mustPlayer(t, w, id); p.Inv.Count(ItemPebble) != PebbleYield || pebble.Ready {
 		t.Fatalf("pebbles %d, still lying there %v: want it picked in one go", p.Inv.Count(ItemPebble), pebble.Ready)
 	}
