@@ -84,7 +84,12 @@ import (
 //     fallen through the chest), walking skeletons, egg sacs, hazards. Nothing
 //     older changes, but an older game would make the wrong world of such a
 //     save, so it must refuse it.
-const SaveVersion = 29
+//   - 30: worlds of StyleLairs: Titanoboa's temple and the Megalodon's atoll
+//     (temple.go, atoll.go), and the deep pockets of the sea no ponds
+//     (PondMaskFor). An older save has the lilies and lotus that grew on
+//     water joined to the sea pulled up once on loading (pullSeaLilies);
+//     its lairs stay as they were made.
+const SaveVersion = 30
 
 // v6DayTicks is how long a day was in saves before version 7, and
 // v12DayTicks before version 13.
@@ -394,6 +399,9 @@ func Load(d SaveData) (*World, error) {
 			w.entities[e.ID] = &ent
 			w.occ[e.TY*w.width+e.TX] = e.ID
 		}
+	}
+	if d.Version < 30 {
+		w.pullSeaLilies() // lilies and lotus that grew on the sea: see flora.go
 	}
 	for _, ps := range d.Players {
 		if d.Version < 4 {

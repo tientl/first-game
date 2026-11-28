@@ -55,12 +55,12 @@ func TestDumpDinoReview(t *testing.T) {
 			c, ax, ay, _ := rigCanvas(r, p)
 			return c, ax, ay
 		}
-		base := dinoImage(r.file, false)
+		_, bw, bh, _ := rigAsDrawn(r)
 		k := HDDensity
 		if !dinoHD {
 			k = 1
 		}
-		cw, ch := (base.w+50)*k, (base.h+30)*k // a cell, the anchor at the same place in each
+		cw, ch := (bw+50)*k, (bh+30)*k // a cell, the anchor at the same place in each
 		const perRow = 6
 		var lines [][]rigPose
 		for _, row := range rows {

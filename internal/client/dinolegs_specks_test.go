@@ -12,6 +12,7 @@ func TestStridesLeaveNoSpecks(t *testing.T) {
 	limit := map[string]float64{"rex": 14, "trike": 14, "toro": 14, "stego": 14, "brachio": 14, "ankylo": 14, "thesc": 40}
 	for _, sp := range []string{"dakota", "achero", "troodon", "ornitho", "anzu", "rex", "thesc", "trike", "toro", "stego", "brachio", "ankylo"} {
 		r := dinoRigs[sp]
+		dr, _, _, grow := rigAsDrawn(r) // a grown painting has as many more pixels round its edge
 		hair, frames := 0, 0
 		for _, amp := range []float64{1, 1.25, 1.4} {
 			for f := range gaitFrames {
@@ -22,13 +23,13 @@ func TestStridesLeaveNoSpecks(t *testing.T) {
 				if n := looseBits(c, 3*max(1, c.dens)); n > 0 {
 					t.Errorf("%s, stride %.2f frame %d: %d loose bits of pixels", sp, amp, f, n)
 				}
-				hair += hairlines(c, (r.legs[0].top-1)*max(1, c.dens))
+				hair += hairlines(c, (dr.legs[0].top-1)*max(1, c.dens))
 				frames++
 			}
 		}
-		most := limit[sp]
+		most := limit[sp] * grow
 		if most == 0 {
-			most = 10
+			most = 10 * grow
 		}
 		if per := float64(hair) / float64(frames); per > most {
 			t.Errorf("%s: %.1f hairline pixels below the hips a frame (at most %g)", sp, per, most)

@@ -67,6 +67,28 @@ func arenaRadius(k CreatureKind) float64 {
 	return 0
 }
 
+// arenaR is how far from lair l (of boss k) its fight is shut in: the
+// courtyard's edge, the water just past the atoll's reef, or as in the
+// older worlds.
+func (l *bossLair) arenaR(k CreatureKind) float64 {
+	switch l.site.layout {
+	case LayoutTemple:
+		return l.site.r
+	case LayoutAtoll:
+		return l.site.r + 1
+	}
+	return arenaRadius(k)
+}
+
+// lairStage is the stage of the fight at lair l: its boss's (SkillStage),
+// 0 while it sleeps.
+func (w *World) lairStage(l *bossLair) int {
+	if l.c == nil || !l.awake {
+		return 0
+	}
+	return l.c.SkillStage()
+}
+
 // LairStatus is a lair as the players near it are shown it.
 type LairStatus struct {
 	Kind     CreatureKind
@@ -75,6 +97,18 @@ type LairStatus struct {
 	Closed   bool    // the arena is shut
 	Awake    bool    // its boss is in a fight
 	Defeated bool
+
+	// Since StyleLairs (lairsite.go): its layout, the temple's pool, the
+	// atoll's lagoon, its landmark, its camp, and how its fight stands.
+	Layout                       LairLayout
+	PoolX, PoolY, PoolRX, PoolRY float64
+	Lagoon                       float64
+	MarkX, MarkY                 float64
+	Camp                         bool
+	CampX, CampY                 float64
+	Stage                        int
+	Flooded                      bool
+	RX, RY                       float64 // the bounds a view of its fight is kept in: see viewRX
 }
 
 // LairsNear returns the lairs within r tiles of player id.
@@ -91,7 +125,12 @@ func (w *World) LairsNear(id PlayerID, r float64) []LairStatus {
 		}
 		k := BossKind(i)
 		out = append(out, LairStatus{
-			Kind: k, X: l.x, Y: l.y, Radius: arenaRadius(k),
+			Kind: k, X: l.x, Y: l.y, Radius: l.arenaR(k), Layout: l.site.layout,
+			PoolX: l.site.poolX, PoolY: l.site.poolY, PoolRX: l.site.poolRX, PoolRY: l.site.poolRY,
+			Lagoon: l.site.lagoon, MarkX: l.site.markX, MarkY: l.site.markY,
+			Camp: l.site.camp, CampX: l.site.campX, CampY: l.site.campY,
+			Stage: w.lairStage(l), Flooded: w.flooded(l),
+			RX: l.viewRX(), RY: l.viewRY(),
 			Closed: l.arena, Awake: l.awake && l.c != nil, Defeated: l.defeated,
 		})
 	}
@@ -108,12 +147,15 @@ func ArenaTile(lx, ly, r float64, tx, ty int) bool {
 // arenaBlocks reports whether risen roots stand on tile (tx, ty).
 func (w *World) arenaBlocks(tx, ty int) bool {
 	l := &w.bosses.lairs[0] // only Titanoboa's ring is a wall
-	return l.arena && ArenaTile(l.x, l.y, TitanArena, tx, ty)
+	if l.site.layout == LayoutTemple {
+		return l.arena && ArenaTileShape(LayoutTemple, l.x, l.y, l.site.rx, l.site.ry, tx, ty)
+	}
+	return l.arena && ArenaTile(l.x, l.y, l.arenaR(CreatureTitanoboa), tx, ty)
 }
 
 // stepArena shuts and opens boss k's arena, once a tick.
 func (w *World) stepArena(l *bossLair, k CreatureKind) {
-	r := arenaRadius(k)
+	r := l.arenaR(k)
 	if r == 0 {
 		return
 	}
@@ -129,7 +171,13 @@ func (w *World) stepArena(l *bossLair, k CreatureKind) {
 		return
 	}
 	l.arenaT++
-	if foe := w.players[l.foe]; foe == nil || foe.Dead || math.Hypot(foe.X-c.X, foe.Y-c.Y) > arenaCalmDist {
+	far := func(p *Player) bool {
+		if l.site.layout != LayoutHollow { // at the temple, the atoll: only gone out of the arena
+			return math.Hypot(p.X-l.x, p.Y-l.y) > r+2
+		}
+		return math.Hypot(p.X-c.X, p.Y-c.Y) > arenaCalmDist
+	}
+	if foe := w.players[l.foe]; foe == nil || foe.Dead || far(foe) {
 		l.calm++
 	} else {
 		l.calm = 0
@@ -267,7 +315,7 @@ func (w *World) megaIdle(c *Creature, l *bossLair) {
 // world saved before the lairs were dressed.
 func (w *World) dressLairs() {
 	for i := range w.bosses.lairs {
-		if l := &w.bosses.lairs[i]; l.ok {
+		if l := &w.bosses.lairs[i]; l.ok && l.site.layout == LayoutHollow { // the temple and the atoll dress themselves
 			switch BossKind(i) {
 			case CreatureTitanoboa:
 				w.dressTitanLair(l)
@@ -400,4 +448,24 @@ func (w *World) raiseSandbar(l *bossLair) {
 		l.bar, l.barX, l.barY = true, cx, cy
 		return
 	}
+}
+
+// viewRX and viewRY are the half widths of the bounds a view of the fight
+// at lair l is kept in (the client's camera, in a fight): the courtyard, or
+// the atoll to its shelf; 0 for a lair of the older worlds.
+func (l *bossLair) viewRX() float64 {
+	switch l.site.layout {
+	case LayoutTemple:
+		return l.site.rx
+	case LayoutAtoll:
+		return AtollLagoon + AtollReef + 2.5
+	}
+	return 0
+}
+
+func (l *bossLair) viewRY() float64 {
+	if l.site.layout == LayoutTemple {
+		return l.site.ry
+	}
+	return l.viewRX()
 }

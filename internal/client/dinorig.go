@@ -36,6 +36,80 @@ var dinoFiles embed.FS
 // drawing whichever is used, and so are its poses.
 var dinoHD = true
 
+// dinoGrow is how much bigger than its density-1 drawing a species is
+// painted in dinos/hd: dinopaint's Species.K over HDDensity (they must
+// agree). The painting has that much more detail, not bigger pixels; the
+// rig, measured on the small drawing, is scaled to it (rigAsDrawn), and so
+// is everything measured on the design (beastScale).
+var dinoGrow = map[string]float64{
+	"trike":   10.0 / 9, // 1.7 players tall
+	"stego":   1.2,      // twice a player
+	"rex":     1.25,     // nearly three players
+	"brachio": 5.5 / 3,  // six and a half
+}
+
+// grownSize is how big the painting of a drawing n pixels across is when
+// grown g times: whole art pixels, rounded up (dinopaint.Size).
+func grownSize(n int, g float64) int {
+	return HDDensity * int(math.Ceil(float64(n)*g-1e-9))
+}
+
+// growOf is how much bigger than its drawing the rig of file is drawn: 1
+// unless its HD painting is grown.
+func growOf(file string) float64 {
+	if g, ok := dinoGrow[file]; ok && dinoHD {
+		return g
+	}
+	return 1
+}
+
+// grown is r measured on its drawing grown g times.
+func (r dinoRig) grown(g float64) dinoRig {
+	pt := func(q rigPt) rigPt { return rigPt{q.x * g, q.y * g} }
+	part := func(q rigPart) rigPart {
+		q.pivot = pt(q.pivot)
+		q.maxY *= g
+		return q
+	}
+	col := func(x int) int { return int(math.Round(float64(x) * g)) }
+	r.ax, r.ay = r.ax*g, r.ay*g
+	legs := make([]rigLimb, len(r.legs))
+	for i, l := range r.legs {
+		l.x0, l.x1, l.top = col(l.x0), col(l.x1+1)-1, col(l.top)
+		j := make([]rigPt, len(l.j))
+		for k, q := range l.j {
+			j[k] = pt(q)
+		}
+		l.j, l.r = j, l.r*g
+		legs[i] = l
+	}
+	r.legs = legs
+	r.stride *= g
+	r.head, r.neck, r.tail = part(r.head), part(r.neck), part(r.tail)
+	for i := range r.wings {
+		r.wings[i] = part(r.wings[i])
+	}
+	r.jaw = [2]rigPt{pt(r.jaw[0]), pt(r.jaw[1])}
+	return r
+}
+
+// rigAsDrawn is r as the drawing it moves is shown: grown with its HD
+// painting (dinoGrow), with the size of that drawing in its pixels.
+func rigAsDrawn(r dinoRig) (rig dinoRig, w, h int, g float64) {
+	low := dinoImage(r.file, false)
+	if low == nil {
+		return r, 0, 0, 1
+	}
+	g = growOf(r.file)
+	if g == 1 {
+		return r, low.w, low.h, 1
+	}
+	if hd := dinoImage(r.file, true); hd == nil || hd.w != grownSize(low.w, g) || hd.h != grownSize(low.h, g) {
+		return r, low.w, low.h, 1 // not painted grown (yet): as drawn
+	}
+	return r.grown(g), grownSize(low.w, g) / HDDensity, grownSize(low.h, g) / HDDensity, g
+}
+
 type rigPt struct{ x, y float64 }
 
 // rigLimb is a leg: columns x0 to x1, from row top down to the feet. j is
@@ -130,6 +204,7 @@ type rigPose struct {
 	tilt   float64 // the whole body, radians, + = nose down
 	lift   float64 // pixels off the ground
 	sweep  float64 // the tail swung sideways about its root, radians, + = towards the viewer (ankylorig.go)
+	limp   float64 // a body falling dead, 0 to 1: the legs go loose (corpseart.go)
 }
 
 var (
@@ -178,25 +253,33 @@ func rigCanvas(r dinoRig, p rigPose) (c *canvas, ax, ay float64, ok bool) {
 		return nil, 0, 0, false
 	}
 	base, k := low, 1
+	lowH, grow := low.h, 1.0
 	if dinoHD {
-		if hd := dinoImage(r.file, true); hd != nil && hd.w == low.w*HDDensity && hd.h == low.h*HDDensity {
+		gr, _, gh, g := rigAsDrawn(r)
+		if hd := dinoImage(r.file, true); hd != nil && hd.w == grownSize(low.w, g) && hd.h == grownSize(low.h, g) {
 			base, k = hd, HDDensity
+			r, lowH, grow = gr, gh, g // a painting grown bigger than its drawing: the rig grown with it
+			p.lift *= g
 		}
 	}
 	kf := float64(k)
 	pad := 48 * k // room for a pose to reach past the drawing
+	if grow != 1 {
+		pad = int(math.Ceil(48*grow)) * k
+	}
 	w := newCanvas(base.w+2*pad, base.h+2*pad)
 	w.over(base, pad, pad)
 	ax0, ay0 := r.ax, r.ay
 	if ax0 == 0 && ay0 == 0 {
 		ax0, ay0 = underFeet(low) // from the density-1 drawing: the anchor is the same at any density
+		ax0, ay0 = ax0*grow, ay0*grow
 	}
 	gx, gy := ax0*kf+float64(pad), ay0*kf+float64(pad)
-	joint := max(4, float64(low.h)/12) * kf // how deep a band of the neck fills its joint
+	joint := max(4, float64(lowH)/12) * kf // how deep a band of the neck fills its joint
 
 	bob := 0.0      // how far the body has sunk on its legs, in canvas pixels
 	var legs []bool // the pixels the legs drew, which no other part takes when it turns
-	if (p.step != 0 || p.cycle != 0) && len(r.legs) > 0 {
+	if (p.step != 0 || p.cycle != 0 || p.limp != 0) && len(r.legs) > 0 {
 		if r.jointed() {
 			bob, legs = stepJoints(w, r, p, pad, k)
 		} else {

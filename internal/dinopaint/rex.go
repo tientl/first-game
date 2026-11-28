@@ -68,6 +68,7 @@ func rex() *Species {
 	)
 	return &Species{
 		Name:        "rex",
+		K:           3.75, // nearly three players tall
 		GuideDetail: 0.3,
 		Ink:         44,
 		// The guide's toes and hand are drawn again, toe by toe and finger by

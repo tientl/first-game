@@ -7,8 +7,23 @@ import (
 	"math"
 )
 
-// K is how much finer the painting is than its guide (HDDensity).
-const K = 3
+// K is how much finer the painting in progress is than its guide: Dens, or
+// more for a species drawn bigger than its guide (Species.K). New sets it;
+// the painter paints one species at a time.
+var K = 3.0
+
+// Dens is HDDensity: the game shows a painting at this many image pixels to
+// an art pixel, so one painted at K > Dens comes out K / Dens times as big
+// as its guide.
+const Dens = 3
+
+// Size is how big a painting of a guide w by h is at k image pixels to a
+// guide pixel, rounded up to whole art pixels (Dens image pixels): one
+// bigger than its guide is padded on the right and at the bottom.
+func Size(w, h int, k float64) (int, int) {
+	up := func(n int) int { return Dens * int(math.Ceil(float64(n)*k/Dens-1e-9)) }
+	return up(w), up(h)
+}
 
 type vec3 struct{ x, y, z float64 }
 
@@ -69,7 +84,11 @@ func New(sp *Species, guide image.Image) *Painter {
 			p.GSolid[y*p.GW+x] = c.A >= 128
 		}
 	}
-	p.W, p.H = p.GW*K, p.GH*K
+	K = Dens
+	if sp.K > 0 {
+		K = sp.K
+	}
+	p.W, p.H = Size(p.GW, p.GH, K)
 	n := p.W * p.H
 	p.In, p.Mat, p.Part = make([]bool, n), make([]int, n), make([]int, n)
 	p.Nrm, p.Val, p.Out, p.Pro = make([]vec3, n), make([]float64, n), make([]color.NRGBA, n), make([]bool, n)
@@ -104,6 +123,11 @@ func Paint(sp *Species, guide image.Image) (*image.NRGBA, *Painter) {
 // G is the guide position of the centre of image pixel (px, py).
 func G(px, py int) (float64, float64) {
 	return (float64(px) + 0.5) / K, (float64(py) + 0.5) / K
+}
+
+// mid is the index of the image pixel in the middle of guide pixel (x, y).
+func (p *Painter) mid(x, y int) int {
+	return int((float64(y)+0.5)*K)*p.W + int((float64(x)+0.5)*K)
 }
 
 // Idx is the index of image pixel (x, y), or -1 off the picture.
@@ -173,13 +197,14 @@ func (p *Painter) silhouette() {
 		return x >= 0 && y >= 0 && x < p.GW && y < p.GH && p.GSolid[y*p.GW+x]
 	}
 	thin := func(px, py int) bool {
-		gx, gy := px/K, py/K
+		gx, gy := int(float64(px)/K), int(float64(py)/K)
 		if !solid(gx, gy) {
 			return false
 		}
 		narrowX := !solid(gx-1, gy) && !solid(gx+1, gy)
 		narrowY := !solid(gx, gy-1) && !solid(gx, gy+1)
-		return (narrowX && px%K == K/2) || (narrowY && py%K == K/2)
+		mid := func(p, g int) bool { return p == int((float64(g)+0.5)*K) } // the middle of its guide pixel
+		return (narrowX && mid(px, gx)) || (narrowY && mid(py, gy))
 	}
 	for py := 0; py < p.H; py++ {
 		for px := 0; px < p.W; px++ {

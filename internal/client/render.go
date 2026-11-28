@@ -127,14 +127,22 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if !g.demo {
 		scale = worldScale(sh)
 	}
-	cw, ch := (sw+scale-1)/scale, (sh+scale-1)/scale
+	// In a boss fight the view draws back a little (lairfight.go): the world
+	// is drawn as for a screen 1/pull times as big and shrunk onto this one.
+	pull := 1.0
+	if !g.demo && g.lf.pull > 0 && g.lf.pull < 0.999 {
+		pull = g.lf.pull
+	}
+	g.lf.drawPull = pull
+	vw, vh := int(math.Ceil(float64(sw)/pull)), int(math.Ceil(float64(sh)/pull))
+	cw, ch := (vw+scale-1)/scale, (vh+scale-1)/scale
 	// The render quality may draw it on a smaller canvas, rr canvas pixels
 	// to an art pixel, blown up to the screen after: see display.go.
 	rr := renderScale(scale)
 	canvas := screen
 	frozen := g.frozen() && !g.demo // a hit-stop: the world as it was at the blow; see feel.go
-	if rr < scale || (postFX || g.stop.capture) && !g.demo {
-		w, h := renderSize(sw, sh, scale, rr)
+	if pull < 1 || rr < scale || (postFX || g.stop.capture) && !g.demo {
+		w, h := renderSize(vw, vh, scale, rr)
 		canvas = sizedImage(&g.worldHi, w, h)
 		canvas.Fill(color.RGBA{14, 18, 28, 255})
 	}
@@ -156,6 +164,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	if !g.demo {
 		cx, cy = g.introCamera(cx, cy) // a boss waking: see bossintro.go
+		cx, cy = g.arenaCamera(cx, cy, float64(cw)/2/TileW, float64(ch)/2/TileH) // in a fight the screen is all arena: see lairfight.go
 		sx, sy := shake(g.frame)       // heavy blows, roars, stomps; see feel.go
 		cx, cy = cx+sx, cy+sy
 	}
@@ -165,7 +174,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	cam := newCamera(cx, cy, cw, ch, sub)
 	if !g.demo {
-		g.ptr.cam, g.ptr.scale, g.ptr.sw, g.ptr.sh, g.ptr.drawn = cam, float64(scale), sw, sh, true // see mouse.go
+		g.ptr.cam, g.ptr.scale, g.ptr.sw, g.ptr.sh, g.ptr.drawn = cam, float64(scale)*pull, sw, sh, true // see mouse.go
 	}
 	g.updateCave() // before anything hides under, or shows from, a cave roof
 	target, far := g.target()
@@ -176,7 +185,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	} else {
 		g.drawWorld(screen, canvas, cam, scale, rr, cw, ch, alpha, target)
 	}
-	g.drawAfterWorld(screen, cam, scale, sw, sh, alpha, target, far)
+	g.drawAfterWorld(screen, cam, float64(scale)*pull, sw, sh, alpha, target, far)
 }
 
 // drawWorld draws the world on canvas, rr canvas pixels to an art pixel, and
@@ -226,6 +235,17 @@ func (g *Game) drawWorld(screen, canvas *ebiten.Image, cam camera, scale, rr, cw
 		if postFX && !g.demo {
 			img = g.applyPost(canvas, rr) // see postfx.go
 		}
+		if pull := g.lf.drawPull; pull < 0.999 { // drawn back: shrunk onto the screen
+			up := sizedImage(&g.lf.up, screen.Bounds().Dx(), screen.Bounds().Dy())
+			up.Clear()
+			op := &ebiten.DrawImageOptions{Filter: ebiten.FilterLinear}
+			k := float64(scale) / float64(rr) * pull
+			op.GeoM.Scale(k, k)
+			up.DrawImage(img, op)
+			screen.DrawImage(up, nil)
+			g.keepStop(up)
+			return
+		}
 		if rr < scale && g.stop.capture {
 			// The picture a hit-stop holds is kept at the screen's size.
 			img, rr = upscaleWorld(&g.worldUp, img, screen.Bounds().Dx(), screen.Bounds().Dy(), scale, rr), scale
@@ -237,7 +257,7 @@ func (g *Game) drawWorld(screen, canvas *ebiten.Image, cam camera, scale, rr, cw
 
 // drawAfterWorld draws what goes over the world: the vignette, labels and
 // the interface.
-func (g *Game) drawAfterWorld(screen *ebiten.Image, cam camera, scale, sw, sh int, alpha float64, target, far targetView) {
+func (g *Game) drawAfterWorld(screen *ebiten.Image, cam camera, fs float64, sw, sh int, alpha float64, target, far targetView) {
 
 	vop := &ebiten.DrawImageOptions{}
 	stretchOver(&vop.GeoM, g.art.vignette.Bounds(), sw, sh) // to the very edge: see overlay.go
@@ -248,11 +268,12 @@ func (g *Game) drawAfterWorld(screen *ebiten.Image, cam camera, scale, sw, sh in
 	if g.demo {
 		return
 	}
-	g.drawCombat(screen, cam, float64(scale), alpha) // see combatui.go
-	g.drawWorldLabels(screen, cam, float64(scale), target)
-	g.drawAimCues(screen, cam, float64(scale), target, far) // see mouse.go
-	g.drawDigLabel(screen, cam, float64(scale))
-	g.drawFishingLabels(screen, cam, float64(scale))
+	g.drawCombat(screen, cam, fs, alpha) // see combatui.go
+	g.drawWorldLabels(screen, cam, fs, target)
+	g.drawAimCues(screen, cam, fs, target, far) // see mouse.go
+	g.drawDigLabel(screen, cam, fs)
+	g.drawFishingLabels(screen, cam, fs)
+	g.drawBossArrow(screen, cam, fs, sw, sh) // the boss off the screen: see lairfight.go
 	g.drawBossIntro(screen, sw, sh) // letterbox and title card; see bossintro.go
 
 	g.drawInterface(screen)
@@ -800,7 +821,7 @@ func (g *Game) drawEntity(dst drawTarget, e protocol.EntityView, d drawable) {
 		}
 		drawAt(dst, g.art.campFront, d.sx, d.sy, 1, 1, 0, nil)
 	}
-	if e.Kind == sim.EntityFurnace && e.Fuel > 0 && !g.drawFireOf(dst, e, fireMouth, d.sx, d.sy-1) {
+	if e.Kind == sim.EntityFurnace && e.Fuel > 0 && !g.drawFireOf(dst, e, fireMouth, d.sx, d.sy-2.5) {
 		f := g.art.flames[(g.frame/4+int(e.ID))%flameFrames]
 		drawAt(dst, f, d.sx, d.sy-1, 0.45, 0.4, 0, nil) // in its mouth
 	}

@@ -882,14 +882,16 @@ func creatureShadowBase(k sim.CreatureKind) float64 {
 		return 13
 	case sim.CreatureQuetzal:
 		return 20
-	case sim.CreatureRabbit, sim.CreatureMonkey:
-		return 12
+	case sim.CreatureRabbit:
+		return 12 * rabbitSize
+	case sim.CreatureMonkey:
+		return 12 * monkeySize
 	case sim.CreatureToad, sim.CreatureGlowToad:
-		return 10
+		return 10 * toadSize
 	case sim.CreatureSnake:
-		return 20
+		return 20 * snakeSize
 	case sim.CreatureCrab:
-		return 14
+		return 14 * crabSize
 	case sim.CreatureAnkylo:
 		return 36 // low and wide
 	case sim.CreatureTrike, sim.CreatureStego, sim.CreatureRex:
@@ -946,6 +948,9 @@ func (g *Game) drawCreature(dst drawTarget, c protocol.CreatureView, d drawable)
 		op.ColorScale.Scale(0.72, 0.86, 0.95, 1) // wading: seen through the shallows
 	}
 	op.GeoM.Translate(x-s.ax, d.sy-bob-s.ay)
+	if solid := g.seeThroughBeast(c, s, d); solid < 1 { // a long-neck in front of a player fades as a tree does; see occlude.go
+		op.ColorScale.ScaleAlpha(solid)
+	}
 	drawSprite(dst, s, op)
 	g.drawCaveBossBar(dst, c, d, s)
 	if r, gg, b, a := g.beastFlash(c.ID); a > 0 {
@@ -1057,6 +1062,10 @@ func (g *Game) drawFish(dst drawTarget, cam camera, alpha float64) {
 		}
 		if g.sharkAsleep(c) {
 			g.drawSleepingShark(dst, cam, c, alpha) // see lairrender.go
+			continue
+		}
+		if c.Kind == sim.CreatureTitanoboa && c.State == sim.CreatureLurk {
+			g.drawTitanUnder(dst, cam, c, alpha) // down in its pool: see lairfight.go
 			continue
 		}
 		if c.State == sim.CreatureLurk {
